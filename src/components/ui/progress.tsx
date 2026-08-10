@@ -72,14 +72,18 @@ export function Meter({ value, label, caption, size = 'md', tone = 'auto', class
         aria-label={label}
         aria-valuetext={formatPercent(target)}
         className={cn(
-          'w-full overflow-hidden rounded-sm bg-paper-sunken',
-          size === 'sm' ? 'h-1.5' : 'h-2.5',
+          'w-full overflow-hidden rounded-full bg-paper-sunken',
+          size === 'sm' ? 'h-2' : 'h-3',
         )}
       >
         <div
           className={cn(
-            'h-full rounded-sm transition-[width] duration-700 ease-sheet',
-            tone === 'primary' ? 'bg-primary' : toneFor(target),
+            'h-full rounded-full transition-[width] duration-[900ms] ease-soft',
+            // The brand tone is a gradient rather than a flat fill — on a bar
+            // this is the cheapest place in the product to show the palette.
+            tone === 'primary'
+              ? 'bg-gradient-to-r from-primary to-accent'
+              : toneFor(target),
           )}
           style={{ width: `${rendered * 100}%` }}
         />
@@ -126,8 +130,8 @@ export function ReadinessDial({
 
   return (
     <div className={cn('space-y-2', className)}>
-      <p className="text-[12.5px] font-medium uppercase tracking-wide text-ink-muted">{label}</p>
-      <p className="font-serif text-4xl font-semibold tabular-nums leading-none text-ink">
+      <p className="text-[11.5px] font-bold uppercase tracking-wider text-ink-faint">{label}</p>
+      <p className="text-gradient text-[40px] font-extrabold tabular-nums leading-none tracking-tight">
         {formatPercent(shown)}
       </p>
       {sublabel && <p className="text-[12.5px] leading-snug text-ink-muted">{sublabel}</p>}

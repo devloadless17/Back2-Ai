@@ -115,12 +115,12 @@ export default async function ExamResultsPage({
             <SheetHeader title={t.examSim.totalScore} />
             <SheetBody className="space-y-3">
               {max === null || max === 0 ? (
-                <p className="font-serif text-2xl font-semibold text-ink-faint">
+                <p className="text-2xl font-extrabold tracking-tight text-ink-faint">
                   {t.examSim.grading}
                 </p>
               ) : (
                 <>
-                  <p className="font-serif text-5xl font-semibold tabular-nums leading-none">
+                  <p className="text-5xl font-extrabold tracking-tight tabular-nums leading-none">
                     {total === null ? '—' : total}
                     <span className="text-2xl font-normal text-ink-faint">
                       {' / '}

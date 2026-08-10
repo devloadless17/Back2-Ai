@@ -208,7 +208,7 @@ async function main() {
       role: 'admin',
       displayName: 'Administrateur',
       trackId: sgTrackId,
-      preferredLanguage: 'fr',
+      preferredLanguage: 'en',
       country: 'LB',
       subscription: { create: { plan: 'free', status: 'pending' } },
     },
@@ -223,7 +223,7 @@ async function main() {
       role: 'student',
       displayName: 'Élève de démonstration',
       trackId: sgTrackId,
-      preferredLanguage: 'fr',
+      preferredLanguage: 'en',
       country: 'LB',
       // A demo account on the free plan with nothing charged — the same state a
       // new signup that skips the payment step lands in.

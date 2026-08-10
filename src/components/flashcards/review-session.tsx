@@ -161,10 +161,14 @@ export function ReviewSession({ cards }: { cards: DueCard[] }) {
         tone="primary"
       />
 
+      {/* The card leaves by falling away and shrinking rather than just fading:
+          at speed, a card that visibly departs is what makes a deck feel like a
+          deck instead of a list that keeps replacing its first item. */}
       <Sheet
+        hero
         className={cn(
-          'transition-[transform,opacity] duration-200 ease-sheet',
-          leaving ? 'translate-y-2 opacity-0' : 'animate-fade-up',
+          'transition-[transform,opacity] duration-200 ease-spring',
+          leaving ? 'translate-y-4 scale-95 opacity-0' : 'animate-pop-in',
         )}
       >
         <SheetHeader
@@ -183,7 +187,7 @@ export function ReviewSession({ cards }: { cards: DueCard[] }) {
         </SheetBody>
 
         {flipped && (
-          <SheetBody className="animate-fade-up border-t border-rule bg-paper-sunken/40">
+          <SheetBody className="animate-flip-in border-t border-rule bg-paper-sunken/40">
             <p className="mb-2 text-[12px] font-semibold uppercase tracking-wide text-ink-faint">
               {t.practice.solution}
             </p>
@@ -206,8 +210,10 @@ export function ReviewSession({ cards }: { cards: DueCard[] }) {
                     type="button"
                     onClick={() => gradeCard(value)}
                     className={cn(
-                      'flex flex-col items-center gap-0.5 rounded border bg-paper-raised px-3 py-2.5',
-                      'transition-colors duration-150 active:translate-y-px',
+                      'flex flex-col items-center gap-0.5 rounded-lg border-2 bg-paper-raised px-3 py-2.5 font-semibold',
+                      'transition-[transform,background-color,border-color] duration-200 ease-spring',
+                      'hover:-translate-y-1 hover:shadow-pop active:translate-y-0 active:scale-95',
+                      'motion-reduce:transform-none motion-reduce:hover:transform-none',
                       tone,
                     )}
                   >

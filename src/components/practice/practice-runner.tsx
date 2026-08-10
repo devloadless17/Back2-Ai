@@ -352,7 +352,13 @@ export function PracticeRunner({
             : 'partial';
 
     return (
-      <Sheet className="animate-fade-up">
+      // A full-marks answer gets a pulsing ring for a moment. It is the only
+      // celebration in the product and it is deliberately small — this is a
+      // revision tool, and confetti after every correct answer stops meaning
+      // anything by the fourth question.
+      <Sheet
+        className={cn('animate-pop-in', tone === 'correct' && 'animate-ring-glow')}
+      >
         <SheetHeader
           title={
             tone === 'correct'
@@ -434,7 +440,7 @@ export function PracticeRunner({
       <Sheet>
         <SheetHeader title={t.practice.mastery} description={name} />
         <SheetBody className="space-y-3">
-          <p className="font-serif text-3xl font-semibold tabular-nums leading-none">
+          <p className="text-3xl font-extrabold tracking-tight tabular-nums leading-none">
             {formatPercent(score)}
           </p>
           <Meter value={score} caption={`${attempts} ${t.practice.attempts}`} />

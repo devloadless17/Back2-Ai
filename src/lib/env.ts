@@ -44,7 +44,10 @@ const schema = z.object({
   S3_FORCE_PATH_STYLE: booleanish.default(true),
 
   APP_URL: z.string().default('http://localhost:3000'),
-  DEFAULT_LOCALE: z.enum(['fr', 'en', 'ar']).default('fr'),
+  // Only reached for signed-out pages whose visitor has no locale cookie and no
+  // usable Accept-Language. Signed-in students always see their own locked
+  // language, so changing this does not move anybody's account.
+  DEFAULT_LOCALE: z.enum(['fr', 'en', 'ar']).default('en'),
   CRON_SECRET: z.string().default(''),
 });
 

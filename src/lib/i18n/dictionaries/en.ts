@@ -163,6 +163,18 @@ export const en = {
     continueStudying: 'Continue studying',
     noActivity: 'You have not attempted any questions yet.',
     noActivityCta: 'Start with a practice chapter',
+    overallReadiness: 'Overall readiness',
+    overallReadinessHint: 'Across every subject in your section.',
+    streak: 'Day streak',
+    streakHint: 'Days in a row with at least one question answered.',
+    attemptsTotal: 'Questions answered',
+    attemptsTotalHint: 'Everything you have been marked on.',
+    activity: 'Your last fortnight',
+    activityHint: 'One column per day. Hover for the count.',
+    activityEmpty: 'Nothing answered in the last two weeks.',
+    topChapters: 'Chapter by chapter',
+    topChaptersHint: 'Weakest first — the top of this list is where the marks are.',
+    nextExam: 'Next exam',
   },
 
   practice: {
@@ -191,6 +203,11 @@ export const en = {
     difficultyEasy: 'Easy',
     difficultyMedium: 'Medium',
     difficultyHard: 'Hard',
+    // The words that go with the three mastery colours. Colour alone is not
+    // readable to everyone, so these ship with every band-coloured figure.
+    bandLow: 'Needs work',
+    bandMid: 'Developing',
+    bandHigh: 'Solid',
     scoreAwarded: '{score} of {max} points',
     attemptSaved: 'Attempt saved — mastery updated.',
     mastery: 'Mastery',

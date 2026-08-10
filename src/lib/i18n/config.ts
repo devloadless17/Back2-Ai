@@ -10,7 +10,15 @@
  * back to Accept-Language and then DEFAULT_LOCALE.
  */
 
-export const LOCALES = ['fr', 'en', 'ar'] as const;
+/**
+ * Supported locales, English first.
+ *
+ * The order is the order they are offered in — on the signup form and in the
+ * admin's language selector — so the first entry is the one a student sees
+ * preselected. It carries no other meaning; validation and storage treat the
+ * three as equals.
+ */
+export const LOCALES = ['en', 'fr', 'ar'] as const;
 export type Locale = (typeof LOCALES)[number];
 
 export const LOCALE_COOKIE = 'bac2_locale';

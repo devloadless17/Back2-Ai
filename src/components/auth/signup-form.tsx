@@ -35,7 +35,10 @@ const EMPTY_DETAILS: Details = {
   confirmPassword: '',
   country: 'LB',
   trackId: '',
-  preferredLanguage: '',
+  // Preselected rather than blank, because it is a real default rather than a
+  // question we have no answer to — a student in a French-section school
+  // changes it in one click.
+  preferredLanguage: 'en',
 };
 
 /**

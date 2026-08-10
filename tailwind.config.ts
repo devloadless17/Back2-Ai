@@ -3,10 +3,14 @@ import type { Config } from 'tailwindcss';
 /**
  * Every colour resolves to a CSS custom property defined in globals.css.
  *
- * That indirection is the point: when the design files land, the palette is
- * replaced by editing `:root` in one stylesheet, and no component changes.
- * Components must reference semantic names (`bg-paper`, `text-mark`) and never
- * raw Tailwind palette values like `bg-slate-50`.
+ * That indirection is the point: the palette is replaced by editing `:root` in
+ * one stylesheet, and no component changes. Components must reference semantic
+ * names (`bg-paper`, `text-mark`) and never raw Tailwind palette values like
+ * `bg-slate-50`.
+ *
+ * The motion vocabulary is deliberately small — five entrances, three ambient
+ * loops, two easings. A larger one produces a page where every element moves
+ * differently, which reads as broken rather than lively.
  */
 const config: Config = {
   content: ['./src/**/*.{ts,tsx}'],
@@ -25,7 +29,11 @@ const config: Config = {
         'primary-hover': 'hsl(var(--primary-hover) / <alpha-value>)',
         'primary-soft': 'hsl(var(--primary-soft) / <alpha-value>)',
         'on-primary': 'hsl(var(--on-primary) / <alpha-value>)',
-        /** The examiner's pen. Marks, deductions, countdown urgency. Used sparingly. */
+        /** The reward voice: streaks, celebrations, "you did a thing". */
+        accent: 'hsl(var(--accent) / <alpha-value>)',
+        'accent-hover': 'hsl(var(--accent-hover) / <alpha-value>)',
+        'accent-soft': 'hsl(var(--accent-soft) / <alpha-value>)',
+        /** The examiner's pen. Marks, deductions, countdown urgency. */
         mark: 'hsl(var(--mark) / <alpha-value>)',
         'mark-soft': 'hsl(var(--mark-soft) / <alpha-value>)',
         correct: 'hsl(var(--correct) / <alpha-value>)',
@@ -33,11 +41,18 @@ const config: Config = {
         partial: 'hsl(var(--partial) / <alpha-value>)',
         'partial-soft': 'hsl(var(--partial-soft) / <alpha-value>)',
         focus: 'hsl(var(--focus) / <alpha-value>)',
+        /** Chart ramp: one hue, light→dark, validated for lightness steps. */
+        viz: {
+          1: 'hsl(var(--viz-1) / <alpha-value>)',
+          2: 'hsl(var(--viz-2) / <alpha-value>)',
+          3: 'hsl(var(--viz-3) / <alpha-value>)',
+          4: 'hsl(var(--viz-4) / <alpha-value>)',
+        },
       },
       fontFamily: {
-        // Official-document serif for headings and question text.
+        // Kept for question and solution bodies, where a textbook voice helps.
         serif: ['var(--font-serif)'],
-        // Interface sans for controls, navigation, and data.
+        // Interface sans — headings, controls, navigation, data.
         sans: ['var(--font-sans)'],
         // Working / answer text — a monospace grid reads like squared paper.
         mono: ['var(--font-mono)'],
@@ -46,39 +61,97 @@ const config: Config = {
         sm: 'var(--radius-sm)',
         DEFAULT: 'var(--radius)',
         lg: 'var(--radius-lg)',
+        xl: 'var(--radius-xl)',
       },
       boxShadow: {
-        // Paper lifting off paper, not a floating card in space.
-        sheet: '0 1px 2px hsl(var(--ink) / 0.04), 0 2px 8px hsl(var(--ink) / 0.04)',
-        'sheet-raised': '0 2px 4px hsl(var(--ink) / 0.05), 0 8px 24px hsl(var(--ink) / 0.07)',
+        // Coloured lift rather than grey drop — the shadow is tinted with the
+        // brand hue so cards feel like they belong to the canvas behind them.
+        pop: '0 1px 2px hsl(262 40% 40% / 0.06), 0 6px 20px hsl(262 45% 45% / 0.09)',
+        'pop-lg': '0 2px 6px hsl(262 40% 40% / 0.08), 0 18px 40px hsl(262 50% 45% / 0.16)',
+        glow: '0 0 0 1px hsl(var(--primary) / 0.2), 0 8px 30px hsl(var(--primary) / 0.28)',
+        'glow-accent': '0 0 0 1px hsl(var(--accent) / 0.2), 0 8px 30px hsl(var(--accent) / 0.3)',
         focus: '0 0 0 3px hsl(var(--focus) / 0.35)',
+        // Kept so any component still asking for the old name keeps working.
+        sheet: '0 1px 2px hsl(262 40% 40% / 0.06), 0 6px 20px hsl(262 45% 45% / 0.09)',
+        'sheet-raised': '0 2px 6px hsl(262 40% 40% / 0.08), 0 18px 40px hsl(262 50% 45% / 0.16)',
       },
       keyframes: {
+        // --- Entrances ---
+        rise: {
+          from: { opacity: '0', transform: 'translateY(14px) scale(0.985)' },
+          to: { opacity: '1', transform: 'none' },
+        },
         'fade-up': {
-          from: { opacity: '0', transform: 'translateY(6px)' },
+          from: { opacity: '0', transform: 'translateY(10px)' },
           to: { opacity: '1', transform: 'none' },
         },
         'fade-in': {
           from: { opacity: '0' },
           to: { opacity: '1' },
         },
-        'card-flip': {
-          from: { transform: 'rotateX(0deg)' },
-          to: { transform: 'rotateX(180deg)' },
+        'pop-in': {
+          '0%': { opacity: '0', transform: 'scale(0.86)' },
+          '60%': { opacity: '1', transform: 'scale(1.04)' },
+          '100%': { opacity: '1', transform: 'scale(1)' },
+        },
+        'slide-in': {
+          from: { opacity: '0', transform: 'translateX(-12px)' },
+          to: { opacity: '1', transform: 'none' },
+        },
+
+        // --- Ambient loops ---
+        float: {
+          '0%, 100%': { transform: 'translateY(0)' },
+          '50%': { transform: 'translateY(-5px)' },
+        },
+        wiggle: {
+          '0%, 100%': { transform: 'rotate(-2.5deg)' },
+          '50%': { transform: 'rotate(2.5deg)' },
         },
         pulse: {
           '0%, 100%': { opacity: '1' },
           '50%': { opacity: '0.4' },
         },
+        'gradient-pan': {
+          from: { backgroundPosition: '0% 50%' },
+          to: { backgroundPosition: '300% 50%' },
+        },
+        shimmer: {
+          from: { backgroundPosition: '100% 50%' },
+          to: { backgroundPosition: '0% 50%' },
+        },
+
+        // --- Feedback ---
+        'ring-glow': {
+          '0%, 100%': { boxShadow: '0 0 0 0 hsl(var(--accent) / 0.45)' },
+          '50%': { boxShadow: '0 0 0 10px hsl(var(--accent) / 0)' },
+        },
+        // The card-flip reveal in the flashcard deck.
+        'flip-in': {
+          from: { opacity: '0', transform: 'rotateX(-12deg) translateY(8px)' },
+          to: { opacity: '1', transform: 'none' },
+        },
       },
       animation: {
-        'fade-up': 'fade-up 260ms cubic-bezier(0.2, 0.8, 0.2, 1) both',
-        'fade-in': 'fade-in 180ms ease-out both',
+        rise: 'rise 420ms var(--ease-spring) both',
+        'fade-up': 'fade-up 320ms var(--ease-out-soft) both',
+        'fade-in': 'fade-in 200ms ease-out both',
+        'pop-in': 'pop-in 380ms var(--ease-spring) both',
+        'slide-in': 'slide-in 340ms var(--ease-out-soft) both',
+        'flip-in': 'flip-in 340ms var(--ease-spring) both',
+        float: 'float 4s ease-in-out infinite',
+        wiggle: 'wiggle 500ms ease-in-out 2',
         'pulse-slow': 'pulse 2s ease-in-out infinite',
+        'gradient-pan': 'gradient-pan 8s linear infinite',
+        shimmer: 'shimmer 1.6s ease-in-out infinite',
+        'ring-glow': 'ring-glow 1.8s ease-out infinite',
       },
       transitionTimingFunction: {
-        // Everything that moves uses this unless there is a reason not to.
-        sheet: 'cubic-bezier(0.2, 0.8, 0.2, 1)',
+        // The default for anything that moves under the pointer.
+        spring: 'var(--ease-spring)',
+        soft: 'var(--ease-out-soft)',
+        // Retained so existing `ease-sheet` usages keep working.
+        sheet: 'var(--ease-out-soft)',
       },
     },
   },

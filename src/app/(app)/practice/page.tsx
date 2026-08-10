@@ -47,14 +47,14 @@ export default async function PracticePage() {
           body={t.practice.noQuestionsHint}
         />
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="stagger grid gap-4 sm:grid-cols-2">
           {subjects.map((subject) => (
             <Link
               key={subject.id}
               href={`/practice/${subject.id}`}
-              className="group block rounded-lg outline-none transition-transform duration-150 ease-sheet focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2"
+              className="group block rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2"
             >
-              <Sheet className="h-full transition-shadow duration-200 ease-sheet group-hover:shadow-sheet-raised">
+              <Sheet interactive className="h-full">
                 <SheetHeader title={subject.name} description={t.practice.selectChapter} />
                 <SheetBody className="space-y-3">
                   <Meter

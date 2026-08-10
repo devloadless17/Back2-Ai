@@ -1,8 +1,9 @@
 import type { Metadata } from 'next';
 
 import { LinkButton } from '@/components/ui/button';
+import { RingGauge } from '@/components/ui/charts';
 import { EmptyState } from '@/components/ui/feedback';
-import { Meter, ReadinessDial } from '@/components/ui/progress';
+import { Meter } from '@/components/ui/progress';
 import { PageHeader, Sheet, SheetBody, SheetHeader } from '@/components/ui/sheet';
 import { requireUser } from '@/lib/auth/guards';
 import { getTranslations } from '@/lib/i18n';
@@ -37,7 +38,7 @@ export default async function PerformancePage() {
       {progress.length === 0 ? (
         <EmptyState tone="pending" title={t.practice.noQuestions} body={t.practice.noQuestionsHint} />
       ) : (
-        <div className="space-y-5">
+        <div className="stagger space-y-5">
           {/* --- Readiness per subject --- */}
           <Sheet>
             <SheetHeader
@@ -58,19 +59,21 @@ export default async function PerformancePage() {
                   }
                 />
               ) : (
-                <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
+                <div className="stagger grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
                   {progress.map((subject) =>
                     subject.readiness.reportable ? (
                       <div key={subject.subjectId} className="space-y-4">
-                        <ReadinessDial
+                        <RingGauge
                           value={subject.readiness.score}
                           label={subject.subjectName}
-                          sublabel={
+                          size={150}
+                          tone="brand"
+                          caption={
                             subject.readiness.trend === 'up'
-                              ? t.performance.trendUp
+                              ? `↑ ${t.performance.trendUp}`
                               : subject.readiness.trend === 'down'
-                                ? t.performance.trendDown
-                                : t.performance.trendFlat
+                                ? `↓ ${t.performance.trendDown}`
+                                : `→ ${t.performance.trendFlat}`
                           }
                         />
 
@@ -97,7 +100,7 @@ export default async function PerformancePage() {
                         <p className="text-[12.5px] font-medium uppercase tracking-wide text-ink-muted">
                           {subject.subjectName}
                         </p>
-                        <p className="font-serif text-lg text-ink-faint">
+                        <p className="text-lg font-bold text-ink-faint">
                           {t.dashboard.readinessNotYet}
                         </p>
                         <p className="text-[12.5px] leading-snug text-ink-muted">
@@ -111,7 +114,7 @@ export default async function PerformancePage() {
             </SheetBody>
           </Sheet>
 
-          <div className="grid gap-5 lg:grid-cols-2">
+          <div className="stagger grid gap-5 lg:grid-cols-2">
             {/* --- Weakest --- */}
             <Sheet>
               <SheetHeader title={t.performance.weakTopics} />

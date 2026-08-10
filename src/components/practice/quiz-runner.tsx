@@ -119,7 +119,7 @@ export function QuizRunner({
         <Sheet className="animate-fade-up">
           <SheetHeader title={t.examSim.resultsTitle} />
           <SheetBody className="space-y-3">
-            <p className="font-serif text-5xl font-semibold tabular-nums leading-none">
+            <p className="text-5xl font-extrabold tracking-tight tabular-nums leading-none">
               {formatScore(earned)}
               <span className="text-2xl font-normal text-ink-faint">
                 {' / '}

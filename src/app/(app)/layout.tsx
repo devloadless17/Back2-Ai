@@ -1,3 +1,4 @@
+import { PageTransition } from '@/components/shell/page-transition';
 import { Sidebar, type SidebarCounts } from '@/components/shell/sidebar';
 import { requireSession } from '@/lib/auth/guards';
 import { db } from '@/lib/db';
@@ -40,7 +41,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <main className="min-w-0 flex-1">
         {/* max-w keeps line length readable on wide monitors; the page body
             itself must never scroll horizontally. */}
-        <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 lg:px-10 lg:py-10">{children}</div>
+        <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 lg:px-10 lg:py-10">
+          <PageTransition>{children}</PageTransition>
+        </div>
       </main>
     </div>
   );

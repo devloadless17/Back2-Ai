@@ -161,6 +161,29 @@ solution and tie each lost mark to a criterion, rather than reciting the model
 answer — which the student can already read. The question is always taken from
 the attempt, so no one can pair one answer with another question's key.
 
+**The design system is two files.** `src/app/globals.css` holds the tokens —
+a light lavender canvas, violet/pink brand, chunky radii, spring easings — and
+`tailwind.config.ts` maps them to semantic names. No component references a raw
+colour, so retheming is still one `:root` block. Two constraints hold the
+palette honest: status colours (correct / partial / mark) all clear 3:1 against
+the card surface and are **never the only carrier of meaning** — green and amber
+are the same colour under protanopia, so every band-coloured figure ships with
+its number and a word; and the chart ramp `--viz-1..4` is a single violet hue,
+monotone in lightness, validated rather than eyeballed.
+
+**Everything animates except the paper being sat.** Entrances stagger in, figures
+count up, arcs and bars draw themselves, the sidebar answers the pointer. Three
+rules keep that usable: motion never carries information alone (every animated
+value is also plain text), nothing is invisible until it animates (a reveal that
+never fires leaves content on screen, not a blank page), and
+`prefers-reduced-motion` wins — the global rule in `globals.css` collapses CSS
+animation and `useReducedMotion` short-circuits the JS-driven ones. The live exam
+runner is wrapped in `.calm`, which switches off every entrance and loop inside
+it: a gradient panning beside a running clock is pressure, not personality.
+Page transitions have no exit animation, deliberately — an exit taxes every
+navigation with its own duration, and students move between these screens dozens
+of times an evening.
+
 **Locale follows the user, not the URL.** It is chosen at signup, locked
 alongside track, and stored on `users.preferred_language`. There is no
 `[locale]` route segment. Signed-out pages fall back to a cookie, then

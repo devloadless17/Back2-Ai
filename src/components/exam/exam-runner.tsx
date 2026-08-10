@@ -233,7 +233,7 @@ export function ExamRunner({
       <header className="sticky top-0 z-20 -mx-4 border-b border-rule bg-paper-raised/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="min-w-0">
-            <p className="truncate font-serif text-[15px] font-semibold text-ink">{title}</p>
+            <p className="truncate text-[15px] font-extrabold tracking-tight text-ink">{title}</p>
             <p className="text-[12px] text-ink-faint">{subjectName}</p>
           </div>
 

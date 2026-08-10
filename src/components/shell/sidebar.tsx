@@ -128,7 +128,7 @@ export function Sidebar({ user, counts }: { user: SidebarUser; counts: SidebarCo
         >
           <IconMenu />
         </button>
-        <Link href="/dashboard" className="font-serif text-base font-semibold">
+        <Link href="/dashboard" className="text-base font-extrabold tracking-tight">
           {t.common.appName}
         </Link>
       </div>
@@ -144,17 +144,27 @@ export function Sidebar({ user, counts }: { user: SidebarUser; counts: SidebarCo
 
       <aside
         className={cn(
-          'fixed inset-y-0 start-0 z-50 flex w-64 flex-col border-e border-rule bg-paper-raised',
-          'transition-transform duration-200 ease-sheet lg:sticky lg:top-0 lg:h-dvh lg:translate-x-0',
+          'fixed inset-y-0 start-0 z-50 flex w-64 flex-col border-e border-rule bg-paper-raised/85 backdrop-blur-xl',
+          'transition-transform duration-300 ease-spring lg:sticky lg:top-0 lg:h-dvh lg:translate-x-0',
           // Logical transform: RTL slides in from the right, LTR from the left.
           open ? 'translate-x-0' : 'ltr:-translate-x-full rtl:translate-x-full lg:translate-x-0',
         )}
       >
         <div className="flex items-center justify-between border-b border-rule px-4 py-4">
-          <Link href="/dashboard" className="min-w-0">
-            <span className="block font-serif text-lg font-semibold leading-none">{t.common.appName}</span>
+          <Link href="/dashboard" className="group min-w-0">
+            <span className="flex items-center gap-2">
+              <span
+                aria-hidden="true"
+                className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-accent text-[15px] font-extrabold text-on-primary shadow-pop transition-transform duration-300 ease-spring group-hover:rotate-6 group-hover:scale-110"
+              >
+                B
+              </span>
+              <span className="block text-lg font-extrabold leading-none tracking-tight">
+                {t.common.appName}
+              </span>
+            </span>
             {user.trackCode && (
-              <span className="mt-1 block text-[11.5px] uppercase tracking-wide text-ink-faint">
+              <span className="mt-1.5 block ps-10 text-[11px] font-bold uppercase tracking-wider text-primary">
                 {user.trackCode}
               </span>
             )}
@@ -179,7 +189,7 @@ export function Sidebar({ user, counts }: { user: SidebarUser; counts: SidebarCo
 
           {groups.map((group) => (
             <div key={group.label} className="mt-5">
-              <p className="px-3 pb-1.5 text-[11px] font-semibold uppercase tracking-wider text-ink-faint">
+              <p className="px-3 pb-1.5 text-[10.5px] font-extrabold uppercase tracking-[0.12em] text-ink-faint">
                 {group.label}
               </p>
               <ul className="space-y-0.5">
@@ -234,16 +244,31 @@ function NavLink({
       href={href}
       aria-current={active ? 'page' : undefined}
       className={cn(
-        'group flex items-center gap-2.5 rounded px-3 py-2 text-[13.5px] transition-colors duration-150',
+        'group relative flex items-center gap-2.5 rounded-full px-3 py-2.5 text-[13.5px] font-semibold',
+        'transition-[background-color,color,transform] duration-200 ease-spring',
+        // The whole row slides a little on hover. It is a small thing, but a
+        // sidebar that answers the pointer is what makes an app feel alive
+        // rather than printed.
+        'hover:translate-x-1 rtl:hover:-translate-x-1 motion-reduce:transform-none motion-reduce:hover:transform-none',
         active
-          ? 'bg-primary-soft font-medium text-primary'
-          : 'text-ink-muted hover:bg-paper-sunken hover:text-ink',
+          ? 'bg-gradient-to-r from-primary to-accent text-on-primary shadow-pop'
+          : 'text-ink-muted hover:bg-primary-soft hover:text-primary',
       )}
     >
-      <Icon className={cn('h-[18px] w-[18px] shrink-0', active ? 'text-primary' : 'text-ink-faint')} />
+      <Icon
+        className={cn(
+          'h-[18px] w-[18px] shrink-0 transition-transform duration-200 ease-spring group-hover:scale-110',
+          active ? 'text-on-primary' : 'text-ink-faint group-hover:text-primary',
+        )}
+      />
       <span className="min-w-0 flex-1 truncate">{label}</span>
       {badge !== undefined && badge > 0 && (
-        <span className="shrink-0 rounded-sm bg-mark px-1.5 py-0.5 text-[11px] font-semibold leading-none text-on-primary tabular-nums">
+        <span
+          className={cn(
+            'shrink-0 rounded-full px-2 py-0.5 text-[11px] font-extrabold leading-none tabular-nums',
+            active ? 'bg-on-primary/25 text-on-primary' : 'bg-accent text-on-primary',
+          )}
+        >
           {badge > 99 ? '99+' : badge}
         </span>
       )}
