@@ -1,0 +1,967 @@
+// ---------------------------------------------------------------------------
+// Bac II AI system — database schema
+//
+// Mapping notes for reviewers comparing this against the SQL in the exec plan:
+//   * Table and column names are pinned to the plan's snake_case via @@map/@map.
+//   * The plan's `TEXT` status columns are modelled as native Postgres enums.
+//     A system used for official examinations should reject an invalid status
+//     at the database, not discover it at read time.
+//   * `vector` columns are `Unsupported` — Prisma has no vector type. They are
+//     created by migration and read/written through raw SQL in src/lib/vector.
+//     Width is pinned to EMBEDDING_DIM; see scripts/resize-embeddings.ts.
+//   * Tables marked "ADDITION" are not in the exec plan but are required for a
+//     feature the plan does specify. Each says which one.
+// ---------------------------------------------------------------------------
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [pgcrypto, vector]
+}
+
+// ===========================================================================
+// Enums
+// ===========================================================================
+
+enum Role {
+  student
+  admin
+
+  @@map("role")
+}
+
+enum Language {
+  fr
+  en
+  ar
+
+  @@map("language")
+}
+
+enum SourceType {
+  past_exam
+  textbook
+  generated
+
+  @@map("source_type")
+}
+
+enum QuestionType {
+  mcq
+  open
+  problem
+
+  @@map("question_type")
+}
+
+enum VerifiedStatus {
+  unverified
+  verified
+  rejected
+
+  @@map("verified_status")
+}
+
+enum VerificationStatus {
+  pending
+  solver_passed
+  solver_failed
+  approved
+  rejected
+
+  @@map("verification_status")
+}
+
+enum ExamSourceMode {
+  real_cycle
+  ai_generated
+
+  @@map("exam_source_mode")
+}
+
+enum ExamSimStatus {
+  in_progress
+  submitted
+  graded
+
+  @@map("exam_sim_status")
+}
+
+enum SubmissionType {
+  typed
+  photo
+
+  @@map("submission_type")
+}
+
+/// Which surface produced an attempt. Old-cycle "hover to reveal" mode is
+/// deliberately absent: that mode must never write an attempt row, because it
+/// is unscored and would otherwise poison mastery.
+enum AttemptContext {
+  practice
+  quiz
+  exam_sim
+
+  @@map("attempt_context")
+}
+
+enum ChatRole {
+  user
+  assistant
+
+  @@map("chat_role")
+}
+
+/// Billing plan. `free` is a real row rather than the absence of one, so that
+/// "this student has never been asked to pay" and "this student's card failed"
+/// are distinguishable states.
+enum SubscriptionPlan {
+  free
+  monthly
+  annual
+
+  @@map("subscription_plan")
+}
+
+/// `pending` is the state every account starts in while no payment processor is
+/// connected: a card has been described but nothing has been charged and no
+/// entitlement has been granted by a provider.
+enum SubscriptionStatus {
+  pending
+  active
+  past_due
+  canceled
+
+  @@map("subscription_status")
+}
+
+/// Ordered retrieval tiers. `ungrounded_refused` is a first-class outcome, not
+/// an error: when nothing clears threshold the system says so rather than guess.
+enum GroundingTier {
+  exact_match
+  concept_level
+  personal_reference
+  ungrounded_refused
+
+  @@map("grounding_tier")
+}
+
+enum StudySessionSource {
+  manual
+  ai_suggested
+
+  @@map("study_session_source")
+}
+
+enum StudySessionStatus {
+  planned
+  done
+  skipped
+
+  @@map("study_session_status")
+}
+
+enum ReviewItemType {
+  generated_problem
+  tagged_question
+  flagged_content
+
+  @@map("review_item_type")
+}
+
+enum ReviewStatus {
+  pending
+  approved
+  rejected
+
+  @@map("review_status")
+}
+
+enum NotificationType {
+  flashcards_due
+  schedule_reminder
+  announcement
+
+  @@map("notification_type")
+}
+
+enum IngestionJobStatus {
+  queued
+  running
+  succeeded
+  failed
+
+  @@map("ingestion_job_status")
+}
+
+/// Kind of concept-level material in the RAG corpus. Drives how tier-2
+/// retrieval results are framed in a grounded answer.
+enum ContentChunkKind {
+  definition
+  formula
+  theorem
+  method
+  worked_example
+
+  @@map("content_chunk_kind")
+}
+
+enum LinkedAction {
+  quiz
+  flashcards
+  practice
+  exam_sim
+
+  @@map("linked_action")
+}
+
+// ===========================================================================
+// Taxonomy
+// ===========================================================================
+
+model Track {
+  id   String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code String @unique
+  name String
+
+  subjects      Subject[]
+  users         User[]
+  announcements Announcement[]
+
+  @@map("tracks")
+}
+
+model Subject {
+  id       String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  trackId  String?  @map("track_id") @db.Uuid
+  name     String
+  language Language
+
+  track Track? @relation(fields: [trackId], references: [id], onDelete: SetNull)
+
+  units           Unit[]
+  chapters        Chapter[]
+  examCycles      ExamCycle[]
+  examSimulations ExamSimulation[]
+  readinessScores ReadinessScore[]
+  userGrades      UserGrade[]
+  upcomingExams   UpcomingExam[]
+  announcements   Announcement[]
+  ingestionJobs   IngestionJob[]
+
+  @@index([trackId])
+  @@map("subjects")
+}
+
+/// ADDITION — the book a question or chunk came from.
+///
+/// The product may only say things it can trace to real curriculum material,
+/// and "traceable" has to survive a challenge from a teacher: which book, which
+/// edition, which page. A filename in a text column cannot do that.
+///
+/// One row per physical book, keyed by the SHA-256 of the source PDF, so the
+/// same book imported twice under different names is still one row.
+model SourceDocument {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sha256         String    @unique
+  bookKey        String    @unique @map("book_key")
+  title          String
+  publisher      String?
+  language       Language
+  /// Tracks this book serves. Several books serve two: chemistry and physics
+  /// are shared by GS and LS, and three books are shared by LH and SE.
+  tracks         String[]
+  subjectName    String    @map("subject_name")
+  pageCount      Int       @map("page_count")
+  firstPublished Int?      @map("first_published")
+  impression     Int?
+  sourceUrl      String?   @map("source_url")
+  retrievedAt    DateTime? @map("retrieved_at") @db.Date
+  licenceNote    String?   @map("licence_note")
+  reader         String?
+  storageKey     String?   @map("storage_key")
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  questions     Question[]
+  contentChunks ContentChunk[]
+
+  @@map("source_documents")
+}
+
+model Unit {
+  id         String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  subjectId  String @map("subject_id") @db.Uuid
+  name       String
+  orderIndex Int    @map("order_index")
+
+  subject  Subject   @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  chapters Chapter[]
+
+  @@unique([subjectId, orderIndex])
+  @@map("units")
+}
+
+model Chapter {
+  id         String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  subjectId  String  @map("subject_id") @db.Uuid
+  unitId     String? @map("unit_id") @db.Uuid
+  name       String
+  orderIndex Int     @map("order_index")
+
+  subject Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  unit    Unit?   @relation(fields: [unitId], references: [id], onDelete: SetNull)
+
+  questions         Question[]
+  generatedProblems GeneratedProblem[]
+  contentChunks     ContentChunk[]
+  chapterMastery    ChapterMastery[]
+  studySessions     StudySession[]
+  todos             Todo[]
+
+  @@unique([subjectId, orderIndex])
+  @@index([unitId])
+  @@map("chapters")
+}
+
+// ===========================================================================
+// Users, sessions, audit
+// ===========================================================================
+
+model User {
+  id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email             String    @unique
+  passwordHash      String    @map("password_hash")
+  role              Role      @default(student)
+  /// Locked at signup. Changing it is an admin-only, audit-logged action.
+  trackId           String?   @map("track_id") @db.Uuid
+  /// Locked at signup, same policy as trackId.
+  preferredLanguage Language  @map("preferred_language")
+  /// ISO 3166-1 alpha-2. Only countries whose curriculum has been ingested are
+  /// selectable at signup; the column is wider than that on purpose, so opening
+  /// a second country is a data change rather than a migration.
+  country           String    @default("LB") @db.Char(2)
+  displayName       String?   @map("display_name")
+  isActive          Boolean   @default(true) @map("is_active")
+  lastLoginAt       DateTime? @map("last_login_at") @db.Timestamptz(6)
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  track Track? @relation(fields: [trackId], references: [id], onDelete: SetNull)
+
+  sessions        Session[]
+  attempts        Attempt[]
+  chapterMastery  ChapterMastery[]
+  flashcardState  FlashcardState[]
+  readinessScores ReadinessScore[]
+  chatSessions    ChatSession[]
+  userReferences  UserReference[]
+  userGrades      UserGrade[]
+  studySessions   StudySession[]
+  upcomingExams   UpcomingExam[]
+  todos           Todo[]
+  examSimulations ExamSimulation[]
+  notifications   Notification[]
+  announcements   Announcement[]    @relation("AnnouncementAuthor")
+  flaggedItems    ReviewQueueItem[] @relation("ReviewFlagger")
+  reviewedItems   ReviewQueueItem[] @relation("ReviewResolver")
+  auditEvents     AuditEvent[]
+  ingestionJobs   IngestionJob[]
+  subscription    Subscription?
+
+  @@index([trackId])
+  @@map("users")
+}
+
+/// ADDITION — the account's billing state.
+///
+/// No payment processor is connected yet. This table deliberately holds only
+/// what a processor would hand back afterwards (brand, last four, expiry) plus
+/// the ids it will key on. It must never hold a full card number, a CVC, or
+/// anything else that would put this database in PCI scope: the API layer
+/// refuses those fields rather than storing them, so wiring a real processor
+/// later is an addition to this table, not a cleanup of it.
+model Subscription {
+  id                     String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId                 String             @unique @map("user_id") @db.Uuid
+  plan                   SubscriptionPlan   @default(free)
+  status                 SubscriptionStatus @default(pending)
+  /// Which processor issued the ids below. Null until one is connected.
+  provider               String?
+  providerCustomerId     String?            @map("provider_customer_id")
+  providerSubscriptionId String?            @map("provider_subscription_id")
+  cardBrand              String?            @map("card_brand")
+  cardLast4              String?            @map("card_last4") @db.Char(4)
+  cardExpMonth           Int?               @map("card_exp_month")
+  cardExpYear            Int?               @map("card_exp_year")
+  cardholderName         String?            @map("cardholder_name")
+  currentPeriodEnd       DateTime?          @map("current_period_end") @db.Timestamptz(6)
+  createdAt              DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt              DateTime           @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("subscriptions")
+}
+
+/// ADDITION — supports server-side session revocation, which the exec plan's
+/// NextAuth/JWT approach cannot do. An examination system must be able to kill
+/// a live session immediately (compromised account, invigilator intervention).
+/// Only the SHA-256 of the token is stored; the raw token exists solely in the
+/// user's httpOnly cookie.
+model Session {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId     String    @map("user_id") @db.Uuid
+  tokenHash  String    @unique @map("token_hash")
+  expiresAt  DateTime  @map("expires_at") @db.Timestamptz(6)
+  revokedAt  DateTime? @map("revoked_at") @db.Timestamptz(6)
+  ipAddress  String?   @map("ip_address")
+  userAgent  String?   @map("user_agent")
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  lastSeenAt DateTime  @default(now()) @map("last_seen_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("sessions")
+}
+
+/// ADDITION — append-only audit trail. Required for the exec plan's own rules:
+/// "admin edits a student's locked track/language", "generated content
+/// publication stays admin-gated", "that should be an explicit, logged config
+/// change". None of those are enforceable without a log.
+model AuditEvent {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  actorUserId String?  @map("actor_user_id") @db.Uuid
+  action      String
+  targetType  String?  @map("target_type")
+  targetId    String?  @map("target_id") @db.Uuid
+  metadata    Json?
+  ipAddress   String?  @map("ip_address")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  actor User? @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([actorUserId, createdAt])
+  @@index([targetType, targetId])
+  @@index([action, createdAt])
+  @@map("audit_events")
+}
+
+// ===========================================================================
+// Content: real questions
+// ===========================================================================
+
+model ExamCycle {
+  id              String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  subjectId       String  @map("subject_id") @db.Uuid
+  year            Int
+  session         String?
+  title           String
+  /// ADDITION — the exam-sim timer needs an authoritative duration, and a real
+  /// cycle's duration is a property of the paper, not of the student's run.
+  durationMinutes Int     @default(180) @map("duration_minutes")
+
+  subject         Subject          @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  questions       Question[]
+  examSimulations ExamSimulation[]
+
+  @@unique([subjectId, year, session])
+  @@index([subjectId, year])
+  @@map("exam_cycles")
+}
+
+model Question {
+  id                    String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  chapterId             String         @map("chapter_id") @db.Uuid
+  sourceType            SourceType     @map("source_type")
+  sourceExamId          String?        @map("source_exam_id") @db.Uuid
+  questionType          QuestionType   @map("question_type")
+  /// 0.00–1.00. Recalibrated from observed attempt data by the nightly job.
+  difficulty            Decimal?       @db.Decimal(3, 2)
+  difficultyConfidence  Decimal?       @map("difficulty_confidence") @db.Decimal(3, 2)
+  contentText           String         @map("content_text")
+  contentLatex          String?        @map("content_latex")
+  contentImages         String[]       @map("content_images")
+  /// ADDITION — question_type 'mcq' is in the plan but the plan stores nowhere
+  /// to put the choices. Shape: [{ id, text, latex? }]. Null for open/problem.
+  options               Json?
+  /// ADDITION — the option id that is correct, for mcq auto-grading.
+  correctOptionId       String?        @map("correct_option_id")
+  officialSolution      String?        @map("official_solution")
+  officialSolutionLatex String?        @map("official_solution_latex")
+  /// Structured point breakdown: [{ criterion, points }]
+  bareme                Json?
+  /// Position within its source paper; drives ordering in old-cycle mode.
+  orderIndex            Int?           @map("order_index")
+  verifiedStatus        VerifiedStatus @default(unverified) @map("verified_status")
+  /// ADDITION — where this came from, down to the page.
+  sourceDocumentId      String?        @map("source_document_id") @db.Uuid
+  sourcePageFrom        Int?           @map("source_page_from")
+  sourcePageTo          Int?           @map("source_page_to")
+  createdAt             DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  // vector(EMBEDDING_DIM) — created by migration, accessed via raw SQL only.
+  embedding Unsupported("vector(1536)")?
+
+  chapter        Chapter         @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  sourceExam     ExamCycle?      @relation(fields: [sourceExamId], references: [id], onDelete: SetNull)
+  sourceDocument SourceDocument? @relation(fields: [sourceDocumentId], references: [id], onDelete: SetNull)
+
+  attempts         Attempt[]
+  flashcardState   FlashcardState[]
+  chatSessions     ChatSession[]
+  examSimQuestions ExamSimulationQuestion[]
+
+  @@index([chapterId, difficulty])
+  @@index([sourceExamId, orderIndex])
+  @@index([verifiedStatus])
+  @@map("questions")
+}
+
+/// ADDITION — tier 2 of the retrieval pipeline ("chapter-level textbook
+/// content: formulas/methods/worked examples") has no table in the exec plan.
+/// Without it, tier 2 can never fire and every non-exact-match question falls
+/// straight to "not covered". This is that corpus.
+model ContentChunk {
+  id               String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  chapterId        String           @map("chapter_id") @db.Uuid
+  kind             ContentChunkKind
+  title            String?
+  contentText      String           @map("content_text")
+  contentLatex     String?          @map("content_latex")
+  sourceRef        String?          @map("source_ref")
+  /// ADDITION — where this came from, down to the page.
+  sourceDocumentId String?          @map("source_document_id") @db.Uuid
+  sourcePageFrom   Int?             @map("source_page_from")
+  sourcePageTo     Int?             @map("source_page_to")
+  createdAt        DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  embedding Unsupported("vector(1536)")?
+
+  chapter        Chapter         @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  sourceDocument SourceDocument? @relation(fields: [sourceDocumentId], references: [id], onDelete: SetNull)
+
+  @@index([chapterId, kind])
+  @@map("content_chunks")
+}
+
+model GeneratedProblem {
+  id                 String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  chapterId          String             @map("chapter_id") @db.Uuid
+  styleReferenceIds  String[]           @map("style_reference_ids") @db.Uuid
+  contentText        String             @map("content_text")
+  contentLatex       String?            @map("content_latex")
+  generatedSolution  String             @map("generated_solution")
+  bareme             Json?
+  finalAnswer        String             @map("final_answer")
+  difficulty         Decimal?           @db.Decimal(3, 2)
+  verificationStatus VerificationStatus @default(pending) @map("verification_status")
+  verificationNotes  String?            @map("verification_notes")
+  modelUsed          String?            @map("model_used")
+  promptVersion      String?            @map("prompt_version")
+  createdAt          DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  /// Non-null only after review-queue approval. Nothing student-facing may
+  /// select a generated problem with published_at IS NULL.
+  publishedAt        DateTime?          @map("published_at") @db.Timestamptz(6)
+
+  embedding Unsupported("vector(1536)")?
+
+  chapter Chapter @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+
+  attempts         Attempt[]
+  examSimQuestions ExamSimulationQuestion[]
+
+  @@index([chapterId, verificationStatus])
+  @@index([publishedAt])
+  @@map("generated_problems")
+}
+
+// ===========================================================================
+// Exam simulations
+// ===========================================================================
+
+model ExamSimulation {
+  id              String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId          String         @map("user_id") @db.Uuid
+  subjectId       String         @map("subject_id") @db.Uuid
+  sourceMode      ExamSourceMode @map("source_mode")
+  examCycleId     String?        @map("exam_cycle_id") @db.Uuid
+  status          ExamSimStatus  @default(in_progress)
+  durationMinutes Int            @map("duration_minutes")
+  /// ADDITION — server-authoritative deadline. The client countdown is display
+  /// only; submission is validated against this column. A client-trusted timer
+  /// is not acceptable for an examination product.
+  expiresAt       DateTime       @map("expires_at") @db.Timestamptz(6)
+  totalScore      Decimal?       @map("total_score") @db.Decimal(6, 2)
+  maxScore        Decimal?       @map("max_score") @db.Decimal(6, 2)
+  startedAt       DateTime       @default(now()) @map("started_at") @db.Timestamptz(6)
+  submittedAt     DateTime?      @map("submitted_at") @db.Timestamptz(6)
+  gradedAt        DateTime?      @map("graded_at") @db.Timestamptz(6)
+
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subject   Subject    @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  examCycle ExamCycle? @relation(fields: [examCycleId], references: [id], onDelete: SetNull)
+
+  questions ExamSimulationQuestion[]
+
+  @@index([userId, startedAt])
+  @@index([status])
+  @@map("exam_simulations")
+}
+
+model ExamSimulationQuestion {
+  id                 String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  examSimulationId   String   @map("exam_simulation_id") @db.Uuid
+  questionId         String?  @map("question_id") @db.Uuid
+  generatedProblemId String?  @map("generated_problem_id") @db.Uuid
+  orderIndex         Int      @map("order_index")
+  /// Snapshot of the barème at the moment the sim was composed, so later edits
+  /// to the source question cannot retroactively change a graded paper.
+  baremeSnapshot     Json?    @map("bareme_snapshot")
+  maxScore           Decimal? @map("max_score") @db.Decimal(5, 2)
+
+  examSimulation   ExamSimulation    @relation(fields: [examSimulationId], references: [id], onDelete: Cascade)
+  question         Question?         @relation(fields: [questionId], references: [id], onDelete: SetNull)
+  generatedProblem GeneratedProblem? @relation(fields: [generatedProblemId], references: [id], onDelete: SetNull)
+
+  answer ExamAnswer?
+
+  @@unique([examSimulationId, orderIndex])
+  @@map("exam_simulation_questions")
+}
+
+model ExamAnswer {
+  id                       String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  examSimulationQuestionId String         @unique @map("exam_simulation_question_id") @db.Uuid
+  submissionType           SubmissionType @map("submission_type")
+  typedAnswer              String?        @map("typed_answer")
+  photoUrl                 String?        @map("photo_url")
+  ocrExtractedText         String?        @map("ocr_extracted_text")
+  ocrConsistencyChecked    Boolean        @default(false) @map("ocr_consistency_checked")
+  /// Set when the OCR self-consistency gate rejects the photo, so the student
+  /// is told to re-shoot rather than being silently graded on garbage text.
+  ocrConsistencyPassed     Boolean?       @map("ocr_consistency_passed")
+  ocrConsistencyNotes      String?        @map("ocr_consistency_notes")
+  /// [{ criterion, points_awarded, points_possible, justification }]
+  baremeResult             Json?          @map("bareme_result")
+  totalScore               Decimal?       @map("total_score") @db.Decimal(5, 2)
+  maxScore                 Decimal?       @map("max_score") @db.Decimal(5, 2)
+  submittedAt              DateTime       @default(now()) @map("submitted_at") @db.Timestamptz(6)
+  gradedAt                 DateTime?      @map("graded_at") @db.Timestamptz(6)
+
+  examSimulationQuestion ExamSimulationQuestion @relation(fields: [examSimulationQuestionId], references: [id], onDelete: Cascade)
+
+  @@map("exam_answers")
+}
+
+// ===========================================================================
+// Attempts — the memory backbone
+// ===========================================================================
+
+model Attempt {
+  id                 String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId             String         @map("user_id") @db.Uuid
+  questionId         String?        @map("question_id") @db.Uuid
+  generatedProblemId String?        @map("generated_problem_id") @db.Uuid
+  isCorrect          Boolean?       @map("is_correct")
+  /// ADDITION — practice mode grades open questions against the barème, which
+  /// requires keeping what the student actually wrote. Also what "Explain this"
+  /// needs in order to explain *their* error rather than the generic solution.
+  submittedAnswer    String?        @map("submitted_answer")
+  score              Decimal?       @db.Decimal(5, 2)
+  maxScore           Decimal?       @map("max_score") @db.Decimal(5, 2)
+  timeTakenSeconds   Int?           @map("time_taken_seconds")
+  context            AttemptContext
+  attemptedAt        DateTime       @default(now()) @map("attempted_at") @db.Timestamptz(6)
+
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  question         Question?         @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  generatedProblem GeneratedProblem? @relation(fields: [generatedProblemId], references: [id], onDelete: Cascade)
+  chatSessions     ChatSession[]
+
+  @@index([userId, attemptedAt])
+  @@index([questionId])
+  @@map("attempts")
+}
+
+// ===========================================================================
+// Progress & memory
+// ===========================================================================
+
+model ChapterMastery {
+  userId        String   @map("user_id") @db.Uuid
+  chapterId     String   @map("chapter_id") @db.Uuid
+  masteryScore  Decimal  @default(0) @map("mastery_score") @db.Decimal(4, 3)
+  attemptsCount Int      @default(0) @map("attempts_count")
+  lastUpdated   DateTime @default(now()) @map("last_updated") @db.Timestamptz(6)
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  chapter Chapter @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+
+  @@id([userId, chapterId])
+  @@index([userId, masteryScore])
+  @@map("chapter_mastery")
+}
+
+model FlashcardState {
+  userId         String    @map("user_id") @db.Uuid
+  questionId     String    @map("question_id") @db.Uuid
+  easiness       Decimal   @default(2.5) @db.Decimal(3, 2)
+  intervalDays   Int       @default(1) @map("interval_days")
+  repetitions    Int       @default(0)
+  dueDate        DateTime  @default(dbgenerated("CURRENT_DATE")) @map("due_date") @db.Date
+  lastReviewedAt DateTime? @map("last_reviewed_at") @db.Timestamptz(6)
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@id([userId, questionId])
+  @@index([userId, dueDate])
+  @@map("flashcard_state")
+}
+
+model ReadinessScore {
+  userId            String   @map("user_id") @db.Uuid
+  subjectId         String   @map("subject_id") @db.Uuid
+  score             Decimal  @db.Decimal(4, 3)
+  masteryComponent  Decimal? @map("mastery_component") @db.Decimal(4, 3)
+  coverageComponent Decimal? @map("coverage_component") @db.Decimal(4, 3)
+  trendComponent    Decimal? @map("trend_component") @db.Decimal(4, 3)
+  computedAt        DateTime @default(now()) @map("computed_at") @db.Timestamptz(6)
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subject Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+
+  @@id([userId, subjectId])
+  @@map("readiness_scores")
+}
+
+// ===========================================================================
+// Chat / RAG
+// ===========================================================================
+
+model ChatSession {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId           String   @map("user_id") @db.Uuid
+  questionId       String?  @map("question_id") @db.Uuid
+  /// ADDITION — anchors the conversation to one marked attempt, so correction-key
+  /// tutoring can be given the student's own answer and the marks it lost next
+  /// to the official solution. Without it the tutor can only re-explain the
+  /// model answer, which is the one thing the student can already read.
+  attemptId        String?  @map("attempt_id") @db.Uuid
+  uploadedImageUrl String?  @map("uploaded_image_url")
+  title            String?
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  question Question? @relation(fields: [questionId], references: [id], onDelete: SetNull)
+  attempt  Attempt?  @relation(fields: [attemptId], references: [id], onDelete: SetNull)
+
+  messages ChatMessage[]
+
+  @@index([userId, updatedAt])
+  @@map("chat_sessions")
+}
+
+model ChatMessage {
+  id             String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sessionId      String         @map("session_id") @db.Uuid
+  role           ChatRole
+  content        String
+  /// Null on user messages. Always set on assistant messages — an assistant
+  /// message with no tier means the pipeline was bypassed, which is a bug.
+  groundingTier  GroundingTier? @map("grounding_tier")
+  citedSourceIds String[]       @map("cited_source_ids") @db.Uuid
+  /// Top similarity score at the tier that fired; kept for eval harness runs
+  /// and for tuning the 0.85 / 0.72 thresholds against real usage.
+  topSimilarity  Decimal?       @map("top_similarity") @db.Decimal(5, 4)
+  modelUsed      String?        @map("model_used")
+  createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  session ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, createdAt])
+  @@map("chat_messages")
+}
+
+// ===========================================================================
+// Personal (per-student, private) references
+// ===========================================================================
+
+model UserReference {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId        String   @map("user_id") @db.Uuid
+  fileUrl       String   @map("file_url")
+  fileName      String?  @map("file_name")
+  extractedText String?  @map("extracted_text")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  embedding Unsupported("vector(1536)")?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("user_references")
+}
+
+model UserGrade {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  subjectId String?   @map("subject_id") @db.Uuid
+  label     String?
+  grade     Decimal?  @db.Decimal(5, 2)
+  maxGrade  Decimal?  @map("max_grade") @db.Decimal(5, 2)
+  date      DateTime? @db.Date
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subject Subject? @relation(fields: [subjectId], references: [id], onDelete: SetNull)
+
+  @@index([userId, date])
+  @@map("user_grades")
+}
+
+// ===========================================================================
+// Study planning
+// ===========================================================================
+
+model StudySession {
+  id              String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId          String             @map("user_id") @db.Uuid
+  chapterId       String?            @map("chapter_id") @db.Uuid
+  title           String
+  scheduledDate   DateTime           @map("scheduled_date") @db.Date
+  durationMinutes Int?               @map("duration_minutes")
+  source          StudySessionSource @default(manual)
+  status          StudySessionStatus @default(planned)
+  createdAt       DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  chapter Chapter? @relation(fields: [chapterId], references: [id], onDelete: SetNull)
+
+  @@index([userId, scheduledDate])
+  @@map("study_sessions")
+}
+
+model UpcomingExam {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  subjectId String?  @map("subject_id") @db.Uuid
+  examDate  DateTime @map("exam_date") @db.Date
+  label     String?
+  isBacExam Boolean  @default(false) @map("is_bac_exam")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subject Subject? @relation(fields: [subjectId], references: [id], onDelete: SetNull)
+
+  @@index([userId, examDate])
+  @@map("upcoming_exams")
+}
+
+model Todo {
+  id              String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId          String        @map("user_id") @db.Uuid
+  content         String
+  linkedChapterId String?       @map("linked_chapter_id") @db.Uuid
+  linkedAction    LinkedAction? @map("linked_action")
+  isDone          Boolean       @default(false) @map("is_done")
+  createdAt       DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  linkedChapter Chapter? @relation(fields: [linkedChapterId], references: [id], onDelete: SetNull)
+
+  @@index([userId, isDone])
+  @@map("todos")
+}
+
+// ===========================================================================
+// Admin / QA
+// ===========================================================================
+
+model Announcement {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title           String
+  body            String
+  /// Null = all tracks.
+  targetTrackId   String?  @map("target_track_id") @db.Uuid
+  /// Null = all subjects.
+  targetSubjectId String?  @map("target_subject_id") @db.Uuid
+  createdBy       String?  @map("created_by") @db.Uuid
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  targetTrack   Track?   @relation(fields: [targetTrackId], references: [id], onDelete: SetNull)
+  targetSubject Subject? @relation(fields: [targetSubjectId], references: [id], onDelete: SetNull)
+  author        User?    @relation("AnnouncementAuthor", fields: [createdBy], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@map("announcements")
+}
+
+model ReviewQueueItem {
+  id               String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  itemType         ReviewItemType @map("item_type")
+  itemId           String         @map("item_id") @db.Uuid
+  flagReason       String?        @map("flag_reason")
+  flaggedByUserId  String?        @map("flagged_by_user_id") @db.Uuid
+  status           ReviewStatus   @default(pending)
+  reviewedByUserId String?        @map("reviewed_by_user_id") @db.Uuid
+  reviewNotes      String?        @map("review_notes")
+  reviewedAt       DateTime?      @map("reviewed_at") @db.Timestamptz(6)
+  createdAt        DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  flaggedBy  User? @relation("ReviewFlagger", fields: [flaggedByUserId], references: [id], onDelete: SetNull)
+  reviewedBy User? @relation("ReviewResolver", fields: [reviewedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+  @@index([itemType, itemId])
+  @@map("review_queue")
+}
+
+model Notification {
+  id        String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String           @map("user_id") @db.Uuid
+  type      NotificationType
+  message   String
+  /// Where tapping the notification should land.
+  href      String?
+  isRead    Boolean          @default(false) @map("is_read")
+  createdAt DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead, createdAt])
+  @@map("notifications")
+}
+
+/// ADDITION — /admin/ingestion is specified as "trigger/monitor ingestion batch
+/// jobs" but the plan has no table to monitor. Without this the admin page is
+/// a button with nothing to show.
+model IngestionJob {
+  id             String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  kind           String
+  subjectId      String?            @map("subject_id") @db.Uuid
+  status         IngestionJobStatus @default(queued)
+  sourceLabel    String?            @map("source_label")
+  itemsTotal     Int                @default(0) @map("items_total")
+  itemsProcessed Int                @default(0) @map("items_processed")
+  itemsFailed    Int                @default(0) @map("items_failed")
+  errorMessage   String?            @map("error_message")
+  log            Json?
+  triggeredBy    String?            @map("triggered_by") @db.Uuid
+  startedAt      DateTime?          @map("started_at") @db.Timestamptz(6)
+  finishedAt     DateTime?          @map("finished_at") @db.Timestamptz(6)
+  createdAt      DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  subject Subject? @relation(fields: [subjectId], references: [id], onDelete: SetNull)
+  actor   User?    @relation(fields: [triggeredBy], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+  @@map("ingestion_jobs")
+}

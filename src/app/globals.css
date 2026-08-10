@@ -1,0 +1,155 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ---------------------------------------------------------------------------
+ * Design tokens
+ *
+ * Interim palette, drawn from the material the product is actually about:
+ * examination paper. Cool off-white stock, dark ink-blue text, hairline rules
+ * like a printed answer booklet, and a single examiner's red reserved for marks
+ * and for the exam countdown.
+ *
+ * Deliberately NOT the default generated-app look — no cream-and-terracotta, no
+ * dark mode with one neon accent. When the real design files arrive, replacing
+ * the values in this block is the whole job; no component references a raw
+ * colour.
+ * ------------------------------------------------------------------------- */
+
+:root {
+  --paper: 220 25% 98%;
+  --paper-raised: 0 0% 100%;
+  --paper-sunken: 220 22% 95%;
+
+  --ink: 222 45% 12%;
+  --ink-muted: 220 14% 40%;
+  --ink-faint: 220 12% 58%;
+
+  --rule: 220 16% 89%;
+  --rule-strong: 220 16% 80%;
+
+  --primary: 222 58% 30%;
+  --primary-hover: 222 58% 24%;
+  --primary-soft: 222 55% 95%;
+  --on-primary: 220 25% 98%;
+
+  --mark: 356 68% 44%;
+  --mark-soft: 356 70% 96%;
+
+  --correct: 152 52% 30%;
+  --correct-soft: 152 45% 94%;
+
+  --partial: 36 78% 38%;
+  --partial-soft: 38 85% 95%;
+
+  --focus: 222 70% 45%;
+
+  --radius-sm: 3px;
+  --radius: 5px;
+  --radius-lg: 8px;
+
+  --font-serif: ui-serif, 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, 'Times New Roman',
+    serif;
+  --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
+    sans-serif;
+  --font-mono: ui-monospace, 'Cascadia Mono', 'Segoe UI Mono', 'Liberation Mono', Menlo, Consolas,
+    monospace;
+}
+
+/* Arabic needs its own stacks — a Latin serif has no Arabic glyphs, so the
+ * browser silently substitutes and the page loses its typographic voice. */
+:root:lang(ar),
+[dir='rtl'] {
+  --font-serif: 'Noto Naskh Arabic', 'Amiri', 'Traditional Arabic', 'Times New Roman', serif;
+  --font-sans: 'Noto Sans Arabic', 'Segoe UI', Tahoma, system-ui, sans-serif;
+}
+
+@layer base {
+  * {
+    @apply border-rule;
+  }
+
+  html {
+    @apply bg-paper text-ink;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-paper font-sans text-[15px] leading-relaxed text-ink antialiased;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply font-serif font-semibold tracking-tight text-ink;
+    text-wrap: balance;
+  }
+
+  /* One visible focus treatment everywhere. An examination product is used
+   * under pressure and on shared machines; keyboard users must never lose
+   * their place. */
+  :focus-visible {
+    @apply outline-none ring-2 ring-focus ring-offset-2 ring-offset-paper;
+  }
+
+  ::selection {
+    @apply bg-primary-soft text-ink;
+  }
+
+  /* Respect the OS setting rather than animating regardless. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer components {
+  /* A sheet is the base surface: white stock with a hairline edge, the way a
+   * question is printed on a page rather than floating in a card. */
+  .sheet {
+    @apply rounded-lg border border-rule bg-paper-raised shadow-sheet;
+  }
+
+  /* The ruled rhythm of a mark scheme — used on barème breakdowns and on
+   * anything that reads as an official tabulation. */
+  .ruled > * + * {
+    @apply border-t border-rule;
+  }
+
+  /* Question and solution bodies. Serif, generous measure, so a multi-step
+   * derivation reads like a textbook and not like UI text. */
+  .prose-exam {
+    @apply font-serif text-[17px] leading-[1.75] text-ink;
+    max-width: 68ch;
+  }
+
+  .prose-exam p + p {
+    @apply mt-4;
+  }
+
+  /* KaTeX inherits the surrounding colour instead of its own near-black. */
+  .prose-exam .katex {
+    @apply text-ink;
+    font-size: 1.05em;
+  }
+
+  /* Horizontal scroll is contained to the element that needs it. The page body
+   * must never scroll sideways — long equations and wide tables are common
+   * here and would otherwise break the whole layout on a phone. */
+  .scroll-x {
+    @apply overflow-x-auto;
+    scrollbar-width: thin;
+  }
+}
+
+/* KaTeX display equations get room to breathe and scroll independently. */
+.katex-display {
+  @apply my-4 overflow-x-auto overflow-y-hidden py-1;
+}

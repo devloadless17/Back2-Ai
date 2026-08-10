@@ -1,0 +1,31 @@
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    container_name: bac2-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: bac2
+      POSTGRES_PASSWORD: bac2_local_dev
+      POSTGRES_DB: bac2
+    # 5442, not 5432/5433: this machine already runs other Postgres containers.
+    # Keep this in sync with DATABASE_URL in .env.
+    ports:
+      - "5442:5432"
+    volumes:
+      - bac2-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bac2 -d bac2"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  bac2-pgdata:
+
+# Object storage is deliberately NOT a container here.
+#
+# Uploads (answer photos, personal reference PDFs) go through src/lib/storage.ts,
+# which writes to ./uploads in development and to S3/R2 in production
+# (STORAGE_DRIVER=s3). Nothing stored is ever served from a public bucket URL —
+# reads go through an authorization-checked route handler — so a local MinIO
+# would add a dependency without exercising any code path production uses.

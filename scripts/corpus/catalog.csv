@@ -1,0 +1,23 @@
+﻿book_name,folder,sha8,subject,language,tracks,pages,duplicate_folders,note
+chimie-gsls-en,chemistry-en__852933a0,852933a0,Chemistry,en,GS;LS,393,,Cover: Sections General Sciences - Life Sciences.
+chimie-lhse-en,chemistry-lh-en__f24cb630,f24cb630,Chemistry,en,LH;SE,193,,Cover: Sections Literature and Humanities. Shared with SE.
+chimie-gsls-fr,chimie-fr__0ddf683b,0ddf683b,Chimie,fr,GS;LS,394,,Cover: Sciences Generales - Sciences de la Vie.
+chimie-lhse-fr,chimie-lh-fr__4d8842b7,4d8842b7,Chimie,fr,LH;SE,193,,Cover: Lettres et Humanites. Shared with SE.
+svt-lhse-en,biology-lh-en__39d396cf,39d396cf,Life Sciences,en,LH;SE,154,biology-se-en__39d396cf,Cover: Sections Literature and Humanities - Sociology and Economics.
+svt-ls-en,biology-en__695aa091,695aa091,Life Sciences,en,LS,396,,"Cover: Life Sciences Section, New edition."
+math-gs-alg-geom-en,289de41e5b683087171d2d02f8ac52ba323d0ef1b4e44d977ab7060817b4c38b,289de41e,Mathematics,en,GS,258,,Building up Mathematics: Algebra and Geometry. Cover: General Sciences Section.
+math-gs-calc-stat-en,math-gs-2-en__56566975,56566975,Mathematics,en,GS,251,,Building up Mathematics: Calculus and Statistics. Cover: General Sciences Section.
+math-lh-en,math-lh-en__a8319ebe,a8319ebe,Mathematics,en,LH,178,,Cover: Literature and Humanities Section. Distinct from the SE maths book.
+math-ls-en,math-er__9de6de98,9de6de98,Mathematics,en,LS,259,,Cover: Life Sciences Section.
+math-se-en,math-se-en__de339ba1,de339ba1,Mathematics,en,SE,281,,Cover: Sociology and Economics Section.
+math-gs-alg-geom-fr,math-gs-1-fr__184c4281,184c4281,Mathematiques,fr,GS,259,,Construire les Mathematiques: Algebre et Geometrie. Cover: Sciences Generales.
+math-gs-calc-stat-fr,math-gs-2-fr__57a12d5b,57a12d5b,Mathematiques,fr,GS,283,,Construire les Mathematiques: Analyse et Statistiques. Cover: Sciences Generales.
+math-lh-fr,math-lh-fr__e6185d9e,e6185d9e,Mathematiques,fr,LH,178,,Cover: Lettres et Humanites.
+math-ls-fr,math-fr__9258e8c6,9258e8c6,Mathematiques,fr,LS,258,,Cover: Sciences de la Vie.
+math-se-fr,math-se-fr__f30a4b0c,f30a4b0c,Mathematiques,fr,SE,292,,Cover: Sociologie et Economie.
+physique-gsls-en,physics-en__7f314f5e,7f314f5e,Physics,en,GS;LS,364,,Cover: Sections Life Sciences - General Sciences.
+physique-lhse-en,physics-lh-en__3f6585b4,3f6585b4,Physics,en,LH;SE,147,physics-se-en__3f6585b4,Cover: Sections Literature and Humanities. Shared with SE.
+physique-gsls-fr,physique-fr__189c5fc6,189c5fc6,Physique,fr,GS;LS,364,,Cover: Sciences Generales - Sciences de la Vie.
+physique-lhse-fr,physique-lh-fr__55d3f2f2,55d3f2f2,Physique,fr,LH;SE,147,physique-se-fr__55d3f2f2,Cover: Lettres et Humanites. Shared with SE.
+svt-lhse-fr,biology-lh-fr__877c8d5c,877c8d5c,Sciences de la vie,fr,LH;SE,154,biology-se-fr__877c8d5c,Cover: Lettres et Humanites - Sociologie et Economie.
+svt-ls-fr,biology-fr__b41a0241,b41a0241,Sciences de la vie,fr,LS,396,,Cover: Sciences de la Vie.

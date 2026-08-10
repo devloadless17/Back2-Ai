@@ -1,0 +1,142 @@
+'use client';
+
+import { useEffect, useRef, useState } from 'react';
+
+import { cn } from '@/lib/cn';
+import { useI18n } from '@/lib/i18n/client';
+
+/**
+ * Mastery and readiness bars.
+ *
+ * These animate to their value rather than appearing at it. Progress is the
+ * emotional core of the product — a bar that silently renders at a new number
+ * on the next page load teaches the student that nothing happened. The bar
+ * remembers its previous value across renders, so logging an attempt makes the
+ * relevant bar visibly move.
+ *
+ * Reduced-motion users get the final value immediately; the global
+ * prefers-reduced-motion rule in globals.css collapses the transition.
+ */
+
+export type MeterProps = {
+  /** 0..1 */
+  value: number;
+  label?: string;
+  /** Shown at the end of the row — usually a percentage or "n attempts". */
+  caption?: string;
+  size?: 'sm' | 'md';
+  tone?: 'auto' | 'primary';
+  className?: string;
+};
+
+/** Below 0.4 needs work, below 0.7 is developing, above is solid. */
+function toneFor(value: number): string {
+  if (value < 0.4) return 'bg-mark';
+  if (value < 0.7) return 'bg-partial';
+  return 'bg-correct';
+}
+
+export function Meter({ value, label, caption, size = 'md', tone = 'auto', className }: MeterProps) {
+  const target = clamp01(value);
+  const [rendered, setRendered] = useState(0);
+  const hasAnimated = useRef(false);
+
+  useEffect(() => {
+    // First paint starts from zero so the bar fills in; later changes animate
+    // from wherever the bar currently is.
+    if (!hasAnimated.current) {
+      hasAnimated.current = true;
+      const frame = requestAnimationFrame(() => setRendered(target));
+      return () => cancelAnimationFrame(frame);
+    }
+    setRendered(target);
+    return undefined;
+  }, [target]);
+
+  const { formatPercent } = useI18n();
+
+  return (
+    <div className={cn('space-y-1', className)}>
+      {(label || caption) && (
+        <div className="flex items-baseline justify-between gap-3 text-[12.5px]">
+          {label && <span className="min-w-0 truncate font-medium text-ink">{label}</span>}
+          {caption && <span className="shrink-0 tabular-nums text-ink-muted">{caption}</span>}
+        </div>
+      )}
+
+      <div
+        role="meter"
+        aria-valuenow={Math.round(target * 100)}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-label={label}
+        aria-valuetext={formatPercent(target)}
+        className={cn(
+          'w-full overflow-hidden rounded-sm bg-paper-sunken',
+          size === 'sm' ? 'h-1.5' : 'h-2.5',
+        )}
+      >
+        <div
+          className={cn(
+            'h-full rounded-sm transition-[width] duration-700 ease-sheet',
+            tone === 'primary' ? 'bg-primary' : toneFor(target),
+          )}
+          style={{ width: `${rendered * 100}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
+/**
+ * The readiness figure on the dashboard and performance page. Larger, counts up
+ * to its value, and always states what it is a percentage of — an unexplained
+ * "68%" next to a national exam is not a kindness.
+ */
+export function ReadinessDial({
+  value,
+  label,
+  sublabel,
+  className,
+}: {
+  value: number;
+  label: string;
+  sublabel?: string;
+  className?: string;
+}) {
+  const target = clamp01(value);
+  const [shown, setShown] = useState(0);
+  const { formatPercent } = useI18n();
+
+  useEffect(() => {
+    const start = performance.now();
+    const duration = 800;
+    let frame = 0;
+
+    const step = (now: number) => {
+      const t = Math.min(1, (now - start) / duration);
+      // Ease-out so it decelerates into the final number rather than snapping.
+      setShown(target * (1 - Math.pow(1 - t, 3)));
+      if (t < 1) frame = requestAnimationFrame(step);
+    };
+
+    frame = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(frame);
+  }, [target]);
+
+  return (
+    <div className={cn('space-y-2', className)}>
+      <p className="text-[12.5px] font-medium uppercase tracking-wide text-ink-muted">{label}</p>
+      <p className="font-serif text-4xl font-semibold tabular-nums leading-none text-ink">
+        {formatPercent(shown)}
+      </p>
+      {sublabel && <p className="text-[12.5px] leading-snug text-ink-muted">{sublabel}</p>}
+      <Meter value={target} tone="primary" size="sm" />
+    </div>
+  );
+}
+
+function clamp01(value: number): number {
+  if (!Number.isFinite(value)) return 0;
+  return Math.min(1, Math.max(0, value));
+}
