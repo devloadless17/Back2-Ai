@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
+import { useProgressFeedback } from '@/components/progress/use-progress-feedback';
 import { Button, LinkButton } from '@/components/ui/button';
 import { Badge, EmptyState } from '@/components/ui/feedback';
 import { MathText } from '@/components/ui/math';
@@ -10,6 +11,7 @@ import { Meter } from '@/components/ui/progress';
 import { Sheet, SheetBody, SheetFooter, SheetHeader } from '@/components/ui/sheet';
 import { cn } from '@/lib/cn';
 import { sendJson } from '@/lib/client/request';
+import type { ProgressSummary } from '@/lib/gamification';
 import { useI18n } from '@/lib/i18n/client';
 import type { DueCard } from '@/lib/queries/flashcards';
 import type { ReviewGrade } from '@/lib/scoring/sm2';
@@ -34,9 +36,17 @@ const GRADES: { grade: ReviewGrade; tone: string }[] = [
   { grade: 'easy', tone: 'border-correct/40 text-correct hover:bg-correct-soft' },
 ];
 
-export function ReviewSession({ cards }: { cards: DueCard[] }) {
+export function ReviewSession({
+  cards,
+  initialProgress,
+}: {
+  cards: DueCard[];
+  /** Progress as it stood when the page was rendered, for diffing into toasts. */
+  initialProgress?: ProgressSummary;
+}) {
   const { t, format } = useI18n();
   const router = useRouter();
+  const reportProgress = useProgressFeedback(initialProgress);
 
   const [queue, setQueue] = useState(cards);
   const [index, setIndex] = useState(0);
@@ -102,10 +112,15 @@ export function ReviewSession({ cards }: { cards: DueCard[] }) {
     if (value === 'again') setLapses((count) => count + 1);
 
     // Post in the background — the student should not wait on the network
-    // between two cards.
-    void sendJson('/api/flashcards/review', 'POST', { questionId: card.questionId, grade: value }).catch(
-      () => undefined,
-    );
+    // between two cards. Progress feedback arrives whenever the response does,
+    // which may well be two cards later; that is fine, because a toast is not
+    // attached to any particular card.
+    void sendJson<{ progress?: ProgressSummary }>('/api/flashcards/review', 'POST', {
+      questionId: card.questionId,
+      grade: value,
+    })
+      .then((response) => reportProgress(response?.progress))
+      .catch(() => undefined);
 
     const shouldRepeat = value === 'again';
 

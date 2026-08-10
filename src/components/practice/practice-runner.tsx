@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 
 import { FlagButton } from '@/components/practice/flag-button';
+import { useProgressFeedback } from '@/components/progress/use-progress-feedback';
 import { Button, LinkButton } from '@/components/ui/button';
 import { WorkingArea } from '@/components/ui/field';
 import { Alert, Badge, EmptyState } from '@/components/ui/feedback';
@@ -12,6 +13,7 @@ import { Meter } from '@/components/ui/progress';
 import { RuledRow, Sheet, SheetBody, SheetFooter, SheetHeader } from '@/components/ui/sheet';
 import { cn } from '@/lib/cn';
 import { ApiRequestError, sendJson } from '@/lib/client/request';
+import type { ProgressSummary } from '@/lib/gamification';
 import { useI18n } from '@/lib/i18n/client';
 
 /**
@@ -63,6 +65,7 @@ type AttemptResponse = {
   needsHumanReview: boolean;
   solution: string | null;
   mastery: { chapterId: string; masteryScore: number; attemptsCount: number };
+  progress?: ProgressSummary;
 };
 
 export function PracticeRunner({
@@ -71,15 +74,19 @@ export function PracticeRunner({
   questions,
   initialMastery,
   initialAttempts,
+  initialProgress,
 }: {
   chapterId: string;
   chapterName: string;
   questions: PracticeQuestion[];
   initialMastery: number;
   initialAttempts: number;
+  /** Progress as it stood when the page was rendered, for diffing into toasts. */
+  initialProgress?: ProgressSummary;
 }) {
   const { t, formatPercent, formatScore, format } = useI18n();
   const router = useRouter();
+  const reportProgress = useProgressFeedback(initialProgress);
 
   // Unattempted questions first — returning to a chapter should continue, not
   // restart. Order is otherwise preserved (easiest first).
@@ -122,6 +129,8 @@ export function PracticeRunner({
 
       setResult(response);
       setMastery({ score: response.mastery.masteryScore, attempts: response.mastery.attemptsCount });
+      // XP, a level, a badge, the daily goal — whatever this answer moved.
+      reportProgress(response.progress);
       // The sidebar's flashcard count and the dashboard both change on this write.
       router.refresh();
     } catch (err) {

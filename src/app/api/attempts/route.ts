@@ -15,6 +15,7 @@ import { apiUser } from '@/lib/auth/guards';
 import { db } from '@/lib/db';
 import { gradeAgainstBareme, parseBareme } from '@/lib/grading';
 import { ensureCard } from '@/lib/queries/flashcards';
+import { getProgressSummary } from '@/lib/queries/gamification';
 import { recomputeChapterMastery } from '@/lib/queries/progress';
 
 /**
@@ -171,6 +172,11 @@ export const POST = route(async (request) => {
     select: { masteryScore: true, attemptsCount: true },
   });
 
+  // Read *after* mastery is recomputed: the "chapter mastered" badge and the XP
+  // it carries depend on the score this attempt just produced. Reading first
+  // would pay out a level late, on the following question.
+  const progress = await getProgressSummary(user.id);
+
   return created({
     attemptId: attempt.id,
     isCorrect,
@@ -184,5 +190,6 @@ export const POST = route(async (request) => {
       masteryScore: Number(mastery?.masteryScore ?? 0),
       attemptsCount: mastery?.attemptsCount ?? 0,
     },
+    progress,
   });
 });

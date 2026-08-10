@@ -288,6 +288,7 @@ async function main() {
       '/exam-sim',
       '/exam-sim/new',
       '/performance',
+      '/progress',
       '/schedule',
       '/todos',
       '/notifications',

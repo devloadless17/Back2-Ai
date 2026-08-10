@@ -331,3 +331,40 @@
     background-position: 0% 50%;
   }
 }
+
+/* The ambient bubbles: up the full viewport, drifting sideways, fading at both
+ * ends so nothing ever pops into or out of existence at an edge. */
+@keyframes balloon-rise {
+  0% {
+    transform: translate3d(0, 10vh, 0) scale(0.7);
+    opacity: 0;
+  }
+  12% {
+    opacity: 1;
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate3d(var(--balloon-drift, 0), -110vh, 0) scale(1.1);
+    opacity: 0;
+  }
+}
+
+/* The celebration volley: faster, higher, and it pops rather than fading. */
+@keyframes balloon-burst {
+  0% {
+    transform: translate3d(0, 5vh, 0) scale(0.4);
+    opacity: 0;
+  }
+  15% {
+    opacity: 1;
+  }
+  70% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate3d(var(--balloon-drift, 0), -105vh, 0) scale(1.35);
+    opacity: 0;
+  }
+}

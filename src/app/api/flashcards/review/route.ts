@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { assertSameOrigin, fail, ok, parseBody, route, unauthorized } from '@/lib/api';
 import { apiUser } from '@/lib/auth/guards';
 import { db } from '@/lib/db';
+import { getProgressSummary } from '@/lib/queries/gamification';
 import { gradeToQuality, reviewFlashcard, type ReviewGrade } from '@/lib/scoring/sm2';
 
 /**
@@ -59,5 +60,8 @@ export const POST = route(async (request) => {
     intervalDays: next.intervalDays,
     easiness: next.easiness,
     lapsed: next.lapsed,
+    // Reviews earn XP too, so the client can tell the student about it in the
+    // same place it tells them about a practice attempt.
+    progress: await getProgressSummary(user.id),
   });
 });

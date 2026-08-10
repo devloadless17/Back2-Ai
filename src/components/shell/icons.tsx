@@ -145,6 +145,17 @@ export function IconShield(props: IconProps) {
   );
 }
 
+/** Levels, badges and the daily goal. */
+export function IconTrophy(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M6 3.25h8v4a4 4 0 0 1-8 0Z" />
+      <path d="M6 4.5H3.75v1a2.75 2.75 0 0 0 2.75 2.75M14 4.5h2.25v1a2.75 2.75 0 0 1-2.75 2.75" />
+      <path d="M10 11.25v3M7.25 16.75h5.5" />
+    </Icon>
+  );
+}
+
 export function IconBell(props: IconProps) {
   return (
     <Icon {...props}>

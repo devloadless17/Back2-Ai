@@ -23,6 +23,7 @@ import {
   IconPractice,
   IconSettings,
   IconShield,
+  IconTrophy,
 } from './icons';
 
 export type SidebarUser = {
@@ -36,6 +37,15 @@ export type SidebarCounts = {
   flashcardsDue: number;
   unreadNotifications: number;
   pendingReview: number;
+};
+
+export type SidebarLevel = {
+  level: number;
+  /** 0..1 through the current level. */
+  progress: number;
+  streak: number;
+  /** 0..1 of today's question goal. */
+  goalProgress: number;
 };
 
 type NavItem = {
@@ -56,7 +66,15 @@ type NavItem = {
  * /api/admin handler re-checks the role server-side; hiding these links is not
  * the security boundary.
  */
-export function Sidebar({ user, counts }: { user: SidebarUser; counts: SidebarCounts }) {
+export function Sidebar({
+  user,
+  counts,
+  level,
+}: {
+  user: SidebarUser;
+  counts: SidebarCounts;
+  level: SidebarLevel;
+}) {
   const { t } = useI18n();
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
@@ -82,6 +100,7 @@ export function Sidebar({ user, counts }: { user: SidebarUser; counts: SidebarCo
       items: [
         { href: '/exam-sim', label: t.nav.examSim, icon: IconExam },
         { href: '/performance', label: t.nav.performance, icon: IconChart },
+        { href: '/progress', label: t.progress.title, icon: IconTrophy },
       ],
     },
     {
@@ -208,6 +227,51 @@ export function Sidebar({ user, counts }: { user: SidebarUser; counts: SidebarCo
             </div>
           ))}
         </nav>
+
+        {/* Level, streak and today's goal, always in view.
+            The bar is the reason this sits in the shell rather than on one
+            page: a student should be able to see they are four questions off
+            their goal from anywhere in the product. */}
+        <Link
+          href="/progress"
+          className="group mx-3 mb-2 rounded-lg border border-rule bg-paper-sunken/60 px-3 py-2.5 transition-[transform,border-color,background-color] duration-200 ease-spring hover:-translate-y-0.5 hover:border-primary/40 hover:bg-primary-soft motion-reduce:transform-none motion-reduce:hover:transform-none"
+        >
+          <span className="flex items-center gap-2.5">
+            <span
+              aria-hidden="true"
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary to-accent text-[13px] font-extrabold text-on-primary shadow-pop transition-transform duration-200 ease-spring group-hover:scale-110"
+            >
+              {level.level}
+            </span>
+
+            <span className="min-w-0 flex-1">
+              <span className="flex items-baseline justify-between gap-2">
+                <span className="text-[12px] font-extrabold uppercase tracking-wider text-ink-muted">
+                  {t.progress.level} {level.level}
+                </span>
+                {level.streak > 0 && (
+                  <span className="shrink-0 text-[11.5px] font-extrabold tabular-nums text-accent">
+                    ▲ {level.streak}
+                  </span>
+                )}
+              </span>
+
+              {/* Two hairlines: progress through the level, and today's goal. */}
+              <span className="mt-1.5 block h-1.5 w-full overflow-hidden rounded-full bg-rule">
+                <span
+                  className="block h-full rounded-full bg-gradient-to-r from-primary to-accent transition-[width] duration-700 ease-soft"
+                  style={{ width: `${Math.round(level.progress * 100)}%` }}
+                />
+              </span>
+              <span className="mt-1 block h-1 w-full overflow-hidden rounded-full bg-rule">
+                <span
+                  className="block h-full rounded-full bg-correct transition-[width] duration-700 ease-soft"
+                  style={{ width: `${Math.round(level.goalProgress * 100)}%` }}
+                />
+              </span>
+            </span>
+          </span>
+        </Link>
 
         <div className="border-t border-rule px-4 py-3">
           <p className="truncate text-[13px] font-medium text-ink">{user.displayName ?? user.email}</p>

@@ -8,6 +8,7 @@ import { requireUser } from '@/lib/auth/guards';
 import { getTranslations } from '@/lib/i18n';
 import { format } from '@/lib/i18n/format';
 import { getDueCards, weakChapters, type ReviewScope } from '@/lib/queries/flashcards';
+import { getProgressSummary } from '@/lib/queries/gamification';
 import { MIN_ATTEMPTS_FOR_WEAKNESS } from '@/lib/scoring/mastery';
 
 export const metadata: Metadata = { title: 'Review' };
@@ -67,7 +68,10 @@ export default async function FlashcardReviewPage({
     }
   }
 
-  const cards = await getDueCards(user.id, user.trackId, scope);
+  const [cards, initialProgress] = await Promise.all([
+    getDueCards(user.id, user.trackId, scope),
+    getProgressSummary(user.id),
+  ]);
 
   return (
     <>
@@ -75,7 +79,7 @@ export default async function FlashcardReviewPage({
         title={isWeakScope ? t.flashcards.scopeWeak : t.flashcards.title}
         description={isWeakScope ? t.flashcards.scopeWeakHint : t.flashcards.subtitle}
       />
-      <ReviewSession cards={cards} />
+      <ReviewSession cards={cards} initialProgress={initialProgress} />
     </>
   );
 }

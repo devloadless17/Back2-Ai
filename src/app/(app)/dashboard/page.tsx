@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
+import { NextUpCard } from '@/components/progress/next-up-card';
+import { DailyGoalCard, LevelCard } from '@/components/progress/progress-cards';
 import { ActivityColumns, BarRows, RingGauge, type BarDatum } from '@/components/ui/charts';
 import { LinkButton } from '@/components/ui/button';
 import { Badge, EmptyState } from '@/components/ui/feedback';
@@ -12,6 +14,8 @@ import { db } from '@/lib/db';
 import { getTranslations } from '@/lib/i18n';
 import { daysUntil, format, formatDate } from '@/lib/i18n/format';
 import { attemptsByDay, streakFrom } from '@/lib/queries/activity';
+import { getProgressSnapshot } from '@/lib/queries/gamification';
+import { getNextUp } from '@/lib/queries/next-up';
 import { findWeakestChapter, getProgressForUser } from '@/lib/queries/progress';
 import { MIN_ATTEMPTS_FOR_WEAKNESS } from '@/lib/scoring/mastery';
 
@@ -39,8 +43,16 @@ export default async function DashboardPage() {
   const user = await requireUser();
   const { locale, t } = await getTranslations();
 
-  const [progress, flashcardsDue, announcements, upcomingExams, totalAttempts, activity] =
-    await Promise.all([
+  const [
+    progress,
+    flashcardsDue,
+    announcements,
+    upcomingExams,
+    totalAttempts,
+    activity,
+    snapshot,
+    nextUp,
+  ] = await Promise.all([
       getProgressForUser(user.id, user.trackId),
       db.flashcardState.count({ where: { userId: user.id, dueDate: { lte: startOfToday() } } }),
       db.announcement.findMany({
@@ -75,6 +87,8 @@ export default async function DashboardPage() {
       }),
       db.attempt.count({ where: { user: { id: user.id } } }),
       attemptsByDay(user.id, 14),
+      getProgressSnapshot(user.id),
+      getNextUp(user.id, user.trackId),
     ]);
 
   const weakest = findWeakestChapter(progress);
@@ -139,6 +153,21 @@ export default async function DashboardPage() {
           }
         />
       )}
+
+      {/* --- One instruction, before any numbers --- */}
+      <div className="mb-5 animate-rise">
+        <NextUpCard next={nextUp} />
+      </div>
+
+      {/* --- Level and today's goal --- */}
+      <div className="mb-5 grid gap-5 lg:grid-cols-2">
+        <Reveal index={0}>
+          <LevelCard level={snapshot.levelState} rank={snapshot.rank} className="h-full" />
+        </Reveal>
+        <Reveal index={1}>
+          <DailyGoalCard goal={snapshot.goal} streak={snapshot.streak} className="h-full" />
+        </Reveal>
+      </div>
 
       {/* --- The four headline figures --- */}
       <div className="stagger grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
