@@ -17,6 +17,7 @@
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "db:studio": "prisma studio",
+    "db:demo": "node --conditions=react-server --env-file=.env --import tsx prisma/demo-seed.ts",
     "db:seed": "node --conditions=react-server --env-file=.env --import tsx prisma/seed.ts",
     "db:seed:taxonomy": "node --conditions=react-server --env-file=.env --import tsx prisma/seed-taxonomy.ts",
     "db:reset": "prisma migrate reset --force",

@@ -31,6 +31,12 @@ Demo accounts (development only — change before any deployment):
 | student | `student@bac2.local` / `ChangeMeImmediately!2026` |
 | admin | `admin@bac2.local` / `ChangeMeImmediately!2026` |
 
+**Showing the product to someone?** Run `npm run db:demo` for a fully loaded
+account — 60 days of practice history, a marked paper, a deck due today and five
+recorded tutoring conversations. Credentials and an eight-minute script are in
+[docs/DEMO.md](docs/DEMO.md). Its content is illustrative rather than official
+ministry material, and the account says so on its own dashboard.
+
 ### Environment
 
 `SESSION_SECRET` and `DATABASE_URL` are required; the app will not boot without
@@ -52,6 +58,7 @@ embedding key to enable chat, generation, marking, OCR and ingestion.
 
 | | |
 |---|---|
+| `npm run db:demo` | **loads the presentation account** — see [docs/DEMO.md](docs/DEMO.md) |
 | `npm run dev` / `build` / `start` | the app |
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm test` | unit tests (scoring, marking, scheduling — no DB or API key needed) |
