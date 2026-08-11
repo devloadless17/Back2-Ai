@@ -2,9 +2,9 @@
  * Ingestion CLI.
  *
  *   npm run ingest -- --embed-missing
- *   npm run ingest -- --file ./papers/math-2023.pdf --track SG --subject "Mathématiques" \
+ *   npm run ingest -- --file ./papers/math-2023.pdf --track GS --subject "Mathématiques" \
  *                     --kind exam_paper --year 2023 --session session1
- *   npm run ingest -- --file ./notes/analyse.pdf --track SG --subject "Mathématiques" \
+ *   npm run ingest -- --file ./notes/analyse.pdf --track GS --subject "Mathématiques" \
  *                     --kind course_material
  *
  * The same code path the admin page triggers, exposed for bulk loading — the

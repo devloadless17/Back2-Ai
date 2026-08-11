@@ -19,6 +19,7 @@
     "db:studio": "prisma studio",
     "db:demo": "node --conditions=react-server --env-file=.env --import tsx prisma/demo-seed.ts",
     "db:seed": "node --conditions=react-server --env-file=.env --import tsx prisma/seed.ts",
+    "db:prune": "node --conditions=react-server --env-file=.env --import tsx prisma/prune-placeholder.ts",
     "db:seed:taxonomy": "node --conditions=react-server --env-file=.env --import tsx prisma/seed-taxonomy.ts",
     "db:reset": "prisma migrate reset --force",
     "vector:resize": "node --conditions=react-server --env-file=.env --import tsx scripts/resize-embeddings.ts",

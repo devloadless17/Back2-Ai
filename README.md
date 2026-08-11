@@ -58,13 +58,15 @@ embedding key to enable chat, generation, marking, OCR and ingestion.
 
 | | |
 |---|---|
+| `npm run db:seed:taxonomy` | load the real curriculum from the transcribed books |
+| `npm run db:prune` | remove the invented placeholder taxonomy |
 | `npm run db:demo` | **loads the presentation account** — see [docs/DEMO.md](docs/DEMO.md) |
 | `npm run dev` / `build` / `start` | the app |
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm test` | unit tests (scoring, marking, scheduling — no DB or API key needed) |
 | `npm run smoke` | end-to-end HTTP checks against a running server |
 | `npm run db:seed` / `db:deploy` / `db:reset` / `db:studio` | database |
-| `npm run ingest -- --file <path> --track SG --subject "Mathématiques" --kind exam_paper --year 2023` | ingest a paper |
+| `npm run ingest -- --file <path> --track GS --subject "Mathematics" --kind exam_paper --year 2023` | ingest a paper |
 | `npm run ingest -- --embed-missing` | backfill embeddings for anything without a vector |
 | `npm run ingest -- --recalibrate` | recompute question difficulty from observed attempts |
 | `npm run eval` | retrieval eval harness — measures whether the tier thresholds fit the corpus |
@@ -129,6 +131,22 @@ product treats as evidence of unaided ability.
 **Nothing in storage has a public URL.** Answer photos and personal documents
 are served through `/api/files/[...key]`, which checks ownership from both the
 key's shape and the row that references it.
+
+**The curriculum is derived, not invented.** Subjects, units and chapters are
+read out of the transcribed CRDP textbooks' own tables of contents and loaded by
+`prisma/taxonomy-loader.ts`; which book serves which branch comes from each
+book's ingestion record. The four branch codes are `GS`, `LS`, `SE`, `LH` — one
+set, matching what every book is filed under. The placeholder programme in
+`seed-data.ts` now only runs in a checkout without `corpus/`.
+
+The loader refuses material it cannot vouch for: back matter ("Answers and
+Hints") is dropped, a contents page that parsed into structural furniture
+("Part D", "The Authors") seeds nothing and is named in the run output, and a
+book whose list shrinks has its stranded chapters withdrawn — unless work is
+already filed under them, in which case it says so and leaves them. A missing
+subject is obviously missing and gets fixed; a subject full of "Part C" looks
+like a working feature and does not. What is authoritative and what is still
+open is written down in [docs/CURRICULUM.md](docs/CURRICULUM.md).
 
 **Signup asks for country, section and language, and locks the last two.**
 Country exists because every question in the corpus belongs to one national

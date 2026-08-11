@@ -166,7 +166,7 @@ async function main() {
     const signupPage = await request('/signup');
     check('GET /signup renders', signupPage.status === 200, `status ${signupPage.status}`);
     const signupText = visibleText(signupPage.body);
-    check('  …lists the four tracks', ['SG', 'SV', 'VSE', 'LH'].every((c) => signupText.includes(c)));
+    check('  …lists the four tracks', ['GS', 'LS', 'SE', 'LH'].every((c) => signupText.includes(c)));
     check(
       '  …offers a country, with only the ingested one selectable',
       /name="country"/.test(signupPage.body) &&

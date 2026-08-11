@@ -35,7 +35,7 @@ export type SeedTrack = {
 
 export const TRACKS: SeedTrack[] = [
   {
-    code: 'SG',
+    code: 'GS',
     name: 'Sciences Générales',
     subjects: [
       {
@@ -89,7 +89,7 @@ export const TRACKS: SeedTrack[] = [
     ],
   },
   {
-    code: 'SV',
+    code: 'LS',
     name: 'Sciences de la Vie',
     subjects: [
       {
@@ -122,8 +122,8 @@ export const TRACKS: SeedTrack[] = [
     ],
   },
   {
-    code: 'VSE',
-    name: 'Vie Sociale et Économique',
+    code: 'SE',
+    name: 'Sociologie et Économie',
     subjects: [
       {
         name: 'Économie',

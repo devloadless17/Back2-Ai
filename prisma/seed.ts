@@ -17,6 +17,7 @@ import { PrismaClient, type Language } from '@prisma/client';
 import { hashPassword } from '../src/lib/auth/password';
 
 import { CONTENT_CHUNKS, EXAM_CYCLES, QUESTIONS, TRACKS } from './seed-data';
+import { loadCorpusTaxonomy } from './taxonomy-loader';
 
 const db = new PrismaClient();
 
@@ -27,12 +28,42 @@ const DEMO_PASSWORD = 'ChangeMeImmediately!2026';
 async function main() {
   console.log('Seeding…');
 
-  // --- Taxonomy ------------------------------------------------------------
+  /*
+   * --- Taxonomy ----------------------------------------------------------
+   *
+   * The real curriculum wins whenever it is available.
+   *
+   * `loadCorpusTaxonomy` reads the chapter lists parsed from the transcribed
+   * CRDP textbooks' own contents pages — that is the authoritative programme,
+   * and seeding an invented one beside it would leave two sets of chapters
+   * under the same four track codes with no way to tell which a question
+   * belongs to.
+   *
+   * The placeholder in `seed-data.ts` is the fallback for a checkout without
+   * the corpus, so `npm run db:seed` still produces a navigable app. When the
+   * corpus IS present, the placeholder taxonomy is skipped entirely and its
+   * sample questions are filed against real chapters where the names match —
+   * most will not, and each is reported rather than silently dropped.
+   */
+  const corpus = await loadCorpusTaxonomy(db);
+  const usingRealCurriculum = corpus.corpusPresent && corpus.chapters > 0;
+
+  if (usingRealCurriculum) {
+    console.log(
+      `  curriculum: ${corpus.chapters} chapters in ${corpus.subjects} subjects, from the transcribed books`,
+    );
+    if (corpus.skipped.length) {
+      console.log(`  (${corpus.skipped.length} book(s) had no readable chapter list — see db:seed:taxonomy)`);
+    }
+  } else {
+    console.log('  curriculum: no corpus found, using the placeholder taxonomy');
+  }
+
   const subjectIdByKey = new Map<string, string>();
   const chapterIdByKey = new Map<string, string>();
   const trackIdByCode = new Map<string, string>();
 
-  for (const track of TRACKS) {
+  for (const track of usingRealCurriculum ? [] : TRACKS) {
     const trackRow = await db.track.upsert({
       where: { code: track.code },
       update: { name: track.name },
@@ -82,7 +113,11 @@ async function main() {
     }
   }
 
-  console.log(`  tracks: ${TRACKS.length}, subjects: ${subjectIdByKey.size}, chapters: ${chapterIdByKey.size}`);
+  if (!usingRealCurriculum) {
+    console.log(
+      `  placeholder taxonomy: ${TRACKS.length} tracks, ${subjectIdByKey.size} subjects, ${chapterIdByKey.size} chapters`,
+    );
+  }
 
   // --- Past papers ---------------------------------------------------------
   const cycleIdByKey = new Map<string, string>();
@@ -196,7 +231,16 @@ async function main() {
   console.log(`  course material chunks created: ${chunksCreated}`);
 
   // --- Users ---------------------------------------------------------------
-  const sgTrackId = trackIdByCode.get('SG')!;
+  /*
+   * The demo accounts sit in General Sciences.
+   *
+   * Read from the database rather than from the placeholder's map, because with
+   * the real curriculum loaded that map is empty — the tracks were written by
+   * the corpus loader, not by this file.
+   */
+  const gsTrack = await db.track.findUnique({ where: { code: 'GS' }, select: { id: true } });
+  if (!gsTrack) throw new Error('No GS track — seed the taxonomy before the demo accounts.');
+  const sgTrackId = gsTrack.id;
   const passwordHash = await hashPassword(DEMO_PASSWORD);
 
   await db.user.upsert({

@@ -27,7 +27,7 @@
  * account opens with an announcement that says so.
  */
 
-import { PrismaClient, type Language, type Prisma } from '@prisma/client';
+import { PrismaClient, type Prisma } from '@prisma/client';
 
 import { hashPassword } from '../src/lib/auth/password';
 
@@ -35,12 +35,11 @@ import { DEMO_CHATS, DEMO_MODEL_LABEL } from './demo/demo-chats';
 import {
   DEMO_CONTENT_CHUNKS,
   DEMO_EXAM_CYCLES,
+  DEMO_LANGUAGE,
   DEMO_NOTICE_BODY,
   DEMO_NOTICE_TITLE,
   DEMO_QUESTIONS,
-  DEMO_SUBJECTS,
   DEMO_TRACK_CODE,
-  DEMO_TRACK_NAME,
 } from './demo/demo-curriculum';
 
 const db = new PrismaClient();
@@ -84,55 +83,57 @@ async function main() {
   console.log('\nSeeding the demo account…\n');
 
   // --- Clean slate -------------------------------------------------------
-  // Deleting the user cascades to attempts, cards, chats, sims and grades;
-  // deleting the track cascades to subjects, chapters, questions and chunks.
+  /*
+   * Only the demo *user* is removed, never the curriculum.
+   *
+   * The taxonomy under LS is the real one, loaded from the transcribed CRDP
+   * textbooks and shared with every other account. An earlier version of this
+   * script created and dropped its own LS track, which silently overwrote real
+   * chapter names with invented ones. It now attaches to what is already there
+   * and fails loudly if it is not.
+   */
   const existingUser = await db.user.findFirst({ where: { email: DEMO_EMAIL }, select: { id: true } });
   if (existingUser) await db.user.delete({ where: { id: existingUser.id } });
 
-  const existingTrack = await db.track.findFirst({ where: { code: DEMO_TRACK_CODE }, select: { id: true } });
-  if (existingTrack) await db.track.delete({ where: { id: existingTrack.id } });
+  const track = await db.track.findUnique({
+    where: { code: DEMO_TRACK_CODE },
+    select: { id: true, name: true },
+  });
+  if (!track) {
+    throw new Error(
+      `No ${DEMO_TRACK_CODE} track in the database. Run "npm run db:seed:taxonomy" first — the demo ` +
+        'is built on the real curriculum and will not invent one.',
+    );
+  }
 
-  // --- Taxonomy ----------------------------------------------------------
-  const track = await db.track.create({ data: { code: DEMO_TRACK_CODE, name: DEMO_TRACK_NAME } });
+  // --- The real taxonomy this demo hangs off -------------------------------
+  const subjects = await db.subject.findMany({
+    where: { trackId: track.id, language: DEMO_LANGUAGE },
+    select: {
+      id: true,
+      name: true,
+      chapters: { select: { id: true, name: true }, orderBy: { orderIndex: 'asc' } },
+    },
+  });
 
-  const subjectIdByName = new Map<string, string>();
+  const subjectIdByName = new Map(subjects.map((s) => [s.name, s.id]));
   const chapterIdByKey = new Map<string, string>();
   const chapterMeta = new Map<string, { subjectId: string; subjectName: string; name: string }>();
 
-  for (const subject of DEMO_SUBJECTS) {
-    const subjectRow = await db.subject.create({
-      data: { trackId: track.id, name: subject.name, language: subject.language as Language },
-    });
-    subjectIdByName.set(subject.name, subjectRow.id);
-
-    const unitIdByName = new Map<string, string>();
-    for (const [index, unitName] of subject.units.entries()) {
-      const unit = await db.unit.create({
-        data: { subjectId: subjectRow.id, name: unitName, orderIndex: index },
-      });
-      unitIdByName.set(unitName, unit.id);
-    }
-
-    for (const [index, chapter] of subject.chapters.entries()) {
-      const chapterRow = await db.chapter.create({
-        data: {
-          subjectId: subjectRow.id,
-          unitId: unitIdByName.get(chapter.unit) ?? null,
-          name: chapter.name,
-          orderIndex: index,
-        },
-      });
-      const key = `${subject.name}::${chapter.name}`;
-      chapterIdByKey.set(key, chapterRow.id);
-      chapterMeta.set(chapterRow.id, {
-        subjectId: subjectRow.id,
+  for (const subject of subjects) {
+    for (const chapter of subject.chapters) {
+      chapterIdByKey.set(`${subject.name}::${chapter.name}`, chapter.id);
+      chapterMeta.set(chapter.id, {
+        subjectId: subject.id,
         subjectName: subject.name,
         name: chapter.name,
       });
     }
   }
 
-  console.log(`  track ${DEMO_TRACK_CODE}: ${subjectIdByName.size} subjects, ${chapterIdByKey.size} chapters`);
+  console.log(
+    `  curriculum: ${DEMO_TRACK_CODE} (${track.name}) — ${subjects.length} subjects, ${chapterIdByKey.size} chapters, from the real books`,
+  );
 
   // --- Past papers -------------------------------------------------------
   const cycleIdByKey = new Map<string, string>();
@@ -140,14 +141,22 @@ async function main() {
     const subjectId = subjectIdByName.get(cycle.subject);
     if (!subjectId) continue;
 
-    const row = await db.examCycle.create({
-      data: {
+    // Upsert, not create: the demo now shares a curriculum with everything
+    // else in the database, so its cycles survive a re-run and have to be
+    // updated in place rather than inserted again.
+    const row = await db.examCycle.upsert({
+      where: {
+        subjectId_year_session: { subjectId, year: cycle.year, session: cycle.session },
+      },
+      update: { title: cycle.title, durationMinutes: cycle.durationMinutes },
+      create: {
         subjectId,
         year: cycle.year,
         session: cycle.session,
         title: cycle.title,
         durationMinutes: cycle.durationMinutes,
       },
+      select: { id: true },
     });
     cycleIdByKey.set(`${cycle.subject}::${cycle.year}::${cycle.session}`, row.id);
   }
@@ -158,13 +167,29 @@ async function main() {
   for (const question of DEMO_QUESTIONS) {
     const chapterId = chapterIdByKey.get(`${question.subject}::${question.chapter}`);
     if (!chapterId) {
-      console.warn(`  ! unknown chapter ${question.subject}/${question.chapter} — skipped`);
-      continue;
+      /*
+       * Every demo question must land on a real chapter. Skipping quietly is
+       * how a demo ends up with an empty practice screen five minutes before
+       * the meeting, so this stops instead.
+       */
+      throw new Error(
+        `Demo question references "${question.subject} / ${question.chapter}", which is not a chapter in the ` +
+          `${DEMO_TRACK_CODE} curriculum. Fix prisma/demo/demo-curriculum.ts, or re-run db:seed:taxonomy.`,
+      );
     }
 
     const cycleId = question.cycle
       ? cycleIdByKey.get(`${question.subject}::${question.cycle.year}::${question.cycle.session}`)
       : undefined;
+
+    /*
+     * Replace this exact question if a previous demo run wrote it.
+     *
+     * Matching on (chapter, contentText) rather than deleting everything in the
+     * chapter: real ingested questions live in these same chapters now, and a
+     * demo re-run must not touch them.
+     */
+    await db.question.deleteMany({ where: { chapterId, contentText: question.contentText } });
 
     const row = await db.question.create({
       data: {
@@ -205,6 +230,10 @@ async function main() {
   for (const chunk of DEMO_CONTENT_CHUNKS) {
     const chapterId = chapterIdByKey.get(`${chunk.subject}::${chunk.chapter}`);
     if (!chapterId) continue;
+
+    await db.contentChunk.deleteMany({
+      where: { chapterId, title: chunk.title, sourceRef: 'demo:illustrative' },
+    });
 
     const row = await db.contentChunk.create({
       data: {
@@ -258,31 +287,39 @@ async function main() {
    * the half of the product that finds problems.
    */
   const COMPETENCE: Record<string, number> = {
-    'DNA replication': 0.88,
-    'Transcription and translation': 0.82,
-    'Mutations and variability': 0.74,
-    'Genetic engineering': 0.46,
-    'Innate immunity': 0.9,
-    'Adaptive immunity': 0.71,
-    'Vaccination and immune memory': 0.66,
-    'The nerve message': 0.58,
-    'The synapse': 0.62,
-    'Hormonal regulation': 0.34,
-    'Numerical sequences': 0.85,
-    'Study of functions': 0.6,
-    'The exponential function': 0.55,
-    'Integral calculus': 0.41,
-    'Conditional probability': 0.68,
-    'Probability distributions': 0.77,
-    'Rate of reaction': 0.8,
-    'Chemical equilibrium': 0.63,
-    'Acids and bases': 0.52,
-    'Esterification and hydrolysis': 0.7,
-    'Organic functional groups': 0.86,
-    'Newton’s laws': 0.75,
-    'Mechanical oscillations': 0.48,
-    'Electromagnetic induction': 0.64,
-    'Radioactivity': 0.72,
+    // Life Sciences
+    'Transmission of genes and genetic recombination': 0.82,
+    'Human Genetics': 0.58,
+    'Role and components of the immune system': 0.9,
+    'The immune response': 0.71,
+    'Disorders of the Immune System': 0.66,
+    'Function of neurons': 0.62,
+    'Myotatic reflex': 0.74,
+    'Neurotransmitters and medical applications': 0.55,
+    'Regulation of glycemia': 0.68,
+    'Regulation of arterial blood pressure': 0.6,
+    // The weakest chapter in the account, and the one the demo points at.
+    'Regulation of the female sexual hormones': 0.34,
+
+    // Mathematics
+    'Conditional probability': 0.7,
+    'Bernoulli distribution - Binomial distribution': 0.79,
+    'Exponential functions': 0.56,
+    'Methods of integration': 0.41,
+    'Modulus and argument of a complex number': 0.85,
+
+    // Chemistry
+    'Kinetic Factors': 0.8,
+    'Chemical Equilibrium': 0.63,
+    'Reaction between a weak acid and a strong base': 0.5,
+    'Carboxylic acids and their derivatives': 0.72,
+    'Functional Groups': 0.87,
+
+    // Physics
+    'Mechanical Oscillations': 0.47,
+    'Radioactivity': 0.73,
+    'Electromagnetic Induction': 0.64,
+    'Energy': 0.76,
   };
 
   /*
@@ -667,19 +704,19 @@ async function seedPlanning(
   });
 
   const studySessions: Prisma.StudySessionCreateManyInput[] = [
-    { userId, chapterId: chapterIdByKey.get('Life Sciences::Hormonal regulation') ?? null, title: 'Hormonal regulation — feedback loops', scheduledDate: daysAgo(-1, 17), durationMinutes: 45, source: 'ai_suggested', status: 'planned' },
-    { userId, chapterId: chapterIdByKey.get('Mathematics::Integral calculus') ?? null, title: 'Integration by substitution drill', scheduledDate: daysAgo(-2, 17), durationMinutes: 40, source: 'ai_suggested', status: 'planned' },
-    { userId, chapterId: chapterIdByKey.get('Physics::Mechanical oscillations') ?? null, title: 'Oscillations — differential equation', scheduledDate: daysAgo(-3, 18), durationMinutes: 30, source: 'manual', status: 'planned' },
-    { userId, chapterId: chapterIdByKey.get('Life Sciences::Genetic engineering') ?? null, title: 'Genetic engineering — enzymes and cDNA', scheduledDate: daysAgo(1, 17), durationMinutes: 45, source: 'ai_suggested', status: 'done' },
-    { userId, chapterId: chapterIdByKey.get('Chemistry::Acids and bases') ?? null, title: 'Titration practice', scheduledDate: daysAgo(3, 17), durationMinutes: 40, source: 'manual', status: 'done' },
+    { userId, chapterId: chapterIdByKey.get('Life Sciences::Regulation of the female sexual hormones') ?? null, title: 'Female sexual hormones — feedback loops', scheduledDate: daysAgo(-1, 17), durationMinutes: 45, source: 'ai_suggested', status: 'planned' },
+    { userId, chapterId: chapterIdByKey.get('Mathematics::Methods of integration') ?? null, title: 'Integration by substitution drill', scheduledDate: daysAgo(-2, 17), durationMinutes: 40, source: 'ai_suggested', status: 'planned' },
+    { userId, chapterId: chapterIdByKey.get('Physics::Mechanical Oscillations') ?? null, title: 'Oscillations — differential equation', scheduledDate: daysAgo(-3, 18), durationMinutes: 30, source: 'manual', status: 'planned' },
+    { userId, chapterId: chapterIdByKey.get('Life Sciences::Human Genetics') ?? null, title: 'Human genetics — reading a pedigree', scheduledDate: daysAgo(1, 17), durationMinutes: 45, source: 'ai_suggested', status: 'done' },
+    { userId, chapterId: chapterIdByKey.get('Chemistry::Reaction between a weak acid and a strong base') ?? null, title: 'Titration practice', scheduledDate: daysAgo(3, 17), durationMinutes: 40, source: 'manual', status: 'done' },
   ];
   await db.studySession.createMany({ data: studySessions });
 
   await db.todo.createMany({
     data: [
-      { userId, content: 'Re-do the 2022 genetics question without notes', isDone: false, linkedChapterId: chapterIdByKey.get('Life Sciences::Transcription and translation') ?? null, linkedAction: 'practice' },
+      { userId, content: 'Re-do the 2022 genetics question without notes', isDone: false, linkedChapterId: chapterIdByKey.get('Life Sciences::Transmission of genes and genetic recombination') ?? null, linkedAction: 'practice' },
       { userId, content: 'Ask Mr Karam about the LH feedback threshold', isDone: false },
-      { userId, content: 'Review integral substitution cards', isDone: false, linkedChapterId: chapterIdByKey.get('Mathematics::Integral calculus') ?? null, linkedAction: 'flashcards' },
+      { userId, content: 'Review integral substitution cards', isDone: false, linkedChapterId: chapterIdByKey.get('Mathematics::Methods of integration') ?? null, linkedAction: 'flashcards' },
       { userId, content: 'Sit a full Life Sciences paper under time', isDone: true, linkedAction: 'exam_sim' },
     ],
   });
