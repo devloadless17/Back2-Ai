@@ -6,6 +6,7 @@ import { Badge, EmptyState } from '@/components/ui/feedback';
 import { Meter } from '@/components/ui/progress';
 import { PageHeader, Sheet, SheetBody } from '@/components/ui/sheet';
 import { requireUser } from '@/lib/auth/guards';
+import { cn } from '@/lib/cn';
 import { getTranslations } from '@/lib/i18n';
 import { format } from '@/lib/i18n/format';
 import { getSubjectForTrack, listChapters } from '@/lib/queries/taxonomy';
@@ -62,29 +63,64 @@ export default async function SubjectChaptersPage({
               <Sheet>
                 <SheetBody className="p-0">
                   <ul className="ruled">
-                    {unitChapters.map((chapter) => (
+                    {unitChapters.map((chapter) => {
+                      /*
+                       * A chapter with no questions is not a link.
+                       *
+                       * The chapter list is the real curriculum, read from the
+                       * textbooks, and it runs ahead of the questions — which
+                       * arrive chapter by chapter through ingestion. Linking to
+                       * a chapter that cannot be practised sends the student to
+                       * an empty screen and teaches them the list is unreliable.
+                       * Showing it greyed says the opposite: the syllabus is
+                       * complete, this part is not ready yet.
+                       */
+                      const practisable = chapter.questionCount > 0;
+
+                      const row = (
+                        <>
+                          <div className="min-w-0 flex-1">
+                            <p
+                              className={cn(
+                                'truncate text-sm font-medium',
+                                practisable ? 'text-ink' : 'text-ink-faint',
+                              )}
+                            >
+                              {chapter.name}
+                            </p>
+                            <p className="text-[12px] text-ink-faint">
+                              {practisable
+                                ? `${chapter.questionCount} · ${chapter.attemptsCount} ${t.practice.attempts}`
+                                : t.practice.noQuestions}
+                            </p>
+                          </div>
+
+                          {practisable && (
+                            <div className="hidden w-40 shrink-0 sm:block">
+                              <Meter value={chapter.masteryScore} size="sm" />
+                            </div>
+                          )}
+
+                          {chapter.attemptsCount === 0 && practisable && (
+                            <Badge tone="neutral">{t.dashboard.readinessNotYet}</Badge>
+                          )}
+                        </>
+                      );
+
+                      return (
                       <li key={chapter.id}>
+                        {practisable ? (
                         <Link
                           href={`/practice/${subject.id}/${chapter.id}`}
                           className="flex items-center gap-4 px-5 py-3.5 transition-colors duration-150 hover:bg-paper-sunken"
                         >
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate text-sm font-medium text-ink">{chapter.name}</p>
-                            <p className="text-[12px] text-ink-faint">
-                              {chapter.questionCount === 0
-                                ? t.practice.noQuestions
-                                : `${chapter.questionCount} · ${chapter.attemptsCount} ${t.practice.attempts}`}
-                            </p>
-                          </div>
-
-                          <div className="hidden w-40 shrink-0 sm:block">
-                            <Meter value={chapter.masteryScore} size="sm" />
-                          </div>
-
-                          {chapter.attemptsCount === 0 && chapter.questionCount > 0 && (
-                            <Badge tone="neutral">{t.dashboard.readinessNotYet}</Badge>
-                          )}
+                          {row}
                         </Link>
+                        ) : (
+                          <div className="flex cursor-default items-center gap-4 px-5 py-3.5 opacity-60">
+                            {row}
+                          </div>
+                        )}
 
                         {/* Quiz sits outside the row link — a nested anchor is
                             invalid HTML and swallows the click. */}
@@ -99,7 +135,8 @@ export default async function SubjectChaptersPage({
                           </div>
                         )}
                       </li>
-                    ))}
+                      );
+                    })}
                   </ul>
                 </SheetBody>
               </Sheet>

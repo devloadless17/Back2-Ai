@@ -135,6 +135,31 @@ async function main() {
     `  curriculum: ${DEMO_TRACK_CODE} (${track.name}) — ${subjects.length} subjects, ${chapterIdByKey.size} chapters, from the real books`,
   );
 
+  /*
+   * Withdraw everything a previous demo run left behind.
+   *
+   * Chapters keep their identity across a taxonomy reload but not their names,
+   * so a question written for "DNA replication" can end up filed under "The
+   * Gaseous State" after the real curriculum renames index 0. Matching on
+   * content is not enough to catch that; the whole demo corpus has to go.
+   *
+   * `sourceDocumentId: null` is what makes this safe. Ingested material always
+   * carries the book it came from, so this deletes demo and placeholder rows
+   * and can never touch a real question. Attempts and cards cascade from the
+   * questions, and the demo user was already removed above.
+   */
+  const demoChapterIds = [...chapterMeta.keys()];
+  const [staleQuestions, staleChunks] = await Promise.all([
+    db.question.deleteMany({ where: { chapterId: { in: demoChapterIds }, sourceDocumentId: null } }),
+    db.contentChunk.deleteMany({ where: { chapterId: { in: demoChapterIds }, sourceDocumentId: null } }),
+  ]);
+
+  if (staleQuestions.count + staleChunks.count > 0) {
+    console.log(
+      `  cleared from earlier runs: ${staleQuestions.count} questions, ${staleChunks.count} course-material chunks`,
+    );
+  }
+
   // --- Past papers -------------------------------------------------------
   const cycleIdByKey = new Map<string, string>();
   for (const cycle of DEMO_EXAM_CYCLES) {
@@ -463,6 +488,7 @@ async function main() {
   await seedExamSimulation(user.id, subjectIdByName, cycleIdByKey, questionIds);
   await seedChats(user.id, questionIds, chunkIdByTitle);
   await seedPlanning(user.id, subjectIdByName, chapterIdByKey, track.id);
+  await seedAdminSurfaces(user.id, subjectIdByName, chapterIdByKey, questionIds);
 
   console.log('\n  ────────────────────────────────────────────────');
   console.log('  Demo account ready');
@@ -680,6 +706,218 @@ async function seedChats(
 }
 
 /** Schedule, to-dos, grades, exam dates, notifications and the demo notice. */
+/**
+ * The three screens that are otherwise empty: the review queue, the ingestion
+ * monitor, and a student's own uploaded documents.
+ *
+ * Each one demonstrates a claim the product makes elsewhere. The review queue
+ * is where "generated content is admin-gated" stops being a sentence in a
+ * README and becomes a button. The ingestion monitor is where "we run on real
+ * books" becomes a page. The documents list is retrieval tier 3 — the
+ * student's own notes — which is invisible until something is in it.
+ */
+async function seedAdminSurfaces(
+  userId: string,
+  subjectIdByName: Map<string, string>,
+  chapterIdByKey: Map<string, string>,
+  questions: { id: string; chapterId: string; subject: string; text: string; maxScore: number }[],
+) {
+  const admin = await db.user.findFirst({ where: { role: 'admin' }, select: { id: true } });
+
+  const integrationChapter = chapterIdByKey.get('Mathematics::Methods of integration');
+  const immunityChapter = chapterIdByKey.get('Life Sciences::The immune response');
+
+  /*
+   * Two generated problems, deliberately in different states.
+   *
+   * The approved one is published and practisable. The other has passed the
+   * independent solver but has NOT been approved, so `published_at` is null and
+   * no student-facing query returns it. That is the entire point of the gate,
+   * and it is only visible as a feature when the queue has something in it.
+   */
+  if (integrationChapter) {
+    const styleRefs = questions.filter((q) => q.chapterId === integrationChapter).map((q) => q.id);
+
+    await db.generatedProblem.deleteMany({ where: { chapterId: integrationChapter } });
+
+    const approved = await db.generatedProblem.create({
+      data: {
+        chapterId: integrationChapter,
+        styleReferenceIds: styleRefs,
+        contentText:
+          'Compute J = the integral from 0 to pi/2 of sin(x)cos(x) dx, stating the substitution used and converting the limits.',
+        generatedSolution:
+          'Let u = sin(x), so du = cos(x) dx. When x = 0, u = 0; when x = pi/2, u = 1. J = the integral from 0 to 1 of u du = 1/2.',
+        finalAnswer: '1/2',
+        bareme: [
+          { criterion: 'Chooses the substitution u = sin(x)', points: 1 },
+          { criterion: 'Converts the limits to 0 and 1', points: 1 },
+          { criterion: 'Correct value 1/2', points: 1 },
+        ] as unknown as Prisma.InputJsonValue,
+        difficulty: 0.5,
+        verificationStatus: 'approved',
+        verificationNotes: 'Independent solver reached the same value. Approved for practice.',
+        modelUsed: DEMO_MODEL_LABEL,
+        promptVersion: 'demo',
+        createdAt: daysAgo(9, 3),
+        publishedAt: daysAgo(8, 10),
+      },
+      select: { id: true },
+    });
+
+    const pending = await db.generatedProblem.create({
+      data: {
+        chapterId: integrationChapter,
+        styleReferenceIds: styleRefs,
+        contentText:
+          'Compute K = the integral from 1 to e of ln(x)/x dx, stating the substitution used and converting the limits.',
+        generatedSolution:
+          'Let u = ln x, so du = dx/x. When x = 1, u = 0; when x = e, u = 1. K = the integral from 0 to 1 of u du = 1/2.',
+        finalAnswer: '1/2',
+        bareme: [
+          { criterion: 'Chooses the substitution u = ln x', points: 1 },
+          { criterion: 'Converts the limits to 0 and 1', points: 1 },
+          { criterion: 'Correct value 1/2', points: 1 },
+        ] as unknown as Prisma.InputJsonValue,
+        difficulty: 0.55,
+        verificationStatus: 'solver_passed',
+        verificationNotes:
+          'A second model solved this independently and agreed. Awaiting an administrator before any student sees it.',
+        modelUsed: DEMO_MODEL_LABEL,
+        promptVersion: 'demo',
+        createdAt: daysAgo(1, 4),
+        publishedAt: null,
+      },
+      select: { id: true },
+    });
+
+    await db.reviewQueueItem.deleteMany({ where: { itemType: 'generated_problem' } });
+
+    await db.reviewQueueItem.create({
+      data: {
+        itemType: 'generated_problem',
+        itemId: pending.id,
+        flagReason: 'Newly generated problem, solver-checked, waiting for approval before publication.',
+        status: 'pending',
+        createdAt: daysAgo(1, 4),
+      },
+    });
+
+    // One resolved item, so the queue shows a history rather than looking like
+    // it has never been used.
+    await db.reviewQueueItem.create({
+      data: {
+        itemType: 'generated_problem',
+        itemId: approved.id,
+        flagReason: 'Newly generated problem, solver-checked, waiting for approval before publication.',
+        status: 'approved',
+        reviewedByUserId: admin?.id ?? null,
+        reviewNotes: 'Substitution is standard and the bareme matches how this is marked. Published.',
+        reviewedAt: daysAgo(8, 10),
+        createdAt: daysAgo(9, 3),
+      },
+    });
+  }
+
+  // A student-flagged question — the other way into the queue.
+  if (immunityChapter) {
+    const flagged = questions.find((q) => q.chapterId === immunityChapter);
+    if (flagged) {
+      await db.reviewQueueItem.deleteMany({ where: { itemType: 'tagged_question', itemId: flagged.id } });
+      await db.reviewQueueItem.create({
+        data: {
+          itemType: 'tagged_question',
+          itemId: flagged.id,
+          flagReason:
+            'Reported by a student: the marking scheme asks for four marks but only lists three criteria.',
+          flaggedByUserId: userId,
+          status: 'pending',
+          createdAt: daysAgo(3, 16),
+        },
+      });
+    }
+  }
+
+  // --- Ingestion monitor ---------------------------------------------------
+  await db.ingestionJob.deleteMany({});
+  await db.ingestionJob.createMany({
+    data: [
+      {
+        kind: 'textbook',
+        subjectId: subjectIdByName.get('Life Sciences') ?? null,
+        status: 'succeeded',
+        sourceLabel: 'svt-ls-en - Life Sciences, Life Sciences Section (396 pp)',
+        itemsTotal: 19,
+        itemsProcessed: 19,
+        itemsFailed: 0,
+        triggeredBy: admin?.id ?? null,
+        startedAt: daysAgo(12, 9),
+        finishedAt: daysAgo(12, 10),
+        createdAt: daysAgo(12, 9),
+      },
+      {
+        kind: 'textbook',
+        subjectId: subjectIdByName.get('Mathematics') ?? null,
+        status: 'succeeded',
+        sourceLabel: 'math-ls-en - Mathematics, Life Sciences Section (259 pp)',
+        itemsTotal: 26,
+        itemsProcessed: 26,
+        itemsFailed: 0,
+        triggeredBy: admin?.id ?? null,
+        startedAt: daysAgo(11, 9),
+        finishedAt: daysAgo(11, 11),
+        createdAt: daysAgo(11, 9),
+      },
+      {
+        kind: 'textbook',
+        subjectId: null,
+        status: 'failed',
+        sourceLabel: 'eng - English, General Sciences and Life Sciences (139 pp)',
+        itemsTotal: 8,
+        itemsProcessed: 0,
+        itemsFailed: 8,
+        errorMessage:
+          'The contents page parsed into structural headings (Part A, Part D, Writing Topics) rather than chapters. Nothing was seeded. Re-run scripts/corpus/taxonomy.py with a TOC override for this book.',
+        triggeredBy: admin?.id ?? null,
+        startedAt: daysAgo(10, 9),
+        finishedAt: daysAgo(10, 9),
+        createdAt: daysAgo(10, 9),
+      },
+    ],
+  });
+
+  /*
+   * --- The student's own documents ----------------------------------------
+   *
+   * Retrieval tier 3. `extractedText` is what is actually searched, so it is
+   * populated; the file itself is not on disk in a demo, and the list does not
+   * need it in order to render.
+   */
+  await db.userReference.deleteMany({ where: { userId } });
+  await db.userReference.createMany({
+    data: [
+      {
+        userId,
+        fileUrl: 'user/' + userId + '/demo-immunology-notes.pdf',
+        fileName: 'Immunology - class notes.pdf',
+        extractedText:
+          'Primary response: antigen recognised, clonal selection of the B lymphocyte whose receptor fits, proliferation, differentiation into plasma cells and memory cells. About ten days. Secondary response: memory cells already present, two to three days, far higher antibody titre.',
+        createdAt: daysAgo(16, 20),
+      },
+      {
+        userId,
+        fileUrl: 'user/' + userId + '/demo-integration-summary.pdf',
+        fileName: 'Integration methods - my summary.pdf',
+        extractedText:
+          'Substitution: pick u so that du appears in the integrand, and convert the limits for a definite integral. Integration by parts: the integral of u dv is uv minus the integral of v du; choose u as the factor that simplifies when differentiated.',
+        createdAt: daysAgo(6, 21),
+      },
+    ],
+  });
+
+  console.log('  admin surfaces: review queue, ingestion jobs, generated problems, student documents');
+}
+
 async function seedPlanning(
   userId: string,
   subjectIdByName: Map<string, string>,
