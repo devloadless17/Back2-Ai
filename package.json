@@ -32,6 +32,8 @@
     "cron": "node --conditions=react-server --env-file=.env --import tsx scripts/cron.ts",
     "test": "vitest run",
     "test:watch": "vitest",
+    "detect": "node scripts/detect.mjs",
+    "detect:data": "node --env-file=.env scripts/detect.mjs --data",
     "smoke": "node scripts/smoke.mjs"
   },
   "overrides": {

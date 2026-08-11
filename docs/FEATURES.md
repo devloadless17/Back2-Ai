@@ -275,6 +275,13 @@ are deliberately not counted.
 | **Six books have no chapter list** | English has no chapters in any branch | Re-run the TOC parser with overrides |
 | **No questions ingested** | Only demo questions exist | Run `npm run ingest` on real papers |
 | **Rate limiter in-process** | Single instance only | Redis |
+| **No embeddings written** | **The tutor refuses every question.** Retrieval scores every tier by cosine similarity, and with no vectors nothing clears any threshold | An embedding provider key, then `npm run ingest -- --embed-missing` |
+
+Run `npm run detect` for the static audit and `npm run detect:data` to include
+the database. It reports dead code, unread translation keys, unreachable routes,
+untested scoring modules, and the content problems that stop a feature working —
+questions with no embedding, MCQs with no correct option, barèmes with no
+official solution.
 
 ---
 
