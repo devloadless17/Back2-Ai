@@ -10,6 +10,7 @@ import {
 } from 'react';
 
 import { cn } from '@/lib/cn';
+import { useI18n } from '@/lib/i18n/client';
 
 /**
  * Motion primitives.
@@ -102,7 +103,7 @@ export type RevealProps = {
 
 const VARIANT_CLASS = {
   rise: 'animate-rise',
-  pop: 'animate-pop-in',
+  pop: 'animate-fade-in',
   slide: 'animate-slide-in',
   fade: 'animate-fade-in',
 } as const;
@@ -150,16 +151,28 @@ export function Reveal({
 export function CountUp({
   value,
   format,
+  as = 'number',
   durationMs = 900,
   className,
 }: {
   value: number;
-  /** Turns the in-flight number into display text. Defaults to a plain integer. */
+  /**
+   * Turns the in-flight number into display text.
+   *
+   * **Client components only.** A function cannot cross the server/client
+   * boundary — React has to serialise these props — so a server component that
+   * passes one gets "Functions cannot be passed directly to Client Components"
+   * at render. Server callers use `as` instead, which is a string and
+   * serialises fine.
+   */
   format?: (value: number) => string;
+  /** Serialisable alternative to `format`, safe to pass from a server component. */
+  as?: 'number' | 'percent';
   durationMs?: number;
   className?: string;
 }) {
   const reduced = useReducedMotion();
+  const { formatPercent } = useI18n();
   const [shown, setShown] = useState(value);
   const previous = useRef(value);
 
@@ -193,7 +206,10 @@ export function CountUp({
     return () => cancelAnimationFrame(frame);
   }, [value, durationMs, reduced]);
 
-  const render = format ?? ((n: number) => String(Math.round(n)));
+  // An explicit `format` wins when there is one; otherwise `as` picks a
+  // localised formatter, so a percentage reads correctly in Arabic too.
+  const render =
+    format ?? (as === 'percent' ? formatPercent : (n: number) => String(Math.round(n)));
 
   return <span className={className}>{render(shown)}</span>;
 }

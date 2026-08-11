@@ -2,22 +2,22 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 
 import { NextUpCard } from '@/components/progress/next-up-card';
-import { DailyGoalCard, LevelCard } from '@/components/progress/progress-cards';
-import { ActivityColumns, BarRows, RingGauge, type BarDatum } from '@/components/ui/charts';
 import { LinkButton } from '@/components/ui/button';
+import { ActivityColumns, BarRows, type BarDatum } from '@/components/ui/charts';
 import { Badge, EmptyState } from '@/components/ui/feedback';
-import { CountUp, Reveal } from '@/components/ui/motion';
 import { Meter } from '@/components/ui/progress';
 import { PageHeader, Sheet, SheetBody, SheetHeader, StatTile } from '@/components/ui/sheet';
 import { requireUser } from '@/lib/auth/guards';
+import { cn } from '@/lib/cn';
 import { db } from '@/lib/db';
 import { getTranslations } from '@/lib/i18n';
 import { daysUntil, format, formatDate } from '@/lib/i18n/format';
-import { attemptsByDay, streakFrom } from '@/lib/queries/activity';
-import { getProgressSnapshot } from '@/lib/queries/gamification';
+import { attemptsByDay } from '@/lib/queries/activity';
 import { getNextUp } from '@/lib/queries/next-up';
 import { findWeakestChapter, getProgressForUser } from '@/lib/queries/progress';
+import { getStanding } from '@/lib/queries/standing';
 import { MIN_ATTEMPTS_FOR_WEAKNESS } from '@/lib/scoring/mastery';
+import { markOutOf20, PASS_MARK } from '@/lib/standing';
 
 // Browser-tab titles are resolved per request from the user's locale, like
 // every other string — a hardcoded French title would follow an English-track
@@ -30,29 +30,19 @@ export async function generateMetadata(): Promise<Metadata> {
 /**
  * The dashboard.
  *
- * Read top to bottom it answers four questions in order: how ready am I, what
- * is due now, what have I been doing, and where should I go next. The tiles at
- * the top are the only place in the product that aggregates across subjects, so
- * they are the loudest thing on the screen.
+ * Read top to bottom it answers four questions in order: what should I do now,
+ * what am I on, what have I been doing, and where are the marks I am losing.
  *
- * Every figure here animates in, and every figure is also plain text — the
- * count-ups and drawn arcs are decoration over numbers that are already
- * rendered. Nothing on this page requires motion to be legible.
+ * Every figure is a number a Lebanese candidate already understands — a mark
+ * out of 20, a count of chapters, a number of days. There is no score this
+ * product invented, because a score nobody can interpret is decoration.
  */
 export default async function DashboardPage() {
   const user = await requireUser();
   const { locale, t } = await getTranslations();
 
-  const [
-    progress,
-    flashcardsDue,
-    announcements,
-    upcomingExams,
-    totalAttempts,
-    activity,
-    snapshot,
-    nextUp,
-  ] = await Promise.all([
+  const [progress, flashcardsDue, announcements, upcomingExams, activity, standing, nextUp] =
+    await Promise.all([
       getProgressForUser(user.id, user.trackId),
       db.flashcardState.count({ where: { userId: user.id, dueDate: { lte: startOfToday() } } }),
       db.announcement.findMany({
@@ -61,8 +51,7 @@ export default async function DashboardPage() {
          *
          * A subject-targeted announcement is implicitly track-targeted — subjects
          * belong to tracks — so it must not reach a student from another track
-         * just because its `target_track_id` happens to be null. Filtering on
-         * track alone was leaking "Physics paper moved" to the literature stream.
+         * just because its `target_track_id` happens to be null.
          */
         where: {
           AND: [
@@ -81,32 +70,26 @@ export default async function DashboardPage() {
       }),
       db.upcomingExam.findMany({
         where: { userId: user.id, examDate: { gte: startOfToday() } },
-        select: { id: true, examDate: true, label: true, isBacExam: true, subject: { select: { name: true } } },
+        select: { id: true, examDate: true, label: true, subject: { select: { name: true } } },
         orderBy: { examDate: 'asc' },
         take: 4,
       }),
-      db.attempt.count({ where: { user: { id: user.id } } }),
       attemptsByDay(user.id, 14),
-      getProgressSnapshot(user.id),
+      getStanding(user.id, user.trackId),
       getNextUp(user.id, user.trackId),
     ]);
 
   const weakest = findWeakestChapter(progress);
-  const hasAnyActivity = totalAttempts > 0;
-  const streak = streakFrom(activity);
+  const totalAttempts = progress.reduce(
+    (sum, subject) => sum + subject.chapters.reduce((n, c) => n + c.attemptsCount, 0),
+    0,
+  );
+  const scale = markOutOf20(1);
 
   const bandLabels = { low: t.practice.bandLow, mid: t.practice.bandMid, high: t.practice.bandHigh };
 
-  // One figure across every subject. Only reportable subjects count — averaging
-  // in a subject we have refused to score would be inventing a number.
-  const reportable = progress.filter((subject) => subject.readiness.reportable);
-  const overallReadiness =
-    reportable.length === 0
-      ? null
-      : reportable.reduce((sum, subject) => sum + subject.readiness.score, 0) / reportable.length;
-
-  // Weakest chapters across every subject, which is the list a student should
-  // actually work down. Capped at six: a ranking nobody scrolls is a list.
+  // Weakest chapters across every subject — the list a student should work
+  // down. Capped at six: a ranking nobody scrolls is a list.
   const chapterBars: BarDatum[] = progress
     .flatMap((subject) =>
       subject.chapters
@@ -122,8 +105,6 @@ export default async function DashboardPage() {
     .sort((a, b) => a.value - b.value)
     .slice(0, 6);
 
-  const nextExam = upcomingExams[0];
-
   return (
     <>
       <PageHeader
@@ -131,18 +112,16 @@ export default async function DashboardPage() {
         description={t.practice.subtitle}
         actions={
           flashcardsDue > 0 ? (
-            <LinkButton href="/flashcards/review" variant="accent">
+            <LinkButton href="/flashcards/review" variant="primary" size="sm">
               {t.flashcards.startReview}
             </LinkButton>
           ) : null
         }
       />
 
-      {/* Nothing has happened yet — say what to do rather than showing four
-          empty cards that all mean "no data". */}
-      {!hasAnyActivity && progress.length > 0 && (
+      {totalAttempts === 0 && progress.length > 0 && (
         <EmptyState
-          className="mb-6"
+          className="mb-5"
           tone="neutral"
           title={t.dashboard.noActivity}
           body={t.dashboard.readinessHint}
@@ -154,127 +133,150 @@ export default async function DashboardPage() {
         />
       )}
 
-      {/* --- One instruction, before any numbers --- */}
-      <div className="mb-5 animate-rise">
+      <div className="mb-5">
         <NextUpCard next={nextUp} />
       </div>
 
-      {/* --- Level and today's goal --- */}
-      <div className="mb-5 grid gap-5 lg:grid-cols-2">
-        <Reveal index={0}>
-          <LevelCard level={snapshot.levelState} rank={snapshot.rank} className="h-full" />
-        </Reveal>
-        <Reveal index={1}>
-          <DailyGoalCard goal={snapshot.goal} streak={snapshot.streak} className="h-full" />
-        </Reveal>
-      </div>
-
-      {/* --- The four headline figures --- */}
-      <div className="stagger grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      {/* --- What am I on ------------------------------------------------- */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatTile
-          label={t.dashboard.overallReadiness}
-          value={overallReadiness === null ? '—' : <PercentFigure value={overallReadiness} />}
-          caption={
-            overallReadiness === null ? t.dashboard.readinessHint : t.dashboard.overallReadinessHint
+          label={t.standing.predictedMark}
+          tone="mark"
+          value={
+            standing.overall === null
+              ? '—'
+              : format(t.standing.outOf, { mark: standing.overall, scale })
           }
-          icon="◎"
+          caption={
+            standing.overall === null ? t.standing.notEnoughYetHint : t.standing.predictedMarkHint
+          }
         />
-
+        <StatTile
+          label={t.standing.coverage}
+          value={`${Math.round(standing.coverage.ratio * 100)}%`}
+          caption={format(t.standing.coverageHint, {
+            practised: standing.coverage.practised,
+            available: standing.coverage.available,
+          })}
+        />
         <StatTile
           label={t.dashboard.dueToday}
-          value={<CountUp value={flashcardsDue} />}
+          value={flashcardsDue}
           caption={format(t.dashboard.dueTodayCount, { count: flashcardsDue })}
-          tone="accent"
-          icon="✦"
-          footer={
-            flashcardsDue > 0 ? (
-              <LinkButton href="/flashcards/review" variant="accent" size="sm">
-                {t.flashcards.startReview}
-              </LinkButton>
-            ) : null
+        />
+        <StatTile
+          label={t.standing.daysLeft}
+          value={standing.daysToExam === null ? '—' : standing.daysToExam}
+          caption={
+            standing.examLabel
+              ? format(t.standing.daysLeftFor, { label: standing.examLabel })
+              : t.standing.noExamDate
           }
-        />
-
-        <StatTile
-          label={t.dashboard.streak}
-          value={<CountUp value={streak} />}
-          caption={t.dashboard.streakHint}
-          tone="accent"
-          icon="▲"
-        />
-
-        <StatTile
-          label={t.dashboard.attemptsTotal}
-          value={<CountUp value={totalAttempts} />}
-          caption={t.dashboard.attemptsTotalHint}
-          icon="✎"
         />
       </div>
 
-      {/* --- Readiness per subject, and the habit strip --- */}
+      {/* --- Marks per subject, and the exam calendar ---------------------- */}
       <div className="mt-5 grid gap-5 lg:grid-cols-3">
-        <Reveal className="lg:col-span-2" index={0}>
-          <Sheet hero className="h-full">
-            <SheetHeader
-              title={t.dashboard.readiness}
-              description={t.performance.componentsExplain}
-              actions={
-                <Link
-                  href="/performance"
-                  className="text-[13px] font-bold text-primary underline-offset-4 transition-colors hover:text-accent hover:underline"
-                >
-                  {t.performance.title}
-                </Link>
-              }
-            />
-            <SheetBody>
-              {progress.length === 0 ? (
-                <EmptyState
-                  tone="pending"
-                  title={t.practice.noQuestions}
-                  body={t.practice.noQuestionsHint}
-                />
-              ) : (
-                <div className="flex flex-wrap justify-center gap-x-8 gap-y-6 sm:justify-start">
-                  {progress.map((subject) =>
-                    subject.readiness.reportable ? (
-                      <RingGauge
-                        key={subject.subjectId}
-                        value={subject.readiness.score}
-                        label={subject.subjectName}
-                        size={140}
-                        caption={
-                          subject.readiness.trend === 'up'
-                            ? `↑ ${t.performance.trendUp}`
-                            : subject.readiness.trend === 'down'
-                              ? `↓ ${t.performance.trendDown}`
-                              : `→ ${t.performance.trendFlat}`
-                        }
-                      />
+        <Sheet className="lg:col-span-2">
+          <SheetHeader
+            title={t.standing.bySubject}
+            description={t.standing.equalWeighting}
+            actions={
+              <Link
+                href="/progress"
+                className="text-[13px] text-primary underline-offset-2 hover:underline"
+              >
+                {t.standing.title}
+              </Link>
+            }
+          />
+          <SheetBody className="p-0">
+            {standing.subjects.length === 0 ? (
+              <p className="px-5 py-4 text-sm text-ink-muted">{t.practice.noQuestionsHint}</p>
+            ) : (
+              <ul className="ruled">
+                {standing.subjects.map((subject) => (
+                  <li
+                    key={subject.subjectId}
+                    className="flex items-baseline justify-between gap-4 px-5 py-3"
+                  >
+                    <span className="min-w-0 truncate text-sm text-ink">{subject.subjectName}</span>
+                    {subject.mark === null ? (
+                      <span className="shrink-0 text-[12.5px] text-ink-faint">
+                        {t.standing.notEnoughYet}
+                      </span>
                     ) : (
-                      <div key={subject.subjectId} className="max-w-[9rem] space-y-1.5 text-center">
-                        <div
-                          aria-hidden="true"
-                          className="mx-auto flex h-[140px] w-[140px] items-center justify-center rounded-full border-[12px] border-dashed border-rule text-2xl text-ink-faint"
-                        >
-                          ?
-                        </div>
-                        <p className="text-[13px] font-semibold text-ink">{subject.subjectName}</p>
-                        <p className="text-[12px] leading-snug text-ink-muted">
-                          {t.dashboard.readinessNotYet}
+                      <span
+                        className={cn(
+                          'figure shrink-0 text-[15px]',
+                          subject.mark < PASS_MARK ? 'text-mark' : 'text-ink',
+                        )}
+                      >
+                        {format(t.standing.outOf, { mark: subject.mark, scale })}
+                      </span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </SheetBody>
+        </Sheet>
+
+        <Sheet>
+          <SheetHeader title={t.dashboard.upcomingExams} />
+          <SheetBody className="p-0">
+            {upcomingExams.length === 0 ? (
+              <div className="px-5 py-4">
+                <p className="text-sm text-ink-muted">{t.schedule.noUpcomingExams}</p>
+                <Link
+                  href="/schedule"
+                  className="mt-1 inline-block text-[13px] text-primary underline-offset-2 hover:underline"
+                >
+                  {t.schedule.addExam}
+                </Link>
+              </div>
+            ) : (
+              <ul className="ruled">
+                {upcomingExams.map((exam) => {
+                  const days = daysUntil(exam.examDate);
+                  return (
+                    <li key={exam.id} className="flex items-baseline justify-between gap-3 px-5 py-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm text-ink">
+                          {exam.subject?.name ?? exam.label ?? t.schedule.bacExam}
+                        </p>
+                        <p className="text-[12px] text-ink-faint">
+                          {formatDate(locale, exam.examDate)}
                         </p>
                       </div>
-                    ),
-                  )}
-                </div>
-              )}
-            </SheetBody>
-          </Sheet>
-        </Reveal>
+                      <Badge tone={days <= 14 ? 'mark' : 'neutral'}>
+                        {days === 0
+                          ? t.dashboard.daysUntilToday
+                          : days === 1
+                            ? t.dashboard.daysUntilOne
+                            : format(t.dashboard.daysUntil, { count: days })}
+                      </Badge>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </SheetBody>
+        </Sheet>
+      </div>
 
-        <Reveal index={1} className="space-y-5">
+      {/* --- Where the marks are going ------------------------------------ */}
+      <div className="mt-5 grid gap-5 lg:grid-cols-3">
+        <Sheet className="lg:col-span-2">
+          <SheetHeader title={t.dashboard.topChapters} description={t.dashboard.topChaptersHint} />
+          <SheetBody>
+            <BarRows data={chapterBars} bandLabels={bandLabels} emptyLabel={t.performance.noDataHint} />
+          </SheetBody>
+        </Sheet>
+
+        <div className="space-y-5">
           <Sheet>
-            <SheetHeader title={t.dashboard.activity} description={t.dashboard.activityHint} />
+            <SheetHeader title={t.dashboard.activity} description={t.standing.effort} />
             <SheetBody>
               <ActivityColumns
                 data={activity.map((day) => ({
@@ -290,85 +292,14 @@ export default async function DashboardPage() {
 
           <Sheet>
             <SheetHeader
-              title={t.dashboard.upcomingExams}
-              actions={
-                nextExam ? (
-                  <Badge tone={daysUntil(nextExam.examDate) <= 14 ? 'mark' : 'primary'}>
-                    {countdownLabel(daysUntil(nextExam.examDate), t)}
-                  </Badge>
-                ) : null
-              }
-            />
-            <SheetBody className="p-0">
-              {upcomingExams.length === 0 ? (
-                <div className="px-5 py-4">
-                  <p className="text-sm text-ink-muted">{t.schedule.noUpcomingExams}</p>
-                  <Link
-                    href="/schedule"
-                    className="mt-1 inline-block text-[13px] font-bold text-primary underline-offset-4 hover:underline"
-                  >
-                    {t.schedule.addExam}
-                  </Link>
-                </div>
-              ) : (
-                <ul className="ruled">
-                  {upcomingExams.map((exam) => {
-                    const days = daysUntil(exam.examDate);
-                    return (
-                      <li
-                        key={exam.id}
-                        className="flex items-baseline justify-between gap-3 px-5 py-3 transition-colors duration-150 hover:bg-primary-soft/40"
-                      >
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-semibold text-ink">
-                            {exam.subject?.name ?? exam.label ?? t.schedule.bacExam}
-                          </p>
-                          <p className="text-[12px] text-ink-faint">
-                            {formatDate(locale, exam.examDate)}
-                          </p>
-                        </div>
-                        <Badge tone={days <= 14 ? 'mark' : days <= 45 ? 'partial' : 'neutral'}>
-                          {countdownLabel(days, t)}
-                        </Badge>
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
-            </SheetBody>
-          </Sheet>
-        </Reveal>
-      </div>
-
-      {/* --- Where to go next --- */}
-      <div className="mt-5 grid gap-5 lg:grid-cols-3">
-        <Reveal index={0} className="lg:col-span-2">
-          <Sheet className="h-full">
-            <SheetHeader title={t.dashboard.topChapters} description={t.dashboard.topChaptersHint} />
-            <SheetBody>
-              <BarRows
-                data={chapterBars}
-                bandLabels={bandLabels}
-                emptyLabel={t.performance.noDataHint}
-              />
-            </SheetBody>
-          </Sheet>
-        </Reveal>
-
-        <Reveal index={1} className="space-y-5">
-          {/* Weakest chapter, gated on sample size. */}
-          <Sheet>
-            <SheetHeader
               title={weakest ? t.dashboard.weakestChapter : t.dashboard.weakestChapterLocked}
             />
-            <SheetBody>
+            <SheetBody className="space-y-3">
               {weakest ? (
-                <div className="space-y-3">
+                <>
                   <div className="min-w-0">
-                    <p className="text-[17px] font-extrabold tracking-tight text-ink">
-                      {weakest.chapterName}
-                    </p>
-                    <p className="text-[13px] text-ink-muted">
+                    <p className="text-sm font-medium text-ink">{weakest.chapterName}</p>
+                    <p className="text-[12.5px] text-ink-muted">
                       {weakest.subjectName}
                       {weakest.unitName ? ` · ${weakest.unitName}` : ''}
                     </p>
@@ -380,9 +311,6 @@ export default async function DashboardPage() {
                     caption={`${weakest.attemptsCount} ${t.practice.attempts}`}
                   />
 
-                  {/* Two ways to act on a weak spot, because they are different
-                      sittings: new questions in this chapter, or recall of the
-                      ones already met across every weak chapter. */}
                   <div className="flex flex-wrap gap-2 pt-1">
                     <LinkButton
                       href={`/practice/${weakest.subjectId}/${weakest.chapterId}`}
@@ -395,16 +323,11 @@ export default async function DashboardPage() {
                       {t.flashcards.scopeWeak}
                     </LinkButton>
                   </div>
-                </div>
+                </>
               ) : (
-                <EmptyState
-                  tone="neutral"
-                  title={t.dashboard.weakestChapterLocked}
-                  body={format(t.dashboard.weakestChapterLockedHint, {
-                    count: MIN_ATTEMPTS_FOR_WEAKNESS,
-                  })}
-                  className="border-0 bg-transparent px-0 py-2"
-                />
+                <p className="text-sm text-ink-muted">
+                  {format(t.dashboard.weakestChapterLockedHint, { count: MIN_ATTEMPTS_FOR_WEAKNESS })}
+                </p>
               )}
             </SheetBody>
           </Sheet>
@@ -418,7 +341,7 @@ export default async function DashboardPage() {
                 <ul className="ruled">
                   {announcements.map((announcement) => (
                     <li key={announcement.id} className="px-5 py-3">
-                      <p className="text-sm font-bold text-ink">{announcement.title}</p>
+                      <p className="text-sm font-medium text-ink">{announcement.title}</p>
                       <p className="mt-0.5 text-[13px] leading-snug text-ink-muted">
                         {announcement.body}
                       </p>
@@ -431,21 +354,10 @@ export default async function DashboardPage() {
               )}
             </SheetBody>
           </Sheet>
-        </Reveal>
+        </div>
       </div>
     </>
   );
-}
-
-/** Counts up through the percentage rather than jumping to it. */
-function PercentFigure({ value }: { value: number }) {
-  return <CountUp value={value} format={(v) => `${Math.round(v * 100)}%`} />;
-}
-
-function countdownLabel(days: number, t: { dashboard: { daysUntil: string; daysUntilOne: string; daysUntilToday: string } }): string {
-  if (days === 0) return t.dashboard.daysUntilToday;
-  if (days === 1) return t.dashboard.daysUntilOne;
-  return format(t.dashboard.daysUntil, { count: days });
 }
 
 function startOfToday(): Date {

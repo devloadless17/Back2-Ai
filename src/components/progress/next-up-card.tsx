@@ -7,57 +7,37 @@ import type { NextUp } from '@/lib/queries/next-up';
 /**
  * One instruction, one button.
  *
- * A server component on purpose: it holds no state, and the whole value of this
- * card is that it is the first thing painted rather than something that appears
- * after hydration. A student who opens the app to be told what to do should not
- * watch the answer arrive.
+ * The commonest reason a revision session does not happen is opening the app,
+ * seeing nine subjects and fifty-five chapters, and closing it again. This
+ * picks the one thing worth doing next and names it.
+ *
+ * A server component on purpose: it holds no state, and the value of the card
+ * is that it is painted with the page rather than arriving after hydration.
  */
 export async function NextUpCard({ next }: { next: NextUp }) {
   const { t } = await getTranslations();
 
   const line =
     next.kind === 'flashcards'
-      ? format(t.progress.nextUpDue, { count: next.count })
+      ? format(t.standing.nextUpDue, { count: next.count })
       : next.kind === 'weakChapter'
-        ? format(t.progress.nextUpWeak, { chapter: next.chapterName })
+        ? format(t.standing.nextUpWeak, { chapter: next.chapterName })
         : next.kind === 'newChapter'
-          ? `${t.progress.nextUpStart} — ${next.chapterName}`
+          ? `${t.standing.nextUpStart} — ${next.chapterName}`
           : next.kind === 'examSim'
-            ? t.progress.nextUpPaper
-            : t.progress.nextUpCaughtUp;
-
-  const glyph =
-    next.kind === 'flashcards'
-      ? '◐'
-      : next.kind === 'weakChapter'
-        ? '◎'
-        : next.kind === 'newChapter'
-          ? '✦'
-          : next.kind === 'examSim'
-            ? '▣'
-            : '✎';
+            ? t.standing.nextUpPaper
+            : t.standing.nextUpCaughtUp;
 
   return (
-    <Sheet hero className="overflow-hidden">
-      <SheetBody className="flex flex-wrap items-center gap-4 p-5">
-        <span
-          aria-hidden="true"
-          className="flex h-14 w-14 shrink-0 animate-float items-center justify-center rounded-full bg-gradient-to-br from-primary to-accent text-2xl font-extrabold text-on-primary shadow-glow"
-        >
-          {glyph}
-        </span>
-
+    <Sheet hero>
+      <SheetBody className="flex flex-wrap items-center justify-between gap-4 py-3.5">
         <div className="min-w-[12rem] flex-1">
-          <p className="text-[11.5px] font-bold uppercase tracking-wider text-ink-faint">
-            {t.progress.nextUp}
-          </p>
-          <p className="mt-0.5 text-[19px] font-extrabold leading-tight tracking-tight text-ink">
-            {line}
-          </p>
+          <p className="label">{t.standing.nextUp}</p>
+          <p className="mt-0.5 text-[15px] font-medium leading-snug text-ink">{line}</p>
         </div>
 
-        <LinkButton href={next.href} variant="primary" size="lg">
-          {t.progress.nextUpAction} →
+        <LinkButton href={next.href} variant="primary" size="sm">
+          {t.standing.nextUpAction}
         </LinkButton>
       </SheetBody>
     </Sheet>

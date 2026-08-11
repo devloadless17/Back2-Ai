@@ -3,87 +3,81 @@
 @tailwind utilities;
 
 /* ---------------------------------------------------------------------------
- * Design tokens — "bright playful"
+ * Design tokens
  *
- * A light lavender canvas, saturated candy accents, chunky radii and springy
- * motion. The product is used by seventeen-year-olds at eleven at night; it
- * should feel like something they want to open, not like a form.
+ * Near-monochrome and flat. Charcoal ink on near-white paper, hairline rules,
+ * no shadows, no gradients, no rounded-off corners — the visual language of a
+ * serious instrument rather than of an app.
  *
- * Every colour is a CSS custom property and every component references a
- * semantic name (`bg-paper`, `text-mark`). Retheming is still a matter of
- * editing this block and nothing else.
+ * The register matters commercially. This is bought by parents and schools for
+ * a national examination that decides where a seventeen-year-old goes next. A
+ * playful interface reads as unserious to the person paying, whatever the
+ * student thinks of it.
  *
- * Two constraints the palette is held to, because this is an examination
- * product and not a poster:
- *
- *   * Status colours (correct / partial / mark) all clear 3:1 against the card
- *     surface, and are NEVER the only carrier of meaning — every place they are
- *     used also shows a number or a word. Green and amber are indistinguishable
- *     under protanopia; the label is what makes the band readable, not the hue.
- *   * The chart ramp (--viz-1..4) is a single violet hue, monotone in lightness,
- *     with the light end clearing 2:1 against white. It was validated rather
- *     than eyeballed.
+ * ONE accent, and it is cedar green. It marks the current thing and the primary
+ * action, and nothing else. Red is reserved — it is the examiner's pen, used
+ * for lost marks and for the countdown when it becomes urgent, and using it
+ * decoratively anywhere would blunt it.
  * ------------------------------------------------------------------------- */
 
 :root {
-  /* Surfaces */
-  --paper: 264 100% 98.5%;
+  /* Surfaces. Paper is very slightly warm; a pure #fff reads as a screen. */
+  --paper: 40 14% 97.5%;
   --paper-raised: 0 0% 100%;
-  --paper-sunken: 264 60% 96%;
+  --paper-sunken: 40 10% 94%;
 
-  /* Text */
-  --ink: 260 45% 15%;
-  --ink-muted: 258 18% 42%;
-  --ink-faint: 258 14% 58%;
+  /* Ink. High contrast — the muted step still clears 4.5:1 on paper. */
+  --ink: 220 14% 11%;
+  --ink-muted: 220 8% 38%;
+  --ink-faint: 220 6% 52%;
 
-  /* Lines */
-  --rule: 264 45% 92%;
-  --rule-strong: 264 38% 84%;
+  /* Hairlines. */
+  --rule: 40 8% 88%;
+  --rule-strong: 40 8% 76%;
 
-  /* Brand */
-  --primary: 262 83% 58%;
-  --primary-hover: 262 80% 48%;
-  --primary-soft: 262 90% 96%;
-  --on-primary: 0 0% 100%;
+  /* The single accent: cedar. */
+  --primary: 152 44% 24%;
+  --primary-hover: 152 46% 18%;
+  --primary-soft: 152 30% 94%;
+  --on-primary: 40 14% 97.5%;
 
-  /* The second voice: hot pink, for streaks, highlights and anything that
-   * should feel like a reward rather than a status. */
-  --accent: 330 81% 60%;
-  --accent-hover: 330 78% 52%;
-  --accent-soft: 330 95% 96%;
+  /* Retained so nothing breaks, but pointed at the accent: this palette has
+   * no second decorative colour. */
+  --accent: 152 44% 24%;
+  --accent-hover: 152 46% 18%;
+  --accent-soft: 152 30% 94%;
 
-  /* Status. Contrast-checked against white; always paired with a label. */
-  --mark: 0 72% 51%;
-  --mark-soft: 0 90% 97%;
-  --correct: 145 80% 30%;
-  --correct-soft: 145 60% 95%;
-  --partial: 32 95% 44%;
-  --partial-soft: 38 92% 95%;
+  /* Status. The examiner's pen, and the two bands either side of it. */
+  --mark: 0 62% 42%;
+  --mark-soft: 0 60% 96%;
+  --correct: 152 44% 26%;
+  --correct-soft: 152 30% 94%;
+  --partial: 34 82% 34%;
+  --partial-soft: 36 70% 95%;
 
-  --focus: 262 83% 58%;
+  --focus: 152 44% 24%;
 
-  /* Chart ramp — one hue, light→dark, validated. */
-  --viz-1: 258 90% 76%;
-  --viz-2: 258 90% 66%;
-  --viz-3: 262 83% 58%;
-  --viz-4: 263 70% 42%;
+  /* Chart ramp — one hue, light to dark, monotone in lightness. */
+  --viz-1: 152 20% 68%;
+  --viz-2: 152 28% 50%;
+  --viz-3: 152 40% 34%;
+  --viz-4: 152 48% 20%;
 
-  /* Chunky by default. A 14px radius is the difference between "app" and
-   * "enterprise portal". */
-  --radius-sm: 8px;
-  --radius: 14px;
-  --radius-lg: 22px;
-  --radius-xl: 32px;
+  /* Small radii. A 4px corner is a drawn edge; a 22px corner is a bubble. */
+  --radius-sm: 2px;
+  --radius: 4px;
+  --radius-lg: 6px;
+  --radius-xl: 8px;
 
-  /* Springs. The overshoot is the personality — everything that appears
-   * arrives with a small bounce rather than easing politely into place. */
-  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
-  --ease-out-soft: cubic-bezier(0.16, 1, 0.3, 1);
+  /* One easing, and it does not overshoot. */
+  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring: cubic-bezier(0.22, 1, 0.36, 1);
 
-  --font-serif: ui-serif, 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, 'Times New Roman',
-    serif;
-  --font-sans: 'Segoe UI Variable Display', ui-rounded, 'SF Pro Rounded', system-ui, -apple-system,
-    'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  /* A transitional serif for examination prose, a neutral sans for the
+   * interface. No rounded faces. */
+  --font-serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, 'Times New Roman', serif;
+  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, sans-serif;
   --font-mono: ui-monospace, 'Cascadia Mono', 'Segoe UI Mono', 'Liberation Mono', Menlo, Consolas,
     monospace;
 }
@@ -106,26 +100,19 @@
     -webkit-text-size-adjust: 100%;
   }
 
-  /* A soft aurora behind the whole app. Fixed, so it does not travel with
-   * scroll and never competes with content for attention. */
   body {
     @apply bg-paper font-sans text-[15px] leading-relaxed text-ink antialiased;
-    background-image:
-      radial-gradient(60rem 40rem at 8% -10%, hsl(var(--primary) / 0.13), transparent 60%),
-      radial-gradient(48rem 32rem at 100% 0%, hsl(var(--accent) / 0.11), transparent 55%),
-      radial-gradient(40rem 30rem at 50% 110%, hsl(190 90% 60% / 0.09), transparent 60%);
-    background-attachment: fixed;
   }
 
-  /* Headings are the loud part of this design: heavy, tight, sans. The serif is
-   * kept for question and solution bodies only, where it earns its place. */
+  /* Headings are tight and dark, not large and loud. Weight and letter-spacing
+   * carry the hierarchy; size barely changes between levels. */
   h1,
   h2,
   h3,
   h4 {
-    @apply font-sans font-extrabold tracking-tight text-ink;
+    @apply font-sans font-semibold text-ink;
+    letter-spacing: -0.011em;
     text-wrap: balance;
-    letter-spacing: -0.022em;
   }
 
   /* One visible focus treatment everywhere. An examination product is used
@@ -136,16 +123,12 @@
   }
 
   ::selection {
-    @apply bg-accent-soft text-ink;
+    @apply bg-primary-soft text-ink;
   }
 
-  /* Respect the OS setting rather than animating regardless.
-   *
-   * This is not a nicety on a product with this much motion: vestibular
-   * disorders are common, and a student who has asked their machine to stop
-   * animating must get a completely still application. Everything below is
-   * built so that removing the motion removes nothing else — no entrance
-   * animation is the only thing making an element visible. */
+  /* Respect the OS setting rather than animating regardless. What little
+   * motion remains is a bar filling and a figure counting; both render at
+   * their final value here, so nothing is lost. */
   @media (prefers-reduced-motion: reduce) {
     *,
     *::before,
@@ -155,56 +138,31 @@
       transition-duration: 0.01ms !important;
       scroll-behavior: auto !important;
     }
-
-    body {
-      background-attachment: scroll;
-    }
   }
 }
 
 @layer components {
-  /* The base surface: a soft white card with a coloured lift under it. */
+  /* The base surface: white stock inside a hairline. No shadow — a flat plane
+   * with a drawn edge, the way a table is printed on a page. */
   .sheet {
-    @apply rounded-lg border border-rule bg-paper-raised shadow-pop;
-    position: relative;
+    @apply rounded border border-rule bg-paper-raised;
   }
 
-  /* Cards that respond to the pointer. Used on anything clickable. */
   .sheet-interactive {
-    @apply transition-[transform,box-shadow,border-color] duration-200;
-    transition-timing-function: var(--ease-spring);
+    @apply transition-colors duration-150;
   }
 
   .sheet-interactive:hover {
-    @apply -translate-y-1 border-primary/30 shadow-pop-lg;
+    @apply border-rule-strong bg-paper-sunken/50;
   }
 
-  .sheet-interactive:active {
-    @apply translate-y-0;
-  }
-
-  /* A card whose top edge carries the brand gradient — used to mark the one
-   * card on a screen that matters most. */
+  /* Kept so callers still compile. In this palette the "hero" card is marked
+   * by a rule in the accent, not by colour or motion. */
   .sheet-hero {
-    @apply overflow-hidden;
+    @apply border-t-2 border-t-primary;
   }
 
-  .sheet-hero::before {
-    content: '';
-    @apply absolute inset-x-0 top-0 h-1.5;
-    background: linear-gradient(
-      90deg,
-      hsl(var(--primary)),
-      hsl(var(--accent)),
-      hsl(190 90% 55%),
-      hsl(var(--primary))
-    );
-    background-size: 300% 100%;
-    animation: gradient-pan 8s linear infinite;
-  }
-
-  /* The ruled rhythm of a mark scheme — used on barème breakdowns and on
-   * anything that reads as an official tabulation. */
+  /* The ruled rhythm of a mark scheme. */
   .ruled > * + * {
     @apply border-t border-rule;
   }
@@ -220,7 +178,6 @@
     @apply mt-4;
   }
 
-  /* KaTeX inherits the surrounding colour instead of its own near-black. */
   .prose-exam .katex {
     @apply text-ink;
     font-size: 1.05em;
@@ -234,42 +191,13 @@
     scrollbar-width: thin;
   }
 
-  /* Brand gradient text, for hero figures. */
-  .text-gradient {
-    background: linear-gradient(120deg, hsl(var(--primary)), hsl(var(--accent)));
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
-  }
-
-  /* Children arrive one after another rather than all at once. Pure CSS, so it
-   * works on server-rendered markup with no hydration wait. */
-  .stagger > * {
-    animation: rise 420ms var(--ease-spring) both;
-  }
-
-  .stagger > *:nth-child(1) { animation-delay: 40ms; }
-  .stagger > *:nth-child(2) { animation-delay: 90ms; }
-  .stagger > *:nth-child(3) { animation-delay: 140ms; }
-  .stagger > *:nth-child(4) { animation-delay: 190ms; }
-  .stagger > *:nth-child(5) { animation-delay: 240ms; }
-  .stagger > *:nth-child(6) { animation-delay: 290ms; }
-  .stagger > *:nth-child(7) { animation-delay: 340ms; }
-  .stagger > *:nth-child(8) { animation-delay: 390ms; }
-  .stagger > *:nth-child(n + 9) { animation-delay: 430ms; }
-
   /*
    * Exam mode.
    *
-   * Applied to the shell around a paper a student is actually sitting. Every
-   * looping and entrance animation inside is switched off — a gradient panning
-   * beside a running clock is pressure, not personality, and anything that
-   * moves while someone is trying to hold an integral in their head costs them
-   * marks.
-   *
-   * Transitions survive, shortened. Losing them would also lose the press
-   * feedback on the submit button, which is the one piece of motion that
-   * genuinely helps here: it says the tap registered.
+   * Applied to the shell around a paper a student is actually sitting. Even
+   * the little motion this design keeps is switched off there — a bar
+   * animating beside a running clock is a distraction, and a student holding
+   * an integral in their head does not need one.
    */
   .calm *,
   .calm *::before,
@@ -278,16 +206,20 @@
     transition-duration: 120ms !important;
   }
 
-  /* The loading shimmer, in brand colours rather than grey. */
+  /* Small caps label — the workhorse of this design. Used for every field
+   * name, column header and section marker. */
+  .label {
+    @apply text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-faint;
+  }
+
+  /* A figure printed as a mark: tabular, tight, unmistakably a number. */
+  .figure {
+    @apply font-semibold tabular-nums text-ink;
+    letter-spacing: -0.02em;
+  }
+
   .shimmer {
-    background: linear-gradient(
-      90deg,
-      hsl(var(--paper-sunken)) 25%,
-      hsl(var(--primary-soft)) 37%,
-      hsl(var(--paper-sunken)) 63%
-    );
-    background-size: 400% 100%;
-    animation: shimmer 1.6s ease-in-out infinite;
+    @apply bg-paper-sunken;
   }
 }
 
@@ -296,75 +228,23 @@
   @apply my-4 overflow-x-auto overflow-y-hidden py-1;
 }
 
-/* ---------------------------------------------------------------------------
- * Keyframes
- *
- * Declared here rather than in the Tailwind config so that the component
- * classes above can reference them directly.
- * ------------------------------------------------------------------------- */
+/* The only two entrances that survive, both barely visible. */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
 
 @keyframes rise {
   from {
     opacity: 0;
-    transform: translateY(14px) scale(0.985);
+    transform: translateY(4px);
   }
   to {
     opacity: 1;
     transform: none;
-  }
-}
-
-@keyframes gradient-pan {
-  from {
-    background-position: 0% 50%;
-  }
-  to {
-    background-position: 300% 50%;
-  }
-}
-
-@keyframes shimmer {
-  from {
-    background-position: 100% 50%;
-  }
-  to {
-    background-position: 0% 50%;
-  }
-}
-
-/* The ambient bubbles: up the full viewport, drifting sideways, fading at both
- * ends so nothing ever pops into or out of existence at an edge. */
-@keyframes balloon-rise {
-  0% {
-    transform: translate3d(0, 10vh, 0) scale(0.7);
-    opacity: 0;
-  }
-  12% {
-    opacity: 1;
-  }
-  85% {
-    opacity: 1;
-  }
-  100% {
-    transform: translate3d(var(--balloon-drift, 0), -110vh, 0) scale(1.1);
-    opacity: 0;
-  }
-}
-
-/* The celebration volley: faster, higher, and it pops rather than fading. */
-@keyframes balloon-burst {
-  0% {
-    transform: translate3d(0, 5vh, 0) scale(0.4);
-    opacity: 0;
-  }
-  15% {
-    opacity: 1;
-  }
-  70% {
-    opacity: 1;
-  }
-  100% {
-    transform: translate3d(var(--balloon-drift, 0), -105vh, 0) scale(1.35);
-    opacity: 0;
   }
 }

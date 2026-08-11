@@ -3,7 +3,6 @@
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
-import { useProgressFeedback } from '@/components/progress/use-progress-feedback';
 import { Button, LinkButton } from '@/components/ui/button';
 import { Badge, EmptyState } from '@/components/ui/feedback';
 import { MathText } from '@/components/ui/math';
@@ -11,7 +10,6 @@ import { Meter } from '@/components/ui/progress';
 import { Sheet, SheetBody, SheetFooter, SheetHeader } from '@/components/ui/sheet';
 import { cn } from '@/lib/cn';
 import { sendJson } from '@/lib/client/request';
-import type { ProgressSummary } from '@/lib/gamification';
 import { useI18n } from '@/lib/i18n/client';
 import type { DueCard } from '@/lib/queries/flashcards';
 import type { ReviewGrade } from '@/lib/scoring/sm2';
@@ -36,17 +34,9 @@ const GRADES: { grade: ReviewGrade; tone: string }[] = [
   { grade: 'easy', tone: 'border-correct/40 text-correct hover:bg-correct-soft' },
 ];
 
-export function ReviewSession({
-  cards,
-  initialProgress,
-}: {
-  cards: DueCard[];
-  /** Progress as it stood when the page was rendered, for diffing into toasts. */
-  initialProgress?: ProgressSummary;
-}) {
+export function ReviewSession({ cards }: { cards: DueCard[] }) {
   const { t, format } = useI18n();
   const router = useRouter();
-  const reportProgress = useProgressFeedback(initialProgress);
 
   const [queue, setQueue] = useState(cards);
   const [index, setIndex] = useState(0);
@@ -112,15 +102,11 @@ export function ReviewSession({
     if (value === 'again') setLapses((count) => count + 1);
 
     // Post in the background — the student should not wait on the network
-    // between two cards. Progress feedback arrives whenever the response does,
-    // which may well be two cards later; that is fine, because a toast is not
-    // attached to any particular card.
-    void sendJson<{ progress?: ProgressSummary }>('/api/flashcards/review', 'POST', {
+    // between two cards.
+    void sendJson('/api/flashcards/review', 'POST', {
       questionId: card.questionId,
       grade: value,
-    })
-      .then((response) => reportProgress(response?.progress))
-      .catch(() => undefined);
+    }).catch(() => undefined);
 
     const shouldRepeat = value === 'again';
 
@@ -176,14 +162,12 @@ export function ReviewSession({
         tone="primary"
       />
 
-      {/* The card leaves by falling away and shrinking rather than just fading:
-          at speed, a card that visibly departs is what makes a deck feel like a
-          deck instead of a list that keeps replacing its first item. */}
+      {/* The card fades as it is graded, so the deck visibly shortens rather
+          than silently replacing its first item. */}
       <Sheet
-        hero
         className={cn(
-          'transition-[transform,opacity] duration-200 ease-spring',
-          leaving ? 'translate-y-4 scale-95 opacity-0' : 'animate-pop-in',
+          'transition-opacity duration-150',
+          leaving ? 'opacity-0' : 'animate-fade-in',
         )}
       >
         <SheetHeader
@@ -202,7 +186,7 @@ export function ReviewSession({
         </SheetBody>
 
         {flipped && (
-          <SheetBody className="animate-flip-in border-t border-rule bg-paper-sunken/40">
+          <SheetBody className="animate-fade-in border-t border-rule bg-paper-sunken/40">
             <p className="mb-2 text-[12px] font-semibold uppercase tracking-wide text-ink-faint">
               {t.practice.solution}
             </p>
@@ -226,8 +210,8 @@ export function ReviewSession({
                     onClick={() => gradeCard(value)}
                     className={cn(
                       'flex flex-col items-center gap-0.5 rounded-lg border-2 bg-paper-raised px-3 py-2.5 font-semibold',
-                      'transition-[transform,background-color,border-color] duration-200 ease-spring',
-                      'hover:-translate-y-1 hover:shadow-pop active:translate-y-0 active:scale-95',
+                      'transition-[transform,background-color,border-color] duration-200 ease-soft',
+                      '',
                       'motion-reduce:transform-none motion-reduce:hover:transform-none',
                       tone,
                     )}

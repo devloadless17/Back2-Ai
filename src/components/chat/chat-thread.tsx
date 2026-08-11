@@ -201,7 +201,7 @@ export function ChatThread({
                 {message.content ? (
                   <MathText>{message.content}</MathText>
                 ) : (
-                  <p className="animate-pulse-slow text-sm text-ink-faint">{t.chat.thinking}</p>
+                  <p className=" text-sm text-ink-faint">{t.chat.thinking}</p>
                 )}
               </SheetBody>
 

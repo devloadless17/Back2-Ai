@@ -127,7 +127,7 @@ export default async function FlashcardsPage() {
             <SheetBody>
               {summary.due > 0 ? (
                 <div className="space-y-3">
-                  <p className="text-5xl font-extrabold tracking-tight tabular-nums leading-none">
+                  <p className="text-5xl font-semibold tabular-nums leading-none">
                     {summary.due}
                   </p>
                   <p className="text-sm text-ink-muted">

@@ -177,8 +177,8 @@ export function RingGauge({
         <div className="absolute inset-0 flex flex-col items-center justify-center">
           <span
             className={cn(
-              'font-extrabold tabular-nums leading-none tracking-tight',
-              tone === 'brand' ? 'text-gradient' : BAND_TEXT[band],
+              'font-semibold tabular-nums leading-none tracking-tight',
+              tone === 'brand' ? 'text-ink' : BAND_TEXT[band],
             )}
             style={{ fontSize: size * 0.24 }}
           >
@@ -265,10 +265,10 @@ export function BarRows({
                 </span>
               </div>
 
-              <div className="mt-1 h-2.5 w-full overflow-hidden rounded-full bg-paper-sunken">
+              <div className="mt-1 h-1.5 w-full overflow-hidden rounded-sm bg-paper-sunken">
                 <div
                   className={cn(
-                    'h-full rounded-full transition-[width] duration-[900ms] ease-soft',
+                    'h-full transition-[width] duration-500 ease-soft',
                     band === 'low' ? 'bg-mark' : band === 'mid' ? 'bg-partial' : 'bg-correct',
                   )}
                   style={{
@@ -365,7 +365,7 @@ export function ActivityColumns({
               aria-label={`${datum.label}: ${datum.value}`}
             >
               {active && (
-                <div className="pointer-events-none absolute -top-1 left-1/2 z-10 -translate-x-1/2 -translate-y-full whitespace-nowrap rounded bg-ink px-2 py-1 text-[11px] font-medium text-on-primary shadow-pop animate-pop-in">
+                <div className="pointer-events-none absolute -top-1 left-1/2 z-10 -translate-x-1/2 -translate-y-full whitespace-nowrap rounded bg-ink px-2 py-1 text-[11px] font-medium text-on-primary animate-fade-in">
                   {datum.caption ?? datum.label}
                   <span className="ms-1.5 tabular-nums opacity-80">{datum.value}</span>
                 </div>

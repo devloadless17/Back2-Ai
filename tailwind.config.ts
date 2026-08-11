@@ -1,16 +1,15 @@
 import type { Config } from 'tailwindcss';
 
 /**
- * Every colour resolves to a CSS custom property defined in globals.css.
+ * Every colour resolves to a CSS custom property defined in globals.css, so the
+ * palette is replaced by editing `:root` in one stylesheet and no component
+ * changes. Components reference semantic names (`bg-paper`, `text-mark`) and
+ * never raw Tailwind palette values.
  *
- * That indirection is the point: the palette is replaced by editing `:root` in
- * one stylesheet, and no component changes. Components must reference semantic
- * names (`bg-paper`, `text-mark`) and never raw Tailwind palette values like
- * `bg-slate-50`.
- *
- * The motion vocabulary is deliberately small — five entrances, three ambient
- * loops, two easings. A larger one produces a page where every element moves
- * differently, which reads as broken rather than lively.
+ * The motion vocabulary is deliberately tiny: two entrances that are barely
+ * perceptible, and the transitions that let a bar fill and a figure count. That
+ * is the whole budget. Anything more reads as decoration on a product whose job
+ * is to tell a student the truth about a national exam.
  */
 const config: Config = {
   content: ['./src/**/*.{ts,tsx}'],
@@ -25,15 +24,16 @@ const config: Config = {
         'ink-faint': 'hsl(var(--ink-faint) / <alpha-value>)',
         rule: 'hsl(var(--rule) / <alpha-value>)',
         'rule-strong': 'hsl(var(--rule-strong) / <alpha-value>)',
+        /** The single accent: cedar. Current state and the primary action only. */
         primary: 'hsl(var(--primary) / <alpha-value>)',
         'primary-hover': 'hsl(var(--primary-hover) / <alpha-value>)',
         'primary-soft': 'hsl(var(--primary-soft) / <alpha-value>)',
         'on-primary': 'hsl(var(--on-primary) / <alpha-value>)',
-        /** The reward voice: streaks, celebrations, "you did a thing". */
+        /** Aliased to the accent — this palette has no second decorative colour. */
         accent: 'hsl(var(--accent) / <alpha-value>)',
         'accent-hover': 'hsl(var(--accent-hover) / <alpha-value>)',
         'accent-soft': 'hsl(var(--accent-soft) / <alpha-value>)',
-        /** The examiner's pen. Marks, deductions, countdown urgency. */
+        /** The examiner's pen. Lost marks and an urgent countdown. Nothing else. */
         mark: 'hsl(var(--mark) / <alpha-value>)',
         'mark-soft': 'hsl(var(--mark-soft) / <alpha-value>)',
         correct: 'hsl(var(--correct) / <alpha-value>)',
@@ -41,7 +41,6 @@ const config: Config = {
         partial: 'hsl(var(--partial) / <alpha-value>)',
         'partial-soft': 'hsl(var(--partial-soft) / <alpha-value>)',
         focus: 'hsl(var(--focus) / <alpha-value>)',
-        /** Chart ramp: one hue, light→dark, validated for lightness steps. */
         viz: {
           1: 'hsl(var(--viz-1) / <alpha-value>)',
           2: 'hsl(var(--viz-2) / <alpha-value>)',
@@ -50,11 +49,8 @@ const config: Config = {
         },
       },
       fontFamily: {
-        // Kept for question and solution bodies, where a textbook voice helps.
         serif: ['var(--font-serif)'],
-        // Interface sans — headings, controls, navigation, data.
         sans: ['var(--font-sans)'],
-        // Working / answer text — a monospace grid reads like squared paper.
         mono: ['var(--font-mono)'],
       },
       borderRadius: {
@@ -64,93 +60,46 @@ const config: Config = {
         xl: 'var(--radius-xl)',
       },
       boxShadow: {
-        // Coloured lift rather than grey drop — the shadow is tinted with the
-        // brand hue so cards feel like they belong to the canvas behind them.
-        pop: '0 1px 2px hsl(262 40% 40% / 0.06), 0 6px 20px hsl(262 45% 45% / 0.09)',
-        'pop-lg': '0 2px 6px hsl(262 40% 40% / 0.08), 0 18px 40px hsl(262 50% 45% / 0.16)',
-        glow: '0 0 0 1px hsl(var(--primary) / 0.2), 0 8px 30px hsl(var(--primary) / 0.28)',
-        'glow-accent': '0 0 0 1px hsl(var(--accent) / 0.2), 0 8px 30px hsl(var(--accent) / 0.3)',
-        focus: '0 0 0 3px hsl(var(--focus) / 0.35)',
-        // Kept so any component still asking for the old name keeps working.
-        sheet: '0 1px 2px hsl(262 40% 40% / 0.06), 0 6px 20px hsl(262 45% 45% / 0.09)',
-        'sheet-raised': '0 2px 6px hsl(262 40% 40% / 0.08), 0 18px 40px hsl(262 50% 45% / 0.16)',
+        // Flat by design. These resolve to nothing so that any component still
+        // asking for a shadow simply gets none, rather than failing to build.
+        pop: 'none',
+        'pop-lg': 'none',
+        glow: 'none',
+        'glow-accent': 'none',
+        sheet: 'none',
+        'sheet-raised': 'none',
+        focus: '0 0 0 3px hsl(var(--focus) / 0.25)',
       },
       keyframes: {
-        // --- Entrances ---
-        rise: {
-          from: { opacity: '0', transform: 'translateY(14px) scale(0.985)' },
-          to: { opacity: '1', transform: 'none' },
-        },
-        'fade-up': {
-          from: { opacity: '0', transform: 'translateY(10px)' },
-          to: { opacity: '1', transform: 'none' },
-        },
         'fade-in': {
           from: { opacity: '0' },
           to: { opacity: '1' },
         },
-        'pop-in': {
-          '0%': { opacity: '0', transform: 'scale(0.86)' },
-          '60%': { opacity: '1', transform: 'scale(1.04)' },
-          '100%': { opacity: '1', transform: 'scale(1)' },
-        },
-        'slide-in': {
-          from: { opacity: '0', transform: 'translateX(-12px)' },
-          to: { opacity: '1', transform: 'none' },
-        },
-
-        // --- Ambient loops ---
-        float: {
-          '0%, 100%': { transform: 'translateY(0)' },
-          '50%': { transform: 'translateY(-5px)' },
-        },
-        wiggle: {
-          '0%, 100%': { transform: 'rotate(-2.5deg)' },
-          '50%': { transform: 'rotate(2.5deg)' },
-        },
-        pulse: {
-          '0%, 100%': { opacity: '1' },
-          '50%': { opacity: '0.4' },
-        },
-        'gradient-pan': {
-          from: { backgroundPosition: '0% 50%' },
-          to: { backgroundPosition: '300% 50%' },
-        },
-        shimmer: {
-          from: { backgroundPosition: '100% 50%' },
-          to: { backgroundPosition: '0% 50%' },
-        },
-
-        // --- Feedback ---
-        'ring-glow': {
-          '0%, 100%': { boxShadow: '0 0 0 0 hsl(var(--accent) / 0.45)' },
-          '50%': { boxShadow: '0 0 0 10px hsl(var(--accent) / 0)' },
-        },
-        // The card-flip reveal in the flashcard deck.
-        'flip-in': {
-          from: { opacity: '0', transform: 'rotateX(-12deg) translateY(8px)' },
+        rise: {
+          from: { opacity: '0', transform: 'translateY(4px)' },
           to: { opacity: '1', transform: 'none' },
         },
       },
       animation: {
-        rise: 'rise 420ms var(--ease-spring) both',
-        'fade-up': 'fade-up 320ms var(--ease-out-soft) both',
-        'fade-in': 'fade-in 200ms ease-out both',
-        'pop-in': 'pop-in 380ms var(--ease-spring) both',
-        'slide-in': 'slide-in 340ms var(--ease-out-soft) both',
-        'flip-in': 'flip-in 340ms var(--ease-spring) both',
-        float: 'float 4s ease-in-out infinite',
-        wiggle: 'wiggle 500ms ease-in-out 2',
-        'pulse-slow': 'pulse 2s ease-in-out infinite',
-        'gradient-pan': 'gradient-pan 8s linear infinite',
-        shimmer: 'shimmer 1.6s ease-in-out infinite',
-        'ring-glow': 'ring-glow 1.8s ease-out infinite',
+        // Everything maps onto the same two entrances. Names that used to mean
+        // a bounce or a float now resolve to a quiet fade, so no component is
+        // left referencing an animation that no longer exists.
+        'fade-in': 'fade-in 160ms ease-out both',
+        'fade-up': 'rise 200ms var(--ease-out-soft) both',
+        rise: 'rise 200ms var(--ease-out-soft) both',
+        'pop-in': 'fade-in 160ms ease-out both',
+        'slide-in': 'fade-in 160ms ease-out both',
+        'flip-in': 'fade-in 160ms ease-out both',
+        float: 'none',
+        wiggle: 'none',
+        'pulse-slow': 'none',
+        'gradient-pan': 'none',
+        shimmer: 'none',
+        'ring-glow': 'none',
       },
       transitionTimingFunction: {
-        // The default for anything that moves under the pointer.
-        spring: 'var(--ease-spring)',
+        spring: 'var(--ease-out-soft)',
         soft: 'var(--ease-out-soft)',
-        // Retained so existing `ease-sheet` usages keep working.
         sheet: 'var(--ease-out-soft)',
       },
     },

@@ -56,21 +56,12 @@ export function EmptyState({ tone = 'neutral', title, body, action, className }:
   return (
     <div
       className={cn(
-        'flex animate-pop-in flex-col items-center gap-2 rounded-lg border border-dashed px-6 py-12 text-center',
+        'flex flex-col items-center gap-2 rounded border border-dashed px-6 py-10 text-center',
         styles.wrap,
         className,
       )}
     >
-      <span
-        aria-hidden="true"
-        className={cn(
-          'mb-1 flex h-14 w-14 animate-float items-center justify-center rounded-full text-2xl font-bold',
-          styles.glyphWrap,
-        )}
-      >
-        {styles.glyph}
-      </span>
-      <p className={cn('text-[17px] font-extrabold tracking-tight', styles.title)}>{title}</p>
+      <p className={cn('text-[15px] font-semibold', styles.title)}>{title}</p>
       {body && <p className={cn('max-w-sm text-sm leading-relaxed', styles.body)}>{body}</p>}
       {action && <div className="mt-2">{action}</div>}
     </div>
@@ -122,7 +113,7 @@ export function Badge({ tone = 'neutral', children, className }: BadgeProps) {
   return (
     <span
       className={cn(
-        'inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11.5px] font-bold leading-tight',
+        'inline-flex items-center rounded-sm border px-1.5 py-0.5 text-[11px] font-semibold leading-tight',
         BADGE_TONE[tone],
         className,
       )}
@@ -139,5 +130,5 @@ export function Badge({ tone = 'neutral', children, className }: BadgeProps) {
  * looks like this product.
  */
 export function Skeleton({ className }: { className?: string }) {
-  return <div className={cn('shimmer rounded-lg', className)} aria-hidden="true" />;
+  return <div className={cn('rounded bg-paper-sunken', className)} aria-hidden="true" />;
 }

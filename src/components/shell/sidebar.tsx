@@ -39,13 +39,11 @@ export type SidebarCounts = {
   pendingReview: number;
 };
 
-export type SidebarLevel = {
-  level: number;
-  /** 0..1 through the current level. */
-  progress: number;
-  streak: number;
-  /** 0..1 of today's question goal. */
-  goalProgress: number;
+export type SidebarStanding = {
+  /** Predicted mark out of 20. Null until there is enough marked work. */
+  mark: number | null;
+  scale: number;
+  daysToExam: number | null;
 };
 
 type NavItem = {
@@ -69,11 +67,11 @@ type NavItem = {
 export function Sidebar({
   user,
   counts,
-  level,
+  standing,
 }: {
   user: SidebarUser;
   counts: SidebarCounts;
-  level: SidebarLevel;
+  standing: SidebarStanding;
 }) {
   const { t } = useI18n();
   const pathname = usePathname();
@@ -100,7 +98,7 @@ export function Sidebar({
       items: [
         { href: '/exam-sim', label: t.nav.examSim, icon: IconExam },
         { href: '/performance', label: t.nav.performance, icon: IconChart },
-        { href: '/progress', label: t.progress.title, icon: IconTrophy },
+        { href: '/progress', label: t.standing.title, icon: IconTrophy },
       ],
     },
     {
@@ -147,7 +145,7 @@ export function Sidebar({
         >
           <IconMenu />
         </button>
-        <Link href="/dashboard" className="text-base font-extrabold tracking-tight">
+        <Link href="/dashboard" className="text-[15px] font-semibold">
           {t.common.appName}
         </Link>
       </div>
@@ -163,29 +161,17 @@ export function Sidebar({
 
       <aside
         className={cn(
-          'fixed inset-y-0 start-0 z-50 flex w-64 flex-col border-e border-rule bg-paper-raised/85 backdrop-blur-xl',
-          'transition-transform duration-300 ease-spring lg:sticky lg:top-0 lg:h-dvh lg:translate-x-0',
+          'fixed inset-y-0 start-0 z-50 flex w-64 flex-col border-e border-rule bg-paper-raised',
+          'transition-transform duration-200 ease-soft lg:sticky lg:top-0 lg:h-dvh lg:translate-x-0',
           // Logical transform: RTL slides in from the right, LTR from the left.
           open ? 'translate-x-0' : 'ltr:-translate-x-full rtl:translate-x-full lg:translate-x-0',
         )}
       >
         <div className="flex items-center justify-between border-b border-rule px-4 py-4">
           <Link href="/dashboard" className="group min-w-0">
-            <span className="flex items-center gap-2">
-              <span
-                aria-hidden="true"
-                className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-accent text-[15px] font-extrabold text-on-primary shadow-pop transition-transform duration-300 ease-spring group-hover:rotate-6 group-hover:scale-110"
-              >
-                B
-              </span>
-              <span className="block text-lg font-extrabold leading-none tracking-tight">
-                {t.common.appName}
-              </span>
-            </span>
+            <span className="block text-[15px] font-semibold leading-none">{t.common.appName}</span>
             {user.trackCode && (
-              <span className="mt-1.5 block ps-10 text-[11px] font-bold uppercase tracking-wider text-primary">
-                {user.trackCode}
-              </span>
+              <span className="label mt-1.5 block">{user.trackCode}</span>
             )}
           </Link>
           <button
@@ -208,7 +194,7 @@ export function Sidebar({
 
           {groups.map((group) => (
             <div key={group.label} className="mt-5">
-              <p className="px-3 pb-1.5 text-[10.5px] font-extrabold uppercase tracking-[0.12em] text-ink-faint">
+              <p className="label px-3 pb-1.5">
                 {group.label}
               </p>
               <ul className="space-y-0.5">
@@ -228,49 +214,28 @@ export function Sidebar({
           ))}
         </nav>
 
-        {/* Level, streak and today's goal, always in view.
-            The bar is the reason this sits in the shell rather than on one
-            page: a student should be able to see they are four questions off
-            their goal from anywhere in the product. */}
+        {/*
+          The two figures a candidate checks constantly: what they are on now,
+          and how long is left. No badge, no streak, no celebration — a mark out
+          of 20 and a number of days are already meaningful to everyone who
+          reads them.
+        */}
         <Link
           href="/progress"
-          className="group mx-3 mb-2 rounded-lg border border-rule bg-paper-sunken/60 px-3 py-2.5 transition-[transform,border-color,background-color] duration-200 ease-spring hover:-translate-y-0.5 hover:border-primary/40 hover:bg-primary-soft motion-reduce:transform-none motion-reduce:hover:transform-none"
+          className="mx-3 mb-2 block border-t border-rule pt-3 transition-colors duration-150 hover:bg-paper-sunken/60"
         >
-          <span className="flex items-center gap-2.5">
-            <span
-              aria-hidden="true"
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary to-accent text-[13px] font-extrabold text-on-primary shadow-pop transition-transform duration-200 ease-spring group-hover:scale-110"
-            >
-              {level.level}
-            </span>
-
-            <span className="min-w-0 flex-1">
-              <span className="flex items-baseline justify-between gap-2">
-                <span className="text-[12px] font-extrabold uppercase tracking-wider text-ink-muted">
-                  {t.progress.level} {level.level}
-                </span>
-                {level.streak > 0 && (
-                  <span className="shrink-0 text-[11.5px] font-extrabold tabular-nums text-accent">
-                    ▲ {level.streak}
-                  </span>
-                )}
-              </span>
-
-              {/* Two hairlines: progress through the level, and today's goal. */}
-              <span className="mt-1.5 block h-1.5 w-full overflow-hidden rounded-full bg-rule">
-                <span
-                  className="block h-full rounded-full bg-gradient-to-r from-primary to-accent transition-[width] duration-700 ease-soft"
-                  style={{ width: `${Math.round(level.progress * 100)}%` }}
-                />
-              </span>
-              <span className="mt-1 block h-1 w-full overflow-hidden rounded-full bg-rule">
-                <span
-                  className="block h-full rounded-full bg-correct transition-[width] duration-700 ease-soft"
-                  style={{ width: `${Math.round(level.goalProgress * 100)}%` }}
-                />
-              </span>
+          <span className="flex items-baseline justify-between gap-3 px-1">
+            <span className="label">{t.standing.predictedMark}</span>
+            <span className="figure text-[15px]">
+              {standing.mark === null ? '—' : `${standing.mark} / ${standing.scale}`}
             </span>
           </span>
+          {standing.daysToExam !== null && (
+            <span className="mt-1 flex items-baseline justify-between gap-3 px-1">
+              <span className="label">{t.standing.daysLeft}</span>
+              <span className="figure text-[15px]">{standing.daysToExam}</span>
+            </span>
+          )}
         </Link>
 
         <div className="border-t border-rule px-4 py-3">
@@ -308,29 +273,25 @@ function NavLink({
       href={href}
       aria-current={active ? 'page' : undefined}
       className={cn(
-        'group relative flex items-center gap-2.5 rounded-full px-3 py-2.5 text-[13.5px] font-semibold',
-        'transition-[background-color,color,transform] duration-200 ease-spring',
-        // The whole row slides a little on hover. It is a small thing, but a
-        // sidebar that answers the pointer is what makes an app feel alive
-        // rather than printed.
-        'hover:translate-x-1 rtl:hover:-translate-x-1 motion-reduce:transform-none motion-reduce:hover:transform-none',
+        'group relative flex items-center gap-2.5 border-s-2 px-3 py-2 text-[13.5px]',
+        'transition-colors duration-150',
         active
-          ? 'bg-gradient-to-r from-primary to-accent text-on-primary shadow-pop'
-          : 'text-ink-muted hover:bg-primary-soft hover:text-primary',
+          ? 'border-s-primary bg-primary-soft/60 font-semibold text-ink'
+          : 'border-s-transparent text-ink-muted hover:bg-paper-sunken hover:text-ink',
       )}
     >
       <Icon
         className={cn(
-          'h-[18px] w-[18px] shrink-0 transition-transform duration-200 ease-spring group-hover:scale-110',
-          active ? 'text-on-primary' : 'text-ink-faint group-hover:text-primary',
+          'h-[18px] w-[18px] shrink-0',
+          active ? 'text-primary' : 'text-ink-faint',
         )}
       />
       <span className="min-w-0 flex-1 truncate">{label}</span>
       {badge !== undefined && badge > 0 && (
         <span
           className={cn(
-            'shrink-0 rounded-full px-2 py-0.5 text-[11px] font-extrabold leading-none tabular-nums',
-            active ? 'bg-on-primary/25 text-on-primary' : 'bg-accent text-on-primary',
+            'shrink-0 rounded-sm border px-1.5 py-0.5 text-[11px] font-semibold leading-none tabular-nums',
+            'border-rule-strong bg-paper-sunken text-ink-muted',
           )}
         >
           {badge > 99 ? '99+' : badge}

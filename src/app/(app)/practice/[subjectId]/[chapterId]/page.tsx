@@ -6,7 +6,6 @@ import { EmptyState } from '@/components/ui/feedback';
 import { PageHeader } from '@/components/ui/sheet';
 import { requireUser } from '@/lib/auth/guards';
 import { db } from '@/lib/db';
-import { getProgressSummary } from '@/lib/queries/gamification';
 import { PUBLISHED_FILTER } from '@/lib/generation';
 import { getTranslations } from '@/lib/i18n';
 import { getChapterForTrack } from '@/lib/queries/taxonomy';
@@ -34,7 +33,7 @@ export default async function ChapterPracticePage({
   const chapter = await getChapterForTrack(chapterId, user.trackId);
   if (!chapter) notFound();
 
-  const [questions, generated, mastery, initialProgress] = await Promise.all([
+  const [questions, generated, mastery] = await Promise.all([
     db.question.findMany({
       where: { chapterId: chapter.id, verifiedStatus: { not: 'rejected' } },
       select: {
@@ -74,7 +73,6 @@ export default async function ChapterPracticePage({
       where: { userId_chapterId: { userId: user.id, chapterId: chapter.id } },
       select: { masteryScore: true, attemptsCount: true },
     }),
-    getProgressSummary(user.id),
   ]);
 
   const prepared: PracticeQuestion[] = [
@@ -122,7 +120,6 @@ export default async function ChapterPracticePage({
           questions={prepared}
           initialMastery={Number(mastery?.masteryScore ?? 0)}
           initialAttempts={mastery?.attemptsCount ?? 0}
-          initialProgress={initialProgress}
         />
       )}
     </>

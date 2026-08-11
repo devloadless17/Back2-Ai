@@ -20,26 +20,22 @@ import { cn } from '@/lib/cn';
  * is the difference between waiting and tapping again.
  */
 const VARIANTS = {
-  primary:
-    'bg-primary text-on-primary border-transparent shadow-pop hover:bg-primary-hover hover:shadow-glow',
-  accent:
-    'bg-accent text-on-primary border-transparent shadow-pop hover:bg-accent-hover hover:shadow-glow-accent',
-  secondary: 'bg-paper-raised text-ink border-rule-strong shadow-pop hover:border-primary/40 hover:bg-primary-soft',
-  quiet: 'bg-transparent text-ink-muted border-transparent hover:bg-primary-soft hover:text-primary',
-  mark: 'bg-mark text-on-primary border-transparent shadow-pop hover:brightness-95',
+  primary: 'bg-primary text-on-primary border-primary hover:bg-primary-hover',
+  accent: 'bg-primary text-on-primary border-primary hover:bg-primary-hover',
+  secondary: 'bg-paper-raised text-ink border-rule-strong hover:bg-paper-sunken',
+  quiet: 'bg-transparent text-ink-muted border-transparent hover:bg-paper-sunken hover:text-ink',
+  mark: 'bg-mark text-on-primary border-mark hover:brightness-95',
 } as const;
 
 const SIZES = {
-  sm: 'h-9 px-3.5 text-[13px] gap-1.5',
-  md: 'h-11 px-5 text-sm gap-2',
-  lg: 'h-13 px-7 text-base gap-2',
+  sm: 'h-8 px-3 text-[13px] gap-1.5',
+  md: 'h-10 px-4 text-sm gap-2',
+  lg: 'h-11 px-5 text-[15px] gap-2',
 } as const;
 
 const BASE =
-  'inline-flex items-center justify-center rounded-full border font-semibold ' +
-  'transition-[background-color,color,box-shadow,transform,border-color] duration-200 ease-spring ' +
-  'hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] ' +
-  'motion-reduce:transform-none motion-reduce:hover:transform-none ' +
+  'inline-flex items-center justify-center rounded border font-medium ' +
+  'transition-colors duration-150 ' +
   'disabled:pointer-events-none disabled:opacity-50 ' +
   'aria-busy:pointer-events-none aria-busy:opacity-70';
 

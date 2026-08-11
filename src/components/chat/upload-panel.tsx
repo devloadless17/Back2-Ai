@@ -188,7 +188,7 @@ export function UploadPanel() {
           dragging ? 'border-primary bg-primary-soft' : 'border-rule-strong bg-paper-sunken',
         )}
       >
-        <p className="text-lg font-extrabold tracking-tight text-ink">{t.upload.dropzone}</p>
+        <p className="text-lg font-semibold text-ink">{t.upload.dropzone}</p>
         <p className="max-w-sm text-sm text-ink-muted">{t.upload.subtitle}</p>
 
         <input

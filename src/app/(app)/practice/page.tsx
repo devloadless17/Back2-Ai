@@ -47,7 +47,7 @@ export default async function PracticePage() {
           body={t.practice.noQuestionsHint}
         />
       ) : (
-        <div className="stagger grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4 sm:grid-cols-2">
           {subjects.map((subject) => (
             <Link
               key={subject.id}

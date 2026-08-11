@@ -6,13 +6,12 @@ import { cn } from '@/lib/cn';
 import { useI18n } from '@/lib/i18n/client';
 
 /**
- * Mastery and readiness bars.
+ * Mastery bars.
  *
- * These animate to their value rather than appearing at it. Progress is the
- * emotional core of the product — a bar that silently renders at a new number
- * on the next page load teaches the student that nothing happened. The bar
- * remembers its previous value across renders, so logging an attempt makes the
- * relevant bar visibly move.
+ * The one piece of motion this design keeps: a bar fills to its value rather
+ * than appearing at it, so a student watches the number they just moved. A bar
+ * that silently renders at a new value on the next page load teaches them that
+ * nothing they did registered.
  *
  * Reduced-motion users get the final value immediately; the global
  * prefers-reduced-motion rule in globals.css collapses the transition.
@@ -72,70 +71,18 @@ export function Meter({ value, label, caption, size = 'md', tone = 'auto', class
         aria-label={label}
         aria-valuetext={formatPercent(target)}
         className={cn(
-          'w-full overflow-hidden rounded-full bg-paper-sunken',
-          size === 'sm' ? 'h-2' : 'h-3',
+          'w-full overflow-hidden rounded-sm bg-paper-sunken',
+          size === 'sm' ? 'h-1.5' : 'h-2',
         )}
       >
         <div
           className={cn(
-            'h-full rounded-full transition-[width] duration-[900ms] ease-soft',
-            // The brand tone is a gradient rather than a flat fill — on a bar
-            // this is the cheapest place in the product to show the palette.
-            tone === 'primary'
-              ? 'bg-gradient-to-r from-primary to-accent'
-              : toneFor(target),
+            'h-full transition-[width] duration-500 ease-soft',
+            tone === 'primary' ? 'bg-primary' : toneFor(target),
           )}
           style={{ width: `${rendered * 100}%` }}
         />
       </div>
-    </div>
-  );
-}
-
-/**
- * The readiness figure on the dashboard and performance page. Larger, counts up
- * to its value, and always states what it is a percentage of — an unexplained
- * "68%" next to a national exam is not a kindness.
- */
-export function ReadinessDial({
-  value,
-  label,
-  sublabel,
-  className,
-}: {
-  value: number;
-  label: string;
-  sublabel?: string;
-  className?: string;
-}) {
-  const target = clamp01(value);
-  const [shown, setShown] = useState(0);
-  const { formatPercent } = useI18n();
-
-  useEffect(() => {
-    const start = performance.now();
-    const duration = 800;
-    let frame = 0;
-
-    const step = (now: number) => {
-      const t = Math.min(1, (now - start) / duration);
-      // Ease-out so it decelerates into the final number rather than snapping.
-      setShown(target * (1 - Math.pow(1 - t, 3)));
-      if (t < 1) frame = requestAnimationFrame(step);
-    };
-
-    frame = requestAnimationFrame(step);
-    return () => cancelAnimationFrame(frame);
-  }, [target]);
-
-  return (
-    <div className={cn('space-y-2', className)}>
-      <p className="text-[11.5px] font-bold uppercase tracking-wider text-ink-faint">{label}</p>
-      <p className="text-gradient text-[40px] font-extrabold tabular-nums leading-none tracking-tight">
-        {formatPercent(shown)}
-      </p>
-      {sublabel && <p className="text-[12.5px] leading-snug text-ink-muted">{sublabel}</p>}
-      <Meter value={target} tone="primary" size="sm" />
     </div>
   );
 }

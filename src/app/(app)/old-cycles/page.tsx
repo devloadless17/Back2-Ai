@@ -52,7 +52,7 @@ export default async function OldCyclesPage() {
       {cycles.length === 0 ? (
         <EmptyState tone="pending" title={t.oldCycles.noCycles} body={t.practice.noQuestionsHint} />
       ) : (
-        <div className="stagger space-y-5">
+        <div className="space-y-5">
           {[...bySubject.entries()].map(([subjectName, subjectCycles]) => (
             <Sheet key={subjectName}>
               <SheetHeader title={subjectName} />

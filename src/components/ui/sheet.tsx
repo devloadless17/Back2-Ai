@@ -5,14 +5,14 @@ import { cn } from '@/lib/cn';
 /**
  * Surfaces.
  *
- * A "sheet" is the base container: a soft white card sitting on the coloured
- * canvas, with a tinted lift rather than a grey drop shadow.
+ * A "sheet" is the base container: white stock inside a hairline, flat on the
+ * page. No shadow and no lift — depth is decoration, and this design carries
+ * hierarchy with rules, weight and space instead.
  *
- * `interactive` and `hero` are the two variations worth having. Interactive
- * cards rise under the pointer, which is how a student learns a whole card is
- * clickable without a "view more" link in the corner. A hero card carries the
- * animated brand gradient on its top edge and there should be at most one per
- * screen — the moment there are two, neither reads as the important one.
+ * `interactive` warms the background under the pointer, which is how a student
+ * learns a whole card is clickable. `hero` draws the accent rule along the top
+ * edge, and there should be at most one per screen — the moment there are two,
+ * neither reads as the important one.
  */
 
 export function Sheet({
@@ -59,7 +59,7 @@ export function SheetHeader({
       )}
     >
       <div className="min-w-0 space-y-0.5">
-        <h2 className="text-[15px] font-extrabold leading-snug tracking-tight">{title}</h2>
+        <h2 className="text-[14px] font-semibold leading-snug">{title}</h2>
         {description && <p className="text-[13px] leading-snug text-ink-muted">{description}</p>}
       </div>
       {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
@@ -98,12 +98,11 @@ export function SheetFooter({ className, children }: { className?: string; child
 }
 
 /**
- * Top-of-page heading.
+ * Top-of-page heading, closed by a rule.
  *
- * The page-load reveal lives here rather than on every screen so the entrance is
- * consistent and there is one place to remove it. The title is the largest,
- * loudest text in the product — on a screen that is mostly data, the heading is
- * what tells you where you are at a glance.
+ * Modest in size. On a screen that is mostly figures the heading only has to
+ * say where you are; making it the loudest thing on the page steals attention
+ * from the numbers the student came for.
  */
 export function PageHeader({
   title,
@@ -119,14 +118,12 @@ export function PageHeader({
   return (
     <div
       className={cn(
-        'mb-6 flex animate-rise flex-wrap items-end justify-between gap-4',
+        'mb-6 flex flex-wrap items-end justify-between gap-4 border-b border-rule pb-4',
         className,
       )}
     >
       <div className="min-w-0 space-y-1">
-        <h1 className="text-[28px] font-extrabold leading-tight tracking-tight sm:text-[32px]">
-          {title}
-        </h1>
+        <h1 className="text-[21px] font-semibold leading-tight sm:text-[23px]">{title}</h1>
         {description && <p className="max-w-2xl text-sm leading-relaxed text-ink-muted">{description}</p>}
       </div>
       {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}
@@ -138,10 +135,7 @@ export function PageHeader({
 export function RuledRow({ className, children }: { className?: string; children: ReactNode }) {
   return (
     <div
-      className={cn(
-        'flex items-baseline gap-3 px-5 py-3 transition-colors duration-150 hover:bg-primary-soft/40',
-        className,
-      )}
+      className={cn('flex items-baseline gap-3 px-5 py-3', className)}
     >
       {children}
     </div>
@@ -149,63 +143,43 @@ export function RuledRow({ className, children }: { className?: string; children
 }
 
 /**
- * A headline figure with its label — the unit the dashboard is built from.
+ * A headline figure with its label.
  *
- * The figure comes first and is enormous; the label sits under it in small
- * caps. A tile whose label is the same size as its number makes the reader do
- * the work of finding the value.
+ * The label sits above in small caps and the figure below it, large and
+ * tabular. No icon and no tint: on a dashboard of eight figures, eight coloured
+ * discs are eight things competing with the numbers they decorate.
  */
 export function StatTile({
   label,
   value,
   caption,
-  tone = 'brand',
-  icon,
+  tone = 'plain',
   footer,
   className,
 }: {
   label: string;
   value: ReactNode;
   caption?: ReactNode;
-  tone?: 'brand' | 'accent' | 'plain';
-  icon?: ReactNode;
+  /** `mark` prints the figure in the accent — used for the predicted mark only. */
+  tone?: 'plain' | 'mark';
   footer?: ReactNode;
   className?: string;
 }) {
   return (
-    <div
-      className={cn(
-        'sheet sheet-interactive flex flex-col gap-1 p-5',
-        className,
-      )}
-    >
-      <div className="flex items-start justify-between gap-3">
-        <p className="text-[11.5px] font-bold uppercase tracking-wider text-ink-faint">{label}</p>
-        {icon && (
-          <span
-            aria-hidden="true"
-            className={cn(
-              'flex h-8 w-8 shrink-0 items-center justify-center rounded-full',
-              tone === 'accent' ? 'bg-accent-soft text-accent' : 'bg-primary-soft text-primary',
-            )}
-          >
-            {icon}
-          </span>
-        )}
-      </div>
+    <div className={cn('sheet flex flex-col gap-1.5 p-4', className)}>
+      <p className="label">{label}</p>
 
       <p
         className={cn(
-          'font-extrabold tabular-nums leading-none tracking-tight',
-          'text-[34px] sm:text-[38px]',
-          tone === 'plain' ? 'text-ink' : 'text-gradient',
+          'figure text-[26px] leading-none sm:text-[28px]',
+          tone === 'mark' ? 'text-primary' : 'text-ink',
         )}
       >
         {value}
       </p>
 
-      {caption && <p className="text-[12.5px] leading-snug text-ink-muted">{caption}</p>}
-      {footer && <div className="mt-2">{footer}</div>}
+      {caption && <p className="text-[12px] leading-snug text-ink-muted">{caption}</p>}
+      {footer && <div className="mt-1">{footer}</div>}
     </div>
   );
 }

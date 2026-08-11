@@ -38,7 +38,7 @@ export default async function PerformancePage() {
       {progress.length === 0 ? (
         <EmptyState tone="pending" title={t.practice.noQuestions} body={t.practice.noQuestionsHint} />
       ) : (
-        <div className="stagger space-y-5">
+        <div className="space-y-5">
           {/* --- Readiness per subject --- */}
           <Sheet>
             <SheetHeader
@@ -59,7 +59,7 @@ export default async function PerformancePage() {
                   }
                 />
               ) : (
-                <div className="stagger grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
+                <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
                   {progress.map((subject) =>
                     subject.readiness.reportable ? (
                       <div key={subject.subjectId} className="space-y-4">
@@ -114,7 +114,7 @@ export default async function PerformancePage() {
             </SheetBody>
           </Sheet>
 
-          <div className="stagger grid gap-5 lg:grid-cols-2">
+          <div className="grid gap-5 lg:grid-cols-2">
             {/* --- Weakest --- */}
             <Sheet>
               <SheetHeader title={t.performance.weakTopics} />
