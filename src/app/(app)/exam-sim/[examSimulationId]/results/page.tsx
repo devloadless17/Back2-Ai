@@ -2,13 +2,13 @@ import type { Metadata } from 'next';
 import { notFound, redirect } from 'next/navigation';
 
 import { TutorButton } from '@/components/chat/tutor-button';
+import { MarkExplanation } from '@/components/exam/mark-explanation';
 import { LinkButton } from '@/components/ui/button';
 import { Alert, Badge, EmptyState } from '@/components/ui/feedback';
 import { MathText, QuestionBody } from '@/components/ui/math';
 import { Meter } from '@/components/ui/progress';
-import { PageHeader, RuledRow, Sheet, SheetBody, SheetFooter, SheetHeader } from '@/components/ui/sheet';
+import { PageHeader, Sheet, SheetBody, SheetFooter, SheetHeader } from '@/components/ui/sheet';
 import { requireUser } from '@/lib/auth/guards';
-import { cn } from '@/lib/cn';
 import { db } from '@/lib/db';
 import { loadSimulation, slotContent } from '@/lib/exam';
 import { parseBaremeResult } from '@/lib/grading';
@@ -156,7 +156,7 @@ export default async function ExamResultsPage({
             return (
               <Sheet key={slot.id}>
                 <SheetHeader
-                  title={format('{current} / {total}', { current: index + 1, total: simulation.questions.length })}
+                  title={format(t.examSim.exercise, { number: index + 1 })}
                   description={content.chapterName ?? undefined}
                   actions={
                     slotTotal !== null && slotMax ? (
@@ -216,28 +216,13 @@ export default async function ExamResultsPage({
                     <SheetBody className="p-0">
                       <div className="ruled">
                         {results.map((item, i) => (
-                          <RuledRow key={`${item.criterion}-${i}`} className="flex-col items-stretch gap-1">
-                            <div className="flex items-baseline justify-between gap-3">
-                              <p className="min-w-0 text-[13.5px] font-medium text-ink">
-                                {item.criterion}
-                              </p>
-                              <p
-                                className={cn(
-                                  'shrink-0 text-[13px] font-semibold tabular-nums',
-                                  item.points_awarded >= item.points_possible
-                                    ? 'text-correct'
-                                    : item.points_awarded > 0
-                                      ? 'text-partial'
-                                      : 'text-mark',
-                                )}
-                              >
-                                {item.points_awarded} / {item.points_possible}
-                              </p>
-                            </div>
-                            <p className="text-[12.5px] leading-snug text-ink-muted">
-                              {item.justification}
-                            </p>
-                          </RuledRow>
+                          <MarkExplanation
+                            key={`${item.criterion}-${i}`}
+                            criterion={item.criterion}
+                            awarded={item.points_awarded}
+                            possible={item.points_possible}
+                            justification={item.justification}
+                          />
                         ))}
                       </div>
                     </SheetBody>
