@@ -213,15 +213,3 @@ export function CountUp({
 
   return <span className={className}>{render(shown)}</span>;
 }
-
-/**
- * Mounts children on the client only, after a frame.
- *
- * For decorative motion that would otherwise cause a hydration mismatch (the
- * server has no idea what `prefers-reduced-motion` is).
- */
-export function ClientOnly({ children }: { children: ReactNode }) {
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
-  return mounted ? <>{children}</> : null;
-}

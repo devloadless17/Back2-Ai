@@ -38,10 +38,6 @@ export const PLANS: Record<PlanId, Plan> = {
   annual: { id: 'annual', priceUsd: 96, periodMonths: 12, requiresCard: true },
 };
 
-export function isPlanId(value: string): value is PlanId {
-  return (PLAN_IDS as readonly string[]).includes(value);
-}
-
 /** What the annual plan saves against paying monthly, as a whole percentage. */
 export function annualSavingPercent(): number {
   const monthlyYear = PLANS.monthly.priceUsd * 12;
@@ -58,10 +54,6 @@ export function annualSavingPercent(): number {
 
 export const CARD_BRANDS = ['visa', 'mastercard', 'amex', 'discover', 'unknown'] as const;
 export type CardBrand = (typeof CARD_BRANDS)[number];
-
-export function isCardBrand(value: string): value is CardBrand {
-  return (CARD_BRANDS as readonly string[]).includes(value);
-}
 
 export function digitsOnly(value: string): string {
   return value.replace(/\D+/g, '');

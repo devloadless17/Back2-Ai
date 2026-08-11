@@ -200,8 +200,3 @@ function referenceSource(hit: UserReferenceHit): RetrievalSource {
     text: (hit.extractedText ?? '').slice(0, 500),
   };
 }
-
-/** Whether an assistant turn on this tier may be shown without a verification pass. */
-export function isDirectlyGrounded(tier: GroundingTier): boolean {
-  return tier === 'exact_match';
-}

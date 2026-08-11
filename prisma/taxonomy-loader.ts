@@ -152,21 +152,37 @@ export function cleanChapterTitle(raw: string): string {
  */
 const STRUCTURAL_LABEL = /^(part|section|unit|partie|chapter|chapitre)\s+[A-Za-z0-9]{1,3}$/i;
 
-export function looksUnparsed(titles: string[]): boolean {
-  if (titles.length === 0) return true;
+export function looksUnparsed(chapters: { title: string; unit?: string | null }[]): boolean {
+  if (chapters.length === 0) return true;
 
   // No Grade 12 textbook has one or two chapters. A list this short means the
   // parser found a stray heading, not a contents page — "The Authors" on its
   // own was seeding an entire subject.
-  if (titles.length < 3) return true;
+  if (chapters.length < 3) return true;
 
-  const structural = titles.filter((t) => STRUCTURAL_LABEL.test(t)).length;
-  const distinct = new Set(titles.map((t) => t.toLowerCase())).size;
-  const duplicated = titles.length - distinct;
+  const structural = chapters.filter((c) => STRUCTURAL_LABEL.test(c.title)).length;
+
+  /*
+   * Duplicates are counted per unit, not across the book.
+   *
+   * The English "Themes" textbook repeats the same three chapter names —
+   * "The World Within Us", "The World Around Us", "New Worlds" — inside each of
+   * its three thematic units. That is the book's actual design, and judging the
+   * titles alone declared a correctly-parsed contents page unreadable. A
+   * duplicate only means something when the same title appears twice in the
+   * same unit.
+   */
+  const seen = new Set<string>();
+  let duplicated = 0;
+  for (const chapter of chapters) {
+    const key = `${chapter.unit ?? ''}::${chapter.title.toLowerCase()}`;
+    if (seen.has(key)) duplicated += 1;
+    seen.add(key);
+  }
 
   // Two in five is well past anything a real contents page produces, and well
   // clear of a book that legitimately opens with one "Part 1" heading.
-  return (structural + duplicated) / titles.length >= 0.4;
+  return (structural + duplicated) / chapters.length >= 0.4;
 }
 
 /** Minimal CSV reader — the catalog has quoted fields containing commas. */
@@ -257,7 +273,7 @@ export async function loadCorpusTaxonomy(
       continue;
     }
 
-    const unparsed = looksUnparsed(list.map((c) => c.title));
+    const unparsed = looksUnparsed(list.map((c) => ({ title: c.title, unit: c.unit })));
     if (unparsed) {
       result.skipped.push(
         `${row.book_name} — contents page did not parse into chapters (got "${list

@@ -114,24 +114,3 @@ export const WorkingArea = forwardRef<HTMLTextAreaElement, TextareaHTMLAttribute
     );
   },
 );
-
-export function Checkbox({
-  label,
-  className,
-  ...props
-}: InputHTMLAttributes<HTMLInputElement> & { label: string }) {
-  const id = useId();
-  return (
-    <div className={cn('flex items-start gap-2', className)}>
-      <input
-        id={id}
-        type="checkbox"
-        className="mt-0.5 h-4 w-4 shrink-0 rounded-sm border-rule-strong text-primary accent-[hsl(var(--primary))]"
-        {...props}
-      />
-      <label htmlFor={id} className="text-sm text-ink">
-        {label}
-      </label>
-    </div>
-  );
-}

@@ -205,35 +205,3 @@ export async function setEmbedding(table: EmbeddingTable, id: string, embedding:
     Prisma.sql`UPDATE ${Prisma.raw(`"${table}"`)} SET embedding = ${literal}::vector WHERE id = ${id}::uuid`,
   );
 }
-
-/**
- * Verifies that the configured EMBEDDING_DIM matches the actual column width in
- * the database.
- *
- * A mismatch means every similarity query silently returns nonsense or errors
- * at insert time, so this runs as a startup check rather than being discovered
- * by a student getting bad answers.
- */
-export async function assertEmbeddingDimensions(): Promise<void> {
-  const expected = env().EMBEDDING_DIM;
-
-  const rows = await db.$queryRaw<{ table_name: string; dimensions: number }[]>`
-    SELECT c.relname AS table_name,
-           CASE WHEN a.atttypmod > 0 THEN a.atttypmod ELSE 0 END AS dimensions
-    FROM pg_attribute a
-    JOIN pg_class c ON c.oid = a.attrelid
-    JOIN pg_type t ON t.oid = a.atttypid
-    WHERE a.attname = 'embedding'
-      AND t.typname = 'vector'
-      AND c.relkind = 'r'
-  `;
-
-  const mismatches = rows.filter((r) => r.dimensions !== expected);
-  if (mismatches.length > 0) {
-    const detail = mismatches.map((m) => `${m.table_name}=${m.dimensions}`).join(', ');
-    throw new Error(
-      `EMBEDDING_DIM is ${expected} but the database has ${detail}. ` +
-        `Run "npm run vector:resize" to alter the columns and re-embed the corpus.`,
-    );
-  }
-}

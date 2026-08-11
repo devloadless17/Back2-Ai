@@ -28,6 +28,7 @@
     "corpus:ocr": "node --env-file=.env --import tsx scripts/corpus/docai.ts",
     "corpus:mathpix": "node --env-file=.env --import tsx scripts/corpus/mathpix.ts",
     "corpus:gates": "node --env-file=.env --import tsx scripts/corpus/gates.ts",
+    "corpus:chunks": "node --conditions=react-server --env-file=.env --import tsx scripts/corpus/load-chunks.ts",
     "corpus:katex": "node scripts/corpus/katex-check.mjs",
     "cron": "node --conditions=react-server --env-file=.env --import tsx scripts/cron.ts",
     "test": "vitest run",

@@ -34,10 +34,6 @@ async function handle<T>(response: Response): Promise<T> {
   return payload as T;
 }
 
-export async function getJson<T>(url: string): Promise<T> {
-  return handle<T>(await fetch(url, { headers: { accept: 'application/json' } }));
-}
-
 export async function sendJson<T>(
   url: string,
   method: 'POST' | 'PATCH' | 'PUT' | 'DELETE',

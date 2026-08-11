@@ -33,37 +33,63 @@ describe('cleanChapterTitle', () => {
   });
 });
 
+/** The loader takes {title, unit}; these helpers keep the tests readable. */
+const flat = (titles: string[]) => titles.map((title) => ({ title, unit: null }));
+
 describe('looksUnparsed', () => {
   it('accepts a real contents page', () => {
     expect(
+      looksUnparsed(
+        flat([
+          'Basic mechanisms of sexual reproduction',
+          'Transmission of genes and genetic recombination',
+          'Genetic variation and polymorphism',
+          'Human Genetics',
+          'The immune response',
+        ]),
+      ),
+    ).toBe(false);
+  });
+
+  it('accepts a book that repeats chapter names across its units', () => {
+    // The English "Themes" textbook really is built this way: three thematic
+    // units, each containing the same three chapter titles. Judging titles
+    // alone declared a correctly-parsed contents page unreadable.
+    expect(
       looksUnparsed([
-        'Basic mechanisms of sexual reproduction',
-        'Transmission of genes and genetic recombination',
-        'Genetic variation and polymorphism',
-        'Human Genetics',
-        'The immune response',
+        { title: 'The World Within Us', unit: 'Natural Phenomena' },
+        { title: 'The World Around Us', unit: 'Natural Phenomena' },
+        { title: 'New Worlds', unit: 'Natural Phenomena' },
+        { title: 'The World Within Us', unit: 'Technology' },
+        { title: 'The World Around Us', unit: 'Technology' },
+        { title: 'New Worlds', unit: 'Technology' },
+        { title: 'The World Within Us', unit: 'Current Concerns' },
+        { title: 'The World Around Us', unit: 'Current Concerns' },
+        { title: 'New Worlds', unit: 'Current Concerns' },
       ]),
     ).toBe(false);
   });
 
   it('rejects the structural furniture the English book produced', () => {
     expect(
-      looksUnparsed([
-        'The Authors',
-        'Part D',
-        'Writing Topics',
-        'Chapter 2 The World Around Us',
-        'Part A',
-        'Part C',
-        'Language Conventions: Comma Splices and Fused',
-        'Writing Topics',
-      ]),
+      looksUnparsed(
+        flat([
+          'The Authors',
+          'Part D',
+          'Writing Topics',
+          'Chapter 2 The World Around Us',
+          'Part A',
+          'Part C',
+          'Language Conventions: Comma Splices and Fused',
+          'Writing Topics',
+        ]),
+      ),
     ).toBe(true);
   });
 
   it('rejects a list too short to be a Grade 12 textbook', () => {
-    expect(looksUnparsed(['The Authors'])).toBe(true);
-    expect(looksUnparsed(['ACTIVITY', 'Study the imagery in the poem'])).toBe(true);
+    expect(looksUnparsed(flat(['The Authors']))).toBe(true);
+    expect(looksUnparsed(flat(['ACTIVITY', 'Study the imagery in the poem']))).toBe(true);
   });
 
   it('rejects an empty list rather than seeding a subject with nothing', () => {
@@ -72,12 +98,14 @@ describe('looksUnparsed', () => {
 
   it('tolerates a single legitimate part heading among real chapters', () => {
     expect(
-      looksUnparsed(['Part 1', 'The Gaseous State', 'Rate of Reactions', 'Kinetic Factors', 'Chemical Equilibrium']),
+      looksUnparsed(
+        flat(['Part 1', 'The Gaseous State', 'Rate of Reactions', 'Kinetic Factors', 'Chemical Equilibrium']),
+      ),
     ).toBe(false);
   });
 
   it('catches duplicated titles, which a real contents page does not have', () => {
-    expect(looksUnparsed(['Writing Topics', 'Writing Topics', 'Writing Topics', 'Something real'])).toBe(true);
+    expect(looksUnparsed(flat(['Writing Topics', 'Writing Topics', 'Writing Topics', 'Something real']))).toBe(true);
   });
 });
 

@@ -337,8 +337,3 @@ function clamp(value: number, min: number, max: number): number {
 function round2(value: number): number {
   return Math.round(value * 100) / 100;
 }
-
-/** Re-exported so callers can log which model marked a paper without importing env. */
-export function markingModel(): string {
-  return env().AI_PROVIDER === 'openai' ? env().OPENAI_MODEL_VERIFY : env().ANTHROPIC_MODEL_VERIFY;
-}

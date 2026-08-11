@@ -111,12 +111,3 @@ export async function getChapterForTrack(chapterId: string, trackId: string | nu
     },
   });
 }
-
-/** Units of a subject, for the flashcard scope selector. */
-export async function listUnits(subjectId: string) {
-  return db.unit.findMany({
-    where: { subjectId },
-    select: { id: true, name: true, _count: { select: { chapters: true } } },
-    orderBy: { orderIndex: 'asc' },
-  });
-}

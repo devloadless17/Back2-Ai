@@ -165,15 +165,6 @@ export function IconBell(props: IconProps) {
   );
 }
 
-export function IconLogout(props: IconProps) {
-  return (
-    <Icon {...props}>
-      <path d="M12 5.5V4.25a1.5 1.5 0 0 0-1.5-1.5h-6a1.5 1.5 0 0 0-1.5 1.5v11.5a1.5 1.5 0 0 0 1.5 1.5h6a1.5 1.5 0 0 0 1.5-1.5V14.5" />
-      <path d="M8.25 10h9M14.5 7l3 3-3 3" />
-    </Icon>
-  );
-}
-
 export function IconMenu(props: IconProps) {
   return (
     <Icon {...props}>
@@ -186,14 +177,6 @@ export function IconClose(props: IconProps) {
   return (
     <Icon {...props}>
       <path d="m5 5 10 10M15 5 5 15" />
-    </Icon>
-  );
-}
-
-export function IconChevron(props: IconProps) {
-  return (
-    <Icon {...props}>
-      <path d="m7.5 4.5 5 5.5-5 5.5" />
     </Icon>
   );
 }

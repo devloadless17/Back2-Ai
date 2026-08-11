@@ -161,10 +161,31 @@ async function main() {
   }
 
   // --- Past papers -------------------------------------------------------
+  /*
+   * Only cycles that will actually receive a question.
+   *
+   * An empty cycle is a paper a student can open and find nothing in, and the
+   * audit flags them for exactly that reason. The demo declares more cycles
+   * than it has questions for — they exist to make the archive look like four
+   * years of papers — so the ones nothing is filed under are skipped rather
+   * than created hollow.
+   */
+  const cyclesWithQuestions = new Set(
+    DEMO_QUESTIONS.filter((q) => q.cycle).map(
+      (q) => `${q.subject}::${q.cycle!.year}::${q.cycle!.session}`,
+    ),
+  );
+
   const cycleIdByKey = new Map<string, string>();
+  let cyclesSkipped = 0;
   for (const cycle of DEMO_EXAM_CYCLES) {
     const subjectId = subjectIdByName.get(cycle.subject);
     if (!subjectId) continue;
+
+    if (!cyclesWithQuestions.has(`${cycle.subject}::${cycle.year}::${cycle.session}`)) {
+      cyclesSkipped += 1;
+      continue;
+    }
 
     // Upsert, not create: the demo now shares a curriculum with everything
     // else in the database, so its cycles survive a re-run and have to be
@@ -184,6 +205,10 @@ async function main() {
       select: { id: true },
     });
     cycleIdByKey.set(`${cycle.subject}::${cycle.year}::${cycle.session}`, row.id);
+  }
+
+  if (cyclesSkipped > 0) {
+    console.log(`  exam cycles: ${cycleIdByKey.size} created, ${cyclesSkipped} skipped for having no questions`);
   }
 
   // --- Questions ---------------------------------------------------------
@@ -249,6 +274,30 @@ async function main() {
   }
 
   console.log(`  questions: ${questionIds.length}`);
+
+  /*
+   * Withdraw illustrative cycles that ended up with nothing filed under them.
+   *
+   * This has to run *after* the questions are written. Run before, it sees a
+   * database from which the demo has just cleared its own corpus, concludes
+   * every cycle is empty, and deletes the ones it is about to fill — which then
+   * fails on the foreign key. Order is the whole correctness argument here.
+   *
+   * Scoped to the demo's own "(illustrative)" titles inside this track, so a
+   * real ingested cycle is never touched.
+   */
+  const emptyDemoCycles = await db.examCycle.findMany({
+    where: {
+      title: { contains: '(illustrative)' },
+      questions: { none: {} },
+      subject: { trackId: track.id },
+    },
+    select: { id: true },
+  });
+  if (emptyDemoCycles.length > 0) {
+    await db.examCycle.deleteMany({ where: { id: { in: emptyDemoCycles.map((c) => c.id) } } });
+    console.log(`  exam cycles: ${emptyDemoCycles.length} empty one(s) withdrawn`);
+  }
 
   // --- Course material ---------------------------------------------------
   const chunkIdByTitle = new Map<string, string>();

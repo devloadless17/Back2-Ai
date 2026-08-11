@@ -102,8 +102,21 @@ for (const line of en.split('\n')) {
   if (!keyMatch || !section) continue;
 
   const key = keyMatch[1];
-  // Matches t.section.key and destructured or bracket access.
+
+  /*
+   * Dynamic access defeats a plain search.
+   *
+   * `t.flashcards[`${value}Hint`]` reads againHint, hardHint, goodHint and
+   * easyHint without any of those strings appearing in the source. Reporting
+   * them as dead — and acting on it — deleted four keys that were very much in
+   * use, so any key whose name ends in a suffix used inside a template literal
+   * is treated as read.
+   */
+  const dynamicSuffix = [...consumers.matchAll(/\$\{[^}]*\}([A-Za-z0-9_]+)`\]/g)].map((m) => m[1]);
+  const reachedDynamically = dynamicSuffix.some((suffix) => key.endsWith(suffix));
+
   const used =
+    reachedDynamically ||
     new RegExp(`\\b${section}\\.${key}\\b`).test(consumers) ||
     new RegExp(`\\b${key}\\b`).test(consumers.replace(/\bt\.[A-Za-z0-9_.]+/g, ''));
   if (!used) report('info', 'i18n', `${section}.${key} is defined but never read`);

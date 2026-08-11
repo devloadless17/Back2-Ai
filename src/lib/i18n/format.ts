@@ -58,14 +58,6 @@ export function formatDate(locale: Locale, date: Date | string, options?: Intl.D
   ).format(d);
 }
 
-export function formatDateShort(locale: Locale, date: Date | string): string {
-  return formatDate(locale, date, { day: '2-digit', month: '2-digit', year: 'numeric' });
-}
-
-export function formatWeekday(locale: Locale, date: Date | string): string {
-  return formatDate(locale, date, { weekday: 'long', day: 'numeric', month: 'long' });
-}
-
 /** mm:ss for the exam countdown; hh:mm:ss once past an hour. */
 export function formatDuration(totalSeconds: number): string {
   const s = Math.max(0, Math.floor(totalSeconds));

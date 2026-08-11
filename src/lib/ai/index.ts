@@ -16,10 +16,5 @@ export function ai(): AiProvider {
   return env().AI_PROVIDER === 'openai' ? openaiProvider : anthropicProvider;
 }
 
-/** Explicit handle on a provider, for side-by-side evaluation runs. */
-export function aiNamed(name: 'anthropic' | 'openai'): AiProvider {
-  return name === 'openai' ? openaiProvider : anthropicProvider;
-}
-
 export * from './types';
 export { embed, embedMany, EMBEDDING_DIM } from './embeddings';

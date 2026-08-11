@@ -157,7 +157,11 @@ export default async function ExamResultsPage({
               <Sheet key={slot.id}>
                 <SheetHeader
                   title={format(t.examSim.exercise, { number: index + 1 })}
-                  description={content.chapterName ?? undefined}
+                  description={
+                    slotMax
+                      ? format(t.examSim.exercisePoints, { points: slotMax })
+                      : (content.chapterName ?? undefined)
+                  }
                   actions={
                     slotTotal !== null && slotMax ? (
                       <Badge
