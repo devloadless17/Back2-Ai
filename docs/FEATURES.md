@@ -295,6 +295,10 @@ right. Sub-parts cannot be marked or reported on individually.
 `points` to `questions`. Then a paper is exercises containing parts, each part
 marked and reported separately, and mastery can be attributed per part.
 
-**A is implemented. B is a decision for you** — it is a migration plus changes to
-composition, marking and the results page. Say the word and I will scope it
-properly.
+**Decision: Option B.** The presentation half of A is already in — exam questions
+are labelled "Exercise N" — but the real structure is what the product will use.
+
+The design, the three risks (marking cost multiplies fivefold; which chapter a
+part belongs to; ingestion having to detect part numbering) and the five
+questions that need answering before the marking path changes are written up in
+**[EXERCISE-STRUCTURE.md](EXERCISE-STRUCTURE.md)**. Nothing is migrated yet.
