@@ -29,7 +29,10 @@ const schema = z.object({
   OPENAI_MODEL: z.string().default('gpt-4.1'),
   OPENAI_MODEL_VERIFY: z.string().default('gpt-4.1'),
 
-  EMBEDDING_PROVIDER: z.enum(['openai', 'voyage']).default('openai'),
+  // 'local' runs a small multilingual model on the CPU: no key, no per-token
+  // cost, slower. Its similarity scores sit in a different band from the hosted
+  // providers, so RETRIEVAL_THRESHOLDS are selected per provider.
+  EMBEDDING_PROVIDER: z.enum(['openai', 'voyage', 'local']).default('openai'),
   EMBEDDING_MODEL: z.string().default('text-embedding-3-small'),
   EMBEDDING_DIM: z.coerce.number().int().positive().default(1536),
   VOYAGE_API_KEY: z.string().default(''),
@@ -80,5 +83,8 @@ export function isAiConfigured(): boolean {
 
 export function isEmbeddingConfigured(): boolean {
   const e = env();
+  // The local model needs no credential — it is always "configured", and a
+  // failure to load it is a runtime error rather than a missing-key state.
+  if (e.EMBEDDING_PROVIDER === 'local') return true;
   return e.EMBEDDING_PROVIDER === 'voyage' ? e.VOYAGE_API_KEY.length > 0 : e.OPENAI_API_KEY.length > 0;
 }

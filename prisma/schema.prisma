@@ -158,6 +158,18 @@ enum StudySessionSource {
   @@map("study_session_source")
 }
 
+/// What a planned session actually asks the student to do. A plan made only of
+/// "study this chapter" blocks is a to-do list; naming the activity is what
+/// makes it a plan.
+enum StudySessionTaskType {
+  quiz
+  flashcards
+  exam_drill
+  review
+
+  @@map("study_session_task_type")
+}
+
 enum StudySessionStatus {
   planned
   done
@@ -318,7 +330,7 @@ model Chapter {
 
   questions         Question[]
   generatedProblems GeneratedProblem[]
-  contentChunks     ContentChunk[]
+  contentChunks     ChapterContentChunk[]
   chapterMastery    ChapterMastery[]
   studySessions     StudySession[]
   todos             Todo[]
@@ -486,6 +498,8 @@ model Question {
   difficultyConfidence  Decimal?       @map("difficulty_confidence") @db.Decimal(3, 2)
   contentText           String         @map("content_text")
   contentLatex          String?        @map("content_latex")
+  /// Folded copy of the statement, maintained by Postgres, for the term index.
+  searchText            String?        @default(dbgenerated()) @map("search_text")
   contentImages         String[]       @map("content_images")
   /// ADDITION — question_type 'mcq' is in the plan but the plan stores nowhere
   /// to put the choices. Shape: [{ id, text, latex? }]. Null for open/problem.
@@ -529,11 +543,13 @@ model Question {
 /// straight to "not covered". This is that corpus.
 model ContentChunk {
   id               String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  chapterId        String           @map("chapter_id") @db.Uuid
   kind             ContentChunkKind
   title            String?
   contentText      String           @map("content_text")
   contentLatex     String?          @map("content_latex")
+  /// Folded copy of title + text, maintained by Postgres, for the term index.
+  /// Never written by the application: GENERATED ALWAYS AS ... STORED.
+  searchText       String?          @default(dbgenerated()) @map("search_text")
   sourceRef        String?          @map("source_ref")
   /// ADDITION — where this came from, down to the page.
   sourceDocumentId String?          @map("source_document_id") @db.Uuid
@@ -543,11 +559,34 @@ model ContentChunk {
 
   embedding Unsupported("vector(1536)")?
 
-  chapter        Chapter         @relation(fields: [chapterId], references: [id], onDelete: Cascade)
-  sourceDocument SourceDocument? @relation(fields: [sourceDocumentId], references: [id], onDelete: SetNull)
+  sourceDocument SourceDocument?       @relation(fields: [sourceDocumentId], references: [id], onDelete: SetNull)
+  chapters       ChapterContentChunk[]
 
-  @@index([chapterId, kind])
+  @@index([kind])
   @@map("content_chunks")
+}
+
+/// A passage and the chapters that teach it.
+///
+/// Four tracks share textbooks — civics is on all four syllabuses, maths on
+/// three — and a subject row exists per track so that mastery, exam cycles and
+/// track scoping stay separate. Filing the text once per chapter therefore
+/// stored the civics book four times: 15,668 rows for 11,063 distinct passages.
+///
+/// The passage is now stored once and pointed at from every chapter that uses
+/// it. Nothing about retrieval changes: a search is still scoped to the
+/// student's own subjects, so a GS student reaches a shared passage through the
+/// GS chapter and never sees the LS one.
+model ChapterContentChunk {
+  chapterId String @map("chapter_id") @db.Uuid
+  chunkId   String @map("chunk_id") @db.Uuid
+
+  chapter Chapter      @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  chunk   ContentChunk @relation(fields: [chunkId], references: [id], onDelete: Cascade)
+
+  @@id([chapterId, chunkId])
+  @@index([chunkId])
+  @@map("chapter_content_chunks")
 }
 
 model GeneratedProblem {
@@ -838,8 +877,12 @@ model StudySession {
   title           String
   scheduledDate   DateTime           @map("scheduled_date") @db.Date
   durationMinutes Int?               @map("duration_minutes")
+  taskType        StudySessionTaskType? @map("task_type")
   source          StudySessionSource @default(manual)
   status          StudySessionStatus @default(planned)
+  /// Set on a generated session: the one-line reason it was scheduled, shown to
+  /// the student. A plan that cannot explain itself gets ignored.
+  rationale       String?
   createdAt       DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
 
   user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)

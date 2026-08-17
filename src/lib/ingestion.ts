@@ -550,7 +550,7 @@ async function ingestCourseMaterial(ctx: {
     try {
       await db.contentChunk.create({
         data: {
-          chapterId: tag.chapterId,
+          chapters: { create: { chapterId: tag.chapterId } },
           kind: chunk.kind,
           title: chunk.title,
           contentText: chunk.content_text,
@@ -610,19 +610,48 @@ export async function embedPending(
     if (jobId) await log(jobId, `Embedded ${questions} questions…`);
   }
 
+  /*
+   * A textbook shared by two tracks is chunked once per track, because chapter
+   * mastery is per track and retrieval is scoped to the student's own subject
+   * list. That leaves several thousand rows whose text is character-identical
+   * to another row's. Embedding each of them separately would pay for the same
+   * vector twice and get the same answer back — a third of this corpus is such
+   * copies. So the vector is computed once per distinct text and reused.
+   *
+   * The cache lives for one run only. That is deliberate: it never has to be
+   * invalidated, and a re-run after an embedding-model change recomputes
+   * everything rather than serving vectors from the previous model.
+   */
+  const vectorByText = new Map<string, number[]>();
+  let reused = 0;
+
   for (;;) {
     const pending = await db.$queryRaw<{ id: string; content_text: string; title: string | null }[]>`
       SELECT id, content_text, title FROM content_chunks WHERE embedding IS NULL LIMIT ${EMBED_BATCH}
     `;
     if (pending.length === 0) break;
 
-    const vectors = await embedMany(pending.map((row) => `${row.title ?? ''}\n${row.content_text}`.trim()));
+    const texts = pending.map((row) => `${row.title ?? ''}\n${row.content_text}`.trim());
+    const fresh = [...new Set(texts.filter((t) => !vectorByText.has(t)))];
+    if (fresh.length) {
+      const vectors = await embedMany(fresh);
+      for (const [index, text] of fresh.entries()) {
+        const vector = vectors[index];
+        if (vector) vectorByText.set(text, vector);
+      }
+    }
+
     for (const [index, row] of pending.entries()) {
-      const vector = vectors[index];
+      const vector = vectorByText.get(texts[index]!);
       if (vector) await setEmbedding('content_chunks', row.id, vector);
     }
+    reused += texts.length - fresh.length;
     chunks += pending.length;
     if (jobId) await log(jobId, `Embedded ${chunks} course-material chunks…`);
+  }
+
+  if (reused && jobId) {
+    await log(jobId, `${reused} chunk(s) reused a vector already computed for identical text.`);
   }
 
   /*

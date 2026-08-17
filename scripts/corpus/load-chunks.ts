@@ -22,8 +22,14 @@
  * out as questions is a later pass. That one does need a model, and it can run
  * over chunks that already exist.
  *
- * Idempotent: a chunk's identity is the SHA-256 of its text plus its chapter,
- * so re-running updates in place and never duplicates.
+ * A passage is stored once and linked to every chapter that teaches it. Four
+ * tracks share textbooks, so the civics book used to be stored four times over;
+ * now the four chapters point at one row. Identity is the SHA-256 of the text
+ * and its book, which is what lets the second track's pass find the first
+ * track's row instead of writing its own.
+ *
+ * Idempotent: re-running updates in place, never duplicates, and removes what
+ * the current rules no longer produce.
  */
 
 import { createHash } from 'node:crypto';
@@ -67,15 +73,71 @@ function parseCsv(text: string): Row[] {
   return body.map((r) => Object.fromEntries(header.map((h, i) => [h.trim(), r[i] ?? ''])));
 }
 
+/** Character ranges occupied by maths. A cut must never land inside one. */
+function mathSpans(text: string): [number, number][] {
+  const spans: [number, number][] = [];
+  const re = /\$\$[\s\S]*?\$\$|\$[^$\n]+\$/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text)) !== null) spans.push([m.index, m.index + m[0].length]);
+  return spans;
+}
+
+/**
+ * A paragraph longer than MAX is not a paragraph — it is a page the reader
+ * transcribed without a blank line in it. Splitting only on blank lines leaves
+ * those as single 5,000-character chunks, which embed to mush: one vector
+ * averaging six unrelated ideas matches every query weakly and none of them
+ * well.
+ *
+ * So cut such a block at sentence ends near TARGET instead. Never inside
+ * maths, and never mid-sentence unless the block offers no sentence end at all.
+ */
+function splitLongBlock(block: string): string[] {
+  if (block.length <= MAX) return [block];
+
+  const spans = mathSpans(block);
+  const insideMaths = (i: number) => spans.some(([a, b]) => i > a && i < b);
+
+  const cuts: number[] = [];
+  const re = /[.!?؟。]\s+|[;؛]\s+|\n/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(block)) !== null) {
+    const at = m.index + m[0].length;
+    if (!insideMaths(at)) cuts.push(at);
+  }
+
+  const out: string[] = [];
+  let start = 0;
+  while (block.length - start > MAX) {
+    const limit = start + MAX;
+    let cut = -1;
+    for (const c of cuts) {
+      if (c <= start) continue;
+      if (c > limit) break;
+      cut = c;
+      if (c - start >= TARGET) break; // close enough to target, take it
+    }
+    if (cut <= start) cut = limit; // no sentence end anywhere: cut hard
+    const piece = block.slice(start, cut).trim();
+    if (piece) out.push(piece);
+    start = cut;
+  }
+  const rest = block.slice(start).trim();
+  if (rest) out.push(rest);
+  return out;
+}
+
 /**
  * Splits one chapter's text into retrievable passages.
  *
- * Two rules do most of the work:
+ * Three rules do most of the work:
  *
  *   Display maths never starts a chunk. A passage that opens with $$...$$ and
  *   no prose is unretrievable — the embedding of a bare formula carries almost
  *   no signal, and a student asks "how do I integrate by parts", not "\int u dv".
  *   So a block of maths is always attached to the text above it.
+ *
+ *   No chunk runs past MAX. Blocks that would are cut at sentence ends.
  *
  *   The heading trail is repeated into every chunk. Mid-chapter passages often
  *   say "this method" without naming it; the chapter and section titles are what
@@ -91,7 +153,15 @@ function splitChapter(text: string, trail: string): { text: string; page: number
   const flush = () => {
     const body = buffer.join('\n\n').trim();
     buffer = [];
-    if (body.length < MIN) return;
+    if (!body) { bufferPage = null; return; }
+    // A remainder too short to retrieve on its own belongs to the passage
+    // before it, not to the bin — dropping it loses the end of the chapter.
+    const previous = out[out.length - 1];
+    if (body.length < MIN && previous) {
+      previous.text += `\n\n${body}`;
+      bufferPage = null;
+      return;
+    }
     const prefix = [trail, heading].filter(Boolean).join(' — ');
     out.push({ text: prefix ? `${prefix}\n\n${body}` : body, page: bufferPage });
     bufferPage = null;
@@ -112,17 +182,32 @@ function splitChapter(text: string, trail: string): { text: string; page: number
     }
 
     const isMath = block.startsWith('$$');
-    const size = buffer.join('\n\n').length;
+    // Maths is never cut; anything else too long for one chunk is.
+    for (const piece of isMath ? [block] : splitLongBlock(block)) {
+      const size = buffer.join('\n\n').length;
 
-    // Never open a chunk with display maths — keep it with the prose above.
-    if (size + block.length > TARGET && !isMath && size >= MIN) flush();
-    if (bufferPage === null) bufferPage = page;
-    buffer.push(block);
+      // Never open a chunk with display maths — keep it with the prose above.
+      if (size + piece.length > TARGET && !isMath && size >= MIN) flush();
+      if (bufferPage === null) bufferPage = page;
+      buffer.push(piece);
 
-    if (buffer.join('\n\n').length > MAX && !isMath) flush();
+      if (buffer.join('\n\n').length > MAX && !isMath) flush();
+    }
   }
   flush();
   return out;
+}
+
+/**
+ * What makes a passage that passage: its text and the book it came from.
+ *
+ * Not the chapter. Four tracks share textbooks, and keying on the chapter meant
+ * the same paragraph was written once per track. Defined here in one place
+ * because two things depend on it agreeing exactly — the writer below, and the
+ * `--rehash` pass that brought existing rows onto this scheme.
+ */
+function chunkIdentity(documentId: string, text: string): string {
+  return createHash('sha256').update(`${documentId}:${text}`).digest('hex');
 }
 
 /**
@@ -131,9 +216,32 @@ function splitChapter(text: string, trail: string): { text: string; page: number
  */
 function classify(text: string): ContentChunkKind {
   const t = text.toLowerCase();
-  if (/\b(definition|définition)\b|تعريف/.test(t)) return 'definition';
-  if (/\b(theorem|théorème|property|propriété)\b|نظرية|مبرهنة/.test(t)) return 'theorem';
-  if (/\b(example|exemple|worked)\b|مثال/.test(t)) return 'worked_example';
+
+  /*
+   * Ordered by how much each signal asserts, because a passage can look like
+   * several things at once — a definition usually contains maths, and a worked
+   * example usually restates the theorem it applies.
+   *
+   * The first version of this keyed only on the literal words "definition" and
+   * "theorem", which textbooks mostly do not print: they write "on appelle X…"
+   * and "une suite est dite convergente lorsque…". Two thirds of the corpus
+   * fell through to `method`, the catch-all, and the tutor could not be asked
+   * to prefer an explanation over an exercise because almost nothing was
+   * labelled as one.
+   */
+  if (
+    /\b(definition|définition)\b|تعريف|on appelle|est appelée?|est appelé|on dit qu|est dite?\b|se définit|is called|is defined|we call|on nomme|يسمى|يعرف بأنه/.test(t)
+  ) {
+    return 'definition';
+  }
+  if (
+    /\b(theorem|théorème|property|propriété|corollaire|corollary|lemme|lemma|axiome|axiom)\b|نظرية|مبرهنة|خاصية|il en résulte que|on en déduit que/.test(t)
+  ) {
+    return 'theorem';
+  }
+  if (/\b(example|exemple|worked|application|activité|activity)\b|مثال|تطبيق/.test(t)) {
+    return 'worked_example';
+  }
   if (text.includes('$$')) return 'formula';
   return 'method';
 }
@@ -143,9 +251,79 @@ async function main() {
   const dry = args.includes('--dry');
   const only = args.includes('--book') ? args[args.indexOf('--book') + 1] : null;
 
+  /*
+   * Re-label existing chunks in place.
+   *
+   * `kind` describes the text; the vector encodes the text. Improving the
+   * classifier therefore changes no embedding and costs nothing, and re-running
+   * the normal load would not help — a chunk whose text is unchanged keeps its
+   * identity and is skipped.
+   */
+  /*
+   * Bring existing rows onto the current identity scheme.
+   *
+   * Identity used to include the chapter. Rows written under the old scheme
+   * carry the old hash, so a normal run would not recognise them, would write
+   * every passage again and would pay to embed all of it a second time. This
+   * recomputes the hash in the same code path that writes it, which is the only
+   * way to be sure the two agree — reproducing it in SQL looked right and did
+   * not match, because of how the text round-trips.
+   */
+  if (args.includes('--rehash')) {
+    const rows = await db.$queryRaw<{ id: string; content_text: string; source_document_id: string | null; source_ref: string | null }[]>`
+      SELECT id, content_text, source_document_id::text, source_ref FROM content_chunks
+      WHERE source_document_id IS NOT NULL
+    `;
+    let changed = 0;
+    for (const row of rows) {
+      const hash = chunkIdentity(row.source_document_id!, row.content_text);
+      if (hash !== row.source_ref) {
+        await db.contentChunk.update({ where: { id: row.id }, data: { sourceRef: hash } });
+        changed += 1;
+      }
+    }
+    console.log('');
+    console.log(`${changed} of ${rows.length} passage(s) re-keyed. No text and no embedding changed.`);
+    return;
+  }
+
+  if (args.includes('--reclassify')) {
+    const rows = await db.$queryRaw<{ id: string; content_text: string; kind: string }[]>`
+      SELECT id, content_text, kind::text AS kind FROM content_chunks
+    `;
+    const before = new Map<string, number>();
+    const after = new Map<string, number>();
+    let changed = 0;
+
+    for (const row of rows) {
+      const kind = classify(row.content_text);
+      before.set(row.kind, (before.get(row.kind) ?? 0) + 1);
+      after.set(kind, (after.get(kind) ?? 0) + 1);
+      if (kind !== row.kind) {
+        await db.contentChunk.update({ where: { id: row.id }, data: { kind } });
+        changed += 1;
+      }
+    }
+
+    console.log('');
+    console.log(`  ${'kind'.padEnd(16)}${'before'.padStart(8)}${'after'.padStart(8)}`);
+    for (const kind of new Set([...before.keys(), ...after.keys()])) {
+      console.log(`  ${kind.padEnd(16)}${String(before.get(kind) ?? 0).padStart(8)}${String(after.get(kind) ?? 0).padStart(8)}`);
+    }
+    console.log('');
+    console.log(`${changed} of ${rows.length} chunk(s) re-labelled. No embedding changed.`);
+    return;
+  }
+
   const catalog = parseCsv(await readFile(CATALOG, 'utf8'));
   let totalChunks = 0;
+  let pruned = 0;
+  let orphans = 0;
   const report: string[] = [];
+  const sizes: number[] = [];
+  // A book serving several tracks is chunked once per track, so the same
+  // passage is stored — and embedded — once per track. Worth counting.
+  const distinct = new Set<string>();
 
   for (const row of catalog) {
     if (!row.folder || (only && row.folder !== only && row.book_name !== only)) continue;
@@ -222,9 +400,29 @@ async function main() {
         select: { id: true, name: true, orderIndex: true },
       });
 
-      for (const [i, chapter] of chapters.entries()) {
-        const target = dbChapters[i];
-        if (!target) continue;
+      /*
+       * Chapters are matched by name, not by position.
+       *
+       * Position worked while every subject came from one book. Several come
+       * from two or three — GS mathematics is an algebra volume and a calculus
+       * volume — and each book now occupies its own range of order indices, so
+       * the second book's first chapter is not the subject's first chapter.
+       * Matching by position quietly filed the calculus book's content under
+       * the algebra book's chapters and left twenty-one chapters empty: the
+       * syllabus was visible in the app and had nothing behind it.
+       *
+       * Both sides of this comparison come from the same taxonomy JSON — the
+       * seeder writes the chapter name from the same field read here — so an
+       * exact match is the right expectation and a miss is worth reporting.
+       */
+      const dbByName = new Map(dbChapters.map((c) => [c.name.trim(), c]));
+
+      for (const chapter of chapters) {
+        const target = dbByName.get(chapter.title.trim());
+        if (!target) {
+          report.push(`${row.book_name}: no chapter row named "${chapter.title.slice(0, 40)}"`);
+          continue;
+        }
 
         const from = chapter.pdfPage!;
         const to = chapter.pdfPageEnd ?? from;
@@ -237,37 +435,89 @@ async function main() {
 
         const trail = [row.subject, chapter.title].filter(Boolean).join(' — ');
         const parts = splitChapter(body.join('\n\n'), trail);
+        const keep = new Set<string>();
 
         for (const part of parts) {
           bookChunks += 1;
           totalChunks += 1;
+          sizes.push(part.text.length);
+          distinct.add(createHash('sha256').update(part.text).digest('hex'));
           if (dry) continue;
 
-          // Identity is the text itself, so a re-run after a rule change
-          // replaces rather than duplicates.
-          const hash = createHash('sha256')
-            .update(`${target.id}:${part.text}`)
-            .digest('hex');
+          /*
+           * Identity is the text and the book it came from — no longer the
+           * chapter as well.
+           *
+           * A textbook shared by four tracks used to produce four rows of the
+           * same paragraph, one per track's chapter. It is now one row that
+           * every one of those chapters points at, so the passage is stored
+           * once and embedded once. Keying identity on the text is what makes
+           * the second track's pass find the first track's row instead of
+           * writing its own.
+           */
+          const hash = chunkIdentity(documentId!, part.text);
+          keep.add(hash);
 
           const existing = await db.$queryRaw<{ id: string }[]>`
-            SELECT id FROM content_chunks
-            WHERE chapter_id = ${target.id}::uuid AND source_ref = ${hash}
-            LIMIT 1
+            SELECT id FROM content_chunks WHERE source_ref = ${hash} LIMIT 1
           `;
-          if (existing.length) continue;
+          const chunkId =
+            existing[0]?.id ??
+            (
+              await db.contentChunk.create({
+                data: {
+                  kind: classify(part.text),
+                  title: chapter.title.slice(0, 200),
+                  contentText: part.text,
+                  sourceRef: hash,
+                  sourceDocumentId: documentId,
+                  sourcePageFrom: part.page ?? from,
+                  sourcePageTo: part.page ?? to,
+                },
+                select: { id: true },
+              })
+            ).id;
 
-          await db.contentChunk.create({
-            data: {
+          // Linking is separate from creating: the passage may already exist
+          // because another track's chapter loaded it first.
+          await db.chapterContentChunk.upsert({
+            where: { chapterId_chunkId: { chapterId: target.id, chunkId } },
+            update: {},
+            create: { chapterId: target.id, chunkId },
+          });
+        }
+
+        /*
+         * Chunks this book no longer produces.
+         *
+         * A chunk's identity is the hash of its text, so changing a chunking
+         * rule does not update rows — it writes new ones and leaves the old
+         * ones behind. After the split rule was fixed the table held both
+         * vintages of the same pages, which would have embedded the corpus
+         * twice over and returned each passage twice at two different
+         * boundaries.
+         *
+         * Scoped to this book's own rows in this chapter, and skipped entirely
+         * when the chapter produced nothing, so a taxonomy regression empties
+         * no chapter it can no longer read.
+         */
+        if (!dry && documentId && keep.size) {
+          // Unlink first. The passage itself may still be taught by another
+          // track's chapter, and deleting it there would silently empty a
+          // syllabus this run was not even looking at.
+          const stale = await db.chapterContentChunk.deleteMany({
+            where: {
               chapterId: target.id,
-              kind: classify(part.text),
-              title: chapter.title.slice(0, 200),
-              contentText: part.text,
-              sourceRef: hash,
-              sourceDocumentId: documentId,
-              sourcePageFrom: part.page ?? from,
-              sourcePageTo: part.page ?? to,
+              chunk: { sourceDocumentId: documentId, sourceRef: { notIn: [...keep] } },
             },
           });
+          pruned += stale.count;
+
+          // Then remove passages no chapter points at any more.
+          const orphaned = await db.contentChunk.deleteMany({
+            where: { sourceDocumentId: documentId, chapters: { none: {} } },
+          });
+          orphans += orphaned.count;
         }
       }
     }
@@ -278,7 +528,33 @@ async function main() {
   console.log('');
   for (const line of report) console.log('  ' + line);
   console.log('');
-  console.log(dry ? `Would write ${totalChunks} chunks.` : `${totalChunks} chunks.`);
+  if (sizes.length) {
+    // Chunk length is the one number worth watching: it decides both retrieval
+    // quality and what the embeddings cost.
+    const s = [...sizes].sort((a, b) => a - b);
+    const at = (q: number) => s[Math.min(s.length - 1, Math.floor(s.length * q))];
+    const total = s.reduce((a, b) => a + b, 0);
+    console.log(
+      `  chars/chunk   median ${at(0.5)}   p90 ${at(0.9)}   max ${s[s.length - 1]}` +
+        `   over MAX ${s.filter((n) => n > MAX + 200).length}`,
+    );
+    console.log(`  ${(total / 1000).toFixed(0)}k characters total, ~${Math.round(total / 4 / 1000)}k tokens to embed`);
+    const copies = sizes.length - distinct.size;
+    if (copies > 0) {
+      console.log(
+        `  ${distinct.size} distinct passages, placed ${copies} extra time(s) in ` +
+          `other tracks' chapters — stored and embedded once each`,
+      );
+    }
+    console.log('');
+  }
+  console.log(
+    dry
+      ? `Would place ${totalChunks} chunk(s) across chapters.`
+      : `${totalChunks} chapter placement(s).`,
+  );
+  if (pruned) console.log(`${pruned} chapter link(s) from superseded rules removed.`);
+  if (orphans) console.log(`${orphans} passage(s) no chapter uses any more, deleted.`);
   if (!dry) {
     const pending = await db.$queryRaw<{ count: bigint }[]>`
       SELECT COUNT(*) AS count FROM content_chunks WHERE embedding IS NULL

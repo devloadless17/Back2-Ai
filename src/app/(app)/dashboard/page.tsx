@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
+import { SplitHero } from '@/components/dashboard/split-hero';
 import { NextUpCard } from '@/components/progress/next-up-card';
 import { LinkButton } from '@/components/ui/button';
 import { ActivityColumns, BarRows, type BarDatum } from '@/components/ui/charts';
@@ -41,7 +42,7 @@ export default async function DashboardPage() {
   const user = await requireUser();
   const { locale, t } = await getTranslations();
 
-  const [progress, flashcardsDue, announcements, upcomingExams, activity, standing, nextUp] =
+  const [progress, flashcardsDue, announcements, upcomingExams, activity, standing, nextUp, todaySessions] =
     await Promise.all([
       getProgressForUser(user.id, user.trackId),
       db.flashcardState.count({ where: { userId: user.id, dueDate: { lte: startOfToday() } } }),
@@ -77,6 +78,20 @@ export default async function DashboardPage() {
       attemptsByDay(user.id, 14),
       getStanding(user.id, user.trackId),
       getNextUp(user.id, user.trackId),
+      // Today's plan. A plain read — the dashboard must never wait on a model.
+      db.studySession.findMany({
+        where: { userId: user.id, scheduledDate: startOfToday() },
+        select: {
+          id: true,
+          title: true,
+          durationMinutes: true,
+          taskType: true,
+          rationale: true,
+          status: true,
+          chapterId: true,
+        },
+        orderBy: { createdAt: 'asc' },
+      }),
     ]);
 
   const weakest = findWeakestChapter(progress);
@@ -105,6 +120,27 @@ export default async function DashboardPage() {
     .sort((a, b) => a.value - b.value)
     .slice(0, 6);
 
+  const heroTiles = progress
+    .flatMap((subject) =>
+      subject.chapters.map((chapter) => ({
+        chapterId: chapter.chapterId,
+        chapterName: chapter.chapterName,
+        subjectName: subject.subjectName,
+        masteryScore: chapter.masteryScore,
+        attemptsCount: chapter.attemptsCount,
+      })),
+    )
+    // Weakest first: the grid is scanned, not read, so the thing that needs
+    // attention has to be in the first row rather than wherever the syllabus
+    // happens to put it.
+    .sort((a, b) => {
+      if (a.attemptsCount === 0 && b.attemptsCount > 0) return 1;
+      if (b.attemptsCount === 0 && a.attemptsCount > 0) return -1;
+      return a.masteryScore - b.masteryScore;
+    });
+
+  const nextExam = upcomingExams[0] ?? null;
+
   return (
     <>
       <PageHeader
@@ -117,6 +153,14 @@ export default async function DashboardPage() {
             </LinkButton>
           ) : null
         }
+      />
+
+      <SplitHero
+        today={todaySessions}
+        tiles={heroTiles}
+        flashcardsDue={flashcardsDue}
+        examLabel={nextExam?.label ?? nextExam?.subject?.name ?? null}
+        daysToExam={nextExam ? daysUntil(nextExam.examDate) : null}
       />
 
       {totalAttempts === 0 && progress.length > 0 && (

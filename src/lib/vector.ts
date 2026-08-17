@@ -66,10 +66,53 @@ export async function searchQuestions(
   embedding: number[],
   scope: SubjectScope,
   limit = 5,
+  queryText?: string,
 ): Promise<QuestionHit[]> {
   const literal = toVectorLiteral(embedding);
 
+  /*
+   * The term index matters more here than anywhere else.
+   *
+   * Tier 1 fires when a student is asking about a past question, and the way
+   * that happens in practice is that they paste or retype the question. Those
+   * are the same words, which is precisely what a term index is for and
+   * precisely where an embedding is weakest — every year's differential
+   * equation exercise reads alike to a vector.
+   *
+   * It only widens the candidate pool. The tier still requires a high cosine
+   * *and* real word overlap with the matched question before it will answer
+   * from an official solution.
+   */
+  const lexical = queryText?.trim()
+    ? Prisma.sql`
+        UNION
+        SELECT q.id
+        FROM questions q
+        JOIN chapters c ON c.id = q.chapter_id,
+             websearch_to_tsquery('simple', fold_arabic(${queryText})) AS t(query)
+        WHERE ${subjectFilter('c.subject_id', scope)}
+          AND q.embedding IS NOT NULL
+          AND q.verified_status <> 'rejected'
+          AND to_tsvector('simple', q.search_text) @@ t.query
+        ORDER BY 1
+        LIMIT ${limit * 4}
+      `
+    : Prisma.empty;
+
   return db.$queryRaw<QuestionHit[]>(Prisma.sql`
+    WITH candidates AS (
+      SELECT id FROM (
+        SELECT q.id
+        FROM questions q
+        JOIN chapters c ON c.id = q.chapter_id
+        WHERE ${subjectFilter('c.subject_id', scope)}
+          AND q.embedding IS NOT NULL
+          AND q.verified_status <> 'rejected'
+        ORDER BY q.embedding <=> ${literal}::vector
+        LIMIT ${limit * 4}
+      ) nearest
+      ${lexical}
+    )
     SELECT
       q.id                       AS "id",
       q.chapter_id               AS "chapterId",
@@ -80,11 +123,9 @@ export async function searchQuestions(
       q.official_solution        AS "officialSolution",
       q.official_solution_latex  AS "officialSolutionLatex",
       1 - (q.embedding <=> ${literal}::vector) AS "similarity"
-    FROM questions q
+    FROM candidates
+    JOIN questions q ON q.id = candidates.id
     JOIN chapters c ON c.id = q.chapter_id
-    WHERE ${subjectFilter('c.subject_id', scope)}
-      AND q.embedding IS NOT NULL
-      AND q.verified_status <> 'rejected'
     ORDER BY q.embedding <=> ${literal}::vector
     LIMIT ${limit}
   `);
@@ -101,6 +142,143 @@ export type ContentChunkHit = SimilarityHit & {
 };
 
 /**
+ * How much the term index is allowed to move a passage up the list.
+ *
+ * Small deliberately: cosine is the primary signal and a strong semantic match
+ * should still win.
+ */
+const LEXICAL_WEIGHT = 0.15;
+
+/**
+ * Vector search and term search over the same passages, merged.
+ *
+ * Worth being straight about what this does and does not buy, because the
+ * obvious measurement of it is wrong.
+ *
+ * Measured with probes copied verbatim out of the passages, adding the term
+ * index looked transformative — Arabic top-1 went from 36% to 82%. That number
+ * is worthless. A sentence lifted from a passage is an exact string, which is
+ * the one thing a term index is guaranteed to find, so the benchmark was
+ * grading itself.
+ *
+ * Measured again with questions a student would actually type — paraphrased,
+ * cached in corpus/retrieval-probes.json — it moves almost nothing: French
+ * unchanged at 54%/91%, English 50%/86% to 51%/88%, Arabic unchanged at
+ * 29%/80%.
+ *
+ * It is kept for the case the paraphrase benchmark does not cover and tier 1
+ * exists for: a student pasting a past-exam question back in, where their words
+ * *are* the source's words. That is the verbatim case, and there the gain is
+ * the large one. It costs about 15ms.
+ *
+ * `similarity` on every returned row is the true cosine, never the blended
+ * score. The retrieval tiers decide whether to answer at all from that number,
+ * and a lexical hit must never be able to talk the pipeline into speaking — it
+ * may only change the order of what it speaks from.
+ */
+async function searchContentChunksHybrid(
+  literal: string,
+  queryText: string,
+  scope: SubjectScope,
+  limit: number,
+): Promise<ContentChunkHit[]> {
+  const pool = Math.max(limit * 3, 30);
+
+  /*
+   * Each candidate set queries content_chunks directly. Collecting the scoped
+   * rows into a shared CTE first and filtering that instead costs a second per
+   * query — 976ms against 44ms on this corpus, measured with EXPLAIN ANALYZE.
+   *
+   * The reason is the term filter, not the vector one. A CTE has no indexes on
+   * it, so `to_tsvector(...) @@ query` over a CTE is executed row by row: the
+   * plan shows `CTE Scan on scoped … Rows Removed by Filter: 4606`, meaning a
+   * tsvector was built at query time from 4,636 rows of full chapter text.
+   * Reading the table instead lets the GIN index answer it — the same plan
+   * becomes `Bitmap Index Scan on content_chunks_search_idx (actual rows=64)`.
+   *
+   * The EXISTS scoping does not stop the HNSW index being used, though an
+   * EXPLAIN can easily suggest otherwise. Written with an explicit list of
+   * subject uuids — which is what `subjectFilter` produces and therefore what
+   * this always sends — the plan is an HNSW index scan at about 3ms. Write the
+   * same intent as a join through `tracks.code`, or against a temp table, and
+   * the planner switches to a sequential scan over every embedded passage.
+   *
+   * So an EXPLAIN is only evidence about the query you actually send. A
+   * denormalised subject_ids column was built to fix the sequential scan and
+   * turned out to be slower than the join it replaced (43ms against 3ms); see
+   * the migration that drops it again.
+   */
+  const rows = await db.$queryRaw<(ContentChunkHit & { lexical: number })[]>(Prisma.sql`
+    WITH nearest AS (
+      SELECT cc.id
+      FROM content_chunks cc
+      WHERE cc.embedding IS NOT NULL
+        AND EXISTS (
+          SELECT 1 FROM chapter_content_chunks l
+          JOIN chapters c ON c.id = l.chapter_id
+          WHERE l.chunk_id = cc.id AND ${subjectFilter('c.subject_id', scope)}
+        )
+      ORDER BY cc.embedding <=> ${literal}::vector
+      LIMIT ${pool}
+    ),
+    termed AS (
+      SELECT cc.id,
+             ts_rank(to_tsvector('simple', cc.search_text), q.query) AS lexical
+      FROM content_chunks cc,
+           websearch_to_tsquery('simple', fold_arabic(${queryText})) AS q(query)
+      WHERE cc.embedding IS NOT NULL
+        AND to_tsvector('simple', cc.search_text) @@ q.query
+        AND EXISTS (
+          SELECT 1 FROM chapter_content_chunks l
+          JOIN chapters c ON c.id = l.chapter_id
+          WHERE l.chunk_id = cc.id AND ${subjectFilter('c.subject_id', scope)}
+        )
+      ORDER BY lexical DESC
+      LIMIT ${pool}
+    ),
+    candidates AS (
+      SELECT id FROM nearest UNION SELECT id FROM termed
+    )
+    SELECT
+      s.id             AS "id",
+      (SELECT c.id FROM chapter_content_chunks l
+        JOIN chapters c ON c.id = l.chapter_id
+        WHERE l.chunk_id = s.id AND ${subjectFilter('c.subject_id', scope)}
+        LIMIT 1)       AS "chapterId",
+      (SELECT c.name FROM chapter_content_chunks l
+        JOIN chapters c ON c.id = l.chapter_id
+        WHERE l.chunk_id = s.id AND ${subjectFilter('c.subject_id', scope)}
+        LIMIT 1)       AS "chapterName",
+      s.kind::text     AS "kind",
+      s.title          AS "title",
+      s.content_text   AS "contentText",
+      s.content_latex  AS "contentLatex",
+      s.source_ref     AS "sourceRef",
+      1 - (s.embedding <=> ${literal}::vector) AS "similarity",
+      coalesce(t.lexical, 0) AS "lexical"
+    FROM candidates c
+    JOIN content_chunks s ON s.id = c.id
+    LEFT JOIN termed t ON t.id = c.id
+  `);
+
+  // ts_rank has no fixed range, so it is scaled against the best hit in this
+  // result set rather than against an absolute number that would drift.
+  const strongest = Math.max(...rows.map((r) => r.lexical), 0);
+  const ranked = rows
+    .map((row) => ({
+      row,
+      score: row.similarity + (strongest > 0 ? (LEXICAL_WEIGHT * row.lexical) / strongest : 0),
+    }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, limit);
+
+  return ranked.map(({ row }) => {
+    const { lexical: _lexical, ...hit } = row;
+    return hit;
+  });
+}
+
+/**
  * Tier 2: chapter-level course material — formulas, methods, worked examples.
  * This is what lets the assistant answer a question it has never seen before
  * without leaving the curriculum.
@@ -109,14 +287,45 @@ export async function searchContentChunks(
   embedding: number[],
   scope: SubjectScope,
   limit = 6,
+  queryText?: string,
 ): Promise<ContentChunkHit[]> {
   const literal = toVectorLiteral(embedding);
 
+  /*
+   * With a query string, the term index is searched alongside the vector and
+   * the two candidate sets are merged. See `blendLexical` for why, and note
+   * that `similarity` on every row returned is still the true cosine — the
+   * lexical score only reorders, it never inflates the number the retrieval
+   * tiers gate on.
+   */
+  if (queryText && queryText.trim()) {
+    return searchContentChunksHybrid(literal, queryText, scope, limit);
+  }
+
+  /*
+   * A passage is stored once and linked to every chapter that teaches it, so
+   * the chapter is reached through `chapter_content_chunks` rather than a
+   * column. Textbooks are shared across tracks, and one passage can therefore
+   * belong to a GS chapter and an LS one at the same time.
+   *
+   * The chapter is resolved by a correlated subquery restricted to the caller's
+   * own subjects, so a shared passage is always reported under the chapter the
+   * student actually studies — a GS student is never told their material comes
+   * from an LS chapter. `EXISTS` keeps one row per passage, which matters
+   * because a join would return the same text once per matching chapter and
+   * silently fill the tutor's context with duplicates of one paragraph.
+   */
   return db.$queryRaw<ContentChunkHit[]>(Prisma.sql`
     SELECT
       cc.id            AS "id",
-      cc.chapter_id    AS "chapterId",
-      c.name           AS "chapterName",
+      (SELECT c.id FROM chapter_content_chunks l
+        JOIN chapters c ON c.id = l.chapter_id
+        WHERE l.chunk_id = cc.id AND ${subjectFilter('c.subject_id', scope)}
+        LIMIT 1)       AS "chapterId",
+      (SELECT c.name FROM chapter_content_chunks l
+        JOIN chapters c ON c.id = l.chapter_id
+        WHERE l.chunk_id = cc.id AND ${subjectFilter('c.subject_id', scope)}
+        LIMIT 1)       AS "chapterName",
       cc.kind::text    AS "kind",
       cc.title         AS "title",
       cc.content_text  AS "contentText",
@@ -124,9 +333,12 @@ export async function searchContentChunks(
       cc.source_ref    AS "sourceRef",
       1 - (cc.embedding <=> ${literal}::vector) AS "similarity"
     FROM content_chunks cc
-    JOIN chapters c ON c.id = cc.chapter_id
-    WHERE ${subjectFilter('c.subject_id', scope)}
-      AND cc.embedding IS NOT NULL
+    WHERE cc.embedding IS NOT NULL
+      AND EXISTS (
+        SELECT 1 FROM chapter_content_chunks l
+        JOIN chapters c ON c.id = l.chapter_id
+        WHERE l.chunk_id = cc.id AND ${subjectFilter('c.subject_id', scope)}
+      )
     ORDER BY cc.embedding <=> ${literal}::vector
     LIMIT ${limit}
   `);

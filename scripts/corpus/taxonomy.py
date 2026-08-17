@@ -87,6 +87,159 @@ AR_LESSON = re.compile(r"^\s*الدرس\s+[^\n:：]{2,30}\s*[:：]\s*([^\n]{2,90
 AR_ORDINAL = re.compile(r"^(الأولى?|الثانية?|الثالثة?|الرابعة?|الخامسة?|السادسة?|"
                         r"السابعة?|الثامنة?|التاسعة?|العاشرة?)\s*[:：]?\s*")
 
+# Civics and the like label chapters الفصل الأول, not الدرس. Their contents page
+# is an RTL two-column table, and OCR reading it left-to-right puts the label
+# after its own title as often as before it — sometimes alone on a line with the
+# title underneath. All three appear on one page of the civics book, so the
+# label is matched anywhere on the line and the title is whatever is left.
+AR_ORD = (r"(?:الأولى?|الثانية?|الثالثة?|الرابعة?|الخامسة?|السادسة?|السابعة?|"
+          r"الثامنة?|التاسعة?|العاشرة?)")
+AR_CHAP_LABEL = re.compile(rf"الفصل\s*{AR_ORD}\s*[:：]?")
+AR_UNIT_LABEL = re.compile(rf"(?:المحور|الوحدة)\s*{AR_ORD}\s*[:：]?")
+# "(١٥ حصة)" — the teaching-hours note printed beside every entry. OCR drops a
+# stray bracket into the middle of it ("(٥) حصص)"), so the brackets are all
+# optional and the digits may be Arabic-Indic in either of their two blocks.
+AR_SESSIONS = re.compile(r"[(（]?\s*[\d٠-٩۰-۹]{0,3}\s*[)）]?\s*"
+                         r"(?:حصص|حصة|حصتان|حصتين)\s*[)）]?")
+
+# The English readers stack their contents: "Chapter 1" on one line, the title
+# on the next, page numbers detached in a column at the end of the block. No dot
+# leaders anywhere, so every leader-based pattern sees nothing at all.
+EN_ORD = (r"\d{1,2}|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve")
+EN_STACK_CHAP = re.compile(rf"^\s*chapt?e?r\s*(?:{EN_ORD})\s*[:.\-–]?\s*$", re.I)
+# The SE readers divide themselves into UNIT ONE .. UNIT NINE and never mention
+# a chapter; the workbook prints the unit title on the same line after a colon,
+# the textbook puts it underneath. Both forms are matched here.
+EN_STACK_UNIT = re.compile(rf"^\s*(?:unit|part)\s*(?:{EN_ORD})\s*(?:[:.\-–]\s*(.{{3,80}}))?\s*$", re.I)
+EN_STACK_SKIP = re.compile(rf"^\s*(?:\d{{1,3}}|part\s+(?:[a-z]|{EN_ORD})\b.*|table of contents)\s*$", re.I)
+
+
+# An RTL contents table read left-to-right: the page number comes out in front
+# of its own title, the dot leader trails behind it, and every entry on the page
+# ends up concatenated onto one line —
+#
+#   ١٢ مدخل إلى المحور ......... ١٦ أبو العلاء المعرّي: غير مجد .........
+#
+# Every leader-based pattern here expects "title ..... number" and anchors on the
+# end of a line, so all of them see nothing at all.
+#
+# The title must contain an Arabic letter. Without that guard this also matches
+# a Latin contents line — "16 Chemical Kinetics ....." — and because this branch
+# is tried before the Latin ones it quietly took them over: chemistry dropped
+# from sixteen chapters to eight, and maths from twenty-three placed to two.
+AR_LEADER_ENTRY = re.compile(
+    r"(\d{1,3})\s+((?=[^\n.…]{0,90}?[؀-ۿ])[^\n.…]{3,90}?)\s*[.…]{3,}"
+)
+
+
+def parse_arabic_leader(text: str) -> list:
+    """Contents entries where the page number is printed before the title.
+
+    The numbers are read but deliberately discarded. In a table this mangled
+    there is no way to tell a page number from a lesson's own ordinal — the
+    grammar book prints "١- التفعيلة ..... ١١٥", where the leading digit is the
+    lesson number and the trailing one is the page — and a wrong printed page
+    poisons the offset vote for the whole book. Titles are located in the text
+    instead, which needs no page number to be right.
+    """
+    entries = []
+    index = 0
+    for m in sorted([*AR_UNIT.finditer(text), *AR_LEADER_ENTRY.finditer(text)],
+                    key=lambda m: m.start()):
+        if m.re is AR_UNIT:
+            title = AR_ORDINAL.sub("", re.sub(r"\s+", " ", m.group(1)).strip(" .:-：")).strip()
+            if title:
+                entries.append({"kind": "unit", "index": 0, "title": title, "printed": None})
+            continue
+        title = re.sub(r"\s+", " ", m.group(2)).strip(" .:-،؛…")
+        title = re.sub(r"^\d{1,2}\s*[-–.)]\s*", "", title).strip()
+        if len(title) < 3 or NOISE.match(title):
+            continue
+        index += 1
+        entries.append({"kind": "chapter", "index": index, "title": title, "printed": None})
+    return entries
+
+
+def parse_arabic_labelled(text: str) -> list:
+    """Contents entries labelled الفصل / المحور, in the order they are printed."""
+    entries, index, awaiting = [], 0, None
+
+    def tidy(s: str) -> str:
+        s = AR_SESSIONS.sub(" ", s)
+        s = re.sub(r"\s+", " ", s).strip(" .:-：()）（")
+        return AR_ORDINAL.sub("", s).strip()
+
+    for line in text.split("\n"):
+        line = line.strip()
+        if not line:
+            continue
+        unit, chap = AR_UNIT_LABEL.search(line), AR_CHAP_LABEL.search(line)
+        if unit:
+            title = tidy(AR_UNIT_LABEL.sub(" ", line))
+            awaiting = None if title else "unit"
+            if title:
+                entries.append({"kind": "unit", "index": 0, "title": title, "printed": None})
+        elif chap:
+            title = tidy(AR_CHAP_LABEL.sub(" ", line))
+            if title:
+                index += 1
+                entries.append({"kind": "chapter", "index": index, "title": title,
+                                "printed": None})
+                awaiting = None
+            else:
+                awaiting = "chapter"      # the title is on the line below
+        elif awaiting:
+            title = tidy(line)
+            if title:
+                if awaiting == "chapter":
+                    index += 1
+                entries.append({"kind": awaiting, "index": index if awaiting == "chapter" else 0,
+                                "title": title, "printed": None})
+            awaiting = None
+    return entries
+
+
+def parse_stacked(text: str) -> list:
+    """Contents entries whose title sits on the line after "Chapter N"."""
+    lines = [l.strip() for l in text.split("\n")]
+    entries, index = [], 0
+
+    def title_after(i: int) -> str:
+        for line in lines[i + 1:i + 4]:
+            if not line or EN_STACK_SKIP.match(line):
+                continue
+            if EN_STACK_CHAP.match(line) or EN_STACK_UNIT.match(line):
+                return ""
+            return re.sub(r"\s+", " ", line).strip(" .:-")
+        return ""
+
+    seen = set()
+    for i, line in enumerate(lines):
+        unit = EN_STACK_UNIT.match(line)
+        kind = "unit" if unit else "chapter" if EN_STACK_CHAP.match(line) else None
+        if not kind:
+            continue
+        # "Unit One: Historical Highlights" — the title is on the line itself.
+        inline = unit.group(1) if unit and unit.group(1) else ""
+        title = re.sub(r"\s+", " ", inline).strip(" .:-") if inline else title_after(i)
+        # The same title twice means the span ran past the contents table into
+        # the book, where each chapter opens with its own heading.
+        if not title or normalise(title) in seen:
+            continue
+        seen.add(normalise(title))
+        if kind == "chapter":
+            index += 1
+        entries.append({"kind": kind, "index": index if kind == "chapter" else 0,
+                        "title": title, "printed": None})
+
+    # A book divided into units and nothing else — the SE readers run UNIT ONE
+    # to UNIT NINE and never say "chapter". The unit is the teaching division
+    # there, so it is what a student's question has to retrieve against.
+    units = [e for e in entries if e["kind"] == "unit"]
+    if len([e for e in entries if e["kind"] == "chapter"]) < 3 and len(units) >= 3:
+        return [{**u, "kind": "chapter", "index": i + 1} for i, u in enumerate(units)]
+    return entries
+
 
 def clean(text: str) -> str:
     text = re.sub(r"\\(?:sub)?section\*?\{([^}]*)\}", r"\1", text)
@@ -120,12 +273,44 @@ def find_contents_pages(pages: dict) -> list:
     scores = {n: len(LEADER.findall(t)) for n, t in pages.items()}
     best = max(scores, key=lambda n: (scores[n], -n)) if scores else None
 
+    def stacked_hits(text: str) -> int:
+        return sum(1 for l in text.split("\n")
+                   if EN_STACK_CHAP.match(l.strip()) or EN_STACK_UNIT.match(l.strip()))
+
+    def contents_like(text: str) -> bool:
+        """A list of short lines, which is what a contents page is.
+
+        The body of these books opens each chapter with "Chapter 1" over its
+        title, and runs "UNIT 1" as a header on every page, so a stacked hit
+        alone walks straight into the book and invents duplicate chapters. What
+        separates the two is prose: a contents page has none. Measured as full
+        lines rather than as an average, because one stray long line is common
+        and a page of paragraphs is unmistakable.
+        """
+        lines = [l.strip() for l in text.split("\n") if l.strip()]
+        if len(lines) < 6 or stacked_hits(text) < 2:
+            return False
+        return sum(1 for l in lines if len(l) >= 90) <= 1
+
+    def span_from(first: int) -> list:
+        """The contents pages, which need not sit next to one another.
+
+        In the SE readers the table is split across pages 8, 9 and 11, with the
+        national textbook foreword in between; in themes2 it is pages 3 and 9.
+        A contiguous span misses most of the book either way, so every
+        contents-shaped page early on is taken instead — the window keeps the
+        body out, and duplicate titles are dropped when they are parsed.
+        """
+        limit = max(first + 8, min(40, len(pages)))
+        found = [n for n in sorted(pages) if n >= first and n <= limit and contents_like(pages[n])]
+        return found or [first]
+
     if best is None or scores[best] < 4:
         # No leaders anywhere: fall back to a page that calls itself contents,
         # which is how an image-only table gets detected and reported.
         for n in sorted(pages):
             if CONTENTS_HEADING.search(pages[n]):
-                return [n]
+                return span_from(n)
 
         # Arabic books whose contents page says neither فهرس nor محتويات — the
         # civics book heads it الصفحة with columns of محور and درس titles. Find
@@ -133,6 +318,12 @@ def find_contents_pages(pages: dict) -> list:
         for n in sorted(pages)[:30]:
             if len(AR_LESSON.findall(pages[n])) >= 4:
                 return [n]
+
+        # Nothing announced itself as contents: take the first page early in the
+        # book that is shaped like one.
+        for n in sorted(pages)[:30]:
+            if contents_like(pages[n]):
+                return span_from(n)
         return []
 
     found = [best]
@@ -183,6 +374,31 @@ def parse_contents(raw: str) -> list:
             e.pop("pos")
         return entries
 
+    # An RTL leader table, where the page number precedes its title. Checked
+    # before the Latin leader patterns because those anchor on the end of a
+    # line, which this layout never provides.
+    if len(AR_LEADER_ENTRY.findall(text)) >= 4:
+        leader = parse_arabic_leader(text)
+        if sum(1 for e in leader if e["kind"] == "chapter") >= 4:
+            return leader
+
+    # Arabic labelled الفصل / المحور. Checked before the Latin patterns, which
+    # would otherwise find nothing and report the page as unparseable.
+    if len(AR_CHAP_LABEL.findall(text)) >= 3:
+        labelled = parse_arabic_labelled(text)
+        if sum(1 for e in labelled if e["kind"] == "chapter") >= 3:
+            return labelled
+
+    # A stacked contents page, tried before the numbered patterns rather than
+    # after them: its continuation pages print the page number at the start of
+    # the line ("30 Part E Expanding Your Point of View"), which BARE_CHAPTER
+    # reads as chapter 30 titled "Part E ...". Only when there are no leaders,
+    # so books with a real leader table keep using it.
+    if len(LEADER.findall(text)) < 4:
+        stacked = parse_stacked(text)
+        if sum(1 for e in stacked if e["kind"] == "chapter") >= 3:
+            return stacked
+
     for m in UNIT.finditer(text):
         title = re.sub(r"\s+", " ", m.group(2)).strip(" .:-")
         if title and not NOISE.match(title):
@@ -213,18 +429,45 @@ def parse_contents(raw: str) -> list:
                 entries.append({"pos": m.start(), "kind": "chapter", "index": int(m.group(1)),
                                 "title": title, "printed": None})
 
+    # Last resort: a stacked contents page, where nothing at all carries a
+    # leader and the title is simply the line below "Chapter N".
+    if not any(e["kind"] == "chapter" for e in entries):
+        stacked = parse_stacked(text)
+        if sum(1 for e in stacked if e["kind"] == "chapter") >= 2:
+            return stacked
+
     entries.sort(key=lambda e: e["pos"])
     for e in entries:
         e.pop("pos")
     return entries
 
 
-def occurrences(title: str, pages: dict) -> list:
-    """Every page whose text contains this chapter title."""
-    target = normalise(title)
-    if len(target) < 6:
-        return []
-    return [n for n in sorted(pages) if target in normalise(pages[n])]
+def occurrences(title: str, pages: dict, floor: int = 0) -> list:
+    """Pages at or after `floor` whose text contains this chapter title.
+
+    A literature anthology lists its contents as "author: work" — "أبو العلاء
+    المعرّي: غير مجد" — but prints the two apart inside the book, the author above
+    the poem, so the composite string appears only in the contents table itself.
+    Where a title carries a colon, the work's own name is tried as well.
+
+    `floor` is applied here rather than by the caller, and that is the whole
+    point: filtering afterwards meant the composite title "found" the contents
+    page, the fallback was never reached, and the entry went unplaced. A
+    candidate only counts as found if it lands somewhere usable.
+    """
+    candidates = [title]
+    if ":" in title or "：" in title:
+        head, _, tail = title.replace("：", ":").partition(":")
+        candidates += [tail.strip(), head.strip()]
+
+    for candidate in candidates:
+        target = normalise(candidate)
+        if len(target) < 6:
+            continue
+        found = [n for n in sorted(pages) if n >= floor and target in normalise(pages[n])]
+        if found:
+            return found
+    return []
 
 
 def measure_offset(chapters: list, pages: dict) -> tuple:
@@ -355,7 +598,7 @@ def build(book: str) -> dict | None:
             u = c.get("unit")
             if u and unit_page.get(u) and offset is not None:
                 floor = max(floor, unit_page[u] + offset)
-            found = [n for n in occurrences(c["title"], pages) if n >= floor]
+            found = occurrences(c["title"], pages, floor)
             c["pdfPage"] = found[0] if found else None
             if c["pdfPage"]:
                 c["located"] = True

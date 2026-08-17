@@ -151,7 +151,9 @@ async function main() {
   const demoChapterIds = [...chapterMeta.keys()];
   const [staleQuestions, staleChunks] = await Promise.all([
     db.question.deleteMany({ where: { chapterId: { in: demoChapterIds }, sourceDocumentId: null } }),
-    db.contentChunk.deleteMany({ where: { chapterId: { in: demoChapterIds }, sourceDocumentId: null } }),
+    db.contentChunk.deleteMany({
+      where: { chapters: { some: { chapterId: { in: demoChapterIds } } }, sourceDocumentId: null },
+    }),
   ]);
 
   if (staleQuestions.count + staleChunks.count > 0) {
@@ -306,12 +308,12 @@ async function main() {
     if (!chapterId) continue;
 
     await db.contentChunk.deleteMany({
-      where: { chapterId, title: chunk.title, sourceRef: 'demo:illustrative' },
+      where: { chapters: { some: { chapterId } }, title: chunk.title, sourceRef: 'demo:illustrative' },
     });
 
     const row = await db.contentChunk.create({
       data: {
-        chapterId,
+        chapters: { create: { chapterId } },
         kind: chunk.kind,
         title: chunk.title,
         contentText: chunk.contentText,

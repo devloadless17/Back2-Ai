@@ -41,6 +41,20 @@ export const baremeResultItemSchema = z.object({
   points_awarded: z.number(),
   points_possible: z.number(),
   justification: z.string(),
+  /**
+   * What to show the student when they ask why they lost the mark.
+   *
+   * Written here, once, at marking time — not regenerated when a student hovers
+   * over the criterion. Hover is a gesture, not an intention; regenerating on it
+   * would pay for the same paragraph every time a cursor crossed it, and would
+   * let the same lost mark be explained two different ways on two viewings.
+   *
+   * Distinct from `justification`, which faces a teacher reviewing a contested
+   * mark and says why the points were awarded as they were. This faces the
+   * student and says what went wrong and how the correct reasoning goes. Empty
+   * on a criterion that scored full marks: there is nothing to explain.
+   */
+  explanation: z.string(),
 });
 
 export const baremeResultSchema = z.array(baremeResultItemSchema);
@@ -76,11 +90,12 @@ const GRADING_SCHEMA = {
       items: {
         type: 'object',
         additionalProperties: false,
-        required: ['criterion', 'points_awarded', 'justification'],
+        required: ['criterion', 'points_awarded', 'justification', 'explanation'],
         properties: {
           criterion: { type: 'string' },
           points_awarded: { type: 'number' },
           justification: { type: 'string' },
+          explanation: { type: 'string' },
         },
       },
     },
@@ -93,6 +108,7 @@ const gradingResponseSchema = z.object({
       criterion: z.string(),
       points_awarded: z.number(),
       justification: z.string(),
+      explanation: z.string(),
     }),
   ),
 });
@@ -115,6 +131,10 @@ function gradingSystemPrompt(language: GradeInput['language']): string {
     '- Do not penalise spelling, handwriting, or notation choices unless the criterion is about them.',
     `- Write each justification in ${LANGUAGE_NAME[language]}, in one or two sentences, addressed to the`,
     '  student. Say what earned the marks or what was missing — never just restate the criterion.',
+    `- explanation: for a criterion that lost marks, two to four sentences in ${LANGUAGE_NAME[language]}`,
+    '  teaching the student what went wrong and how the correct reasoning goes. This is what they will',
+    '  be shown when they ask why. Where full marks were awarded, return an empty string — there is',
+    '  nothing to explain, and inventing something to say devalues the ones that matter.',
     '',
     'You are marking a real examination. Be accurate and consistent, not generous and not harsh.',
   ].join('\n');
@@ -132,6 +152,7 @@ export async function gradeAgainstBareme(input: GradeInput): Promise<GradingOutc
         points_awarded: 0,
         points_possible: c.points,
         justification: 'No answer was submitted for this question.',
+        explanation: '',
       })),
       totalScore: 0,
       maxScore,
@@ -177,6 +198,10 @@ export async function gradeAgainstBareme(input: GradeInput): Promise<GradingOutc
         points_awarded: round2(awarded),
         points_possible: criterion.points,
         justification: marked?.justification ?? 'This criterion could not be assessed automatically.',
+        // Only where marks were actually lost. A full-marks criterion has
+        // nothing to explain, and the clamp above can turn an inflated award
+        // into a partial one, so this is decided after clamping, not before.
+        explanation: awarded < criterion.points ? (marked?.explanation ?? '') : '',
       };
     });
 
@@ -209,6 +234,7 @@ export async function gradeAgainstBareme(input: GradeInput): Promise<GradingOutc
         points_awarded: 0,
         points_possible: c.points,
         justification: 'Automatic marking was unavailable for this answer.',
+        explanation: '',
       })),
       totalScore: 0,
       maxScore,

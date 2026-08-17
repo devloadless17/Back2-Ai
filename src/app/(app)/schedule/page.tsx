@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 
+import { PlanBuilder } from '@/components/schedule/plan-builder';
 import { SchedulePlanner, type PlannerExam, type PlannerSession } from '@/components/schedule/schedule-planner';
 import { PageHeader } from '@/components/ui/sheet';
 import { requireUser } from '@/lib/auth/guards';
@@ -31,6 +32,8 @@ export default async function SchedulePage() {
         title: true,
         scheduledDate: true,
         durationMinutes: true,
+        taskType: true,
+        rationale: true,
         source: true,
         status: true,
         chapter: { select: { id: true, name: true } },
@@ -76,6 +79,8 @@ export default async function SchedulePage() {
   return (
     <>
       <PageHeader title={t.schedule.title} description={t.schedule.subtitle} />
+
+      <PlanBuilder hasExam={plannerExams.length > 0} />
 
       <SchedulePlanner
         sessions={plannerSessions}

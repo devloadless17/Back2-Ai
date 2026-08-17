@@ -211,14 +211,14 @@ async function main() {
     const chapterId = chapterIdByKey.get(chapterKey)!;
 
     const already = await db.contentChunk.findFirst({
-      where: { chapterId, title: chunk.title },
+      where: { chapters: { some: { chapterId } }, title: chunk.title },
       select: { id: true },
     });
     if (already) continue;
 
     await db.contentChunk.create({
       data: {
-        chapterId,
+        chapters: { create: { chapterId } },
         kind: chunk.kind,
         title: chunk.title,
         contentText: chunk.contentText,

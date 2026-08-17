@@ -1,20 +1,18 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useState, type FormEvent } from 'react';
+import { useState } from 'react';
 
+import { OnboardingWizard, type WizardDetails } from '@/components/auth/onboarding-wizard';
 import { CardFields, EMPTY_CARD, isCardStarted, validateCard, type CardErrors, type CardFormState } from '@/components/billing/card-fields';
 import { PlanPicker } from '@/components/billing/plan-picker';
 import { Button } from '@/components/ui/button';
-import { Field, Input, Select } from '@/components/ui/field';
+
 import { Alert } from '@/components/ui/feedback';
 import { PAYMENTS_ENABLED, PLANS, type PlanId } from '@/lib/billing';
-import { countryOptions } from '@/lib/countries';
 import { cn } from '@/lib/cn';
-import { LOCALE_LABELS, LOCALES } from '@/lib/i18n/config';
 import { useI18n } from '@/lib/i18n/client';
 
-const MIN_PASSWORD_LENGTH = 10;
 
 export type SignupTrack = { id: string; code: string; name: string };
 
@@ -54,7 +52,7 @@ const EMPTY_DETAILS: Details = {
  * leaves nothing behind.
  */
 export function SignupForm({ tracks }: { tracks: SignupTrack[] }) {
-  const { t, locale, format } = useI18n();
+  const { t, format } = useI18n();
   const router = useRouter();
 
   const [step, setStep] = useState<1 | 2>(1);
@@ -63,35 +61,8 @@ export function SignupForm({ tracks }: { tracks: SignupTrack[] }) {
   const [card, setCard] = useState<CardFormState>(EMPTY_CARD);
   const [cardErrors, setCardErrors] = useState<CardErrors>({});
   const [error, setError] = useState<string | null>(null);
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [, setFieldErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
-
-  const countries = countryOptions(locale);
-
-  function setDetail(patch: Partial<Details>) {
-    setDetails((current) => ({ ...current, ...patch }));
-  }
-
-  /**
-   * Step one's checks are for speed of feedback only; `/api/auth/signup`
-   * validates all of it again and is the decision that counts.
-   */
-  function detailsAreValid(): boolean {
-    const errors: Record<string, string> = {};
-
-    if (details.password.length < MIN_PASSWORD_LENGTH) errors.password = t.auth.passwordTooShort;
-    if (details.password !== details.confirmPassword) errors.confirmPassword = t.auth.passwordMismatch;
-
-    setFieldErrors(errors);
-    return Object.keys(errors).length === 0;
-  }
-
-  function onDetailsSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setError(null);
-    if (!detailsAreValid()) return;
-    setStep(2);
-  }
 
   /**
    * Creates the account.
@@ -173,155 +144,17 @@ export function SignupForm({ tracks }: { tracks: SignupTrack[] }) {
       {error && <Alert tone="error">{error}</Alert>}
 
       {step === 1 ? (
-        <form onSubmit={onDetailsSubmit} className="space-y-4" noValidate>
-          <Field label={t.auth.displayName} required>
-            {({ id, describedBy }) => (
-              <Input
-                id={id}
-                name="displayName"
-                autoComplete="name"
-                required
-                maxLength={120}
-                value={details.displayName}
-                onChange={(event) => setDetail({ displayName: event.target.value })}
-                aria-describedby={describedBy}
-              />
-            )}
-          </Field>
-
-          <Field label={t.auth.email} required error={fieldErrors.email ?? null}>
-            {({ id, describedBy, invalid }) => (
-              <Input
-                id={id}
-                name="email"
-                type="email"
-                autoComplete="email"
-                required
-                value={details.email}
-                onChange={(event) => setDetail({ email: event.target.value })}
-                aria-invalid={invalid}
-                aria-describedby={describedBy}
-              />
-            )}
-          </Field>
-
-          <Field
-            label={t.auth.password}
-            hint={t.auth.passwordTooShort}
-            required
-            error={fieldErrors.password ?? null}
-          >
-            {({ id, describedBy, invalid }) => (
-              <Input
-                id={id}
-                name="password"
-                type="password"
-                autoComplete="new-password"
-                required
-                minLength={MIN_PASSWORD_LENGTH}
-                value={details.password}
-                onChange={(event) => setDetail({ password: event.target.value })}
-                aria-invalid={invalid}
-                aria-describedby={describedBy}
-              />
-            )}
-          </Field>
-
-          <Field label={t.auth.confirmPassword} required error={fieldErrors.confirmPassword ?? null}>
-            {({ id, describedBy, invalid }) => (
-              <Input
-                id={id}
-                name="confirmPassword"
-                type="password"
-                autoComplete="new-password"
-                required
-                value={details.confirmPassword}
-                onChange={(event) => setDetail({ confirmPassword: event.target.value })}
-                aria-invalid={invalid}
-                aria-describedby={describedBy}
-              />
-            )}
-          </Field>
-
-          <Field
-            label={t.auth.country}
-            hint={t.auth.countryHint}
-            required
-            error={fieldErrors.country ?? null}
-          >
-            {({ id, describedBy, invalid }) => (
-              <Select
-                id={id}
-                name="country"
-                required
-                value={details.country}
-                onChange={(event) => setDetail({ country: event.target.value })}
-                aria-invalid={invalid}
-                aria-describedby={describedBy}
-              >
-                {countries.map((country) => (
-                  <option key={country.code} value={country.code} disabled={!country.available}>
-                    {country.available
-                      ? country.name
-                      : `${country.name} — ${t.auth.countryComingSoon}`}
-                  </option>
-                ))}
-              </Select>
-            )}
-          </Field>
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field label={t.auth.track} hint={t.auth.trackHint} required>
-              {({ id, describedBy }) => (
-                <Select
-                  id={id}
-                  name="trackId"
-                  required
-                  value={details.trackId}
-                  onChange={(event) => setDetail({ trackId: event.target.value })}
-                  aria-describedby={describedBy}
-                >
-                  <option value="" disabled>
-                    {t.auth.selectTrack}
-                  </option>
-                  {tracks.map((track) => (
-                    <option key={track.id} value={track.id}>
-                      {track.code} — {track.name}
-                    </option>
-                  ))}
-                </Select>
-              )}
-            </Field>
-
-            <Field label={t.auth.language} hint={t.auth.languageHint} required>
-              {({ id, describedBy }) => (
-                <Select
-                  id={id}
-                  name="preferredLanguage"
-                  required
-                  value={details.preferredLanguage}
-                  onChange={(event) => setDetail({ preferredLanguage: event.target.value })}
-                  aria-describedby={describedBy}
-                >
-                  <option value="" disabled>
-                    {t.auth.selectLanguage}
-                  </option>
-                  {LOCALES.map((item) => (
-                    <option key={item} value={item}>
-                      {LOCALE_LABELS[item]}
-                    </option>
-                  ))}
-                </Select>
-              )}
-            </Field>
-          </div>
-
-          <Alert tone="warning">{t.auth.lockNotice}</Alert>
-
-          <Button type="submit" variant="primary" size="lg" fullWidth>
-            {t.auth.continueToPayment}
-          </Button>
-        </form>
+        <OnboardingWizard
+          tracks={tracks}
+          initial={details}
+          submitting={submitting}
+          onComplete={(collected: WizardDetails) => {
+            setDetails(collected);
+            setFieldErrors({});
+            setError(null);
+            setStep(2);
+          }}
+        />
       ) : (
         <div className="space-y-5">
           <PlanPicker value={plan} onChange={setPlan} disabled={submitting} />

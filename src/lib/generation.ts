@@ -137,7 +137,7 @@ export async function generateProblem(input: GenerateInput): Promise<GenerationO
   // Course material for the chapter, so the generator stays inside what the
   // syllabus actually covers rather than inventing an off-programme variant.
   const material = await db.contentChunk.findMany({
-    where: { chapterId: chapter.id },
+    where: { chapters: { some: { chapterId: chapter.id } } },
     select: { kind: true, title: true, contentText: true },
     take: 6,
   });

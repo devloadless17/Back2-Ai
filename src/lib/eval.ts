@@ -4,7 +4,9 @@ import { db } from '@/lib/db';
 import { isEmbeddingConfigured } from '@/lib/env';
 import {
   CONCEPT_LEVEL_THRESHOLD,
+  EXACT_MATCH_AGREEMENT,
   EXACT_MATCH_THRESHOLD,
+  lexicalAgreement,
 } from '@/lib/retrieval';
 import { searchContentChunks, searchQuestions } from '@/lib/vector';
 
@@ -78,11 +80,12 @@ export async function runRetrievalEval(sampleSize = 50): Promise<EvalReport> {
   // Probes are drawn from questions that already have vectors — the corpus as
   // retrieval actually sees it, not as the seed file describes it.
   const probes = await db.$queryRaw<
-    { id: string; subjectId: string; chapterName: string; embedding: string }[]
+    { id: string; subjectId: string; chapterName: string; contentText: string; embedding: string }[]
   >`
     SELECT q.id            AS "id",
            c.subject_id    AS "subjectId",
            c.name          AS "chapterName",
+           q.content_text  AS "contentText",
            q.embedding::text AS "embedding"
     FROM questions q
     JOIN chapters c ON c.id = q.chapter_id
@@ -136,7 +139,16 @@ export async function runRetrievalEval(sampleSize = 50): Promise<EvalReport> {
 
     // Replays the real tier order from lib/retrieval, minus the personal
     // reference tier — that one is per-student and has no corpus-wide meaning.
-    if (questionSimilarity >= EXACT_MATCH_THRESHOLD) {
+    /*
+     * Tier 1 also requires the two questions to share their words, exactly as
+     * lib/retrieval does. Without it this eval reports a hazard the pipeline no
+     * longer has: on this corpus a probe's nearest neighbour is very often a
+     * different year's version of the same exercise, which scores above 0.97
+     * on embeddings alone.
+     */
+    const agreement = topQuestion ? lexicalAgreement(probe.contentText, topQuestion.contentText) : 0;
+
+    if (questionSimilarity >= EXACT_MATCH_THRESHOLD && agreement >= EXACT_MATCH_AGREEMENT) {
       report.tierCounts.exact_match += 1;
     } else if (chunkSimilarity >= CONCEPT_LEVEL_THRESHOLD) {
       report.tierCounts.concept_level += 1;

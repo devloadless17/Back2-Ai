@@ -33,9 +33,23 @@ async function main() {
   console.log(`  chapters  ${result.chapters}`);
 
   if (result.skipped.length) {
-    console.log('');
-    console.log('Skipped — no chapters to seed:');
-    for (const s of result.skipped) console.log(`  ${s}`);
+    // The same list carries two different things: books that could not be
+    // seeded at all, and chapters kept back because content is already filed
+    // under them. Calling all of it "skipped" reads as a corpus full of holes
+    // when nothing was actually dropped.
+    const kept = result.skipped.filter((s) => s.includes('— kept '));
+    const dropped = result.skipped.filter((s) => !s.includes('— kept '));
+
+    if (dropped.length) {
+      console.log('');
+      console.log('Skipped — no chapters to seed:');
+      for (const s of dropped) console.log(`  ${s}`);
+    }
+    if (kept.length) {
+      console.log('');
+      console.log(`Kept — ${kept.length} chapter(s) not in the current taxonomy but still in use:`);
+      for (const s of kept) console.log(`  ${s}`);
+    }
   }
 
   if (!dry) {

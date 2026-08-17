@@ -253,6 +253,24 @@ export async function loadCorpusTaxonomy(
     skipped: [],
   };
 
+  /*
+   * Where the next book's chapters start, per subject.
+   *
+   * Several subjects are taught from more than one book: GS mathematics is an
+   * algebra/geometry volume and a calculus/statistics volume, LH Arabic is a
+   * literature reader and a grammar book, LH English is three. Chapters were
+   * keyed on (subject, orderIndex) starting from zero for every book, so the
+   * second book overwrote the first one chapter for chapter — GS mathematics
+   * ended up with 24 chapters instead of 46, and a student's syllabus silently
+   * lost complex numbers, vectors, planes and lines and the whole of logic.
+   *
+   * Each book now gets its own contiguous range. Order follows the catalog, so
+   * the indices are stable across runs and a re-run still updates in place.
+   */
+  const nextChapterIndex = new Map<string, number>();
+  const nextUnitIndex = new Map<string, number>();
+  const chaptersPerSubject = new Map<string, number>();
+
   for (const row of catalog) {
     if (!row.book_name || !row.folder) continue;
 
@@ -352,7 +370,11 @@ export async function loadCorpusTaxonomy(
       // Units, in the order they appear in the book.
       const unitIds = new Map<string, string>();
       const unitNames = [...new Set(list.map((c) => c.unit).filter(Boolean))] as string[];
-      for (const [i, name] of unitNames.entries()) {
+      const unitBase = subject ? nextUnitIndex.get(subject.id) ?? 0 : 0;
+      if (subject) nextUnitIndex.set(subject.id, unitBase + unitNames.length);
+
+      for (const [offset, name] of unitNames.entries()) {
+        const i = unitBase + offset;
         result.units += 1;
         if (dry || !subject) continue;
 
@@ -368,7 +390,14 @@ export async function loadCorpusTaxonomy(
       // Chapters keyed on (subject, orderIndex) so a re-run updates in place
       // rather than duplicating — anything already filed under a chapter keeps
       // pointing at the same row.
-      for (const [i, chapter] of list.entries()) {
+      const chapterBase = subject ? nextChapterIndex.get(subject.id) ?? 0 : 0;
+      if (subject) {
+        nextChapterIndex.set(subject.id, chapterBase + list.length);
+        chaptersPerSubject.set(subject.id, chapterBase + list.length);
+      }
+
+      for (const [offset, chapter] of list.entries()) {
+        const i = chapterBase + offset;
         result.chapters += 1;
         if (dry || !subject) continue;
 
@@ -387,44 +416,46 @@ export async function loadCorpusTaxonomy(
         });
       }
 
-      /*
-       * Trailing chapters from a longer previous run.
-       *
-       * Upserting by orderIndex updates 0..n-1 and leaves anything past the end
-       * behind, so a book whose list shrinks — which is what dropping "Answers
-       * and Hints" does — would strand a chapter nobody can reach but every
-       * count includes.
-       *
-       * Only empty ones are removed. A stale chapter that has questions or
-       * mastery filed under it is somebody's work, and silently cascading it
-       * away on a taxonomy re-run is not a trade this project makes; it is
-       * reported for a human instead.
-       */
-      if (!dry && subject) {
-        const trailing = await db.chapter.findMany({
-          where: { subjectId: subject.id, orderIndex: { gte: list.length } },
-          select: {
-            id: true,
-            name: true,
-            orderIndex: true,
-            _count: { select: { questions: true, contentChunks: true, chapterMastery: true } },
-          },
-        });
-
-        for (const stale of trailing) {
-          const used =
-            stale._count.questions + stale._count.contentChunks + stale._count.chapterMastery;
-          if (used > 0) {
-            result.skipped.push(
-              `${row.book_name} — kept "${stale.name}" (index ${stale.orderIndex}); it is past the end of the list but has ${used} row(s) filed under it`,
-            );
-            continue;
-          }
-          await db.chapter.delete({ where: { id: stale.id } });
-        }
-      }
     }
   }
 
+
+  /*
+   * Trailing chapters from a longer previous run.
+   *
+   * Runs once per subject, after every book that feeds it has been placed — not
+   * once per book. Inside the per-book loop it would look at a subject whose
+   * second book had not been processed yet and delete that book's chapters as
+   * "past the end of the list".
+   *
+   * Only empty ones go. A stale chapter with questions or mastery filed under it
+   * is somebody's work, and silently cascading it away on a taxonomy re-run is
+   * not a trade this project makes; it is reported for a human instead.
+   */
+  for (const [subjectId, total] of chaptersPerSubject) {
+    if (dry) break;
+
+    const trailing = await db.chapter.findMany({
+      where: { subjectId, orderIndex: { gte: total } },
+      select: {
+        id: true,
+        name: true,
+        orderIndex: true,
+        _count: { select: { questions: true, contentChunks: true, chapterMastery: true } },
+      },
+    });
+
+    for (const stale of trailing) {
+      const used =
+        stale._count.questions + stale._count.contentChunks + stale._count.chapterMastery;
+      if (used > 0) {
+        result.skipped.push(
+          `kept "${stale.name}" (index ${stale.orderIndex}); past the end of the list but has ${used} row(s) filed under it`,
+        );
+        continue;
+      }
+      await db.chapter.delete({ where: { id: stale.id } });
+    }
+  }
   return result;
 }

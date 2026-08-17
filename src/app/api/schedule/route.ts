@@ -51,6 +51,8 @@ export const GET = route(async (request) => {
       title: true,
       scheduledDate: true,
       durationMinutes: true,
+      taskType: true,
+      rationale: true,
       source: true,
       status: true,
       chapter: { select: { id: true, name: true, subjectId: true } },
