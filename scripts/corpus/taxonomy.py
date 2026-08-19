@@ -82,7 +82,7 @@ NOISE = re.compile(r"^(pages?|introduction|sommaire|table)", re.I)
 # pairing them by position is guesswork — geographie has 27 titles against 24
 # numbers. The titles are taken from here and the pages found by locating each
 # lesson in the book, which is reliable and needs no pairing.
-AR_UNIT = re.compile(r"^\s*(?:الوحدة|المحور)\s+([^\n]{2,90})\s*$", re.M)
+AR_UNIT = re.compile(r"^\s*(?:الوحدة|المحور|القسم)\s+([^\n]{2,90})\s*$", re.M)
 AR_LESSON = re.compile(r"^\s*الدرس\s+[^\n:：]{2,30}\s*[:：]\s*([^\n]{2,90})\s*$", re.M)
 AR_ORDINAL = re.compile(r"^(الأولى?|الثانية?|الثالثة?|الرابعة?|الخامسة?|السادسة?|"
                         r"السابعة?|الثامنة?|التاسعة?|العاشرة?)\s*[:：]?\s*")
@@ -95,7 +95,7 @@ AR_ORDINAL = re.compile(r"^(الأولى?|الثانية?|الثالثة?|الر
 AR_ORD = (r"(?:الأولى?|الثانية?|الثالثة?|الرابعة?|الخامسة?|السادسة?|السابعة?|"
           r"الثامنة?|التاسعة?|العاشرة?)")
 AR_CHAP_LABEL = re.compile(rf"الفصل\s*{AR_ORD}\s*[:：]?")
-AR_UNIT_LABEL = re.compile(rf"(?:المحور|الوحدة)\s*{AR_ORD}\s*[:：]?")
+AR_UNIT_LABEL = re.compile(rf"(?:المحور|الوحدة|القسم)\s*{AR_ORD}\s*[:：]?")
 # "(١٥ حصة)" — the teaching-hours note printed beside every entry. OCR drops a
 # stray bracket into the middle of it ("(٥) حصص)"), so the brackets are all
 # optional and the digits may be Arabic-Indic in either of their two blocks.
@@ -248,6 +248,39 @@ def clean(text: str) -> str:
     return re.sub(r"[ \t]+", " ", text)
 
 
+def normalise_indexed(title: str) -> tuple:
+    """Normalise, and remember where each surviving character came from.
+
+    The plain normaliser folds runs of punctuation and spacing into one space,
+    so a position in its output says nothing about a position in the book's own
+    text. Two chapters that begin on the same page can only be told apart by
+    where on the page they begin, which needs that mapping back.
+
+    Built one source character at a time rather than by normalising the whole
+    string, because NFD decomposition changes lengths and would break the
+    correspondence it exists to preserve.
+    """
+    out: list = []
+    idx: list = []
+    at_space = True
+    for i, ch in enumerate(title):
+        decomposed = unicodedata.normalize("NFD", ch.lower())
+        decomposed = "".join(c for c in decomposed if unicodedata.category(c) != "Mn")
+        for c in decomposed:
+            if re.match(r"[a-z0-9؀-ۿ]", c):
+                out.append(c)
+                idx.append(i)
+                at_space = False
+            elif not at_space:
+                out.append(" ")
+                idx.append(i)
+                at_space = True
+    while out and out[-1] == " ":
+        out.pop()
+        idx.pop()
+    return "".join(out), idx
+
+
 def normalise(title: str) -> str:
     """For comparing a TOC entry against a heading inside the book.
 
@@ -256,9 +289,7 @@ def normalise(title: str) -> str:
     are dropped, which also takes tashkeel off both sides of the comparison —
     a title vocalised in the contents but not in the text still matches.
     """
-    t = unicodedata.normalize("NFD", title.lower())
-    t = "".join(c for c in t if unicodedata.category(c) != "Mn")
-    return re.sub(r"[^a-z0-9؀-ۿ]+", " ", t).strip()
+    return normalise_indexed(title)[0]
 
 
 def find_contents_pages(pages: dict) -> list:
@@ -304,6 +335,16 @@ def find_contents_pages(pages: dict) -> list:
         limit = max(first + 8, min(40, len(pages)))
         found = [n for n in sorted(pages) if n >= first and n <= limit and contents_like(pages[n])]
         return found or [first]
+
+    # An explicit list of الفصل entries beats leader density, and has to be
+    # checked before it rather than after. The economics book prints its whole
+    # syllabus outline over two unheaded pages with no leaders at all, while a
+    # table deeper in the book carries four dot leaders and wins on score — so
+    # the parser was handed a page of figures and called the book unreadable.
+    for n in sorted(pages)[:30]:
+        if len(AR_CHAP_LABEL.findall(pages[n])) >= 4:
+            return span_from(n)
+
 
     if best is None or scores[best] < 4:
         # No leaders anywhere: fall back to a page that calls itself contents,
@@ -442,8 +483,18 @@ def parse_contents(raw: str) -> list:
     return entries
 
 
-def occurrences(title: str, pages: dict, floor: int = 0) -> list:
-    """Pages at or after `floor` whose text contains this chapter title.
+# Shortest run of text that can be a section rather than a line in a list.
+MIN_SECTION = 400
+
+
+def occurrences(title: str, pages: dict, floor: tuple = (0, -1), skip: frozenset = frozenset()) -> list:
+    """Where this chapter title appears, as (page, offset within that page).
+
+    The offset is what allows two chapters to start on one page. Books set
+    short sections several to a page — the Tagore unit prints his views on the
+    Creator, on mysticism, on society and on politics across five pages — and a
+    page-level cursor can only ever place the first of them. The rest were left
+    unplaced, which read downstream as "this chapter has no material".
 
     A literature anthology lists its contents as "author: work" — "أبو العلاء
     المعرّي: غير مجد" — but prints the two apart inside the book, the author above
@@ -454,6 +505,12 @@ def occurrences(title: str, pages: dict, floor: int = 0) -> list:
     point: filtering afterwards meant the composite title "found" the contents
     page, the fallback was never reached, and the entry went unplaced. A
     candidate only counts as found if it lands somewhere usable.
+
+    It is a (page, offset) pair and the comparison is strict, so a chapter must
+    begin after the one before it — the ordering the contents page already
+    fixes. That is the guard that makes tolerant matching safe: a title located
+    somewhere that breaks the book's own sequence is a wrong match, and is
+    rejected without any judgement about how similar the strings look.
     """
     candidates = [title]
     if ":" in title or "：" in title:
@@ -462,9 +519,34 @@ def occurrences(title: str, pages: dict, floor: int = 0) -> list:
 
     for candidate in candidates:
         target = normalise(candidate)
-        if len(target) < 6:
+        # Short titles were once excluded outright, because a four-letter string
+        # matches half a book. Two guards now stand between a match and a
+        # placement — it must fall after the previous chapter, and it must have
+        # a section's worth of text after it — so the length bar only has to
+        # exclude the genuinely meaningless. "الحال" is four letters and a real
+        # chapter of the grammar book.
+        if len(target) < 4:
             continue
-        found = [n for n in sorted(pages) if n >= floor and target in normalise(pages[n])]
+        found = []
+        for n in sorted(pages):
+            # Every title appears on the contents page, in the right order, so
+            # the contents page satisfies the ordering guard perfectly and would
+            # collect the entire book. It is excluded outright rather than
+            # ranked against.
+            if n < floor[0] or n in skip:
+                continue
+            text, idx = normalise_indexed(pages[n])
+            at = text.find(target)
+            while at != -1:
+                where = (n, idx[at])
+                if where > floor:
+                    found.append(where)
+                    break
+                # Same page, but before the floor: the previous chapter's own
+                # heading, or a mention inside it. Keep looking further down.
+                at = text.find(target, at + 1)
+        # Every occurrence, not just the first: `measure_offset` needs them all
+        # to vote, and placement takes the earliest.
         if found:
             return found
     return []
@@ -489,7 +571,7 @@ def measure_offset(chapters: list, pages: dict) -> tuple:
     for c in chapters:
         if not c.get("printed"):
             continue
-        found = occurrences(c["title"], pages)
+        found = [n for n, _ in occurrences(c["title"], pages)]
         hits[c["index"]] = found
         for n in found:
             offset = n - c["printed"]
@@ -525,10 +607,17 @@ def build(book: str) -> dict | None:
         if chapters:
             contents_pages = [0]
             pages_for_search = pages
+            # The override supplies the entries, but the book still HAS a
+            # contents page, and every title on it appears there in the right
+            # order. Left in the search it would satisfy the ordering guard
+            # perfectly and swallow the whole book onto one page — which is
+            # exactly what it did. Found here purely so it can be excluded.
+            skip_pages = frozenset(find_contents_pages(pages))
         else:
             return {"book": book, "error": "toc-override.md parsed to no chapters", "chapters": []}
     else:
         contents_pages = find_contents_pages(pages)
+        skip_pages = frozenset(contents_pages)
 
     if not contents_pages:
         return {"book": book, "error": "no table of contents found", "chapters": []}
@@ -582,10 +671,15 @@ def build(book: str) -> dict | None:
     offset, hits = measure_offset(chapters, pages)
     last_page = max(pages)
 
-    # Chapters run in order, so each starts at or after the one before it.
-    # Without that, a title mentioned in an earlier summary drags its chapter
-    # backwards and the page spans cross over each other.
-    cursor = 0
+    # Chapters run in order, so each starts after the one before it. Without
+    # that, a title mentioned in an earlier summary drags its chapter backwards
+    # and the page spans cross over each other.
+    #
+    # A (page, offset) pair rather than a page. Requiring the next chapter to
+    # start on a LATER page meant a book that prints two sections on one page
+    # could only ever place the first, and the second was reported as having no
+    # material at all.
+    cursor = (0, -1)
 
     for c in chapters:
         if not c.get("printed") or offset is None:
@@ -593,16 +687,25 @@ def build(book: str) -> dict | None:
             # after wherever its part begins.
             # Never match the contents page itself — every title appears there,
             # which would put every chapter on the same page.
-            floor = contents_page + 1 if contents_page < len(pages) / 2 else 1
-            floor = max(floor, cursor + 1)
+            first = contents_page + 1 if contents_page < len(pages) / 2 else 1
+            floor = max((first, -1), cursor)
             u = c.get("unit")
             if u and unit_page.get(u) and offset is not None:
-                floor = max(floor, unit_page[u] + offset)
-            found = occurrences(c["title"], pages, floor)
-            c["pdfPage"] = found[0] if found else None
-            if c["pdfPage"]:
+                floor = max(floor, (unit_page[u] + offset, -1))
+            found = occurrences(c["title"], pages, floor, skip=skip_pages)
+            if found:
+                c["pdfPage"], c["pdfOffset"] = found[0]
                 c["located"] = True
-                cursor = c["pdfPage"]
+                # The next chapter must begin at least a section's worth of text
+                # later. Units open by listing their own contents — "أوَّلاً:
+                # الهند في عصر طاغور / ثانيًا: حياة طاغور" — and those entries sit
+                # a couple of dozen characters apart, so without this the first
+                # three chapters of a unit are placed on its index instead of on
+                # their sections. Nothing in this corpus teaches a chapter in
+                # under four hundred characters.
+                cursor = (found[0][0], found[0][1] + MIN_SECTION)
+            else:
+                c["pdfPage"] = None
             continue
         expected = c["printed"] + offset
         # Prefer a real match at the expected place; a page either side covers
@@ -616,9 +719,25 @@ def build(book: str) -> dict | None:
         else:
             c["pdfPage"] = None
 
+    # A chapter runs until the next one starts.
+    #
+    # Where the next chapter was located by position, that boundary is a point
+    # inside a page rather than a page break, and both numbers are recorded so
+    # the chunker can cut there. Ending at "the page before the next chapter"
+    # is right only when the next chapter opens its own page; used everywhere it
+    # gave one chapter the whole rest of the book whenever the chapters after it
+    # went unplaced, and gave two chapters the same page whenever they shared
+    # one.
     known = [c for c in chapters if c.get("pdfPage")]
     for i, c in enumerate(known):
-        c["pdfPageEnd"] = (known[i + 1]["pdfPage"] - 1) if i + 1 < len(known) else max(pages)
+        nxt = known[i + 1] if i + 1 < len(known) else None
+        if nxt is None:
+            c["pdfPageEnd"] = max(pages)
+        elif nxt.get("pdfOffset") is not None:
+            c["pdfPageEnd"] = nxt["pdfPage"]
+            c["pdfEndOffset"] = nxt["pdfOffset"]
+        else:
+            c["pdfPageEnd"] = max(c["pdfPage"], nxt["pdfPage"] - 1)
 
     return {
         "book": book,

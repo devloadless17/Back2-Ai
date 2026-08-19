@@ -49,7 +49,17 @@ const MAX = 2200;
 const MIN = 220;
 
 type Row = Record<string, string>;
-type Chapter = { index: number; title: string; unit?: string | null; pdfPage?: number | null; pdfPageEnd?: number | null };
+type Chapter = {
+  index: number;
+  title: string;
+  unit?: string | null;
+  pdfPage?: number | null;
+  pdfPageEnd?: number | null;
+  /** Where on its first page the chapter starts. Null means the top of the page. */
+  pdfOffset?: number | null;
+  /** Where on its last page it stops. Null means the end of the page. */
+  pdfEndOffset?: number | null;
+};
 
 function parseCsv(text: string): Row[] {
   const rows: string[][] = [];
@@ -317,6 +327,8 @@ async function main() {
 
   const catalog = parseCsv(await readFile(CATALOG, 'utf8'));
   let totalChunks = 0;
+  /** Per chapter, every passage this run produced for it, across all its books. */
+  const keptByChapter = new Map<string, Set<string>>();
   let pruned = 0;
   let orphans = 0;
   const report: string[] = [];
@@ -426,10 +438,26 @@ async function main() {
 
         const from = chapter.pdfPage!;
         const to = chapter.pdfPageEnd ?? from;
+
+        /*
+         * A chapter starts and ends where its heading does, which is not always
+         * where a page does. Books set short sections several to a page — the
+         * Tagore unit prints his view of the Creator and his mysticism both on
+         * page 101 — and taking whole pages meant one of the two silently
+         * carried the other's text, or was never placed at all.
+         *
+         * The end is trimmed before the start, so a chapter that lives entirely
+         * inside one page keeps exactly the slice between its own two edges.
+         */
+        const startAt = chapter.pdfOffset ?? 0;
+        const endAt = chapter.pdfEndOffset ?? null;
         const body: string[] = [];
         for (let p = from; p <= to; p += 1) {
-          const text = pages.get(p);
-          if (text?.trim()) body.push(`<!-- page ${p} -->\n\n${text.trim()}`);
+          let text = pages.get(p);
+          if (!text) continue;
+          if (p === to && endAt !== null) text = text.slice(0, endAt);
+          if (p === from) text = text.slice(startAt);
+          if (text.trim()) body.push(`<!-- page ${p} -->\n\n${text.trim()}`);
         }
         if (!body.length) continue;
 
@@ -488,41 +516,58 @@ async function main() {
         }
 
         /*
-         * Chunks this book no longer produces.
+         * What this chapter should point at, remembered rather than acted on.
          *
-         * A chunk's identity is the hash of its text, so changing a chunking
-         * rule does not update rows — it writes new ones and leaves the old
-         * ones behind. After the split rule was fixed the table held both
-         * vintages of the same pages, which would have embedded the corpus
-         * twice over and returned each passage twice at two different
-         * boundaries.
+         * Pruning here, inside the per-book loop, is wrong whenever a subject
+         * draws on two books that name a chapter alike — a textbook and its
+         * workbook both have "Production écrite". Both books resolve to the
+         * same chapter row, so whichever ran second deleted everything the
+         * first had just linked, and the chapter ended up holding one book's
+         * passages or none. That cost 47 chapters their material.
          *
-         * Scoped to this book's own rows in this chapter, and skipped entirely
-         * when the chapter produced nothing, so a taxonomy regression empties
-         * no chapter it can no longer read.
+         * The sets are unioned across every book and the pruning happens once,
+         * after all of them have been read, so a chapter is judged against
+         * everything this run produced for it and not against the last book to
+         * mention it.
          */
-        if (!dry && documentId && keep.size) {
-          // Unlink first. The passage itself may still be taught by another
-          // track's chapter, and deleting it there would silently empty a
-          // syllabus this run was not even looking at.
-          const stale = await db.chapterContentChunk.deleteMany({
-            where: {
-              chapterId: target.id,
-              chunk: { sourceDocumentId: documentId, sourceRef: { notIn: [...keep] } },
-            },
-          });
-          pruned += stale.count;
-
-          // Then remove passages no chapter points at any more.
-          const orphaned = await db.contentChunk.deleteMany({
-            where: { sourceDocumentId: documentId, chapters: { none: {} } },
-          });
-          orphans += orphaned.count;
+        if (!dry && keep.size) {
+          const known = keptByChapter.get(target.id) ?? new Set<string>();
+          for (const hash of keep) known.add(hash);
+          keptByChapter.set(target.id, known);
         }
+
       }
     }
 
     report.push(`${(row.book_name ?? row.folder).padEnd(26)} ${String(bookChunks).padStart(6)} chunks`);
+  }
+
+  /*
+   * Now that every book has been read, drop what no chapter produced.
+   *
+   * A chunk's identity is the hash of its text, so changing a chunking rule
+   * does not update rows — it writes new ones and leaves the old ones behind.
+   * After the split rule was fixed the table held both vintages of the same
+   * pages, which would have embedded the corpus twice and returned each
+   * passage twice at two different boundaries.
+   *
+   * Chapters that produced nothing at all are left alone rather than emptied,
+   * so a taxonomy regression cannot silently clear a syllabus.
+   */
+  if (!dry) {
+    for (const [chapterId, keep] of keptByChapter) {
+      // Unlink first. The passage itself may still be taught by another
+      // track's chapter, and deleting it there would empty a syllabus this
+      // run was not even looking at.
+      const stale = await db.chapterContentChunk.deleteMany({
+        where: { chapterId, chunk: { sourceRef: { notIn: [...keep] } } },
+      });
+      pruned += stale.count;
+    }
+
+    // Then remove passages no chapter points at any more.
+    const orphaned = await db.contentChunk.deleteMany({ where: { chapters: { none: {} } } });
+    orphans += orphaned.count;
   }
 
   console.log('');
