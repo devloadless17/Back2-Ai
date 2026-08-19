@@ -43,7 +43,8 @@
     "detect:data": "node --env-file=.env scripts/detect.mjs --data",
     "smoke": "node scripts/smoke.mjs",
     "retire:superseded": "node --conditions=react-server --env-file=.env --import tsx scripts/retire-superseded.ts",
-    "repair:links": "node --conditions=react-server --env-file=.env --import tsx scripts/repair-chunk-links.ts"
+    "repair:links": "node --conditions=react-server --env-file=.env --import tsx scripts/repair-chunk-links.ts",
+    "prune:chapters": "node --conditions=react-server --env-file=.env --import tsx scripts/prune-stale-chapters.ts"
   },
   "overrides": {
     "postcss": "$postcss",
