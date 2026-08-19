@@ -190,20 +190,33 @@ export async function runRetrievalEval(sampleSize = 50): Promise<EvalReport> {
     );
   }
 
-  const exactAtCurrent =
-    report.exactMatchSweep.find((p) => p.threshold === EXACT_MATCH_THRESHOLD)?.rate ?? 0;
-  if (exactAtCurrent > 0.25) {
+  /*
+   * Warned on the rate that clears BOTH tier-1 gates, not the cosine sweep.
+   *
+   * The sweep counts probes whose nearest neighbour passes the similarity bar
+   * alone, and on this corpus that is most of them — the same exercise is
+   * published in Arabic, French and English for one sitting, and an embedding
+   * rates the three above 0.98 because they mean the same thing. None of them
+   * can reach tier 1: the tier also demands the two texts share their words,
+   * and translations share almost none.
+   *
+   * Reporting the sweep number as the hazard told the reader to raise a
+   * threshold that was never the thing holding the line.
+   */
+  const collisionRate = report.tierCounts.exact_match / n;
+  if (collisionRate > 0.25) {
     report.warnings.push(
-      `${Math.round(exactAtCurrent * 100)}% of probes match a DIFFERENT question above ` +
-        `${EXACT_MATCH_THRESHOLD}. Tier 1 grounds on the official solution of whatever it matched, so at this ` +
-        'rate the assistant will explain the wrong question. Raise EXACT_MATCH_THRESHOLD.',
+      `${Math.round(collisionRate * 100)}% of probes would be grounded on a DIFFERENT question's official ` +
+        `solution — above ${EXACT_MATCH_THRESHOLD} similarity AND ${EXACT_MATCH_AGREEMENT} word overlap. ` +
+        'At this rate the assistant will explain the wrong question. Raise EXACT_MATCH_THRESHOLD.',
     );
   }
 
   if (report.suspectedDuplicates.length > 0) {
     report.warnings.push(
       `${report.suspectedDuplicates.length} probe(s) have a near-identical twin in the corpus ` +
-        `(≥ ${DUPLICATE_ALARM}). Check for a double ingestion of the same paper.`,
+        `(≥ ${DUPLICATE_ALARM}). Expected where a sitting is published in several languages; a real ` +
+        'double ingestion shows up as a twin from the SAME exam year in the same language.',
     );
   }
 

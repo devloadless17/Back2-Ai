@@ -42,6 +42,58 @@ function subjectFilter(column: string, scope: SubjectScope): Prisma.Sql {
   return Prisma.sql`${Prisma.raw(column)} IN (${Prisma.join(ids.map((id) => Prisma.sql`${id}::uuid`))})`;
 }
 
+/**
+ * How wide a net the HNSW index casts before the subject filter is applied.
+ *
+ * This is the single most consequential number in the file, and its default was
+ * silently wrong for this corpus.
+ *
+ * An HNSW scan walks the graph over the whole table and only afterwards discards
+ * rows outside the student's subjects. When a query's true neighbours are mostly
+ * out of scope, the default search list of 40 is spent on rows that get thrown
+ * away, and what comes back is whatever happened to survive. It is not an error
+ * and nothing logs it — the search returns rows, they are simply the wrong ones.
+ *
+ * Measured against a sequential scan over identical rows, the default missed the
+ * nearest passage for four of twelve probes:
+ *
+ *     ما هي البطالة؟            returned 0.191   true best 0.545
+ *     ما هو الوعي واللاوعي؟     returned 0.162   true best 0.691
+ *     ما هي الحقيقة في الفلسفة؟ returned 0.263   true best 0.633
+ *     ما هو التمييز في النحو؟   returned 0.403   true best 0.544
+ *
+ * Every miss was Arabic, which is what made this look for months like a ranking
+ * problem in Arabic rather than an index problem. It is not: the Arabic books
+ * are a minority of the table, so an Arabic query is the case where most true
+ * neighbours lie outside one track's subjects. Two of those four fell below the
+ * concept threshold and were refused outright — a student was told their own
+ * economics syllabus was not covered, with the defining paragraph sitting in the
+ * table at 0.545.
+ *
+ * 200 restores the true nearest passage on all twelve. It is deliberately past
+ * the 120 where recall first reaches full, because the corpus keeps growing and
+ * the margin costs nothing measurable: median latency is 9ms at both 40 and 200,
+ * since the filter dominates the graph walk. Iterative scan was tried and is
+ * worse here — 89% recall, because the EXISTS filter cannot be pushed into the
+ * index scan for it to iterate against.
+ */
+const EF_SEARCH = 200;
+
+/**
+ * Runs a vector search with the widened search list.
+ *
+ * A transaction, because `SET LOCAL` and the query it configures must land on
+ * the same pooled connection. `SET` without it would leak the setting to
+ * whichever request borrowed that connection next, and set nothing at all for
+ * this one about as often.
+ */
+async function withFullRecall<T>(run: (tx: Prisma.TransactionClient) => Promise<T>): Promise<T> {
+  return db.$transaction(async (tx) => {
+    await tx.$executeRawUnsafe(`SET LOCAL hnsw.ef_search = ${EF_SEARCH}`);
+    return run(tx);
+  });
+}
+
 export type SimilarityHit = {
   id: string;
   similarity: number;
@@ -99,7 +151,7 @@ export async function searchQuestions(
       `
     : Prisma.empty;
 
-  return db.$queryRaw<QuestionHit[]>(Prisma.sql`
+  return withFullRecall((tx) => tx.$queryRaw<QuestionHit[]>(Prisma.sql`
     WITH candidates AS (
       SELECT id FROM (
         SELECT q.id
@@ -128,7 +180,7 @@ export async function searchQuestions(
     JOIN chapters c ON c.id = q.chapter_id
     ORDER BY q.embedding <=> ${literal}::vector
     LIMIT ${limit}
-  `);
+  `));
 }
 
 export type ContentChunkHit = SimilarityHit & {
@@ -208,7 +260,7 @@ async function searchContentChunksHybrid(
    * turned out to be slower than the join it replaced (43ms against 3ms); see
    * the migration that drops it again.
    */
-  const rows = await db.$queryRaw<(ContentChunkHit & { lexical: number })[]>(Prisma.sql`
+  const rows = await withFullRecall((tx) => tx.$queryRaw<(ContentChunkHit & { lexical: number })[]>(Prisma.sql`
     WITH nearest AS (
       SELECT cc.id
       FROM content_chunks cc
@@ -259,7 +311,7 @@ async function searchContentChunksHybrid(
     FROM candidates c
     JOIN content_chunks s ON s.id = c.id
     LEFT JOIN termed t ON t.id = c.id
-  `);
+  `));
 
   // ts_rank has no fixed range, so it is scaled against the best hit in this
   // result set rather than against an absolute number that would drift.
@@ -315,7 +367,7 @@ export async function searchContentChunks(
    * because a join would return the same text once per matching chapter and
    * silently fill the tutor's context with duplicates of one paragraph.
    */
-  return db.$queryRaw<ContentChunkHit[]>(Prisma.sql`
+  return withFullRecall((tx) => tx.$queryRaw<ContentChunkHit[]>(Prisma.sql`
     SELECT
       cc.id            AS "id",
       (SELECT c.id FROM chapter_content_chunks l
@@ -341,7 +393,7 @@ export async function searchContentChunks(
       )
     ORDER BY cc.embedding <=> ${literal}::vector
     LIMIT ${limit}
-  `);
+  `));
 }
 
 export type UserReferenceHit = SimilarityHit & {
@@ -363,7 +415,13 @@ export async function searchUserReferences(
 ): Promise<UserReferenceHit[]> {
   const literal = toVectorLiteral(embedding);
 
-  return db.$queryRaw<UserReferenceHit[]>`
+  /*
+   * Widened for the same reason as the others, and more sharply here: one
+   * student's uploads are a handful of rows in a table of everybody's, so almost
+   * everything the graph walk visits is somebody else's and gets discarded. This
+   * is the most selective filter in the file.
+   */
+  return withFullRecall((tx) => tx.$queryRaw<UserReferenceHit[]>`
     SELECT
       ur.id             AS "id",
       ur.file_name      AS "fileName",
@@ -374,7 +432,7 @@ export async function searchUserReferences(
       AND ur.embedding IS NOT NULL
     ORDER BY ur.embedding <=> ${literal}::vector
     LIMIT ${limit}
-  `;
+  `);
 }
 
 /**
@@ -389,14 +447,19 @@ export async function findNearDuplicate(
 ): Promise<SimilarityHit | null> {
   const literal = toVectorLiteral(embedding);
 
-  const rows = await db.$queryRaw<SimilarityHit[]>`
+  /*
+   * Widened deliberately, because a miss here is silent and permanent: the
+   * duplicate that the narrow search failed to find is not flagged, it is
+   * inserted, and the pool grows a paraphrase of a question it already had.
+   */
+  const rows = await withFullRecall((tx) => tx.$queryRaw<SimilarityHit[]>`
     SELECT id, 1 - (embedding <=> ${literal}::vector) AS "similarity"
     FROM generated_problems
     WHERE chapter_id = ${chapterId}::uuid
       AND embedding IS NOT NULL
     ORDER BY embedding <=> ${literal}::vector
     LIMIT 1
-  `;
+  `);
 
   const top = rows[0];
   return top && top.similarity >= threshold ? top : null;
