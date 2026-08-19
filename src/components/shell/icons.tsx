@@ -64,6 +64,17 @@ export function IconArchive(props: IconProps) {
   );
 }
 
+export function IconBook(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M4 4.25h5.25a2 2 0 0 1 2 2v9.5H6a2 2 0 0 1-2-2z" />
+      <path d="M16 4.25h-4.75" />
+      <path d="M16 4.25v9.5a2 2 0 0 1-2 2h-2.75" />
+      <path d="M6.5 7.5h2.5" />
+    </Icon>
+  );
+}
+
 export function IconExam(props: IconProps) {
   return (
     <Icon {...props}>

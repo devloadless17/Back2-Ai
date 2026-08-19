@@ -24,6 +24,7 @@ import {
   IconSettings,
   IconShield,
   IconTrophy,
+  IconBook,
 } from './icons';
 
 export type SidebarUser = {
@@ -88,6 +89,7 @@ export function Sidebar({
       items: [
         { href: '/practice', label: t.nav.practice, icon: IconPractice },
         { href: '/old-cycles', label: t.nav.oldCycles, icon: IconArchive },
+        { href: '/summaries', label: t.nav.summaries, icon: IconBook },
         { href: '/flashcards', label: t.nav.flashcards, icon: IconCards, badge: counts.flashcardsDue },
         { href: '/chat', label: t.nav.chat, icon: IconChat },
         { href: '/upload', label: t.nav.upload, icon: IconCamera },
