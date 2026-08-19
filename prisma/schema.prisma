@@ -492,6 +492,9 @@ model Question {
   chapterId             String         @map("chapter_id") @db.Uuid
   sourceType            SourceType     @map("source_type")
   sourceExamId          String?        @map("source_exam_id") @db.Uuid
+  /// Which paper, which exercise, which part. Stable across re-extraction,
+  /// so improving the parser updates a question instead of shadowing it.
+  sourceRef             String?        @unique @map("source_ref")
   questionType          QuestionType   @map("question_type")
   /// 0.00–1.00. Recalibrated from observed attempt data by the nightly job.
   difficulty            Decimal?       @db.Decimal(3, 2)

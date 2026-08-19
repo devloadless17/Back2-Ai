@@ -46,11 +46,12 @@ const SUBJECTS: { match: RegExp; name: Record<string, string> }[] = [
   { match: /(?:^|[\s_-])(?:phys?|fizi)/i, name: { en: 'Physics', fr: 'Physique' } },
   { match: /(?:^|[\s_-])(?:chem|chim|kimi)/i, name: { en: 'Chemistry', fr: 'Chimie' } },
   { match: /(?:^|[\s_-])(?:bio|svt|ahya)/i, name: { en: 'Life Sciences', fr: 'Sciences de la vie' } },
-  { match: /(?:^|[\s_-])falsafe/i, name: { ar: 'Philosophie' } },
+  { match: /(?:^|[\s_-])(?:falsafe|philo)/i, name: { ar: 'Philosophie' } },
   { match: /(?:^|[\s_-])(?:geo|greo)/i, name: { ar: 'Geographie' } },
-  { match: /(?:^|[\s_-])(?:ejteme|ejtema)/i, name: { ar: 'Sociologie' } },
-  { match: /(?:^|[\s_-])tarbeya/i, name: { ar: 'Education civique' } },
-  { match: /(?:^|[\s_-])(?:tarekh|terekh|history|hsitory)/i, name: { ar: 'Histoire' } },
+  { match: /(?:^|[\s_-])(?:ejteme|ejtema|socio)/i, name: { ar: 'Sociologie' } },
+  { match: /(?:^|[\s_-])(?:ektesad|eqtesad|econo)/i, name: { ar: 'Economie' } },
+  { match: /(?:^|[\s_-])(?:tarbeya|tarbia)/i, name: { ar: 'Education civique' } },
+  { match: /(?:^|[\s_-])(?:tarekh|terekh|tarikh|history|hsitory)/i, name: { ar: 'Histoire' } },
   { match: /(?:^|[\s_-])(?:eng|english|emg)/i, name: { en: 'English' } },
   { match: /(?:^|[\s_-])(?:fr|french|francais)/i, name: { fr: 'Francais' } },
   /*
@@ -64,11 +65,20 @@ const SUBJECTS: { match: RegExp; name: Record<string, string> }[] = [
   { match: /(?:^|[\s_-])(?:arabe|arabic|arabeye|ar)(?:[\s_-]|$)/i, name: { ar: 'Arabe' } },
 ];
 
-/** Language marker in the filename; Arabic-only subjects default to ar. */
-function languageOf(file: string, available: string[]): Language | null {
+/**
+ * Which language a paper is set in.
+ *
+ * The filename first, because when it says, it is authoritative. Then the paper
+ * itself: `extract_exams.py` reads the language off the text — Arabic by script,
+ * French and English by function words — which recovers the eighty-odd papers
+ * whose names carry no marker at all ("phy_dr.pdf" says nothing). Only then the
+ * fallback of a subject that exists in one language anyway.
+ */
+function languageOf(file: string, available: string[], detected?: string): Language | null {
   if (/(?:^|[\s_-])(?:en|eng|english)(?:[\s_-]|$)/i.test(file) && available.includes('en')) return 'en';
   if (/(?:^|[\s_-])(?:fr|french|francais)(?:[\s_-]|$)/i.test(file) && available.includes('fr')) return 'fr';
   if (/(?:^|[\s_-])(?:ar|arabe|arabic)(?:[\s_-]|$)/i.test(file) && available.includes('ar')) return 'ar';
+  if (detected && available.includes(detected)) return detected as Language;
   return available.length === 1 ? (available[0] as Language) : null;
 }
 
@@ -82,6 +92,8 @@ type Exam = {
   file: string;
   totalMarks: number;
   answersFound: number;
+  /** Read off the paper's own text when its name does not say. */
+  language?: string;
   exercises: Exercise[];
 };
 
@@ -183,6 +195,9 @@ async function main() {
 
   let cycles = 0;
   let questions = 0;
+  let written = 0;
+  let revised = 0;
+  let adopted = 0;
   let withSolution = 0;
   let withBareme = 0;
 
@@ -192,7 +207,7 @@ async function main() {
       note('subject not in the table (history, Arabic literature, …)');
       continue;
     }
-    const language = languageOf(exam.file, Object.keys(subject.name));
+    const language = languageOf(exam.file, Object.keys(subject.name), exam.language);
     if (!language) {
       note('language not stated in the filename');
       continue;
@@ -279,22 +294,66 @@ async function main() {
       if (dry) continue;
 
       /*
-       * Already loaded? Then stop here.
+       * Identity: this paper, this exercise, this part. Stable across re-runs,
+       * and in particular stable across improvements to the parser.
        *
+       * The text itself used to serve as the key, which quietly broke every
+       * time extraction got better. Correcting 70 statements produced 70 new
+       * questions sitting beside the 70 worse copies they were meant to
+       * replace, because a corrected statement matches nothing.
+       *
+       * Scoped by the paper's own hash, so the same exam filed under two tracks
+       * still gets one row per track: `subjectRow` differs, and so does the
+       * chapter each track files it against.
+       */
+      const ref = createHash('sha256')
+        .update(`${subjectRow.id}:${exam.sha256}:${exercise.index}:${order}`)
+        .digest('hex');
+
+      /*
        * Checked before the embedding below, not after it. Finding the chapter
        * costs one embedding call per exercise, and re-running this over a
        * corpus that is already loaded — which is what happens whenever a new
        * book unblocks a subject — would otherwise pay to embed all of them
        * again to discover there was nothing to write.
-       *
-       * Scoped to this subject: the same paper can legitimately appear under
-       * two tracks, and each track files its own copy against its own chapters.
        */
-      const alreadyLoaded = await db.question.findFirst({
-        where: { contentText: statement, chapter: { subjectId: subjectRow.id } },
+      const known = await db.$queryRaw<{ id: string; content_text: string }[]>`
+        SELECT id, content_text FROM questions WHERE source_ref = ${ref} LIMIT 1
+      `;
+      if (known.length) {
+        // Re-extraction improved it: correct the question in place rather than
+        // adding a second one and leaving a student to meet whichever wins.
+        if (known[0]!.content_text !== statement) {
+          await db.$executeRaw`
+            UPDATE questions
+            SET content_text = ${statement},
+                official_solution = ${solution},
+                bareme = ${bareme.length ? JSON.stringify(bareme) : null}::jsonb,
+                embedding = NULL
+            WHERE id = ${known[0]!.id}::uuid
+          `;
+          revised += 1;
+        }
+        continue;
+      }
+
+      /*
+       * Adoption pass, for the rows written before this key existed.
+       *
+       * Without it the first run under the new scheme would treat the entire
+       * corpus as unseen and load a second copy of all of it. A row whose text
+       * matches exactly is the same exercise; it gets stamped and from then on
+       * is updated rather than duplicated.
+       */
+      const adoptable = await db.question.findFirst({
+        where: { contentText: statement, sourceRef: null, chapter: { subjectId: subjectRow.id } },
         select: { id: true },
       });
-      if (alreadyLoaded) continue;
+      if (adoptable) {
+        await db.$executeRaw`UPDATE questions SET source_ref = ${ref} WHERE id = ${adoptable.id}::uuid`;
+        adopted += 1;
+        continue;
+      }
 
       /*
        * The chapter, inferred. The exercise is embedded once and matched
@@ -315,15 +374,7 @@ async function main() {
       `;
       const chapterId = nearest[0]?.chapter_id ?? chapters[0]!.id;
 
-      // Identity: this paper, this position. Stable across re-runs.
-      const ref = createHash('sha256').update(`${exam.sha256}:${exercise.index}:${order}`).digest('hex');
-
-      const existing = await db.$queryRaw<{ id: string }[]>`
-        SELECT id FROM questions WHERE content_text = ${statement} AND chapter_id = ${chapterId}::uuid LIMIT 1
-      `;
-      if (existing.length) continue;
-
-      await db.question.create({
+      const created = await db.question.create({
         data: {
           chapterId,
           sourceType: 'past_exam',
@@ -336,14 +387,20 @@ async function main() {
           verifiedStatus: 'unverified',
         },
       });
-      void ref;
+      await db.$executeRaw`UPDATE questions SET source_ref = ${ref} WHERE id = ${created.id}::uuid`;
+      written += 1;
     }
   }
 
   console.log('');
   console.log(`  papers read              ${exams.length}`);
   console.log(`  exam cycles              ${cycles}`);
-  console.log(`  questions ${dry ? 'to write' : 'written  '}      ${questions}`);
+  console.log(`  exercises in the corpus   ${questions}`);
+  if (!dry) {
+    console.log(`  newly written             ${written}`);
+    console.log(`  corrected in place        ${revised}`);
+    console.log(`  adopted (already present) ${adopted}`);
+  }
   console.log(`  with an official solution ${withSolution}`);
   console.log(`  with a barème             ${withBareme}`);
   if (skipped.size) {

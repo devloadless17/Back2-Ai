@@ -41,7 +41,9 @@
     "test:watch": "vitest",
     "detect": "node scripts/detect.mjs",
     "detect:data": "node --env-file=.env scripts/detect.mjs --data",
-    "smoke": "node scripts/smoke.mjs"
+    "smoke": "node scripts/smoke.mjs",
+    "retire:superseded": "node --conditions=react-server --env-file=.env --import tsx scripts/retire-superseded.ts",
+    "repair:links": "node --conditions=react-server --env-file=.env --import tsx scripts/repair-chunk-links.ts"
   },
   "overrides": {
     "postcss": "$postcss",
