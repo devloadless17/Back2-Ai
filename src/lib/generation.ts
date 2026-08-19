@@ -33,13 +33,26 @@ export const DUPLICATE_THRESHOLD = 0.95;
 
 const MAX_ATTEMPTS = 3;
 
+/**
+ * Every key must appear in `required`, including the optional one.
+ *
+ * Structured outputs refuse a schema where `properties` and `required` differ —
+ * "'required' is required to be supplied and to be an array including every key
+ * in properties. Missing 'content_latex'." That is a 400 on every attempt, all
+ * three retries, so generation failed for every chapter in the corpus and
+ * reported it as "The model call failed", which reads like an outage.
+ *
+ * An optional field is expressed by letting it be null rather than by leaving
+ * it out of `required`. `content_latex` is genuinely optional — a problem in
+ * prose has no LaTeX — so it is nullable here and coalesced at the write.
+ */
 const PROBLEM_SCHEMA = {
   type: 'object',
   additionalProperties: false,
-  required: ['content_text', 'solution', 'final_answer', 'bareme', 'difficulty'],
+  required: ['content_text', 'content_latex', 'solution', 'final_answer', 'bareme', 'difficulty'],
   properties: {
     content_text: { type: 'string' },
-    content_latex: { type: 'string' },
+    content_latex: { type: ['string', 'null'] },
     solution: { type: 'string' },
     final_answer: { type: 'string' },
     difficulty: { type: 'number' },
@@ -60,7 +73,8 @@ const PROBLEM_SCHEMA = {
 
 const problemResponseSchema = z.object({
   content_text: z.string().min(20),
-  content_latex: z.string().optional(),
+  // Nullable rather than optional: the schema now always sends the key.
+  content_latex: z.string().nullable().optional(),
   solution: z.string().min(20),
   final_answer: z.string().min(1),
   difficulty: z.number(),
