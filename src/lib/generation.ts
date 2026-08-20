@@ -119,6 +119,36 @@ function systemPrompt(language: string): string {
   ].join('\n');
 }
 
+/**
+ * Is this past-exam question clean enough to imitate?
+ *
+ * The screens are for the ways PDF extraction visibly fails on this corpus, not
+ * for whether the question is any good — that is what its barème attests. A
+ * reference is copied for its shape and register, so a statement with its
+ * letters pulled apart teaches the generator to pull letters apart.
+ */
+function usableAsReference(q: {
+  contentText: string;
+  officialSolution: string | null;
+  bareme: unknown;
+}): boolean {
+  if (!q.officialSolution) return false;
+  if (!Array.isArray(q.bareme) || q.bareme.length === 0) return false;
+
+  const text = q.contentText;
+  if (text.length < 120 || text.length > 4000) return false;
+
+  // Arabic pulled apart into single letters: "الحس ي" for "الحسي".
+  if (/[ء-ي] [ء-ي] [ء-ي] /.test(text)) return false;
+  // Diacritics multiplied by the extractor: "أسبابُّّالمرضِّّ".
+  if (/[ً-ْ]{3,}/.test(text)) return false;
+  // The marking scheme run into the statement, which would hand over the answer.
+  if (/الاجابة المتوقعة|الإجابة المتوقعة|R[ée]ponse attendue|Marking scheme|أسس التصحيح/i.test(text)) return false;
+
+  return true;
+}
+
+
 export async function generateProblem(input: GenerateInput): Promise<GenerationOutcome> {
   const chapter = await db.chapter.findUnique({
     where: { id: input.chapterId },
@@ -132,19 +162,64 @@ export async function generateProblem(input: GenerateInput): Promise<GenerationO
 
   if (!chapter) return { status: 'rejected', reason: 'Unknown chapter.' };
 
-  // Style references: real, verified questions from this chapter. Without them
-  // there is nothing to ground the style in, and we do not generate blind.
-  const references = await db.question.findMany({
+  // Style references: real questions from this chapter. Without them there is
+  // nothing to ground the style in, and we do not generate blind.
+  const select = {
+    id: true,
+    contentText: true,
+    officialSolution: true,
+    bareme: true,
+    difficulty: true,
+  } as const;
+
+  let references = await db.question.findMany({
     where: { chapterId: chapter.id, verifiedStatus: 'verified' },
-    select: { id: true, contentText: true, officialSolution: true, bareme: true, difficulty: true },
+    select,
     orderBy: { createdAt: 'desc' },
     take: 3,
   });
 
+  /*
+   * Falling back to unverified past-exam questions, where they carry their own
+   * marking scheme AND an official solution.
+   *
+   * Only 38 questions in the corpus are verified, in 34 of 1,135 chapters, so
+   * requiring verification left generation idle across 97% of the syllabus. The
+   * other 3,800 are not doubtful in the way "unverified" suggests: they are
+   * exercises lifted from real CRDP papers, so their style is authentic by
+   * construction. What had never been confirmed is our extraction of them.
+   *
+   * A barème and an official solution attached to the same exercise is that
+   * confirmation. Neither survives a mangled parse — a garbled statement does
+   * not come with a coherent list of markable steps — so their presence is
+   * evidence the extraction worked, produced without anyone reading it.
+   * Measured on this corpus: 562 questions across 153 chapters, and the ones
+   * that do fail extraction fail visibly (1.7% have Arabic letters split by
+   * spaces, 0.5% have doubled diacritics) and are screened out below.
+   *
+   * Verified questions still win where they exist. This only fills the silence.
+   */
+  if (references.length === 0) {
+    const candidates = await db.question.findMany({
+      where: {
+        chapterId: chapter.id,
+        sourceType: 'past_exam',
+        verifiedStatus: { not: 'rejected' },
+        officialSolution: { not: null },
+      },
+      select,
+      orderBy: { createdAt: 'desc' },
+      take: 12,
+    });
+    references = candidates.filter(usableAsReference).slice(0, 3);
+  }
+
   if (references.length === 0) {
     return {
       status: 'rejected',
-      reason: 'No verified questions exist in this chapter to use as style references.',
+      reason:
+        'This chapter has no question that could serve as a style reference: none verified, and no ' +
+        'past-exam question carrying both an official solution and a marking scheme.',
     };
   }
 
