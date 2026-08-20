@@ -597,13 +597,34 @@ def main() -> None:
     if args.limit:
         files = files[:args.limit]
 
+    # One paper, sat by two tracks, is two entries.
+    #
+    # GS and LS sit the SAME Arabic, geography, history and civics exams, and the
+    # corpus keeps a copy under each track's folder. Skipping a repeated hash
+    # outright read the GS copy and dropped every LS one — 62 of the 65 LS
+    # humanities papers are byte-identical to a GS paper — so LS had no past
+    # questions at all in six subjects while GS, LH and SE had them. The parser
+    # was never the problem for those; they had simply already been read under
+    # somebody else's track.
+    #
+    # The parse is still done once. What is repeated is the entry, with this
+    # path and this track, because the exercise belongs to both students and the
+    # loader keys questions per subject so neither track's copy collides with
+    # the other's.
+    parsed: dict = {}
     for pdf in files:
         digest = hashlib.sha256(pdf.read_bytes()).hexdigest()
         if digest in seen:
+            first = parsed.get(digest)
+            if first and "error" not in first:
+                rel = pdf.relative_to(EXAMS)
+                results.append({**first, "path": str(rel), "file": pdf.name,
+                                "track": rel.parts[0] if rel.parts else first.get("track")})
             continue
         seen.add(digest)
         row = read(pdf)
         if row:
+            parsed[digest] = row
             results.append(row)
 
     good = [r for r in results if "error" not in r]
