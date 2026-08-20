@@ -317,13 +317,29 @@ async function main() {
        * book unblocks a subject — would otherwise pay to embed all of them
        * again to discover there was nothing to write.
        */
-      const known = await db.$queryRaw<{ id: string; content_text: string }[]>`
-        SELECT id, content_text FROM questions WHERE source_ref = ${ref} LIMIT 1
+      const known = await db.$queryRaw<
+        { id: string; content_text: string; official_solution: string | null; bareme: unknown }[]
+      >`
+        SELECT id, content_text, official_solution, bareme FROM questions WHERE source_ref = ${ref} LIMIT 1
       `;
       if (known.length) {
-        // Re-extraction improved it: correct the question in place rather than
-        // adding a second one and leaving a student to meet whichever wins.
-        if (known[0]!.content_text !== statement) {
+        /*
+         * Re-extraction improved it: correct the question in place rather than
+         * adding a second one and leaving a student to meet whichever wins.
+         *
+         * The solution and the barème are compared as well as the statement.
+         * Comparing the statement alone meant a parser that learned to read a
+         * new kind of marking scheme changed nothing: the philosophy questions
+         * already existed with the same wording, so 921 of them kept their
+         * empty solution while the extractor was producing one for each.
+         */
+        const priorBareme = JSON.stringify(known[0]!.bareme ?? null);
+        const nextBareme = JSON.stringify(bareme.length ? bareme : null);
+        if (
+          known[0]!.content_text !== statement ||
+          (known[0]!.official_solution ?? null) !== solution ||
+          priorBareme !== nextBareme
+        ) {
           await db.$executeRaw`
             UPDATE questions
             SET content_text = ${statement},
