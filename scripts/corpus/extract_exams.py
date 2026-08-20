@@ -619,7 +619,7 @@ def main() -> None:
             if first and "error" not in first:
                 rel = pdf.relative_to(EXAMS)
                 results.append({**first, "path": str(rel), "file": pdf.name,
-                                "track": rel.parts[0] if rel.parts else first.get("track")})
+                                "track": rel.parts[0].upper() if rel.parts else first.get("track")})
             continue
         seen.add(digest)
         row = read(pdf)
