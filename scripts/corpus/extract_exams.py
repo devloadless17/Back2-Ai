@@ -263,6 +263,17 @@ def split_paper_and_scheme(pages: list) -> tuple:
 ROMAN = {"i": 1, "ii": 2, "iii": 3, "iv": 4, "v": 5, "vi": 6}
 
 
+# The verbs a paper uses to set work, in the three languages of instruction.
+ASSIGNMENT = re.compile(
+    r"(?:^|[\s(\-–—])(?:"
+    + r"حدّ?د|اشرح|بيّ?ن|استخرج|استخلص|استنتج|عدّ?د|علّ?ل|اذكر|صنّ?ف|قارن|ناقش|اكتب|أعط|اعط|ضع|أبرز|ابرز|لخّ?ص|عرّ?ف|أجب|اجب"
+    + r"|" + r"d[ée]gagez|expliquez|montrez|justifiez|relevez|analysez|comparez|d[ée]finissez|citez|r[ée]digez|commentez|pr[ée]cisez"
+    + r"|" + r"explain|describe|discuss|justify|compare|define|analyse|analyze|comment|outline|state briefly"
+    + r")(?=[\s:.,،]|$)",
+    re.I | re.M,
+)
+
+
 def find_headers(text: str) -> tuple:
     """The exercise headers, whichever of the three forms this paper uses.
 
@@ -291,6 +302,35 @@ def find_headers(text: str) -> tuple:
         found = list(AR_NUM_HEAD.finditer(text))
         if len(found) >= 2:
             return found, "arabic-numbered"
+
+    # Essay and document papers, which is how the humanities are examined.
+    #
+    # A geography or civics paper prints a source — a passage, a map, a table —
+    # and asks the candidate to work from it. Its questions are numbered, but
+    # they carry no marks: the marks are in the scheme at the end of the file,
+    # which is split off before this runs. Every branch above needs a mark
+    # beside a header to believe it is looking at an exercise, so all of them
+    # decline, and 646 of the 2,090 papers we hold were dropped whole for it.
+    # Geography parsed at 7%, civics at 15%, against physics at 100%.
+    #
+    # What marks an assignment here is the instruction rather than the number:
+    # حدّد، استنتج، dégagez, explain. Two of those plus numbered questions is a
+    # paper setting work, and nothing else in a corpus of exam papers looks like
+    # that. The marks are recovered from the scheme where it parses, and left at
+    # zero where it does not — an exercise with no barème is still practice.
+    if len(ASSIGNMENT.findall(text)) >= 2:
+        found = list(AR_NUM_HEAD.finditer(text))
+        if len(found) >= 2:
+            # One exercise, not thirteen. These papers set a single piece of
+            # work — read this source, then answer about it — and the numbers
+            # running down the page are its questions, not separate exercises.
+            # Treating each as its own exercise produced "13 exercises, 10
+            # marks" and the plausibility gate threw the paper out, which is the
+            # gate doing its job on a bad reading. Everything from the first
+            # numbered question to the end is the assignment, and `parse_exercises`
+            # splits the questions out of it as parts.
+            return found[:1], "arabic-numbered"
+
     return list(SUBJECT_HEAD.finditer(text)), "subject"
 
 
