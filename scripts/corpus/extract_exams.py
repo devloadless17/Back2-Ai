@@ -432,6 +432,30 @@ def parse_exercises(text: str) -> list:
     return out
 
 
+def subject_answers(text: str) -> dict:
+    """{subject number: the whole expected answer} from an essay scheme.
+
+    Philosophy is not marked with a table. Its scheme runs "الموضوع الأول :" and
+    then the essay the examiner expects — introduction, explanation, discussion,
+    conclusion — with the marks written in words inside the prose. There are no
+    labelled rows to read, and the paper it belongs to has no sub-parts either:
+    a philosophy question is one instruction and one essay.
+
+    So the answer is the block, whole. That is what an official solution is for
+    this subject, and refusing to store it because it is not a table left 764
+    philosophy questions — the largest bank in the corpus — with none.
+    """
+    heads = list(SUBJECT_HEAD.finditer(text))
+    blocks = {}
+    for n, m in enumerate(heads):
+        end = heads[n + 1].start() if n + 1 < len(heads) else len(text)
+        body = re.sub(r"[ 	]+", " ", text[m.end():end]).strip()
+        if len(body) < 60:
+            continue
+        blocks[header_index(m, "subject", n + 1)] = body
+    return blocks
+
+
 def parse_scheme(text: str) -> dict:
     """{exercise number: {label: {answer, marks}}} from the marking scheme.
 
@@ -554,7 +578,18 @@ def read(pdf: Path) -> dict | None:
         }
 
     scheme = parse_scheme(scheme_text) if scheme_text else {}
+    essays = subject_answers(scheme_text) if scheme_text else {}
     for ex in exercises:
+        # An essay paper's answer belongs to the exercise, not to a part it does
+        # not have. Carried on a part with no label because that is the shape
+        # the loader reads solutions out of.
+        if not ex["parts"] and ex["index"] in essays:
+            ex["parts"].append({
+                "label": "",
+                "text": ex["title"][:200],
+                "answer": essays[ex["index"]],
+                "marks": arabic_marks(essays[ex["index"]]),
+            })
         answers = scheme.get(ex["index"], {})
         for part in ex["parts"]:
             found = answers.get(part["label"])
