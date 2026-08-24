@@ -6,12 +6,19 @@ import { ai } from '@/lib/ai';
 import { embed } from '@/lib/ai/embeddings';
 import { db } from '@/lib/db';
 import { env } from '@/lib/env';
+import {
+  classifyQuestionKind,
+  type QuestionClassification,
+  type QuestionKind,
+} from '@/lib/question-kind';
 import { rerankByRelevance } from '@/lib/rerank';
 import {
   searchContentChunks,
+  searchMarkingSchemes,
   searchQuestions,
   searchUserReferences,
   type ContentChunkHit,
+  type MarkingSchemeHit,
   type QuestionHit,
   type UserReferenceHit,
 } from '@/lib/vector';
@@ -46,7 +53,7 @@ import {
  * the corpus itself rather than carried over. A provider with no entry here has
  * not been calibrated.
  */
-const THRESHOLDS: Record<string, { exact: number; concept: number; lead: number }> = {
+const THRESHOLDS: Record<string, { exact: number; concept: number; lead: number; structure: number }> = {
   /*
    * text-embedding-3-small, measured with `npm run check:refusal` against this
    * corpus:
@@ -63,10 +70,11 @@ const THRESHOLDS: Record<string, { exact: number; concept: number; lead: number 
    * "Qu'est-ce qu'une suite géométrique ?". A student would have been told
    * their own syllabus was not covered.
    */
-  openai: { exact: 0.85, concept: 0.45, lead: 0 },
+  openai: { exact: 0.85, concept: 0.45, lead: 0, structure: 0.35 },
   // Untested — voyage has never been run against this corpus. Calibrate before
-  // trusting these.
-  voyage: { exact: 0.85, concept: 0.72, lead: 0 },
+  // trusting these. `structure` sits at the concept threshold, which relaxes
+  // nothing: an uncalibrated provider gets the strict gate.
+  voyage: { exact: 0.85, concept: 0.72, lead: 0, structure: 0.72 },
   /*
    * multilingual-e5-base, measured with `npm run check:refusal` — which asks
    * the questions a student would type, against the whole corpus:
@@ -85,7 +93,7 @@ const THRESHOLDS: Record<string, { exact: number; concept: number; lead: number 
    * ones fall to 0.012 while off-syllabus ones reach 0.029 — and requiring it
    * refused "Qu'est-ce qu'une suite géométrique ?", which is bookwork.
    */
-  local: { exact: 0.87, concept: 0.833, lead: 0 },
+  local: { exact: 0.87, concept: 0.833, lead: 0, structure: 0.833 },
 };
 
 const tier = THRESHOLDS[env().EMBEDDING_PROVIDER] ?? THRESHOLDS.openai!;
@@ -93,6 +101,67 @@ const tier = THRESHOLDS[env().EMBEDDING_PROVIDER] ?? THRESHOLDS.openai!;
 export const EXACT_MATCH_THRESHOLD = tier.exact;
 export const CONCEPT_LEVEL_THRESHOLD = tier.concept;
 export const PERSONAL_REFERENCE_THRESHOLD = tier.concept;
+
+/**
+ * Below this, look for the material in the corpus's other script as well.
+ *
+ * This was `CONCEPT_LEVEL_THRESHOLD + 0.15`, and the margin outlived its
+ * reason. It was chosen when the concept threshold was 0.72, putting the gate
+ * at 0.87 — above the exact-match threshold, so it fired only when nothing very
+ * good had come back. The provider changed, concept was recalibrated to 0.45,
+ * and the margin was carried over untouched: the gate became 0.60 and started
+ * firing on half of all questions, each one a model call and about 1.4 seconds.
+ *
+ * Measured rather than guessed — `npm run measure:translation-gate`, 249 real
+ * questions searched against their own subject's passages:
+ *
+ *     p10 0.428   p25 0.490   median 0.597   p75 0.704   p90 0.779
+ *
+ *     gate 0.60 (today)  fires 50.6%
+ *     gate 0.55          fires 41.0%
+ *     gate 0.50          fires 29.3%
+ *     gate 0.45          fires 14.9%
+ *
+ * The median sits at 0.597, so the old gate was placed, by accident, exactly at
+ * the middle of the distribution — which is why it fired on half of everything.
+ *
+ * 0.50 is a fifth of the way up from the concept threshold. Everything below
+ * 0.45 would be REFUSED without help, so translation must be tried there and
+ * is; the extra 0.05 covers questions that only just clear the line. Above it
+ * the question is already grounded, and translating stands to change which
+ * passages are used rather than whether there is an answer at all.
+ *
+ * The asymmetry is deliberate and points the other way from the saving: firing
+ * needlessly costs 1.4 seconds, while failing to fire on a question whose
+ * material exists only in the other script costs the answer entirely — and that
+ * is indistinguishable, from outside, from a gap in the corpus. Hence a margin
+ * above the refusal line rather than on it.
+ */
+export const TRANSLATE_BELOW = tier.concept + 0.05;
+
+/**
+ * How near a marking scheme has to be before its structure is worth showing.
+ *
+ * Lower than the concept threshold, and for a reason that is easy to get
+ * backwards. The concept threshold answers "does the corpus contain the answer
+ * to this question?" — a barème is not the answer to anything, it is the shape
+ * an answer has to take, and two philosophy prompts share that shape whether or
+ * not they share a topic. Measured on this corpus with text-embedding-3-small:
+ *
+ *   an essay prompt against a marking scheme in its own subject   0.38 … 0.44
+ *   an off-syllabus question against anything in the corpus       0.17 … 0.36
+ *
+ * So the same 0.45 that correctly refuses to answer a question the books do not
+ * cover also throws away every barème the corpus holds, which is how the first
+ * cut of the essay path came to retrieve schemes and then hand over none of
+ * them. 0.35 admits the first population and not the second.
+ *
+ * A scheme admitted this way is only ever handed over ALONGSIDE material that
+ * cleared the real gate. It cannot make the pipeline speak — see the essay
+ * branch in `retrieveGrounding` for the one narrow case where a scheme carries
+ * an answer on its own, and what that case additionally requires.
+ */
+export const STRUCTURE_THRESHOLD = tier.structure;
 
 /** Minimum distance between the best hit and the field. 0 disables the check. */
 export const RELEVANCE_LEAD = tier.lead;
@@ -336,6 +405,14 @@ export type GroundingResult = {
    * before they reach a student.
    */
   requiresVerification: boolean;
+  /**
+   * Which of the three kinds of question this was taken to be, and on what
+   * marker. Orthogonal to the tier: the tier says how authoritative the
+   * material is, this says what sort of thing was gone looking for. The answer
+   * prompt reads it, because a marking scheme handed over without the
+   * instruction to write against it is just more text.
+   */
+  classification: QuestionClassification;
 };
 
 export type RetrievalInput = {
@@ -356,16 +433,110 @@ export type RetrievalInput = {
     id: string;
     contentText: string;
     officialSolution: string | null;
+    /** The extract printed on the paper, for a question that examines one. */
+    sourcePassage?: string | null;
   } | null;
 };
 
+/**
+ * How many marking schemes an essay prompt is grounded on.
+ *
+ * Three rather than one because a Lebanese barème is a template, not an answer:
+ * seeing the same four-part shape recovered from three different years is what
+ * distinguishes the structure the examiner rewards from the particular argument
+ * one paper happened to want.
+ */
+const MARKING_SCHEMES = 3;
+
+/**
+ * How much of an official solution is shown.
+ *
+ * Philosophy's official solutions are whole essays — the scheme prints the
+ * introduction, the problematic, the discussion and the conclusion the examiner
+ * expects, at length. The structure is in the first part of that and the rest is
+ * one year's content, so it is cut: what the tutor should copy is the shape, and
+ * handing over four thousand words of somebody else's argument invites it to
+ * reproduce that argument instead of teaching the student to build their own.
+ */
+const SOLUTION_SHOWN = 1200;
+
+/**
+ * When a comprehension question arrives carrying its own passage.
+ *
+ * "Quel est le mot qui, par ses répétitions, souligne le thème ?" is eighty
+ * characters and answerable only against a text printed on the exam paper. The
+ * same question photographed off that paper, or pasted with the extract above
+ * it, arrives as two thousand — and then the passage is right there in the
+ * query and nothing needs fetching.
+ *
+ * That is the whole difference between refusing and answering, so it is drawn
+ * generously: 400 characters is longer than any bare comprehension instruction
+ * in this corpus and shorter than any question with a passage attached.
+ */
+const PASSAGE_SUPPLIED = 400;
+
+/** The barème and the official answer's shape, as material to write against. */
+function formatMarkingSchemes(hits: MarkingSchemeHit[]): string {
+  const blocks = hits.map((hit) => {
+    const parts = [`## How this is marked — ${hit.chapterName}`];
+    parts.push(`Prompt of the marked question: ${hit.contentText.replace(/\s+/g, ' ').slice(0, 400)}`);
+
+    const bareme = Array.isArray(hit.bareme) ? hit.bareme : [];
+    if (bareme.length > 0) {
+      parts.push(
+        ['Barème — the marks are awarded step by step:', ...bareme.map(
+          (item) => `- ${String(item.criterion).replace(/\s+/g, ' ').slice(0, 200)} (${item.points} mark(s))`,
+        )].join('\n'),
+      );
+    }
+
+    if (hit.officialSolution) {
+      parts.push(
+        `Shape of the official answer:\n${hit.officialSolution.replace(/\s+/g, ' ').slice(0, SOLUTION_SHOWN)}`,
+      );
+    }
+
+    return parts.join('\n');
+  });
+
+  return blocks.join('\n\n');
+}
+
+function schemeSource(hit: MarkingSchemeHit): RetrievalSource {
+  return {
+    id: hit.id,
+    kind: 'question',
+    label: `${hit.chapterName} — official marking scheme`,
+    similarity: hit.similarity,
+    text: hit.contentText.slice(0, 500),
+  };
+}
+
+/** A scheme is only worth handing over if it says something about structure. */
+function usableScheme(hit: MarkingSchemeHit): boolean {
+  const bareme = Array.isArray(hit.bareme) ? hit.bareme : [];
+  return bareme.length > 0 || (hit.officialSolution?.trim().length ?? 0) > 80;
+}
+
 export async function retrieveGrounding(input: RetrievalInput): Promise<GroundingResult> {
+  /*
+   * What kind of question this is, decided before anything is searched for.
+   *
+   * The three kinds want three different things, and the cost of not asking is
+   * paid silently: a comprehension question sent down the chapter path comes
+   * back with the nearest chapter, which is not where its answer is and never
+   * was. See `question-kind.ts` for what separates them.
+   */
+  const classification = classifyQuestionKind(input.query);
+  const kind: QuestionKind = classification.kind;
+
   if (input.anchorQuestion) {
     const anchor = input.anchorQuestion;
     return {
       tier: 'exact_match',
       topSimilarity: 1,
       requiresVerification: false,
+      classification,
       sources: [
         {
           id: anchor.id,
@@ -375,7 +546,11 @@ export async function retrieveGrounding(input: RetrievalInput): Promise<Groundin
           text: anchor.contentText,
         },
       ],
-      context: formatQuestionContext(anchor.contentText, anchor.officialSolution),
+      context: formatQuestionContext(
+        anchor.contentText,
+        anchor.officialSolution,
+        anchor.sourcePassage ?? null,
+      ),
     };
   }
 
@@ -386,6 +561,7 @@ export async function retrieveGrounding(input: RetrievalInput): Promise<Groundin
       tier: 'ungrounded_refused',
       topSimilarity: null,
       requiresVerification: false,
+      classification,
       sources: [],
       context: '',
     };
@@ -410,10 +586,96 @@ export async function retrieveGrounding(input: RetrievalInput): Promise<Groundin
       tier: 'exact_match',
       topSimilarity: topQuestion.similarity,
       requiresVerification: false,
+      classification,
       sources: [questionSource(topQuestion)],
-      context: formatQuestionContext(topQuestion.contentText, topQuestion.officialSolution),
+      context: formatQuestionContext(
+        topQuestion.contentText,
+        topQuestion.officialSolution,
+        topQuestion.sourcePassage,
+      ),
     };
   }
+
+  /*
+   * --- Comprehension: the passage, or nothing -----------------------------
+   *
+   * The answer to "délimitez les passages où le locuteur rapporte des paroles
+   * au style direct" is in a text printed on the exam paper. It is in no
+   * chapter, so there is no chapter to fall back to — and falling back is
+   * precisely what must not happen here. Chapter retrieval would still return
+   * eight passages, the tutor would still write eight fluent paragraphs, and
+   * nothing anywhere would record that the question was answered from material
+   * that could not contain the answer. GS Français scores 0.04 lift on the
+   * chapter benchmark, at chance, almost entirely on these.
+   *
+   * There are two honest outcomes. Either the passage came with the question —
+   * photographed, pasted, or attached to a question the student is working on,
+   * which the anchor branch above has already handled — in which case it is
+   * right here and can be answered from. Or it did not, and the only useful
+   * thing to say is "show me the text".
+   */
+  if (kind === 'comprehension') {
+    if (input.query.trim().length >= PASSAGE_SUPPLIED) {
+      return {
+        tier: 'personal_reference',
+        topSimilarity: null,
+        requiresVerification: true,
+        classification,
+        sources: [
+          {
+            id: 'supplied-passage',
+            kind: 'user_reference',
+            label: 'The passage on your exam paper',
+            similarity: 1,
+            text: input.query.slice(0, 500),
+          },
+        ],
+        context: `## The passage and question you supplied\n${input.query}`,
+      };
+    }
+
+    return {
+      tier: 'ungrounded_refused',
+      topSimilarity: topQuestion?.similarity ?? null,
+      requiresVerification: false,
+      classification,
+      sources: [],
+      context: '',
+    };
+  }
+
+  /*
+   * --- Essay prompts: the marking scheme ----------------------------------
+   *
+   * Fetched before the chapter search rather than after it, because for an
+   * essay it is the more important half of the grounding and it must be
+   * available whether or not chapter material clears the gate. "اشرح هذا
+   * القول" has no fact in a chapter waiting to be retrieved; what a Lebanese
+   * marker rewards is an introduction, a stated problematic, a discussion and
+   * a conclusion, and the barème says so.
+   */
+  const schemes =
+    kind === 'essay'
+      ? (await searchMarkingSchemes(queryVector, input.subjectIds, MARKING_SCHEMES))
+          .filter((s) => s.similarity >= STRUCTURE_THRESHOLD)
+          .filter(usableScheme)
+      : [];
+
+  /*
+   * When a scheme is allowed to be the whole of the grounding.
+   *
+   * Almost never, and the two extra conditions are both load-bearing. It has to
+   * clear the full concept threshold, so a scheme can never let through a
+   * question the pipeline would otherwise refuse — the essay path must not
+   * become a way round the gate. And it has to carry an official solution
+   * rather than only a barème, because a barème alone is a shape with nothing
+   * in it: an answer written from four criteria and no material would have an
+   * introduction, a problematic, a discussion and a conclusion, and nothing to
+   * say in any of them.
+   */
+  const standaloneSchemes = schemes.filter(
+    (s) => s.similarity >= CONCEPT_LEVEL_THRESHOLD && (s.officialSolution?.trim().length ?? 0) > 80,
+  );
 
   // --- Tier 2: chapter-level course material ------------------------------
   // Fetched wide to measure the lead, then narrowed to HANDED_OVER.
@@ -422,7 +684,7 @@ export async function retrieveGrounding(input: RetrievalInput): Promise<Groundin
   // Material in the other script only surfaces if it is searched for in that
   // script. Attempted when nothing convincing has been found yet, so a question
   // that is already well answered costs no extra call.
-  if ((chunkHits[0]?.similarity ?? 0) < CONCEPT_LEVEL_THRESHOLD + 0.15) {
+  if ((chunkHits[0]?.similarity ?? 0) < TRANSLATE_BELOW) {
     const translated = await otherScriptQuery(input.query, input.subjectIds);
     if (translated) {
       const alternate = await searchContentChunks(
@@ -472,15 +734,30 @@ export async function retrieveGrounding(input: RetrievalInput): Promise<Groundin
   }
   passingChunks = passingChunks.slice(0, HANDED_OVER);
 
-  if (passingChunks.length > 0) {
+  if (passingChunks.length > 0 || standaloneSchemes.length > 0) {
+    /*
+     * The scheme sits inside `context`, not beside it.
+     *
+     * It is official material — a barème printed on a ministry paper — so an
+     * answer resting on it is resting on something at least as authoritative as
+     * a textbook passage, and the verification pass has to be able to see that.
+     * Kept out of `context` it would count as unsupported, and every essay
+     * answer that did what it was told would be retracted for it.
+     */
+    const material = [
+      ...passingChunks.map(
+        (c) => `## ${c.chapterName} — ${c.title ?? c.kind}\n${c.contentLatex ?? c.contentText}`,
+      ),
+      ...(schemes.length > 0 ? [formatMarkingSchemes(schemes)] : []),
+    ];
+
     return {
       tier: 'concept_level',
-      topSimilarity: passingChunks[0]?.similarity ?? null,
+      topSimilarity: passingChunks[0]?.similarity ?? schemes[0]?.similarity ?? null,
       requiresVerification: true,
-      sources: passingChunks.map(chunkSource),
-      context: passingChunks
-        .map((c) => `## ${c.chapterName} — ${c.title ?? c.kind}\n${c.contentLatex ?? c.contentText}`)
-        .join('\n\n'),
+      classification,
+      sources: [...passingChunks.map(chunkSource), ...schemes.map(schemeSource)],
+      context: material.join('\n\n'),
     };
   }
 
@@ -493,6 +770,7 @@ export async function retrieveGrounding(input: RetrievalInput): Promise<Groundin
       tier: 'personal_reference',
       topSimilarity: passingReferences[0]?.similarity ?? null,
       requiresVerification: true,
+      classification,
       sources: passingReferences.map(referenceSource),
       context: passingReferences
         .map((r) => `## From your document "${r.fileName ?? 'untitled'}"\n${(r.extractedText ?? '').slice(0, 4000)}`)
@@ -505,13 +783,27 @@ export async function retrieveGrounding(input: RetrievalInput): Promise<Groundin
     tier: 'ungrounded_refused',
     topSimilarity: topQuestion?.similarity ?? null,
     requiresVerification: false,
+    classification,
     sources: [],
     context: '',
   };
 }
 
-function formatQuestionContext(contentText: string, officialSolution: string | null): string {
-  const parts = [`## Official question\n${contentText}`];
+function formatQuestionContext(
+  contentText: string,
+  officialSolution: string | null,
+  sourcePassage: string | null = null,
+): string {
+  const parts: string[] = [];
+  /*
+   * The passage goes first, because for a comprehension question it is not
+   * background to the question — it is where the answer is. "Identifiez le
+   * référent du pronom « on »" means nothing without the paragraph the pronoun
+   * sits in, and a tutor given the question before the extract is reading them
+   * in the order that makes the question unanswerable.
+   */
+  if (sourcePassage) parts.push(`## The text printed on the exam paper\n${sourcePassage}`);
+  parts.push(`## Official question\n${contentText}`);
   if (officialSolution) parts.push(`## Official solution\n${officialSolution}`);
   return parts.join('\n\n');
 }

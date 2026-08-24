@@ -48,7 +48,8 @@
     "label:chapters": "node --conditions=react-server --env-file=.env --import tsx scripts/label-chapters.ts",
     "bench:retrieval": "node --conditions=react-server --env-file=.env --import tsx scripts/bench-retrieval.ts",
     "report:stranded": "node --conditions=react-server --env-file=.env --import tsx scripts/stranded-chapters.ts",
-    "refile:subsections": "node --conditions=react-server --env-file=.env --import tsx scripts/refile-subsection-questions.ts"
+    "refile:subsections": "node --conditions=react-server --env-file=.env --import tsx scripts/refile-subsection-questions.ts",
+    "measure:translation-gate": "node --conditions=react-server --env-file=.env --import tsx scripts/measure-translation-gate.ts"
   },
   "overrides": {
     "postcss": "$postcss",
