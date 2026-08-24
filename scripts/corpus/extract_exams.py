@@ -203,6 +203,37 @@ SCHEME_HEAD = re.compile(
     re.I | re.S,
 )
 
+# A line that is nothing but a small number: one cell of a scheme's mark column.
+#
+# This is the signal SCHEME_HEAD is not. A scheme announces itself in words on
+# most papers and on plenty of others it simply starts — gs/2019/math_en.pdf
+# opens its scheme on "A3b" with no header anywhere in the file, and every
+# header-based test declines. What no scheme can do without is the column of
+# marks running down its right-hand edge, which PDF extraction flattens into
+# exactly this: short lines holding a number and nothing else.
+MARK_CELL = re.compile(r"(?m)^[ 	]*(?:0?[.,]\d{1,2}|[0-9]{1,2}(?:[.,]\d{1,2})?)[ 	]*$")
+
+# The same cell, captured. Kept separate from MARK_CELL on purpose: that
+# pattern is what the "not recovered" counters are measured with, and a
+# detector that changes shape between runs makes its own history
+# incomparable — which it did, moving both counters by fifteen when it was
+# widened to capture.
+MARK_VALUE = re.compile(r"(?m)^[ 	]*(0?[.,]\d{1,2}|[0-9]{1,2}(?:[.,]\d{1,2})?)[ 	]*$")
+
+# How many such cells make a column rather than a coincidence.
+#
+# Five, measured against the false positive this has to survive: a maths
+# question page carries bare numbers too — axis labels, a table of values, the
+# right-hand side of a displayed equation broken onto its own line — but they
+# come in ones and twos. A scheme's column runs the length of the page.
+MARK_COLUMN = 5
+
+
+def scheme_signal(text: str) -> int:
+    """How strongly a page looks like it is awarding marks rather than asking for them."""
+    return len(MARK_CELL.findall(text))
+
+
 # "It Is Inscribed on Four Pages" — the paper stating its own length.
 WORDS = {"one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7,
          "eight": 8, "nine": 9, "ten": 10}
@@ -237,6 +268,24 @@ def split_paper_and_scheme(pages: list) -> tuple:
     Most of these files hold both. The scheme announces itself, and it also
     restarts the page numbering, so the first page that either carries a scheme
     header or repeats the opening exercise is the boundary.
+
+    Both tests are about WORDING, and that is their limit. Neither fires on a
+    scheme that simply begins — gs/2019/math_en.pdf runs its answers down eight
+    pages under the labels A3b, B1, C1 with a mark against each, and no word
+    anywhere in the file says "barème". 859 papers are read here as having no
+    scheme, and on a sample of them 38% carry a mark column.
+
+    Splitting those out on the layout instead was tried and did not work: it
+    moved `papers with a marking scheme` not at all, because finding the
+    boundary is not the binding constraint. `parse_scheme` cannot read these
+    layouts once it has them — the French papers print a four-column
+    Questions/Réponses/Critères/Note table where it expects three, and the
+    maths papers label rows `A3b` where the paper labels parts `3.2`, so every
+    row is read and then matched to nothing. Fix the reader first; the split is
+    downstream of it.
+
+    The mark column is still computed, and reported on, so the size of this gap
+    is visible in every run rather than being inferred from a suspicious zero.
     """
     first_exercise = None
     for i, text in enumerate(pages):
@@ -256,6 +305,34 @@ def split_paper_and_scheme(pages: list) -> tuple:
             there = EXERCISE.search(pages[first_exercise])
             if here and there and exercise_index(here) == 1 and exercise_index(there) == 1:
                 return pages[:i], pages[i:]
+
+    # Nothing said so. Ask the layout instead of the wording: cut at the first
+    # page in the BACK HALF of the file that carries a mark column.
+    #
+    # A contiguous trailing run of mark-column pages was tried here instead, and
+    # reverted. The argument for it was good — a scheme ends where the file ends,
+    # so anchoring on the end is what the layout guarantees, and a run of pages
+    # is harder to counterfeit than a single page — and on a 250-paper sample it
+    # measured better. On the full corpus it measured worse on both counts that
+    # matter:
+    #
+    #                                  back half   trailing run
+    #     statements like a scheme           523            588
+    #     answers attached to a part        1835           1815
+    #
+    # More contaminated statements AND fewer answers recovered. The sample had
+    # flattered it because the rule fires rarely and the papers it fires wrongly
+    # on are not evenly spread: a 250-paper slice caught the papers it helped and
+    # almost none of the papers it hurt. Any rule this narrow has to be judged on
+    # a full run — a sample can only fail to find its failures.
+    #
+    # Refused when the boundary would swallow the first exercise: a boundary
+    # above the questions is not a boundary, and losing the paper costs more
+    # than losing its barème.
+    half = len(pages) // 2
+    for i in range(half, len(pages)):
+        if scheme_signal(pages[i]) >= MARK_COLUMN and i > (first_exercise or 0) + 1:
+            return pages[:i], pages[i:]
 
     return pages, []
 
@@ -381,11 +458,65 @@ def without_scheme(statement: str) -> str:
     Only cut where something is left to keep. A statement that is scheme from
     its first line is not an exercise at all, and is better handed back whole so
     the length check downstream discards it, than truncated to nothing here.
+
+    Cutting on the mark column as well was tried and reverted. A maths
+    statement breaks equations onto short numeric lines, so the first "mark
+    cell" lands in the middle of the question: on 250 papers it removed 683
+    sub-questions and 45 answers to recover none. The column is a good enough
+    signal to REPORT on and not good enough to CUT on, and those are different
+    bars.
     """
     hit = SCHEME_HEAD.search(statement)
     if not hit or hit.start() < 40:
         return statement
     return statement[: hit.start()].rstrip()
+
+
+# The block every Lebanese paper opens with: ministry, directorate, examinations
+# department, session, subject, duration, and two blank fields for the
+# candidate's name and number. Fixed wording, and the only part of the preamble
+# that is never the passage.
+LETTERHEAD = re.compile(
+    r"وزارة\s*التربية|المديرية\s*العامة|دائرة\s*الامتحانات|امتحانات\s*شهادة|"
+    r"مسابقة\s*في|المدة\s*:?\s*ساعة|المدة\s*ساعت|الاسم\s*:|الرقم\s*:|"
+    r"ministry\s+of\s+education|general\s+directorate|name\s*:|number\s*:|duration\s*:",
+    re.I,
+)
+
+# Shorter than this and it is a heading, not a text to be examined on.
+PASSAGE_MIN = 400
+
+
+def paper_passage(preamble: str) -> str:
+    """The text printed on the paper for the candidate to work from.
+
+    A comprehension question — "identifiez le référent du pronom « on » dans les
+    deux premiers paragraphes du texte de Lamennais" — is answerable only
+    against a passage that exists on the exam paper and in no chapter of any
+    book. `parse_exercises` starts reading at the first exercise header, so on
+    a French or Arabic literature paper everything before that header is
+    dropped, and the passage is exactly what is before that header: 3,580
+    characters of it on gs/2005 1/gs french 1.pdf alone.
+
+    Retrieval has been refusing these and asking the student to paste the text
+    in. It was in the file the whole time.
+
+    What is cut is the letterhead and nothing else. Cutting more — the line
+    number gutter, the vocabulary glosses printed under the extract — would be
+    guessing at layout, and a passage with some furniture around it still
+    answers the question, where a passage trimmed into is a wrong answer.
+    """
+    lines = preamble.splitlines()
+    last_header = -1
+    for i, line in enumerate(lines):
+        if LETTERHEAD.search(line):
+            last_header = i
+    body = chr(10).join(lines[last_header + 1:]).strip()
+
+    # Letters, not characters: a page of line numbers and whitespace is not a
+    # passage however long it runs.
+    letters = sum(1 for ch in body if ch.isalpha())
+    return body if letters >= PASSAGE_MIN else ""
 
 
 def parse_exercises(text: str) -> list:
@@ -454,6 +585,48 @@ def subject_answers(text: str) -> dict:
             continue
         blocks[header_index(m, "subject", n + 1)] = body
     return blocks
+
+
+def scheme_mark_column(text: str) -> dict:
+    """{exercise number: the marks down its scheme's right-hand column, in order}
+
+    The other half of a marking scheme, and the half that is recoverable.
+
+    `parse_scheme` wants a label, an answer and a mark on one line, which is how
+    a Question/Answer/Note table extracts when it extracts well. On 599 papers
+    it does not: the label sits on its own line, the answer wraps over five, and
+    the marks come out as a column of bare numbers detached from the rows they
+    belong to. Those rows cannot be matched to a part by label, because the
+    scheme labels them `A3b` where the paper labels them `3.2`.
+
+    Matching them by POSITION would be guesswork, and the wrong kind: an answer
+    key attached to the wrong sub-question is a confident wrong answer shown to
+    a student, which is the failure this whole file is arranged to avoid. So the
+    answers are left alone.
+
+    The marks are different. A barème is {criterion, points}, the criterion is
+    the paper's own words for that part — already correct, already stored — and
+    only the points are missing. Aligning those by position risks a part being
+    marked out of 2 when it was out of 1.5, which is worth having against not
+    being able to mark the question at all. And it is checkable: the exercise
+    header states its own total, so an alignment whose marks do not add up to it
+    is rejected. See `read` for that gate.
+    """
+    headers = list(EXERCISE.finditer(text))
+    if not headers:
+        blocks = [(0, text)]
+    else:
+        blocks = []
+        for n, m in enumerate(headers):
+            end = headers[n + 1].start() if n + 1 < len(headers) else len(text)
+            blocks.append((exercise_index(m) or (n + 1), text[m.end():end]))
+
+    out = {}
+    for index, block in blocks:
+        marks = [to_number(cell.strip()) for cell in MARK_VALUE.findall(block)]
+        # A mark of zero is a page number or a stray digit, not an award.
+        out[index] = [m for m in marks if m > 0]
+    return out
 
 
 def parse_scheme(text: str) -> dict:
@@ -527,6 +700,96 @@ def stated_page_count(text: str) -> int | None:
     return WORDS.get(raw.lower()) or int(to_number(raw)) or None
 
 
+# The scheme read from the page's own ruling. Optional: a deployment without
+# pdfplumber loses this source and keeps every other one.
+try:
+    from scheme_table import scheme_from_tables, group_to_parts
+except ImportError:  # pragma: no cover
+    scheme_from_tables = None
+
+
+# What a scheme's total may legitimately be, as a multiple of what the paper
+# says it is worth. 1 is the obvious one; 2 is real and common — gs/2005 1
+# prints 2.5/2/2/3/3.5/7 on the paper and marks 5/4/4/6/7/14, totalling 40 for
+# a paper out of 20. Anything else means the two readings do not describe the
+# same paper, and the marks are refused rather than rescaled by a number nobody
+# recognises.
+SCALES = (1.0, 2.0)
+
+# Set from --no-tables. Module-level so `read()` stays a one-argument function
+# that `--show` and the batch loop can both call.
+NO_TABLES = False
+
+# Counted across the run and printed, so the size of what this refuses is
+# visible instead of being inferred from a number that did not move.
+TABLE_STATS = Counter()
+
+
+def table_marks(pdf: Path, exercises: list) -> dict:
+    """{exercise: {part label: marks}} from the ruled scheme table, or {}.
+
+    Three things stand between a recovered table and a stored mark, and all
+    three are checks the paper performs on itself rather than judgements made
+    here.
+
+    ATTRIBUTION. Only 6.7% of papers with a table name the exercise each one
+    marks ("Q 1"); the rest are numbered by the order they appear. That is an
+    assumption, so it is only accepted when the number of scheme tables equals
+    the number of exercises parsed off the question paper.
+
+    SCALE. The scheme is often not on the paper's scale — see SCALES. The ratio
+    is measured per exercise and every exercise must agree, which is the real
+    check: a misread row changes one exercise's sum and breaks the agreement.
+    gs/2018 2/math_fr.pdf comes back [2.0, 2.4] and is refused whole.
+
+    GRANULARITY. A scheme writes 2a, 2b, 2c where the paper has one part
+    numbered 2, so rows are folded onto the paper's numbering and their marks
+    summed. See `group_to_parts`.
+
+    Answers are deliberately not returned. They are the half that cannot be
+    made safe by a sum check.
+    """
+    if scheme_from_tables is None or not exercises:
+        return {}
+    read = scheme_from_tables(pdf)
+    tables = read["tables"]
+    if not tables:
+        return {}
+    TABLE_STATS["papers with a scheme table"] += 1
+
+    if read["attribution"] == "positional" and tables != len(exercises):
+        TABLE_STATS["refused: table count != exercise count"] += 1
+        return {}
+
+    grouped = {ex: group_to_parts(rows) for ex, rows in read["by_exercise"].items()}
+    stated = {e["index"]: e["marks"] for e in exercises}
+
+    ratios = []
+    for index, parts in grouped.items():
+        total = sum(p["marks"] for p in parts.values() if p["marks"] is not None)
+        want = stated.get(index) or 0
+        if total > 0 and want > 0:
+            ratios.append(total / want)
+    if not ratios:
+        TABLE_STATS["refused: paper states no exercise totals"] += 1
+        return {}
+    if max(ratios) - min(ratios) > 0.02:
+        TABLE_STATS["refused: exercises disagree on the scale"] += 1
+        return {}
+
+    scale = next((s for s in SCALES if abs(ratios[0] - s) < 0.02), None)
+    if scale is None:
+        TABLE_STATS[f"refused: unrecognised scale x{ratios[0]:.2f}"] += 1
+        return {}
+    TABLE_STATS[f"accepted at scale x{scale:g}"] += 1
+
+    return {
+        index: {label: part["marks"] / scale
+                for label, part in parts.items() if part["marks"] is not None}
+        for index, parts in grouped.items()
+    }
+
+
 def read(pdf: Path) -> dict | None:
     try:
         reader = PdfReader(pdf)
@@ -562,6 +825,12 @@ def read(pdf: Path) -> dict | None:
     if not exercises:
         return {"path": str(pdf.relative_to(EXAMS)), "error": "no exercise headers"}
 
+    # Everything before the first exercise header. On a science paper this is
+    # the letterhead and nothing else; on a comprehension paper it is the text
+    # the whole exam is about. `paper_passage` tells them apart by length.
+    headers, _ = find_headers(paper)
+    passage = paper_passage(paper[: headers[0].start()]) if headers else ""
+
     # A Lebanese paper is marked out of twenty. One offering a choice prints more
     # — three subjects worth twenty each — but nothing prints a hundred, and no
     # paper sets sixteen exercises. A total that far out means the headers matched
@@ -578,7 +847,13 @@ def read(pdf: Path) -> dict | None:
         }
 
     scheme = parse_scheme(scheme_text) if scheme_text else {}
+    mark_columns = scheme_mark_column(scheme_text) if scheme_text else {}
     essays = subject_answers(scheme_text) if scheme_text else {}
+    # Read from the page's ruling rather than from its flattened text. Read for
+    # the whole file, not for `scheme_pages`: the geometric reader finds the
+    # scheme by the shape of its table, so it does not depend on the text-based
+    # split having found the boundary — which for these papers it often has not.
+    from_tables = {} if NO_TABLES else table_marks(pdf, exercises)
     for ex in exercises:
         # An essay paper's answer belongs to the exercise, not to a part it does
         # not have. Carried on a part with no label because that is the shape
@@ -597,6 +872,36 @@ def read(pdf: Path) -> dict | None:
                 part["answer"] = found["answer"]
                 part["marks"] = found["marks"]
 
+        # The table's marks, attached only where the label-matched scheme left
+        # a part without one. Ordered this way deliberately: a mark that came
+        # with its own answer text is the better evidence, and this must be
+        # able to fill gaps without ever overwriting one.
+        for part in ex["parts"]:
+            if part.get("marks") is None or "marks" not in part:
+                mark = from_tables.get(ex["index"], {}).get(part["label"])
+                if mark is not None:
+                    part["marks"] = mark
+
+        # The barème, from a scheme whose rows could not be matched by label.
+        #
+        # Only when no part got marks any other way, only when there is exactly
+        # one mark per part, and only when those marks add up to the total the
+        # exercise header states about itself. That last condition is what makes
+        # this a reading rather than a guess: a column of numbers that happens
+        # to have the right length will not also happen to sum to the right
+        # total, and if it does, the alignment is right.
+        column = mark_columns.get(ex["index"], [])
+        stated = ex["marks"]
+        if (
+            ex["parts"]
+            and not any("marks" in q for q in ex["parts"])
+            and len(column) == len(ex["parts"])
+            and stated > 0
+            and abs(sum(column) - stated) < 0.01
+        ):
+            for part, mark in zip(ex["parts"], column):
+                part["marks"] = mark
+
     rel = pdf.relative_to(EXAMS)
     total = sum(e["marks"] for e in exercises)
     return {
@@ -610,8 +915,21 @@ def read(pdf: Path) -> dict | None:
         "schemePages": len(scheme_pages),
         "statedPages": stated_page_count(paper[:1200]),
         "language": language_of(paper),
+        "passage": passage,
         "totalMarks": total,
         "answersFound": sum(1 for e in exercises for p in e["parts"] if "answer" in p),
+        "marksFound": sum(1 for e in exercises for p in e["parts"] if "marks" in p),
+        # Evidence that this file HOLDS a scheme, independent of whether we
+        # managed to read one. The gap between these two is the thing that was
+        # invisible: a paper can carry a mark column on three pages and still
+        # come out of here with no barème and nothing saying so.
+        "schemeSuspected": any(scheme_signal(page) >= MARK_COLUMN for page in pages[1:]),
+        # An exercise whose statement is itself a marking scheme. Reported
+        # rather than quietly stored: a student practising one of these is
+        # shown the correction key as the question.
+        "schemeInStatement": sum(
+            1 for e in exercises if scheme_signal(e["statement"]) >= MARK_COLUMN
+        ),
         "exercises": exercises,
     }
 
@@ -620,7 +938,15 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--limit", type=int, default=0)
     ap.add_argument("--show", default=None)
+    # Where the run lands. Defaults to the file the loader reads; comparison
+    # runs pass a scratch path, because a --limit run written to corpus/exams.json
+    # and then loaded would retire every question from the papers it did not see.
+    ap.add_argument("--out", default=None, type=Path)
+    ap.add_argument("--no-tables", action="store_true",
+                    help="skip the geometric scheme reader (about 3x faster)")
     args = ap.parse_args()
+    global NO_TABLES
+    NO_TABLES = args.no_tables
 
     if args.show:
         result = read(EXAMS / args.show)
@@ -663,7 +989,9 @@ def main() -> None:
             results.append(row)
 
     good = [r for r in results if "error" not in r]
-    OUT.write_text(json.dumps(good, ensure_ascii=False), encoding="utf-8")
+    out_path = args.out or OUT
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text(json.dumps(good, ensure_ascii=False), encoding="utf-8")
 
     errors = Counter(r["error"] for r in results if "error" in r)
     marks = [r["totalMarks"] for r in good]
@@ -680,8 +1008,50 @@ def main() -> None:
     print(f"  papers whose marks total 18-22 {plausible} of {len(good)}")
     print(f"  papers with a marking scheme   {with_answers}")
     print(f"  answers attached to a part     {sum(r['answersFound'] for r in good)}")
+    print(f"  marks attached to a part       {sum(r['marksFound'] for r in good)}")
+    with_passage = [r for r in good if r.get("passage")]
+    print(f"  papers carrying a passage      {len(with_passage)}"
+          f"   ({sum(len(r['passage']) for r in with_passage) // max(1, len(with_passage))} chars each on average)")
+
+
+    """
+    What was left on the floor, said out loud.
+
+    Every number above counts something that worked. A pipeline that only
+    reports its successes will report them just as cheerfully on the day it
+    starts dropping half its input, which is what happened here: 859 papers
+    came out with no marking scheme and the summary called that a clean run,
+    because "no scheme found" and "no scheme present" printed identically.
+    They are not the same claim and only one of them was true.
+
+    So the two gaps get their own lines, and they are gaps by construction:
+    each counts papers where the evidence says there is something to read and
+    we did not read it. A number that will not go to zero — some schemes are
+    scanned images with no text layer — but one that must never quietly grow.
+    """
+    missed = [r for r in good if r["schemeSuspected"] and not r["answersFound"]]
+    contaminated = sum(r["schemeInStatement"] for r in good)
     print()
-    print(f"-> {OUT}")
+    print("  NOT RECOVERED — evidence of a scheme we failed to read:")
+    print(f"    papers carrying a mark column, no answers extracted  {len(missed)}")
+    print(f"    statements that still look like a marking scheme     {contaminated}")
+    if missed:
+        by_subject = Counter()
+        for r in missed:
+            name = r["file"].lower()
+            by_subject[next((t for t in (
+                "math", "riyad", "phys", "fizi", "chem", "chim", "kimi", "bio", "svt",
+                "ahya", "philo", "falsafe", "geo", "socio", "ejtem", "econ", "tarbe",
+                "tarikh", "tarekh", "hist", "eng", "fr", "ar") if t in name), "other")] += 1
+        print("    worst: " + ", ".join(f"{t} {n}" for t, n in by_subject.most_common(5)))
+    print()
+    if TABLE_STATS:
+        print()
+        print("  the scheme's own table, read geometrically:")
+        for reason, count in TABLE_STATS.most_common():
+            print(f"    {reason:44} {count}")
+
+    print(f"-> {out_path}")
 
 
 if __name__ == "__main__":
