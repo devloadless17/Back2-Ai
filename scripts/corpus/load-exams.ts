@@ -66,6 +66,28 @@ const SUBJECTS: { match: RegExp; name: Record<string, string> }[] = [
 ];
 
 /**
+ * A Brevet paper, which this product does not teach and must never file.
+ *
+ * CRDP publishes the Brevet — الشهادة المتوسطة, sat at the end of grade 9 —
+ * from the same index page as the Baccalaureate, and `fetch_crdp.py` pulled 54
+ * of them into corpus/crdp-inbox before it learned to filter on the
+ * certificate. None has ever been loaded. The risk is not that the loader
+ * mis-parses them: it is that they parse perfectly. A Brevet mechanics question
+ * is a well-formed physics question, and filed against a Baccalaureate chapter
+ * it becomes exam practice three years below the syllabus, indistinguishable in
+ * the app from the real thing.
+ *
+ * So this is a guard against one careless bulk move of that folder, and it sits
+ * in the loader rather than only in the fetcher because the fetcher protects
+ * downloads while this protects the database. It matches the filename, which is
+ * all the loader has: by the time a paper reaches here its CRDP sidecar — the
+ * title that actually names the certificate — is long out of scope. Those two
+ * signals were checked against each other on all 248 papers held and agreed on
+ * every one.
+ */
+const BREVET = /(?:^|[/\\_-])BR_|brevet/i;
+
+/**
  * Which language a paper is set in.
  *
  * The filename first, because when it says, it is authoritative. Then the paper
@@ -94,6 +116,8 @@ type Exam = {
   answersFound: number;
   /** Read off the paper's own text when its name does not say. */
   language?: string;
+  /** The text printed on the paper, for the papers that examine one. */
+  passage?: string;
   exercises: Exercise[];
 };
 
@@ -200,8 +224,24 @@ async function main() {
   let adopted = 0;
   let withSolution = 0;
   let withBareme = 0;
+  let withPassage = 0;
+
+  /*
+   * What this run produced, for the reconciliation at the end.
+   *
+   * A ref is an exercise's identity. A cycle is a paper's. Both are needed:
+   * absence from `seenRefs` only means "not produced this run", which is
+   * indistinguishable from "its paper was skipped this run" unless the paper is
+   * known to have been read.
+   */
+  const seenRefs = new Set<string>();
+  const touchedCycles = new Set<string>();
 
   for (const exam of exams) {
+    if (BREVET.test(exam.file) || BREVET.test(exam.path)) {
+      note('Brevet (grade 9), not the Baccalaureate');
+      continue;
+    }
     const subject = SUBJECTS.find((s) => s.match.test(exam.file));
     if (!subject) {
       note('subject not in the table (history, Arabic literature, …)');
@@ -270,11 +310,24 @@ async function main() {
         select: { id: true },
       });
       cycleId = cycle.id;
+      touchedCycles.add(cycle.id);
       cycles += 1;
     }
 
     for (const [order, exercise] of exam.exercises.entries()) {
       const statement = clean([exercise.title, exercise.statement].filter(Boolean).join('\n'));
+      /*
+       * The paper's own text, carried onto every question from that paper.
+       *
+       * Per question rather than per paper because that is how it gets read: a
+       * student is looking at one question, and the tutor needs the extract
+       * that question is about without a join through a table that does not
+       * exist. It is the same text on each, and a comprehension paper sets four
+       * or five questions, so the duplication is small and the alternative is a
+       * second table for no gain.
+       */
+      const passage = exam.passage?.trim() ? clean(exam.passage).slice(0, 12000) : null;
+
       if (statement.length < 80) {
         note('exercise statement too short to be usable');
         continue;
@@ -289,6 +342,7 @@ async function main() {
       questions += 1;
       if (solution) withSolution += 1;
       if (bareme.length) withBareme += 1;
+      if (passage) withPassage += 1;
       // Counted before the dry-run exit, so --dry reports what it would write
       // rather than reporting zero.
       if (dry) continue;
@@ -309,6 +363,7 @@ async function main() {
       const ref = createHash('sha256')
         .update(`${subjectRow.id}:${exam.sha256}:${exercise.index}:${order}`)
         .digest('hex');
+      seenRefs.add(ref);
 
       /*
        * Checked before the embedding below, not after it. Finding the chapter
@@ -318,9 +373,16 @@ async function main() {
        * again to discover there was nothing to write.
        */
       const known = await db.$queryRaw<
-        { id: string; content_text: string; official_solution: string | null; bareme: unknown }[]
+        {
+          id: string;
+          content_text: string;
+          official_solution: string | null;
+          bareme: unknown;
+          source_passage: string | null;
+        }[]
       >`
-        SELECT id, content_text, official_solution, bareme FROM questions WHERE source_ref = ${ref} LIMIT 1
+        SELECT id, content_text, official_solution, bareme, source_passage
+        FROM questions WHERE source_ref = ${ref} LIMIT 1
       `;
       if (known.length) {
         /*
@@ -338,13 +400,15 @@ async function main() {
         if (
           known[0]!.content_text !== statement ||
           (known[0]!.official_solution ?? null) !== solution ||
-          priorBareme !== nextBareme
+          priorBareme !== nextBareme ||
+          (known[0]!.source_passage ?? null) !== passage
         ) {
           await db.$executeRaw`
             UPDATE questions
             SET content_text = ${statement},
                 official_solution = ${solution},
                 bareme = ${bareme.length ? JSON.stringify(bareme) : null}::jsonb,
+                source_passage = ${passage},
                 embedding = NULL
             WHERE id = ${known[0]!.id}::uuid
           `;
@@ -403,7 +467,16 @@ async function main() {
           verifiedStatus: 'unverified',
         },
       });
-      await db.$executeRaw`UPDATE questions SET source_ref = ${ref} WHERE id = ${created.id}::uuid`;
+      /*
+       * Written by raw SQL beside source_ref rather than through the generated
+       * client. Both are columns the client's types can lag behind — `prisma
+       * generate` cannot run while a dev server holds the query engine — and a
+       * corpus load must not depend on whether somebody restarted it.
+       */
+      await db.$executeRaw`
+        UPDATE questions SET source_ref = ${ref}, source_passage = ${passage}
+        WHERE id = ${created.id}::uuid
+      `;
       written += 1;
     }
   }
@@ -419,12 +492,78 @@ async function main() {
   }
   console.log(`  with an official solution ${withSolution}`);
   console.log(`  with a barème             ${withBareme}`);
+  console.log(`  with the paper's passage  ${withPassage}`);
+  /*
+   * Rows the extractor has stopped producing.
+   *
+   * Re-extraction gets better, and getting better means some exercises are
+   * correctly no longer produced — an "exercise" that was really a marking
+   * scheme, a statement that was mostly answer key. This loader only ever
+   * inserts and updates, so those rows sat on in the database, retrievable and
+   * answerable, while the file they came from had been cleaned. Fixing
+   * `exams.json` and leaving the database is fixing it for nobody.
+   *
+   * Scoped to cycles this run actually read. A ref missing from a partial run
+   * means nothing, so a limited or dry run does not reconcile at all — the
+   * alternative is a `--limit 20` retiring the other 5,000 questions.
+   *
+   * Nothing is deleted, following `retire-superseded`: the rows are marked
+   * `rejected`, which retrieval, practice and exam composition already skip, so
+   * no attempt or simulation loses the row it points at and the change is one
+   * UPDATE from being undone.
+   */
+  if (!dry && !limit && touchedCycles.size > 0) {
+    const stale = await db.question.findMany({
+      where: {
+        sourceType: 'past_exam',
+        sourceExamId: { in: [...touchedCycles] },
+        sourceRef: { not: null },
+        verifiedStatus: { not: 'rejected' },
+      },
+      select: { id: true, sourceRef: true, contentText: true },
+    });
+    const gone = stale.filter((q) => q.sourceRef && !seenRefs.has(q.sourceRef));
+
+    if (gone.length > 0) {
+      await db.question.updateMany({
+        where: { id: { in: gone.map((q) => q.id) } },
+        data: { verifiedStatus: 'rejected' },
+      });
+    }
+    console.log('');
+    console.log(`  retired, no longer extracted ${gone.length}`);
+    for (const question of gone.slice(0, 3)) {
+      console.log(`    ${question.contentText.replace(/\s+/g, ' ').slice(0, 70)}`);
+    }
+  }
+
   if (skipped.size) {
     console.log('');
     console.log('  skipped:');
     for (const [reason, count] of [...skipped].sort((a, b) => b[1] - a[1])) {
       console.log(`    ${String(count).padStart(5)}  ${reason}`);
     }
+  }
+
+  /*
+   * A corrected question has its embedding cleared, because the old vector
+   * describes text that no longer exists. Until it is recomputed the row is
+   * invisible to every search in the system, and nothing anywhere says so —
+   * which is how a run that improved 1,067 questions also removed all of them
+   * from retrieval, and how LS philosophy came to hold 78 barèmes that the
+   * essay path could not find one of.
+   *
+   * `load-chunks.ts` prints this for the same reason. Both loaders write rows
+   * that are not searchable yet, and both should say what the next step is.
+   */
+  if (!dry) {
+    const [pending] = await db.$queryRaw<{ count: bigint }[]>`
+      SELECT count(*) AS count FROM questions WHERE embedding IS NULL
+    `;
+    const waiting = Number(pending?.count ?? 0);
+    console.log('');
+    console.log(`  ${waiting} question(s) await an embedding and cannot be retrieved until they have one.`);
+    if (waiting > 0) console.log('  Next:  npm run ingest -- --embed-missing');
   }
 }
 

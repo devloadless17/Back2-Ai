@@ -55,6 +55,23 @@ ROW = re.compile(
 SELECT = re.compile(r'name="{name}".*?</select>', re.S)
 OPTION = re.compile(r'value="([^"]*)"[^>]*>([^<]{1,90})')
 
+# CRDP publishes two certificates from the same index page: the Baccalaureate,
+# which is this product's whole subject, and the Brevet — الشهادة المتوسطة, sat
+# at the end of grade 9. Nothing here wants the Brevet. Its papers are three
+# years below the syllabus the tutor teaches, so a Brevet question filed against
+# a Bac chapter is off-syllabus material shown to a student as exam practice.
+#
+# 54 of them were downloaded before this filter existed. None was ever loaded —
+# they sat in the inbox — but the only thing standing between them and the
+# database was that nobody had bulk-moved the folder yet.
+#
+# Matched on the CERTIFICATE NAME IN THE TITLE, not on the BR_ filename prefix.
+# The filename is CRDP's convention and could change; the title is the document
+# describing itself. On the 248 papers held when this was written the two agreed
+# exactly — 54 by name, the same 54 by title, no disagreement either way — which
+# is what makes the title safe to rely on alone.
+BREVET = re.compile(r"الشهادة\s+المتوسطة|brevet", re.I)
+
 
 def fetch(url: str, tries: int = 3) -> str:
     for attempt in range(tries):
@@ -201,11 +218,14 @@ def main() -> None:
         seen = known_hashes()
         print(f"{len(seen)} papers already in the corpus")
 
-        new = duplicate = failed = 0
+        new = duplicate = failed = brevet = 0
         for row in manifest:
             if args.limit and new >= args.limit:
                 break
             name = row["url"].rsplit("/", 1)[-1]
+            if BREVET.search(row["title"]):
+                brevet += 1
+                continue
             target = INBOX / name
             if target.exists():
                 continue
@@ -245,6 +265,10 @@ def main() -> None:
 
         print()
         print(f"{new} new, {duplicate} already held, {failed} failed -> {INBOX}")
+        # Said out loud rather than filtered silently: a reader who expected
+        # those papers should see that they were refused, and why.
+        if brevet:
+            print(f"{brevet} skipped: Brevet (grade 9), not the Baccalaureate")
         return
 
     ap.print_help()
