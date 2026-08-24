@@ -148,6 +148,15 @@ enum GroundingTier {
   personal_reference
   ungrounded_refused
 
+  /// The message was not a curriculum question, so no grounding was owed.
+  ///
+  /// "hello" used to be answered with "This isn't covered by the material
+  /// available for your track" — a claim about the syllabus, made about a
+  /// message that asked nothing about the syllabus. This tier keeps that lane
+  /// separate so the UI can stay quiet instead of badging a greeting as
+  /// off-programme, and so refusal rates measure refusals rather than hellos.
+  conversational
+
   @@map("grounding_tier")
 }
 
@@ -504,6 +513,15 @@ model Question {
   /// Folded copy of the statement, maintained by Postgres, for the term index.
   searchText            String?        @default(dbgenerated()) @map("search_text")
   contentImages         String[]       @map("content_images")
+  /// The text printed on the exam paper that this question is asked about.
+  ///
+  /// A comprehension question — "identifiez le référent du pronom « on » dans
+  /// les deux premiers paragraphes" — has its answer in a passage that exists
+  /// on the paper and in no chapter of any book. Without this the tutor can
+  /// only ask the student to type the extract in. It belongs to the question
+  /// rather than to the chapter because that is where it is true: the same
+  /// chapter serves a hundred papers with a hundred different extracts.
+  sourcePassage         String?        @map("source_passage")
   /// ADDITION — question_type 'mcq' is in the plan but the plan stores nowhere
   /// to put the choices. Shape: [{ id, text, latex? }]. Null for open/problem.
   options               Json?
@@ -689,7 +707,9 @@ model ExamAnswer {
   /// is told to re-shoot rather than being silently graded on garbage text.
   ocrConsistencyPassed     Boolean?       @map("ocr_consistency_passed")
   ocrConsistencyNotes      String?        @map("ocr_consistency_notes")
-  /// [{ criterion, points_awarded, points_possible, justification }]
+  /// [{ criterion, points_awarded, points_possible, justification, explanation }]
+  /// `explanation` was added later; rows written before it are read with an
+  /// empty one rather than discarded. See `baremeResultItemSchema`.
   baremeResult             Json?          @map("bareme_result")
   totalScore               Decimal?       @map("total_score") @db.Decimal(5, 2)
   maxScore                 Decimal?       @map("max_score") @db.Decimal(5, 2)

@@ -5,6 +5,8 @@ import type { GroundingTier } from '@prisma/client';
 import { ai } from '@/lib/ai';
 import { db } from '@/lib/db';
 import type { Locale } from '@/lib/i18n/config';
+import { classifyChatIntent, type IntentClassification } from '@/lib/chat-intent';
+import type { QuestionClassification } from '@/lib/question-kind';
 import { retrieveGrounding, type GroundingResult, type RetrievalSource } from '@/lib/retrieval';
 import { verifyAgainstContext } from '@/lib/verification';
 
@@ -51,6 +53,37 @@ export const REFUSAL_TEXT: Record<Locale, string> = {
     'حاول إعادة صياغة سؤالك، أو اسأل أستاذك.',
 };
 
+/**
+ * Said when a greeting arrives and the model is unreachable.
+ *
+ * Deliberately content-free: it must not claim anything about the syllabus,
+ * because on this path nothing was checked against it.
+ */
+const CONVERSATIONAL_FALLBACK: Record<Locale, string> = {
+  fr: 'Bonjour ! Pose-moi une question sur ton programme et je la cherche dans tes manuels.',
+  en: 'Hello! Ask me anything from your programme and I will look it up in your course material.',
+  ar: 'أهلاً! اسألني عن أي شيء في برنامجك وسأبحث عنه في موادك الدراسية.',
+};
+
+/**
+ * The subjects a refusal is being made relative to, named.
+ *
+ * Uses the student's real enrolled subjects, in their own language's list
+ * punctuation. Arabic separates with a wāw rather than a comma.
+ */
+function scopeNote(subjects: string[], locale: Locale): string {
+  // Arabic separates a list with a wāw-comma; French puts a space before a
+  // colon and the other two do not. Getting this wrong is small and looks like
+  // the product was not written for the reader.
+  const list = locale === 'ar' ? subjects.join('، ') : subjects.join(', ');
+  const lead: Record<Locale, string> = {
+    fr: 'Pour ta filière, je couvre : ',
+    en: 'For your track, I cover: ',
+    ar: 'أغطّي لفرعك: ',
+  };
+  return `${lead[locale]}${list}.`;
+}
+
 const RETRACTION_TEXT: Record<Locale, string> = {
   fr:
     "J'ai commencé une réponse que je n'ai pas pu vérifier par rapport au programme. Je préfère la retirer " +
@@ -63,7 +96,83 @@ const RETRACTION_TEXT: Record<Locale, string> = {
     'أعد صياغة سؤالك، أو اسأل أستاذك.',
 };
 
-function systemPrompt(tier: GroundingTier, locale: Locale): string {
+/**
+ * What the student is told when the question needs a passage we do not have.
+ *
+ * A comprehension question — "quel est le mot qui, par ses répétitions,
+ * souligne le thème ?" — is answerable only against a text printed on the exam
+ * paper, and the generic refusal is wrong about why: the topic is on the
+ * syllabus, the passage is simply not in front of us. Telling a student their
+ * own French paper is off-programme would be a lie, and one they would believe.
+ */
+export const NEEDS_PASSAGE_TEXT: Record<Locale, string> = {
+  fr:
+    "Cette question porte sur un texte imprimé sur ton sujet d'examen, et je ne l'ai pas sous les yeux. " +
+    'Copie le passage ici, ou prends-le en photo, et je réponds avec toi.',
+  en:
+    'This question is about a text printed on your exam paper, and I do not have it in front of me. ' +
+    'Paste the passage here, or photograph it, and we will work through it together.',
+  ar:
+    'هذا السؤال يتعلّق بنصّ مطبوع على ورقة امتحانك، وهو ليس أمامي. ' +
+    'انسخ المقطع هنا أو صوّره، ولنعمل عليه معاً.',
+};
+
+/**
+ * The answer side of routing by question type — and the part that was missing.
+ *
+ * Retrieving the right material is half of it. The other half is that Lebanese
+ * markers award marks per step and the barème states the steps, so a correct
+ * essay written as an undifferentiated flow of prose loses most of the marks it
+ * has earned. Handing over a marking scheme without telling the model to write
+ * against it just adds text to the prompt.
+ */
+const PER_KIND: Record<QuestionClassification['kind'], string[]> = {
+  concept: [],
+  comprehension: [
+    '',
+    'This is a comprehension question: it is asked about a specific text, and that text — not the',
+    'syllabus — is where the answer is. Work only from the passage supplied. Quote the line you are',
+    'drawing on before you explain it, the way the marker expects the candidate to. If the passage does',
+    'not settle the question, say so instead of reasoning from what the topic usually means.',
+  ],
+  essay: [
+    '',
+    'This is an essay prompt, and the material includes the official barème — how a Lebanese examiner',
+    'awards the marks for a question of this kind.',
+    '',
+    'Write against that barème:',
+    '- Follow the structure it names, section by section, in its order. Where it asks for an',
+    '  introduction, a stated problematic, a discussion and a conclusion, the answer has all four and',
+    '  they are recognisable as such.',
+    '- Say what each part of the structure is for and how many marks it carries, so the student can',
+    '  budget their time in the exam.',
+    '- Teach the shape, not one year\'s argument. The scheme shows how a marked answer was built; the',
+    '  student has to build their own on a different quotation.',
+    '- The content of the essay still comes only from the material given. The barème says what shape',
+    '  the argument takes, not what is true.',
+  ],
+};
+
+/**
+ * Added when the question points at something that was not supplied.
+ *
+ * "Expliquez le schéma ci-dessous" with no diagram attached is answerable in
+ * the sense that a fluent paragraph can be produced, and unanswerable in the
+ * sense that matters. Saying so is the difference between a tutor and a
+ * plausible-text generator.
+ */
+const UNRESOLVED_REFERENCE_PROMPT = [
+  '',
+  'The question refers to something that was not supplied — a diagram, a table, a document, "the',
+  'following", "ci-dessous". Say plainly that you cannot see it, answer whatever part of the question',
+  'stands without it, and ask for it. Do not guess what it showed.',
+].join('\n');
+
+function systemPrompt(
+  tier: GroundingTier,
+  classification: QuestionClassification,
+  locale: Locale,
+): string {
   const common = [
     'You are a tutor for the Lebanese Baccalaureate. You are talking to a student preparing for a national exam.',
     '',
@@ -103,9 +212,30 @@ function systemPrompt(tier: GroundingTier, locale: Locale): string {
       'the way the rest of the corpus has.',
     ],
     ungrounded_refused: [],
+    // Never reached: a conversational turn is answered by `conversationalTurn`
+    // before retrieval runs, and never enters the grounded prompt at all. Named
+    // here so the map stays exhaustive and a new tier cannot be added without
+    // deciding what the grounded prompt should say about it.
+    conversational: [],
   };
 
-  return [...common, ...perTier[tier]].join('\n');
+  /*
+   * A pasted passage is filed as tier 3 because that is what it is — material
+   * the student supplied, not material checked against the programme — but the
+   * tier-3 instruction to open by saying "this is based on your own uploaded
+   * material" is wrong about the extract printed on the exam paper in front of
+   * them. The kind block below says the right thing for that case, so the tier
+   * block stands down rather than the two arguing in the same prompt.
+   */
+  const tierBlock =
+    classification.kind === 'comprehension' && tier === 'personal_reference' ? [] : perTier[tier];
+
+  const unresolved =
+    classification.confidence === 'low' && classification.kind === 'concept'
+      ? [UNRESOLVED_REFERENCE_PROMPT]
+      : [];
+
+  return [...common, ...tierBlock, ...PER_KIND[classification.kind], ...unresolved].join('\n');
 }
 
 /**
@@ -140,7 +270,13 @@ export type ChatTurnInput = {
   locale: Locale;
   /** Prior turns in this conversation, oldest first. */
   history: { role: 'user' | 'assistant'; content: string }[];
-  anchorQuestion?: { id: string; contentText: string; officialSolution: string | null } | null;
+  anchorQuestion?: {
+    id: string;
+    contentText: string;
+    officialSolution: string | null;
+    /** The extract printed on the paper, for a question that examines one. */
+    sourcePassage?: string | null;
+  } | null;
   /** The student's own marked attempt at the anchor question, when there is one. */
   anchorAttempt?: AnchorAttempt | null;
 };
@@ -192,6 +328,27 @@ export async function* runChatTurn(input: ChatTurnInput): AsyncGenerator<ChatEve
     data: { updatedAt: new Date() },
   });
 
+  /*
+   * Not every message is a question about the syllabus, and only a question
+   * about the syllabus can be off it.
+   *
+   * This runs before retrieval because the refusal downstream is a claim —
+   * "this isn't covered by the material available for your track" — and that
+   * claim was being made about "hello". A student's first message is usually a
+   * greeting, so the first thing the product ever said to most of them was a
+   * rebuff about their programme.
+   *
+   * The lane is narrow on purpose. `classifyChatIntent` returns 'curriculum'
+   * for anything it is not sure about, including a question that opens with a
+   * greeting, because answering a real question with no material behind it is
+   * a worse failure than greeting somebody twice.
+   */
+  const intent = classifyChatIntent(input.question);
+  if (intent.intent !== 'curriculum') {
+    yield* conversationalTurn(input, intent);
+    return;
+  }
+
   let grounding: GroundingResult;
   try {
     grounding = await retrieveGrounding({
@@ -217,7 +374,39 @@ export async function* runChatTurn(input: ChatTurnInput): AsyncGenerator<ChatEve
 
   // --- Nothing cleared threshold: refuse, and record the refusal ------------
   if (grounding.tier === 'ungrounded_refused') {
-    const text = REFUSAL_TEXT[input.locale];
+    /*
+     * Two refusals, because there are two reasons. "Not on your programme" and
+     * "show me the text you are looking at" send a student to opposite places,
+     * and only the second is true of a comprehension question about an extract
+     * that was never handed over.
+     */
+    /*
+     * And the refusal says what the boundary IS, not only that one was hit.
+     *
+     * "This isn't covered by the material available for your track" tells a
+     * student they are outside something without telling them what, which reads
+     * as a brush-off and leaves them guessing at whether to rephrase or give
+     * up. Their own subject list is the context that turns it into information,
+     * and it is knowable without retrieving anything or claiming anything about
+     * what is inside those subjects.
+     *
+     * Not added to the comprehension refusal: that one is not about scope at
+     * all — the topic IS on the programme and the passage is simply not in
+     * front of us — so listing subjects there would imply the opposite.
+     */
+    let text: string;
+    if (grounding.classification.kind === 'comprehension') {
+      text = NEEDS_PASSAGE_TEXT[input.locale];
+    } else {
+      const subjects = await db.subject.findMany({
+        where: { id: { in: input.subjectIds } },
+        select: { name: true },
+        orderBy: { name: 'asc' },
+      });
+      text =
+        REFUSAL_TEXT[input.locale] +
+        (subjects.length ? `\n\n${scopeNote(subjects.map((s) => s.name), input.locale)}` : '');
+    }
     yield { type: 'delta', text };
 
     const message = await persistAssistantMessage({
@@ -250,7 +439,7 @@ export async function* runChatTurn(input: ChatTurnInput): AsyncGenerator<ChatEve
   try {
     const stream = provider.streamText({
       system:
-        systemPrompt(grounding.tier, input.locale) +
+        systemPrompt(grounding.tier, grounding.classification, input.locale) +
         (input.anchorAttempt ? `\n${CORRECTION_KEY_PROMPT}` : ''),
       messages: [...input.history.slice(-8), { role: 'user', content: userContent }],
       effort: 'high',
@@ -330,6 +519,114 @@ export async function* runChatTurn(input: ChatTurnInput): AsyncGenerator<ChatEve
   });
 
   yield { type: 'retracted', messageId: message.id, reason: RETRACTION_TEXT[input.locale] };
+}
+
+/**
+ * The system prompt for a message that was never a curriculum question.
+ *
+ * The product's guarantee is that it does not invent curriculum content, and
+ * that guarantee has to hold on this path too — where, by construction, there
+ * is no retrieved material to hold it up. So the prompt's job is almost
+ * entirely negative: be a person, be brief, and do not teach anything here.
+ *
+ * A student who says "hello" and gets a warm sentence back will very often ask
+ * a real question next, and that one goes down the grounded path like any
+ * other. Naming the subjects they actually have is the useful part: it is true
+ * without retrieving anything, and it tells them what to ask about.
+ */
+function conversationalPrompt(subjects: string[], locale: Locale): string {
+  return [
+    'You are the study assistant inside a Lebanese Baccalaureate revision app.',
+    `Reply in ${LANGUAGE_NAME[locale]}.`,
+    '',
+    'The student has sent a greeting, a courtesy, or a question about you rather',
+    'than a question about their course. Answer it the way a helpful person would:',
+    'warmly, in one or two short sentences, and then invite the actual question.',
+    '',
+    'HARD LIMITS. On this path you have retrieved no course material, so:',
+    '- Do not explain, define, or teach any subject matter, even if you know it.',
+    '  If the message drifts toward a real question, say you will look it up and',
+    '  ask them to put it to you directly.',
+    '- Do not claim anything is or is not on their programme. You have not checked.',
+    '- Do not invent subjects, chapters, exam dates, or their progress.',
+    '- No headings, no lists, no citations. This is a sentence or two of chat.',
+    '',
+    subjects.length
+      ? `Subjects this student is enrolled in, and the only ones you may name: ${subjects.join(', ')}.`
+      : 'You do not know which subjects this student takes, so do not name any.',
+  ].join('\n');
+}
+
+/**
+ * Answers a greeting or a question about the tutor, and grounds nothing.
+ *
+ * Kept as its own generator rather than a branch inside the main one because
+ * almost nothing in the grounded path applies: there are no sources to cite, no
+ * context to verify an answer against, and no tier to earn. Trying to reuse
+ * that machinery with empty arguments is how a path like this ends up emitting
+ * a confident-looking badge over an ungrounded sentence.
+ */
+async function* conversationalTurn(
+  input: ChatTurnInput,
+  intent: IntentClassification,
+): AsyncGenerator<ChatEvent> {
+  // No sources, and the tier says why — so the UI shows no grounding claim at
+  // all rather than a refusal or a false badge of authority.
+  yield { type: 'meta', tier: 'conversational', sources: [], topSimilarity: null };
+
+  const subjects = await db.subject.findMany({
+    where: { id: { in: input.subjectIds } },
+    select: { name: true },
+  });
+
+  let answer = '';
+  let modelUsed: string | null = null;
+
+  try {
+    const stream = ai().streamText({
+      system: conversationalPrompt(subjects.map((s) => s.name), input.locale),
+      messages: [...input.history.slice(-8), { role: 'user', content: input.question }],
+      // Low: this is a sentence of chat, and the grounded path is where the
+      // thinking budget belongs.
+      effort: 'low',
+    });
+
+    let next = await stream.next();
+    while (!next.done) {
+      answer += next.value;
+      yield { type: 'delta', text: next.value };
+      next = await stream.next();
+    }
+    modelUsed = next.value.modelUsed;
+    if (next.value.refused || answer.trim().length === 0) {
+      throw new Error('The provider returned no usable answer.');
+    }
+  } catch (err) {
+    /*
+     * Falling back rather than erroring. The grounded path is right to show an
+     * error when generation fails, because there is no honest answer to give
+     * without it. Here there is: a fixed greeting says everything this turn was
+     * ever going to say, and "Generation failed" in response to "hello" is a
+     * worse experience than the provider being briefly down deserves.
+     */
+    console.error('[chat] conversational generation failed', err);
+    if (!answer) {
+      answer = CONVERSATIONAL_FALLBACK[input.locale];
+      yield { type: 'delta', text: answer };
+    }
+  }
+
+  const message = await persistAssistantMessage({
+    sessionId: input.sessionId,
+    content: answer,
+    tier: 'conversational',
+    citedSourceIds: [],
+    topSimilarity: null,
+    modelUsed,
+  });
+
+  console.info(`[chat] conversational turn (${intent.signal})`);
+  yield { type: 'done', messageId: message.id, verified: true };
 }
 
 async function persistAssistantMessage(input: {

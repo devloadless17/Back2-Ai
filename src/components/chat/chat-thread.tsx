@@ -8,7 +8,9 @@ import { Textarea } from '@/components/ui/field';
 import { Alert, Badge } from '@/components/ui/feedback';
 import { MathText } from '@/components/ui/math';
 import { Sheet, SheetBody } from '@/components/ui/sheet';
+import { IconCamera, IconClose } from '@/components/shell/icons';
 import { cn } from '@/lib/cn';
+import { ApiRequestError, sendForm } from '@/lib/client/request';
 import { useI18n } from '@/lib/i18n/client';
 
 /**
@@ -25,7 +27,12 @@ import { useI18n } from '@/lib/i18n/client';
  * would be the easy option and the wrong one.
  */
 
-type GroundingTier = 'exact_match' | 'concept_level' | 'personal_reference' | 'ungrounded_refused';
+type GroundingTier =
+  | 'exact_match'
+  | 'concept_level'
+  | 'personal_reference'
+  | 'ungrounded_refused'
+  | 'conversational';
 
 export type ChatMessageView = {
   id: string;
@@ -57,18 +64,71 @@ export function ChatThread({
   const [input, setInput] = useState('');
   const [streaming, setStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Photo attachment state.
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [attaching, setAttaching] = useState(false);
+  const [preview, setPreview] = useState<string | null>(null);
+  const [transcription, setTranscription] = useState<string | null>(null);
+  const [illegible, setIllegible] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
   }, [messages]);
 
+  /*
+   * A photo clipped to the conversation.
+   *
+   * The transcription stays editable before anything is asked, which is the one
+   * part of the old upload page worth carrying over intact: handwritten
+   * mathematics does not survive OCR reliably, and a misread exponent produces a
+   * confident, fluent answer to a question the student never asked — with no
+   * way for them to tell that is what happened. Letting them fix it costs a
+   * couple of lines on screen and removes the failure mode entirely.
+   */
+  async function attach(file: File) {
+    setError(null);
+    setAttaching(true);
+    setPreview(URL.createObjectURL(file));
+
+    const form = new FormData();
+    form.append('file', file);
+    form.append('sessionId', sessionId);
+
+    try {
+      const response = await sendForm<{ extractedText: string; hasIllegibleRegions: boolean }>(
+        '/api/upload',
+        form,
+      );
+      setTranscription(response.extractedText);
+      setIllegible(response.hasIllegibleRegions);
+    } catch (err) {
+      setError(err instanceof ApiRequestError ? t.upload.failed : t.common.unknownError);
+      clearAttachment();
+    } finally {
+      setAttaching(false);
+    }
+  }
+
+  function clearAttachment() {
+    if (preview) URL.revokeObjectURL(preview);
+    setPreview(null);
+    setTranscription(null);
+    setIllegible(false);
+    if (fileRef.current) fileRef.current.value = '';
+  }
+
   async function send(event: FormEvent) {
     event.preventDefault();
-    const question = input.trim();
+    const typed = input.trim();
+    // A photo on its own is a question: "explain this". Requiring words as well
+    // would make the attachment useless on its own.
+    const question = [transcription?.trim(), typed].filter(Boolean).join('\n\n');
     if (!question || streaming || disabled) return;
 
     setInput('');
+    clearAttachment();
     setError(null);
     setStreaming(true);
 
@@ -222,6 +282,45 @@ export function ChatThread({
       <form onSubmit={send} className="sticky bottom-4 space-y-2">
         <Sheet>
           <SheetBody className="space-y-2 p-3">
+            {preview ? (
+              <div className="flex gap-3 rounded-lg bg-paper-sunken/60 p-2.5">
+                {/* eslint-disable-next-line @next/next/no-img-element -- object URL, never optimised */}
+                <img
+                  src={preview}
+                  alt=""
+                  className="h-20 w-20 shrink-0 rounded-md object-cover"
+                />
+                <div className="min-w-0 flex-1 space-y-1.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-[11.5px] font-semibold uppercase tracking-wide text-ink-faint">
+                      {attaching ? t.upload.reading : t.upload.checkTranscription}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={clearAttachment}
+                      aria-label={t.common.close}
+                      className="rounded p-1 text-ink-muted hover:bg-paper-sunken"
+                    >
+                      <IconClose width={14} height={14} />
+                    </button>
+                  </div>
+
+                  {transcription !== null ? (
+                    <Textarea
+                      value={transcription}
+                      onChange={(event) => setTranscription(event.target.value)}
+                      rows={3}
+                      className="text-[13px]"
+                    />
+                  ) : null}
+
+                  {illegible ? (
+                    <p className="text-[11.5px] text-partial">{t.upload.illegible}</p>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
+
             <Textarea
               value={input}
               onChange={(event) => setInput(event.target.value)}
@@ -238,13 +337,35 @@ export function ChatThread({
               rows={2}
               className="min-h-[3.5rem] border-0 bg-transparent focus-visible:ring-0"
             />
-            <div className="flex justify-end">
+            <div className="flex items-center justify-between gap-2">
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                className="sr-only"
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  if (file) void attach(file);
+                }}
+              />
+              <Button
+                type="button"
+                size="sm"
+                variant="quiet"
+                disabled={disabled || streaming || attaching}
+                onClick={() => fileRef.current?.click()}
+              >
+                <IconCamera width={16} height={16} />
+                <span className="ms-1.5">{t.upload.attach}</span>
+              </Button>
+
               <Button
                 type="submit"
                 variant="primary"
                 size="sm"
                 loading={streaming}
-                disabled={disabled || input.trim().length === 0}
+                disabled={disabled || (input.trim().length === 0 && !transcription)}
               >
                 {t.chat.send}
               </Button>
@@ -261,7 +382,21 @@ function GroundingLabel({ tier }: { tier: GroundingTier | null }) {
 
   if (!tier) return <span className="text-[11.5px] text-ink-faint">{t.chat.thinking}</span>;
 
-  const config: Record<GroundingTier, { tone: 'correct' | 'primary' | 'partial' | 'mark'; label: string }> = {
+  /*
+   * A greeting gets no badge at all.
+   *
+   * Every other tier is a claim about where an answer came from, and a greeting
+   * has no provenance to report. Showing one here is what produced the original
+   * bug in a different form: "Not covered by the curriculum" over "hello" was a
+   * grounding claim on a message that asked for none, and a reassuring green
+   * badge would be the same mistake pointing the other way.
+   */
+  if (tier === 'conversational') return null;
+
+  const config: Record<Exclude<GroundingTier, 'conversational'>, {
+    tone: 'correct' | 'primary' | 'partial' | 'mark';
+    label: string;
+  }> = {
     exact_match: { tone: 'correct', label: t.chat.groundingExactMatch },
     concept_level: { tone: 'primary', label: t.chat.groundingConceptLevel },
     personal_reference: { tone: 'partial', label: t.chat.groundingPersonalReference },
