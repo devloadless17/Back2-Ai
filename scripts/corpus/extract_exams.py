@@ -147,6 +147,16 @@ EXERCISE_BARE = re.compile(
     re.I,
 )
 
+# "Choose one of the following subjects" — a paper saying outright that its
+# subjects are alternatives rather than sections. This is what separates a
+# choice paper from a document-based one that happens to use the word "subject",
+# and nothing is split on subject headings without it.
+CHOICE_NOTICE = re.compile(
+    r"choose\s+one|choisir\s+un|traitez?\s+un\s+seul|un\s+seul\s+sujet|"
+    r"اختر\s+موضوع|أجب\s+عن\s+أحد|اختر\s+أحد",
+    re.I,
+)
+
 # Philosophy, literature and language papers offer a choice of subjects instead
 # of exercises, and print the marks on each part rather than on the header.
 SUBJECT_HEAD = re.compile(
@@ -339,6 +349,11 @@ def split_paper_and_scheme(pages: list) -> tuple:
 
 ROMAN = {"i": 1, "ii": 2, "iii": 3, "iv": 4, "v": 5, "vi": 6}
 
+# The most one alternative of a choice paper can be worth. A candidate answers
+# one subject and is marked out of twenty; a little headroom above that, and
+# anything beyond it is a number read off the page by mistake.
+MAX_SUBJECT_MARKS = 25
+
 
 # The verbs a paper uses to set work, in the three languages of instruction.
 ASSIGNMENT = re.compile(
@@ -351,7 +366,7 @@ ASSIGNMENT = re.compile(
 )
 
 
-def find_headers(text: str) -> tuple:
+def find_headers(text: str, allow_subject_split: bool = True) -> tuple:
     """The exercise headers, whichever of the three forms this paper uses.
 
     Tried in order of how much they assert. A header naming itself an exercise
@@ -370,6 +385,25 @@ def find_headers(text: str) -> tuple:
     found = list(PART_SCORE.finditer(text))
     if found:
         return found, "part"
+    # A paper that SAYS it offers a choice of subjects is split on them.
+    #
+    # Philosophy and literature papers print "First Subject: / Second Subject: /
+    # Third Subject:" and the candidate answers ONE; each is a complete
+    # alternative worth the whole paper. Reaching the subject test only at the
+    # very end meant lh/2018 1/falsafe_en.pdf — three subjects of 9 + 7 + 4 —
+    # was read as a single exercise with eight parts summing to 51 marks on a
+    # paper marked out of 20.
+    #
+    # Gated on the paper announcing the choice in words, and that gate is the
+    # whole of what makes this safe. Subject headings alone are not enough:
+    # se/2018 1/arabe.pdf mentions الموضوع in its prose, and splitting on that
+    # took a correctly-parsed document paper of twelve sub-questions down to
+    # one, losing four thousand characters of statement. It says nothing about
+    # choosing, so it is left to the branches below that were already reading
+    # it properly.
+    if allow_subject_split and len(SUBJECT_HEAD.findall(text)) >= 2 and CHOICE_NOTICE.search(text):
+        return list(SUBJECT_HEAD.finditer(text)), "subject"
+
     # Arabic humanities papers: ordinal headings, marks spelled out in words.
     found = list(AR_ORDINAL_HEAD.finditer(text))
     if len(found) >= 2:
@@ -519,9 +553,13 @@ def paper_passage(preamble: str) -> str:
     return body if letters >= PASSAGE_MIN else ""
 
 
-def parse_exercises(text: str) -> list:
-    """Each exercise's number, marks, title and statement, in order."""
-    found, kind = find_headers(text)
+def parse_exercises(text: str, allow_subject_split: bool = True) -> list:
+    """Each exercise's number, marks, title and statement, in order.
+
+    `allow_subject_split=False` forbids the choice-of-subjects reading, so the
+    same paper can be parsed both ways and the two compared. See `read`.
+    """
+    found, kind = find_headers(text, allow_subject_split)
     out = []
     for n, m in enumerate(found):
         body = text[m.end():found[n + 1].start() if n + 1 < len(found) else len(text)]
@@ -822,13 +860,44 @@ def read(pdf: Path) -> dict | None:
     paper, scheme_text = "\n".join(paper_pages), "\n".join(scheme_pages)
 
     exercises = parse_exercises(paper)
+
+    # Splitting a choice paper must not cost it its questions.
+    #
+    # Cutting at the subject headings is right when each subject really is a
+    # self-contained alternative, and on ten philosophy papers it was not: the
+    # sub-questions did not fall inside the subject blocks, and the split took
+    # lh/2006 2/falsafe_en.pdf from twelve parts to two, dropping 3,900
+    # characters and all fifteen of its marks. In aggregate the change was a
+    # clear gain — +124 exercises, +101 sub-questions, +100 marks — which is
+    # exactly how this kind of damage stays hidden.
+    #
+    # So the paper is read BOTH ways and the readings are compared on what they
+    # recovered. More sub-questions wins, and marks break the tie. A split that
+    # cannot beat leaving the paper whole is not a split worth having, and this
+    # needs no rule about which papers are the awkward ones.
+    split_into_subjects = bool(exercises) and find_headers(paper)[1] == "subject"
+    if split_into_subjects:
+        whole = parse_exercises(paper, allow_subject_split=False)
+
+        def yield_of(rows):
+            return (sum(len(e["parts"]) for e in rows),
+                    sum(e["marks"] for e in rows))
+
+        if whole and yield_of(whole) > yield_of(exercises):
+            exercises = whole
+            # And it is no longer a choice paper as far as everything below is
+            # concerned. Leaving the flag set applied the per-subject mark cap
+            # to a whole-paper reading and zeroed gs/2005 2/falsafe_en.pdf's
+            # fifty marks, because fifty is implausible for one subject and
+            # entirely normal for a paper.
+            split_into_subjects = False
     if not exercises:
         return {"path": str(pdf.relative_to(EXAMS)), "error": "no exercise headers"}
 
     # Everything before the first exercise header. On a science paper this is
     # the letterhead and nothing else; on a comprehension paper it is the text
     # the whole exam is about. `paper_passage` tells them apart by length.
-    headers, _ = find_headers(paper)
+    headers, _kind = find_headers(paper)
     passage = paper_passage(paper[: headers[0].start()]) if headers else ""
 
     # A Lebanese paper is marked out of twenty. One offering a choice prints more
@@ -839,7 +908,23 @@ def read(pdf: Path) -> dict | None:
     #
     # Reported, not stored: a question saved without its real marks would be used
     # to score a student.
-    total_marks = sum(e["marks"] for e in exercises)
+    # A choice paper is not worth the sum of its alternatives. Six subjects of
+    # twenty is a candidate scoring out of twenty, not out of 120, and summing
+    # them tripped the plausibility gate and threw the whole paper away.
+    #
+    # An alternative that reads as worth more than a whole paper is a misread
+    # mark, not a subject: lh/2004 2/falsafe_ar.pdf comes out as 0, 0 and 120.
+    # Its marks are dropped to unknown rather than the paper being rejected,
+    # because the STRUCTURE is right — three subjects, correctly found — and
+    # losing three real questions over one bad number is the worse trade. An
+    # exercise with no marks simply gets no barème.
+    if split_into_subjects:
+        for e in exercises:
+            if e["marks"] > MAX_SUBJECT_MARKS:
+                e["marks"] = 0
+        total_marks = max((e["marks"] for e in exercises), default=0)
+    else:
+        total_marks = sum(e["marks"] for e in exercises)
     if len(exercises) > 10 or total_marks > 70:
         return {
             "path": str(pdf.relative_to(EXAMS)).replace(chr(92), "/"),
@@ -903,7 +988,6 @@ def read(pdf: Path) -> dict | None:
                 part["marks"] = mark
 
     rel = pdf.relative_to(EXAMS)
-    total = sum(e["marks"] for e in exercises)
     return {
         "path": str(rel).replace("\\", "/"),
         "sha256": hashlib.sha256(pdf.read_bytes()).hexdigest(),
@@ -916,7 +1000,9 @@ def read(pdf: Path) -> dict | None:
         "statedPages": stated_page_count(paper[:1200]),
         "language": language_of(paper),
         "passage": passage,
-        "totalMarks": total,
+        # The same figure the plausibility gate judged, so a paper is never
+        # reported as worth something other than what it was accepted for.
+        "totalMarks": total_marks,
         "answersFound": sum(1 for e in exercises for p in e["parts"] if "answer" in p),
         "marksFound": sum(1 for e in exercises for p in e["parts"] if "marks" in p),
         # Evidence that this file HOLDS a scheme, independent of whether we
