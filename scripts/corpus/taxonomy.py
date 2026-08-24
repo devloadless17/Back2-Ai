@@ -486,8 +486,85 @@ def parse_contents(raw: str) -> list:
 # Shortest run of text that can be a section rather than a line in a list.
 MIN_SECTION = 400
 
+# A page naming at least this many of the book's chapter titles is a list of
+# chapters, not the opening of one.
+#
+# Books print these inside the body and `find_contents_pages` cannot see them:
+# it scores on dot-leader density, and a unit divider has no leaders. Falsafa
+# opens each part with a page listing that part's lessons — pages 21, 22 and 137
+# — and every lesson title on it satisfies the ordering guard perfectly, so the
+# locator placed eight consecutive lessons on the divider instead of on their
+# own sections. That is what gave الوعي one page and الادراك الحسي none, and it
+# is 137 of the 415 stranded questions on its own.
+#
+# Four, from the corpus rather than from taste. Across every book, 109 pages
+# name three chapter titles and only 34 name four. The three-title pages include
+# real chapter openings — falsafa page 40 opens the merged lesson "الادراك الحسي
+# الذاكرة، الخيال", which names three titles because it genuinely teaches three —
+# so a threshold of three would discard a real opening to catch a divider. The
+# four-title pages are dividers, contents pages the leader test missed, and
+# end-of-book indexes.
+LIST_PAGE_TITLES = 4
 
-def occurrences(title: str, pages: dict, floor: tuple = (0, -1), skip: frozenset = frozenset()) -> list:
+# A heading is TYPOGRAPHY, not merely the start of a line.
+#
+# The first version of this accepted anything that began a line, allowing a
+# leading bullet or number. That is not a heading test in this corpus, for two
+# reasons found by running it:
+#
+#   It let bullets through. Chemistry page 200 lists "- Alcohols, aldehydes,
+#   ketones and carboxylic acids" as a bullet in the previous chapter's summary,
+#   which scored as a heading and placed the Alcohols chapter SIX PAGES BEFORE
+#   the "## ALCOHOLS" on page 206 that the rule existed to find. The chapter
+#   stayed three pages long and the change had bought nothing.
+#
+#   It fired where there is no typography to read. OCR of a two-column Arabic
+#   page starts a new line every few words, so in falsafa almost every mention
+#   begins a line. It moved lesson 1 off its own opening page and onto page 23,
+#   the "نص" extract inside it, because that mention happened to start a line
+#   while the real opening — split across two lines by the column layout — did
+#   not.
+#
+# So the marker has to be one somebody typeset: a markdown ATX heading, or a
+# LaTeX sectioning command. Books with no such markers — every Arabic book here
+# has none — fall through to the ordering rules unchanged, which is right: they
+# have no heading evidence to prefer, and their real problem is the divider
+# pages that LIST_PAGE_TITLES catches.
+HEADING_MARKER = re.compile(
+    r"^\s{0,3}(?:#{1,6}\s*|\\(?:sub){0,2}section\*?\s*\{|\\chapter\*?\s*\{)"
+    r"(?:\**\s*)"
+    r"(?:[0-9٠-٩]{1,3}(?:\.[0-9]{1,3})*\s*[).:\-–]?\s*)?"
+    r"\**\s*$"
+)
+
+
+def list_pages(chapters: list, pages: dict) -> frozenset:
+    """Pages that read as a list of chapters rather than as a chapter."""
+    # DISTINCT titles. An anthology reuses generic section names — this book
+    # has two chapters called "Présentation du thème" and two called
+    # "Sous-thème 1" — so counting the list with duplicates in it scored an
+    # ordinary body page as naming five chapters when it named three, and
+    # demoted two real chapter openings.
+    titles = {normalise(c["title"]) for c in chapters if c.get("title")}
+    titles = {t for t in titles if len(t) >= 4}
+    if len(titles) < LIST_PAGE_TITLES:
+        return frozenset()
+    out = set()
+    for n, raw in pages.items():
+        text = normalise(raw)
+        if sum(1 for t in titles if t in text) >= LIST_PAGE_TITLES:
+            out.add(n)
+    return frozenset(out)
+
+
+def is_heading(raw: str, pos: int) -> bool:
+    """Is the title at this offset typeset as a heading?"""
+    start = raw.rfind("\n", 0, pos) + 1
+    return bool(HEADING_MARKER.match(raw[start:pos]))
+
+
+def occurrences(title: str, pages: dict, floor: tuple = (0, -1), skip: frozenset = frozenset(),
+                listy: frozenset = frozenset(), rank: bool = True) -> list:
     """Where this chapter title appears, as (page, offset within that page).
 
     The offset is what allows two chapters to start on one page. Books set
@@ -511,6 +588,37 @@ def occurrences(title: str, pages: dict, floor: tuple = (0, -1), skip: frozenset
     fixes. That is the guard that makes tolerant matching safe: a title located
     somewhere that breaks the book's own sequence is a wrong match, and is
     rejected without any judgement about how similar the strings look.
+
+    Ordering alone is not enough, because the earliest legal occurrence of a
+    title is very often not its chapter. "Alcohols" and "aldehydes and ketones"
+    are ordinary words in a chemistry book, and the earliest legal match was the
+    prose "the carbonyl group -CO- characterizes the aldehydes and ketones" on
+    page 202, four pages before `\\section*{ALCOHOLS}` — three pages of material
+    for the chapter instead of twenty-six, with seventeen questions filed
+    against them.
+
+    So candidates are RANKED before the earliest is taken, in three tiers:
+
+      0  typeset as a heading, on a page that is not a list of chapters
+      1  any other mention, on a page that is not a list of chapters
+      2  anything on a page that lists chapters
+
+    and the earliest candidate in the best non-empty tier wins. Tiers rather
+    than filters, deliberately: a chapter whose heading OCR mangled still has
+    its prose mention, and a chapter named nowhere but on a divider page is
+    still placed there rather than reported as having no material at all. The
+    ranking can only move a placement, never remove one.
+
+    `rank=False` returns tiers 0 and 1 together instead of the best one, and is
+    what `measure_offset` asks for. The two callers want different things and
+    conflating them broke the offset: that vote is robust BECAUSE it is fed
+    every occurrence of every title and lets the true offset out-vote the
+    scattered wrong ones, so handing it only the top tier starved it. Chemistry
+    has one typeset heading for some chapters and none for others, the vote fell
+    to a handful of matches, and the book's offset flipped from 7 to 13 —
+    moving every chapter in it by six pages. List pages stay excluded either
+    way: a divider agrees with several chapters at once and votes wrong several
+    times over.
     """
     candidates = [title]
     if ":" in title or "：" in title:
@@ -527,7 +635,7 @@ def occurrences(title: str, pages: dict, floor: tuple = (0, -1), skip: frozenset
         # chapter of the grammar book.
         if len(target) < 4:
             continue
-        found = []
+        tiers: dict = {0: [], 1: [], 2: []}
         for n in sorted(pages):
             # Every title appears on the contents page, in the right order, so
             # the contents page satisfies the ordering guard perfectly and would
@@ -535,24 +643,39 @@ def occurrences(title: str, pages: dict, floor: tuple = (0, -1), skip: frozenset
             # ranked against.
             if n < floor[0] or n in skip:
                 continue
-            text, idx = normalise_indexed(pages[n])
+            raw = pages[n]
+            text, idx = normalise_indexed(raw)
             at = text.find(target)
             while at != -1:
                 where = (n, idx[at])
                 if where > floor:
-                    found.append(where)
+                    # Letting a typeset heading outrank the list-page demotion —
+                    # tier 0 even on a listy page — was tried and reverted. It
+                    # is arguable (chimie-lh-fr page 20 both opens a chapter and
+                    # lists its sections) and it is safe (the contents tables
+                    # this rule catches carry no markdown headings at all), but
+                    # measured over the whole corpus it changed not one chapter.
+                    # Reverted as complexity with nothing behind it.
+                    tier = 2 if n in listy else (0 if is_heading(raw, idx[at]) else 1)
+                    tiers[tier].append(where)
                     break
                 # Same page, but before the floor: the previous chapter's own
                 # heading, or a mention inside it. Keep looking further down.
                 at = text.find(target, at + 1)
-        # Every occurrence, not just the first: `measure_offset` needs them all
-        # to vote, and placement takes the earliest.
-        if found:
-            return found
+        # Every occurrence in the winning tier, not just the first:
+        # `measure_offset` needs them all to vote, and placement takes the
+        # earliest.
+        if not rank:
+            if tiers[0] or tiers[1]:
+                return sorted(tiers[0] + tiers[1])
+            continue
+        for tier in (0, 1, 2):
+            if tiers[tier]:
+                return sorted(tiers[tier])
     return []
 
 
-def measure_offset(chapters: list, pages: dict) -> tuple:
+def measure_offset(chapters: list, pages: dict, listy: frozenset = frozenset()) -> tuple:
     """The single offset between printed page numbers and scan page numbers.
 
     Taking the first occurrence of each title is not good enough: a chapter
@@ -571,7 +694,7 @@ def measure_offset(chapters: list, pages: dict) -> tuple:
     for c in chapters:
         if not c.get("printed"):
             continue
-        found = [n for n, _ in occurrences(c["title"], pages)]
+        found = [n for n, _ in occurrences(c["title"], pages, listy=listy, rank=False)]
         hits[c["index"]] = found
         for n in found:
             offset = n - c["printed"]
@@ -668,7 +791,12 @@ def build(book: str) -> dict | None:
                 c["printed"] = unit_page[u]
                 c["fromUnit"] = True
 
-    offset, hits = measure_offset(chapters, pages)
+    # Computed once for the book and shared by both the offset vote and the
+    # placement below: a divider page distorts the vote in exactly the same way
+    # it distorts a placement, by agreeing with several chapters at once.
+    listy = list_pages(chapters, pages)
+
+    offset, hits = measure_offset(chapters, pages, listy)
     last_page = max(pages)
 
     # Chapters run in order, so each starts after the one before it. Without
@@ -692,7 +820,7 @@ def build(book: str) -> dict | None:
             u = c.get("unit")
             if u and unit_page.get(u) and offset is not None:
                 floor = max(floor, (unit_page[u] + offset, -1))
-            found = occurrences(c["title"], pages, floor, skip=skip_pages)
+            found = occurrences(c["title"], pages, floor, skip=skip_pages, listy=listy)
             if found:
                 c["pdfPage"], c["pdfOffset"] = found[0]
                 c["located"] = True
