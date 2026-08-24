@@ -102,6 +102,15 @@ const SUBJECTS: { match: RegExp; name: Record<string, string | string[]> }[] = [
 const BREVET = /(?:^|[/\\_-])BR_|brevet/i;
 
 /**
+ * The most one exercise of a paper marked out of twenty can be worth.
+ *
+ * Twenty exactly, not a margin above it: an exercise worth the whole paper is
+ * already the limit of believable, and every value seen above it — 45, 90, 173
+ * — came from a misparse rather than from a generous examiner.
+ */
+const MAX_EXERCISE_MARKS = 20;
+
+/**
  * Which language a paper is set in.
  *
  * The filename first, because when it says, it is authoritative. Then the paper
@@ -153,6 +162,39 @@ function clean(text: string): string {
     out += control ? ' ' : ch;
   }
   return out.trim();
+}
+
+/**
+ * One criterion covering a whole exercise, for a paper that says what the
+ * exercise is worth without saying how it splits.
+ *
+ * 1,953 of 3,360 exercises are in this position — 13,646 sub-questions — and
+ * they are the whole of the remaining barème gap. Only 107 exercises state
+ * nothing at all. So the marks were never missing; the SPLIT was.
+ *
+ * The obvious move is to divide the total evenly over the parts, and it is
+ * wrong. It invents a weighting — a sub-question worth half a mark and one
+ * worth three and a half would both be given two — and it would pass the
+ * existing sum check without any difficulty, because an even split sums to the
+ * stated total by construction. That is the guard being satisfied while its
+ * purpose is defeated, which is a worse state than having no guard.
+ *
+ * So nothing is split. The exercise carries one criterion worth exactly what
+ * the paper says the exercise is worth, and the marker judges it whole. The
+ * sub-questions are listed inside the criterion so the marker can still see
+ * the structure it is marking against; they simply do not carry points of
+ * their own, because nobody told us what those points are.
+ *
+ * The cost is real and worth stating: feedback is per exercise rather than per
+ * part. The alternative on offer was no score at all for half the papers.
+ */
+function wholeExerciseCriterion(exercise: Exercise): string {
+  const parts = exercise.parts
+    .map((p) => clean(`${p.label} ${p.text}`))
+    .filter(Boolean)
+    .join('\n');
+  const title = clean(exercise.title || exercise.statement);
+  return clean(parts ? `${title}\n${parts}` : title).slice(0, 2000);
 }
 
 function yearOf(session: string): number | null {
@@ -239,6 +281,12 @@ async function main() {
   let withSolution = 0;
   let withBareme = 0;
   let withPassage = 0;
+  /** Barèmes carrying one criterion for the whole exercise, not one per part. */
+  let wholeExercise = 0;
+  /** Exercises scored out of less than the paper says they are worth. */
+  let understated = 0;
+  /** Barèmes refused because their total cannot be right. */
+  let implausible = 0;
 
   /*
    * What this run produced, for the reconciliation at the end.
@@ -350,13 +398,58 @@ async function main() {
 
       const answered = exercise.parts.filter((p) => p.answer);
       const solution = answered.length ? clean(answered.map((p) => `${p.label} ${p.answer}`).join('\n')) : null;
-      const bareme = exercise.parts
+      const perPart = exercise.parts
         .filter((p) => typeof p.marks === 'number')
-        .map((p) => ({ criterion: clean(`${p.label} ${p.text}`).slice(0, 300), points: p.marks }));
+        .map((p) => ({ criterion: clean(`${p.label} ${p.text}`).slice(0, 300), points: p.marks as number }));
+
+      // Per-part marks where the paper gives them; otherwise the exercise as a
+      // whole, worth what its header states. See `wholeExerciseCriterion`.
+      const bareme =
+        perPart.length > 0
+          ? perPart
+          : exercise.marks > 0
+            ? [{ criterion: wholeExerciseCriterion(exercise), points: exercise.marks }]
+            : [];
+
+      /*
+       * A barème that adds up to more than the paper does is not a barème.
+       *
+       * A Lebanese paper is marked out of twenty and an exercise is a part of
+       * one, so an exercise worth 173 — the worst of these — is a misparse: a
+       * page number read as an award, a mark column counted twice, a header
+       * whose bracketed number was something else. 229 questions were already
+       * stored that way before this change and 63 more arrived with it.
+       *
+       * Dropped rather than clamped. Clamping to twenty would turn an
+       * unrecognised number into a confident wrong one, and the student is
+       * shown a mark either way. Refusing leaves the question unmarkable,
+       * which is what it honestly is, and the count is printed.
+       */
+      const total = bareme.reduce((sum, c) => sum + c.points, 0);
+      if (bareme.length && (total <= 0 || total > MAX_EXERCISE_MARKS)) {
+        implausible += 1;
+        bareme.length = 0;
+      }
 
       questions += 1;
       if (solution) withSolution += 1;
       if (bareme.length) withBareme += 1;
+      if (!perPart.length && bareme.length) wholeExercise += 1;
+
+      /*
+       * An exercise whose parts carry SOME of its marks is scored out of those
+       * marks and not out of what the paper says it is worth. Four points'
+       * worth of exercise with two points of criteria reads to the student as
+       * a mark out of two, and to the exam simulation as an exercise worth two.
+       *
+       * Not fixed here, because the honest fix is the same one refused above —
+       * inventing where the missing marks belong. Reported so the size of it is
+       * known rather than discovered by a student whose total does not add up.
+       */
+      if (perPart.length > 0 && exercise.marks > 0) {
+        const covered = perPart.reduce((sum, c) => sum + c.points, 0);
+        if (covered < exercise.marks - 0.01) understated += 1;
+      }
       if (passage) withPassage += 1;
       // Counted before the dry-run exit, so --dry reports what it would write
       // rather than reporting zero.
@@ -507,7 +600,14 @@ async function main() {
   }
   console.log(`  with an official solution ${withSolution}`);
   console.log(`  with a barème             ${withBareme}`);
+  console.log(`    of those, marked whole  ${wholeExercise}   (paper states a total, not a split)`);
   console.log(`  with the paper's passage  ${withPassage}`);
+  if (implausible) {
+    console.log(`  barème refused, total impossible ${implausible}   (over ${MAX_EXERCISE_MARKS} marks, or zero)`);
+  }
+  if (understated) {
+    console.log(`  scored out of less than the paper says ${understated}   (some parts carry marks, some do not)`);
+  }
   /*
    * Rows the extractor has stopped producing.
    *
