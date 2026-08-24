@@ -40,18 +40,32 @@ const db = new PrismaClient();
 const ROOT = path.resolve(__dirname, '..', '..');
 const EXAMS_JSON = path.join(ROOT, 'corpus', 'exams.json');
 
-/** Filename token -> the subject name as seeded from the textbooks. */
-const SUBJECTS: { match: RegExp; name: Record<string, string> }[] = [
+/**
+ * Filename token -> the subject name(s) as seeded from the textbooks.
+ *
+ * More than one name per language, because the seeded name is whatever the
+ * BOOK calls the subject and that is not always what this table guessed. Every
+ * Arabic-medium subject was seeded from its Arabic title — فلسفة عامة, تاريخ,
+ * أدب عربي — while this table asked for Philosophie, Histoire and Arabe. The
+ * lookup missed on all seven of them, and the loader skipped roughly 630
+ * exercises per run with nothing but a line in its skip report to show for it:
+ * philosophy alone still holds 430 unmarkable questions.
+ *
+ * Both spellings are kept rather than the Arabic one substituted. Which name a
+ * deployment seeded depends on which taxonomy run created its subjects, and a
+ * table that only knows the current answer breaks the moment that changes back.
+ */
+const SUBJECTS: { match: RegExp; name: Record<string, string | string[]> }[] = [
   { match: /(?:^|[\s_-])(?:math|riyad)/i, name: { en: 'Mathematics', fr: 'Mathematiques' } },
   { match: /(?:^|[\s_-])(?:phys?|fizi)/i, name: { en: 'Physics', fr: 'Physique' } },
   { match: /(?:^|[\s_-])(?:chem|chim|kimi)/i, name: { en: 'Chemistry', fr: 'Chimie' } },
   { match: /(?:^|[\s_-])(?:bio|svt|ahya)/i, name: { en: 'Life Sciences', fr: 'Sciences de la vie' } },
-  { match: /(?:^|[\s_-])(?:falsafe|philo)/i, name: { ar: 'Philosophie' } },
-  { match: /(?:^|[\s_-])(?:geo|greo)/i, name: { ar: 'Geographie' } },
-  { match: /(?:^|[\s_-])(?:ejteme|ejtema|socio)/i, name: { ar: 'Sociologie' } },
-  { match: /(?:^|[\s_-])(?:ektesad|eqtesad|econo)/i, name: { ar: 'Economie' } },
-  { match: /(?:^|[\s_-])(?:tarbeya|tarbia)/i, name: { ar: 'Education civique' } },
-  { match: /(?:^|[\s_-])(?:tarekh|terekh|tarikh|history|hsitory)/i, name: { ar: 'Histoire' } },
+  { match: /(?:^|[\s_-])(?:falsafe|philo)/i, name: { ar: ['فلسفة عامة', 'Philosophie'] } },
+  { match: /(?:^|[\s_-])(?:geo|greo)/i, name: { ar: ['جغرافيا', 'Geographie'] } },
+  { match: /(?:^|[\s_-])(?:ejteme|ejtema|socio)/i, name: { ar: ['اجتماع', 'Sociologie'] } },
+  { match: /(?:^|[\s_-])(?:ektesad|eqtesad|econo)/i, name: { ar: ['اقتصاد', 'Economie'] } },
+  { match: /(?:^|[\s_-])(?:tarbeya|tarbia)/i, name: { ar: ['تربية وطنية', 'Education civique'] } },
+  { match: /(?:^|[\s_-])(?:tarekh|terekh|tarikh|history|hsitory)/i, name: { ar: ['تاريخ', 'Histoire'] } },
   { match: /(?:^|[\s_-])(?:eng|english|emg)/i, name: { en: 'English' } },
   { match: /(?:^|[\s_-])(?:fr|french|francais)/i, name: { fr: 'Francais' } },
   /*
@@ -62,7 +76,7 @@ const SUBJECTS: { match: RegExp; name: Record<string, string> }[] = [
    * Arabic-language ones. The sciences are matched first above, so by the time
    * a filename reaches this line the only thing "ar" can mean is the subject.
    */
-  { match: /(?:^|[\s_-])(?:arabe|arabic|arabeye|ar)(?:[\s_-]|$)/i, name: { ar: 'Arabe' } },
+  { match: /(?:^|[\s_-])(?:arabe|arabic|arabeye|ar)(?:[\s_-]|$)/i, name: { ar: ['أدب عربي', 'Arabe'] } },
 ];
 
 /**
@@ -252,11 +266,12 @@ async function main() {
       note('language not stated in the filename');
       continue;
     }
-    const subjectName = subject.name[language];
-    if (!subjectName) {
+    const candidates = [subject.name[language] ?? []].flat();
+    if (!candidates.length) {
       note(`no ${language} variant of this subject`);
       continue;
     }
+    const subjectName = candidates[0]!;
 
     const track = await db.track.findUnique({ where: { code: exam.track }, select: { id: true } });
     if (!track) {
@@ -264,11 +279,11 @@ async function main() {
       continue;
     }
     const subjectRow = await db.subject.findFirst({
-      where: { trackId: track.id, name: subjectName, language },
+      where: { trackId: track.id, name: { in: candidates }, language },
       select: { id: true },
     });
     if (!subjectRow) {
-      note(`${subjectName}/${language} is not seeded for ${exam.track}`);
+      note(`${candidates.join(' / ')} (${language}) is not seeded for ${exam.track}`);
       continue;
     }
 
