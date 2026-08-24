@@ -45,7 +45,10 @@
     "retire:superseded": "node --conditions=react-server --env-file=.env --import tsx scripts/retire-superseded.ts",
     "repair:links": "node --conditions=react-server --env-file=.env --import tsx scripts/repair-chunk-links.ts",
     "prune:chapters": "node --conditions=react-server --env-file=.env --import tsx scripts/prune-stale-chapters.ts",
-    "bench:retrieval": "node --conditions=react-server --env-file=.env --import tsx scripts/bench-retrieval.ts"
+    "label:chapters": "node --conditions=react-server --env-file=.env --import tsx scripts/label-chapters.ts",
+    "bench:retrieval": "node --conditions=react-server --env-file=.env --import tsx scripts/bench-retrieval.ts",
+    "report:stranded": "node --conditions=react-server --env-file=.env --import tsx scripts/stranded-chapters.ts",
+    "refile:subsections": "node --conditions=react-server --env-file=.env --import tsx scripts/refile-subsection-questions.ts"
   },
   "overrides": {
     "postcss": "$postcss",
