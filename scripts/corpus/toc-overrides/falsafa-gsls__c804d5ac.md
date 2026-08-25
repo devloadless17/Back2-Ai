@@ -16,18 +16,32 @@ Page numbers are left out deliberately. The printed column cannot be matched to
 entries with any confidence, and each lesson opens with its own title inside the
 book, which places it exactly.
 
+The first part has FIVE lessons, not eight, and this is the ministry's
+structure rather than a reading of the book. The CRDP curriculum for the
+General Sciences and Life Sciences sections lists, under "Man": needs and
+motives; consciousness and unconsciousness; perception, memory, imagination
+(cognitive view point); intelligence; language and thought.
+
+The contents page of this book lists eight, splitting b into two and c into
+three. Its BODY does not: page 40 opens the merged lesson by asking outright
+"لماذا الادراك الحسي والذاكرة والخيال في فصل واحد؟" — why are perception, memory
+and imagination in one chapter. Following the contents page gave الوعي a single
+passage and الادراك الحسي one, with nine past-exam questions filed between them
+and nothing behind either.
+
+So the split entries were merged to match the curriculum and the body, which
+agree with each other against the contents page.
+https://www.crdp.org/en_test_crd/curriculum-content_details/curriculum-philosophy-and-cultures/english
+
 تمهيد is not listed as a lesson. It is the book's preface, before the first part.
 -->
 
 المحور الأول: الإنسان
 الدرس الأول : الحاجات والدوافع
-الدرس الثاني : الوعي
-الدرس الثالث : اللاوعي
-الدرس الرابع : الادراك الحسي
-الدرس الخامس : الذاكرة
-الدرس السادس : الخيال
-الدرس السابع : الذكاء
-الدرس الثامن : اللغة والفكر
+الدرس الثاني : الوعي واللاوعي
+الدرس الثالث : الادراك الحسي والذاكرة والخيال
+الدرس الرابع : الذكاء
+الدرس الخامس : اللغة والفكر
 
 المحور الثاني: المعرفة
 الدرس الأول : المعرفة العلمية
