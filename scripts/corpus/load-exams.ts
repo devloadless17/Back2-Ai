@@ -287,6 +287,8 @@ async function main() {
   let understated = 0;
   /** Barèmes refused because their total cannot be right. */
   let implausible = 0;
+  /** Exercises whose unmarked parts were given the shortfall as one criterion. */
+  let completed = 0;
 
   /*
    * What this run produced, for the reconciliation at the end.
@@ -410,6 +412,37 @@ async function main() {
           : exercise.marks > 0
             ? [{ criterion: wholeExerciseCriterion(exercise), points: exercise.marks }]
             : [];
+
+      /*
+       * An exercise whose parts carry only SOME of its marks was scored out of
+       * those marks rather than out of what the paper says it is worth. Four
+       * points of exercise with two points of criteria marked the student out
+       * of two — their total came back wrong and nothing on screen explained
+       * why. 520 exercises were in that state.
+       *
+       * The shortfall is not invented: the paper states the exercise total and
+       * the parts state their own marks, so the difference is arithmetic. What
+       * is unknown is only how it divides among the parts that printed no mark,
+       * so it is not divided — those parts are named in one criterion worth the
+       * remainder, the same refusal to guess a weighting that
+       * `wholeExerciseCriterion` makes.
+       *
+       * Only when there ARE unmarked parts to attach it to. A shortfall with
+       * every part already marked means a mark was misread somewhere, and
+       * inventing a criterion for it would paper over that.
+       */
+      if (perPart.length > 0 && exercise.marks > 0) {
+        const covered = perPart.reduce((sum, c) => sum + c.points, 0);
+        const missing = exercise.marks - covered;
+        const unmarked = exercise.parts.filter((p) => typeof p.marks !== 'number');
+        if (missing > 0.01 && unmarked.length > 0) {
+          bareme.push({
+            criterion: clean(unmarked.map((p) => `${p.label} ${p.text}`).join('\n')).slice(0, 2000),
+            points: Math.round(missing * 100) / 100,
+          });
+          completed += 1;
+        }
+      }
 
       /*
        * A barème that adds up to more than the paper does is not a barème.
@@ -602,6 +635,9 @@ async function main() {
   console.log(`  with a barème             ${withBareme}`);
   console.log(`    of those, marked whole  ${wholeExercise}   (paper states a total, not a split)`);
   console.log(`  with the paper's passage  ${withPassage}`);
+  if (completed) {
+    console.log(`  shortfall given to the unmarked parts ${completed}   (was scored out of less than the paper says)`);
+  }
   if (implausible) {
     console.log(`  barème refused, total impossible ${implausible}   (over ${MAX_EXERCISE_MARKS} marks, or zero)`);
   }
