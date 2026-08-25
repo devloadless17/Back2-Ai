@@ -563,6 +563,25 @@ def is_heading(raw: str, pos: int) -> bool:
     return bool(HEADING_MARKER.match(raw[start:pos]))
 
 
+# A "the title opens a page" tier was tried here and reverted.
+#
+# The typographic heading test cannot help in a book with no typography, and the
+# Arabic books have none between them. Position looked like the answer: a chapter
+# starts a page and a passing mention almost never does. history-all proves the
+# idea — page 32 opens with the chapter title while page 29 merely mentions it in
+# prose, and the locator takes page 29.
+#
+# Measured over the corpus it lost more than it won: three chapters stopped
+# placing at all (falsafa's الخيال among them), twenty-two spans shrank —
+# arabic-grammar's الإيقاع from twenty-eight pages to two — against two thin
+# spans repaired. A title at the top of a page is often the running head of the
+# chapter BEFORE it, or a cross-reference in a summary box, and neither is
+# distinguishable by position.
+#
+# What it needs is a way to tell a chapter's own opening from its name in a
+# running head, which position alone does not give.
+
+
 def occurrences(title: str, pages: dict, floor: tuple = (0, -1), skip: frozenset = frozenset(),
                 listy: frozenset = frozenset(), rank: bool = True) -> list:
     """Where this chapter title appears, as (page, offset within that page).
