@@ -196,6 +196,11 @@ if (process.argv.includes('--data')) {
       emptySubjects,
       emptyCycles,
       usersNoTrack,
+      baremeImpossible,
+      starvedChapters,
+      schemeAsQuestion,
+      backMatterChapters,
+      groundTruth,
     ] = await Promise.all([
       db.question.count(),
       db.$queryRaw`SELECT COUNT(*)::int AS n FROM questions WHERE embedding IS NULL`,
@@ -208,6 +213,46 @@ if (process.argv.includes('--data')) {
       db.subject.count({ where: { chapters: { none: {} } } }),
       db.examCycle.count({ where: { questions: { none: {} } } }),
       db.user.count({ where: { trackId: null } }),
+      /*
+       * The checks below exist because each one was a real, live defect that
+       * nothing in this repository reported. They are cheap SQL, and the
+       * absence of them is why every one had to be found by a person.
+       *
+       * The scheme-detector below is deliberately narrow, and was narrowed
+       * after it over-reached. "corrig[ée]" looked like a reasonable way to
+       * catch a French answer key and instead matched "corriger" — the verb
+       * "to correct", which appears in perfectly good questions asking a
+       * student to correct false statements. It flagged 56, of which 53 were
+       * real questions. A health check that tells somebody to delete a
+       * question bank is worse than no health check, so this matches only
+       * phrases that name an answer key and cannot be part of a question.
+       */
+      db.$queryRaw`
+        SELECT COUNT(*)::int AS n FROM (
+          SELECT (SELECT SUM((c->>'points')::numeric)
+                    FROM jsonb_array_elements(bareme::jsonb) c) AS pts
+            FROM questions WHERE bareme IS NOT NULL
+        ) t WHERE pts IS NULL OR pts <= 0 OR pts > 20`,
+      db.$queryRaw`
+        SELECT COUNT(*)::int AS n, COALESCE(SUM(q),0)::int AS questions FROM (
+          SELECT c.id, COUNT(DISTINCT l.chunk_id) AS p, COUNT(DISTINCT qq.id) AS q
+            FROM chapters c
+            LEFT JOIN chapter_content_chunks l ON l.chapter_id = c.id
+            LEFT JOIN questions qq ON qq.chapter_id = c.id
+                  AND qq.verified_status <> 'rejected'
+           GROUP BY c.id
+        ) t WHERE q > 0 AND p < 5`,
+      db.$queryRaw`
+        SELECT COUNT(*)::int AS n FROM questions
+         WHERE verified_status <> 'rejected'
+           AND content_text ~* '(expected answers|answer key|éléments de réponse)'`,
+      db.$queryRaw`
+        SELECT COUNT(*)::int AS n FROM chapters
+         WHERE name ~* '(auto-?[ée]valuation|r[ée]ponses et indication|answers and hints|solutions?$|index$)'`,
+      db.$queryRaw`
+        SELECT COUNT(*)::int AS verified,
+               (SELECT COUNT(*)::int FROM questions WHERE verified_status <> 'rejected') AS live
+          FROM questions WHERE verified_status = 'verified'`,
     ]);
 
     const qNull = questionsNoVector[0]?.n ?? 0;
@@ -232,6 +277,39 @@ if (process.argv.includes('--data')) {
     if (emptyChapters > 0) report('info', 'content', `${emptyChapters} chapter(s) have no questions (expected until ingestion runs)`);
     if (emptySubjects > 0) report('warn', 'content', `${emptySubjects} subject(s) have no chapters at all`);
     if (usersNoTrack > 0) report('error', 'accounts', `${usersNoTrack} user(s) have no track — they see no curriculum`);
+
+    // Each of the following was live in this database and reported by nothing.
+    const impossible = baremeImpossible[0]?.n ?? 0;
+    if (impossible > 0) {
+      report('error', 'content',
+        `${impossible} question(s) carry a barème totalling 0 or more than 20 marks — a Lebanese paper is marked out of twenty, so these show a student a mark out of a number that does not exist. 292 were live before anyone checked, one of them out of 173.`);
+    }
+
+    const starved = starvedChapters[0]?.n ?? 0;
+    const stranded = starvedChapters[0]?.questions ?? 0;
+    if (starved > 0) {
+      report('warn', 'retrieval',
+        `${starved} chapter(s) hold ${stranded} question(s) but fewer than 5 passages — retrieval cannot reach their material and the tutor answers from a neighbouring chapter, fluently and with a citation. Run: npm run report:stranded`);
+    }
+
+    const schemes = schemeAsQuestion[0]?.n ?? 0;
+    if (schemes > 0) {
+      report('error', 'content',
+        `${schemes} question(s) are marking schemes, not questions — a student practising one is shown the answer as the question. Retire them with "x" in npm run label:chapters`);
+    }
+
+    const backMatter = backMatterChapters[0]?.n ?? 0;
+    if (backMatter > 0) {
+      report('warn', 'content',
+        `${backMatter} chapter(s) are a book's back matter (answer keys, indexes) rather than syllabus — questions filed there are grounded against a solutions appendix`);
+    }
+
+    const verified = groundTruth[0]?.verified ?? 0;
+    const live = groundTruth[0]?.live ?? 0;
+    if (live > 0 && verified < 100) {
+      report('warn', 'measurement',
+        `only ${verified} of ${live} questions carry a human judgement. Every retrieval and filing number in this repository is the embedding grading its own earlier decision until this reaches the hundreds. Run: npm run judge:passages`);
+    }
   } catch (error) {
     report('warn', 'data', `could not read the database: ${error instanceof Error ? error.message : error}`);
   } finally {
