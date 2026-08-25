@@ -51,7 +51,8 @@
     "refile:subsections": "node --conditions=react-server --env-file=.env --import tsx scripts/refile-subsection-questions.ts",
     "measure:translation-gate": "node --conditions=react-server --env-file=.env --import tsx scripts/measure-translation-gate.ts",
     "check:filing": "node --conditions=react-server --env-file=.env --import tsx scripts/check-question-filing.ts",
-    "refile:questions": "node --conditions=react-server --env-file=.env --import tsx scripts/refile-questions.ts"
+    "refile:questions": "node --conditions=react-server --env-file=.env --import tsx scripts/refile-questions.ts",
+    "judge:passages": "node --conditions=react-server --env-file=.env --import tsx scripts/judge-passages.ts"
   },
   "overrides": {
     "postcss": "$postcss",
