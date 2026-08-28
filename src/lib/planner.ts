@@ -42,6 +42,26 @@ export const EXAM_RAMP_MAX = 1.5;
 export const EXAM_RAMP_WINDOW_DAYS = 14;
 /** TUNABLE — a chapter studied today gets a short review this many days later. */
 export const REVIEW_GAP_DAYS = 3;
+
+/**
+ * TUNABLE — inside this window the subject being examined outranks weakness.
+ *
+ * Weakness is the right signal for most of a term and the wrong one in the last
+ * fortnight. Maya sits a Life Sciences mock in nine days; Life Sciences is her
+ * STRONGEST subject at 10.2/20, so the weakness weighting ranked it below three
+ * subjects she has never practised and her plan for the day was ninety minutes
+ * of Francais, Geographie and Histoire. Arithmetically correct, and the kind of
+ * suggestion that teaches a student the plan is not worth opening.
+ */
+export const EXAM_FOCUS_WINDOW_DAYS = 14;
+/** TUNABLE — how much the examined subject is worth at the exam itself. */
+export const EXAM_FOCUS_MAX = 3;
+/**
+ * TUNABLE — what a chapter the student already knows is worth, once its subject
+ * is days away. Normally such a chapter is dropped outright; before the paper it
+ * earns a light review rather than the silence of being treated as finished.
+ */
+export const EXAM_FOCUS_KNOWN_FLOOR = 0.15;
 /** TUNABLE — 0 = Sunday. One day off a week; a plan with no rest gets abandoned. */
 export const DEFAULT_REST_WEEKDAY = 0;
 
@@ -75,6 +95,12 @@ export type BuildPlanInput = {
   busyDates?: Set<string>;
   /** 0–6, or null for no rest day. */
   restWeekday?: number | null;
+  /**
+   * The subject of the next exam. Without it the plan knows WHEN the paper is
+   * and not WHAT it is on, which is how a Life Sciences candidate nine days out
+   * was handed a day of Geography.
+   */
+  examSubject?: string | null;
 };
 
 export function toDateKey(date: Date): string {
@@ -106,21 +132,55 @@ export function horizonDays(from: Date, examDate: Date | null): number {
 }
 
 /**
+ * How much the subject being examined is worth right now.
+ *
+ * 1 outside the window and at its edge, climbing to EXAM_FOCUS_MAX on the day.
+ * Same shape as `dailyCapacity`, deliberately: that one decides how many minutes
+ * the last fortnight gets, this one decides whose minutes they are.
+ */
+export function examFocusRamp(daysOut: number): number {
+  const clamped = Math.max(0, Math.min(daysOut, EXAM_FOCUS_WINDOW_DAYS));
+  const closeness = (EXAM_FOCUS_WINDOW_DAYS - clamped) / EXAM_FOCUS_WINDOW_DAYS;
+  return 1 + closeness * (EXAM_FOCUS_MAX - 1);
+}
+
+/** The subject the student sits next, and how far off it is. Null when unknown. */
+export type ExamFocus = { subjectName: string; daysOut: number };
+
+/**
  * How much a chapter deserves of the available time.
  *
- * Two signals, deliberately kept separate. `1 - mastery` is how far the student
- * is from knowing it. The evidence multiplier then halves the weight of a
+ * Three signals, deliberately kept separate. `1 - mastery` is how far the
+ * student is from knowing it. The evidence multiplier halves the weight of a
  * chapter we have barely seen: a chapter at 0.2 mastery off two attempts is a
  * worse bet than one at 0.4 off twenty, because the first number is mostly
- * noise. Chapters at or above the ceiling are dropped entirely rather than
- * given a small share — revising something already known is the most expensive
- * thing a student short of time can do.
+ * noise. Chapters at or above the ceiling are dropped rather than given a small
+ * share — revising something already known is the most expensive thing a
+ * student short of time can do.
+ *
+ * And then the exam, which overrides all of that inside its window. Weakness is
+ * the right question in November and the wrong one the week of the paper: what
+ * is being sat next matters more than what is weakest, because a student walks
+ * into one room on one morning and is asked about one subject.
  */
-export function chapterWeight(chapter: PlannerChapter): number {
-  if (chapter.masteryScore >= WEAKNESS_MASTERY_CEILING) return 0;
+export function chapterWeight(chapter: PlannerChapter, focus: ExamFocus | null = null): number {
+  const examined =
+    focus !== null &&
+    chapter.subjectName === focus.subjectName &&
+    focus.daysOut <= EXAM_FOCUS_WINDOW_DAYS;
+
+  if (chapter.masteryScore >= WEAKNESS_MASTERY_CEILING) {
+    // Revising what you already know is the most expensive thing a student
+    // short of time can do — unless it is on the paper this week, when going in
+    // cold on a chapter you last saw in October is more expensive still.
+    if (!examined) return 0;
+    return EXAM_FOCUS_KNOWN_FLOOR * examFocusRamp(focus.daysOut);
+  }
+
   const gap = Math.max(0, 1 - chapter.masteryScore);
   const evidence = chapter.attemptsCount >= MIN_ATTEMPTS_FOR_WEAKNESS ? 1 : 0.5;
-  return gap * evidence;
+  const base = gap * evidence;
+  return examined ? base * examFocusRamp(focus.daysOut) : base;
 }
 
 /**
@@ -196,8 +256,13 @@ export function buildPlan(input: BuildPlanInput): PlannedSession[] {
   const days = horizonDays(from, examDate);
   if (days <= 0) return [];
 
+  const focus: ExamFocus | null =
+    input.examSubject && examDate
+      ? { subjectName: input.examSubject, daysOut: daysUntil(from, examDate) }
+      : null;
+
   const weighted: Slot[] = chapters
-    .map((chapter) => ({ chapter, weight: chapterWeight(chapter) }))
+    .map((chapter) => ({ chapter, weight: chapterWeight(chapter, focus) }))
     .filter((entry) => entry.weight > 0)
     .sort((a, b) => b.weight - a.weight);
 
@@ -240,14 +305,36 @@ export function buildPlan(input: BuildPlanInput): PlannedSession[] {
     list.push(entry);
     bySubject.set(entry.chapter.subjectName, list);
   }
-  const subjectQueues = [...bySubject.values()];
+  const subjectQueues = [...bySubject.entries()];
 
+  /*
+   * How many chapters each subject contributes per rotation.
+   *
+   * One, normally — that is the anti-monopoly rule above. But strict equality
+   * also flattens the exam: weighting Life Sciences three times heavier than
+   * Geography still produced three sessions each, because the rotation handed
+   * out one slot per subject regardless of what the weights said. A student
+   * nine days from a Life Sciences paper got an eighth of her plan on it.
+   *
+   * So inside the window the examined subject takes more slots per rotation,
+   * and every other subject keeps exactly one. The plan tilts hard toward the
+   * paper without ever becoming the single-subject grind the interleave exists
+   * to prevent.
+   */
+  const focusPulls =
+    focus === null ? 1 : Math.max(1, Math.round(examFocusRamp(focus.daysOut)));
+
+  const cursors = new Map<string, number>();
   const interleaved: Slot[] = [];
-  for (let i = 0; interleaved.length < weighted.length; i += 1) {
+  for (let guard = 0; interleaved.length < weighted.length && guard < weighted.length; guard += 1) {
     let placed = false;
-    for (const queueForSubject of subjectQueues) {
-      const next = queueForSubject[i];
-      if (next) {
+    for (const [subjectName, queueForSubject] of subjectQueues) {
+      const pulls = focus !== null && subjectName === focus.subjectName ? focusPulls : 1;
+      for (let n = 0; n < pulls; n += 1) {
+        const at = cursors.get(subjectName) ?? 0;
+        const next = queueForSubject[at];
+        if (!next) break;
+        cursors.set(subjectName, at + 1);
         interleaved.push(next);
         placed = true;
       }

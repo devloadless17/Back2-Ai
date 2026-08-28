@@ -57,11 +57,13 @@ export const POST = route(async (request) => {
   const from = new Date(`${toDateKey(new Date())}T00:00:00.000Z`);
 
   const [progress, nextExam, dueCards] = await Promise.all([
-    getProgressForUser(user.id, user.trackId),
+    getProgressForUser(user.id, user.trackId, user.preferredLanguage),
     db.upcomingExam.findFirst({
       where: { userId: user.id, examDate: { gte: from } },
       orderBy: { examDate: 'asc' },
-      select: { examDate: true },
+      // The subject matters as much as the date: `buildPlan` uses it to put the
+      // paper being sat ahead of whatever merely scores weakest.
+      select: { examDate: true, subject: { select: { name: true } } },
     }),
     // Due cards decide which chapters get a flashcard session rather than a
     // quiz — the cheapest win available, and one that expires if ignored.
@@ -106,6 +108,7 @@ export const POST = route(async (request) => {
   const plan = buildPlan({
     chapters,
     examDate: nextExam?.examDate ?? null,
+    examSubject: nextExam?.subject?.name ?? null,
     from,
     maxDailyMinutes,
     busyDates,

@@ -305,3 +305,59 @@ describe('buildPlan — enhanced behaviour', () => {
     for (const session of plan) expect(session.rationale.length).toBeGreaterThan(0);
   });
 });
+
+describe('the exam decides what, not only how much', () => {
+  const EXAM = new Date('2026-08-26T00:00:00.000Z'); // nine days out from FROM
+
+  /** Maya: strongest at the subject she sits next, unpractised at three others. */
+  function mayasChapters(): PlannerChapter[] {
+    return [
+      chapter({ chapterId: 'ls1', chapterName: 'Hormones', subjectName: 'Life Sciences', masteryScore: 0.55, attemptsCount: 20 }),
+      chapter({ chapterId: 'ls2', chapterName: 'Reproduction', subjectName: 'Life Sciences', masteryScore: 0.5, attemptsCount: 18 }),
+      chapter({ chapterId: 'fr1', chapterName: 'Sous-theme 1', subjectName: 'Francais', masteryScore: 0, attemptsCount: 0 }),
+      chapter({ chapterId: 'ge1', chapterName: 'Le monde', subjectName: 'Geographie', masteryScore: 0, attemptsCount: 0 }),
+      chapter({ chapterId: 'hi1', chapterName: 'La guerre', subjectName: 'Histoire', masteryScore: 0, attemptsCount: 0 }),
+    ];
+  }
+
+  it('ranks the examined subject above an unpractised one when the paper is close', () => {
+    const focus = { subjectName: 'Life Sciences', daysOut: 9 };
+    const examined = chapter({ subjectName: 'Life Sciences', masteryScore: 0.55, attemptsCount: 20 });
+    const stranger = chapter({ subjectName: 'Geographie', masteryScore: 0, attemptsCount: 0 });
+    expect(chapterWeight(examined, focus)).toBeGreaterThan(chapterWeight(stranger, focus));
+    // ...and does not, once the same paper is a term away.
+    const far = { subjectName: 'Life Sciences', daysOut: 90 };
+    expect(chapterWeight(examined, far)).toBeLessThan(chapterWeight(stranger, far));
+  });
+
+  it('still drops a mastered chapter, unless its paper is days away', () => {
+    const known = chapter({ subjectName: 'Life Sciences', masteryScore: 0.95, attemptsCount: 30 });
+    expect(chapterWeight(known, null)).toBe(0);
+    expect(chapterWeight(known, { subjectName: 'Life Sciences', daysOut: 3 })).toBeGreaterThan(0);
+  });
+
+  it('puts the examined subject in the plan at all', () => {
+    const without = buildPlan({ chapters: mayasChapters(), examDate: EXAM, from: FROM });
+    const withFocus = buildPlan({
+      chapters: mayasChapters(), examDate: EXAM, from: FROM, examSubject: 'Life Sciences',
+    });
+    const share = (p: ReturnType<typeof buildPlan>) =>
+      p.filter((s) => s.title.startsWith('Life Sciences')).length / Math.max(p.length, 1);
+
+    expect(withFocus.length).toBeGreaterThan(0);
+    expect(share(withFocus)).toBeGreaterThan(share(without));
+    // Day one is the one a student actually sees.
+    const firstDay = withFocus.filter((s) => s.scheduledDate === withFocus[0]!.scheduledDate);
+    expect(firstDay.some((s) => s.title.startsWith('Life Sciences'))).toBe(true);
+  });
+
+  it('never lets the examined subject monopolise the plan', () => {
+    const plan = buildPlan({
+      chapters: mayasChapters(), examDate: EXAM, from: FROM, examSubject: 'Life Sciences',
+    });
+    const subjects = new Set(plan.map((s) => s.title.split(' — ')[0]));
+    // Eighteen consecutive days of one subject is the failure the interleave
+    // exists to prevent; focusing the exam must not reintroduce it.
+    expect(subjects.size).toBeGreaterThan(1);
+  });
+});
