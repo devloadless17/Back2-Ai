@@ -204,10 +204,69 @@ PART = re.compile(r"(?m)^[ \t]*(\d{1,2}(?:\.\d{1,2}){0,2})\s*(?:[-–)：:]|\.(?
 SCHEME_ROW = re.compile(rf"(?m)^[ \t]*(\d{{1,2}}(?:\.\d{{1,2}}){{0,2}})\s+(.+?)\s+{MARK}\s*$")
 
 # The header of a marking scheme, in any of the three languages.
+#
+# TWO PATTERNS, BECAUSE THE TWO CALLERS RISK DIFFERENT AMOUNTS.
+#
+# `split_paper_and_scheme` uses this one to decide, a page at a time, where the
+# question paper ends and its answer key begins. A false positive there discards
+# EVERY EXERCISE AFTER THAT PAGE. `without_scheme` uses SCHEME_IN_STATEMENT
+# below to trim inside a statement already known to be an exercise, where a
+# false positive costs part of one question and is bounded by the 40-character
+# guard.
+#
+# Measured, not assumed. Widening this one pattern for both callers cost
+# 29 papers, 157 exercises and 682 sub-questions against the full corpus, while
+# recovering 67 answers — the same shape as the mark-column split that was
+# reverted for costing 683 sub-questions to recover nothing. A signal good
+# enough to TRIM on is not automatically good enough to SPLIT on.
+#
+# corrig[ée] is corrig[ée]s?\b in BOTH, so it cannot match the French
+# IMPERATIVE. "indiquer les expressions correctes et corriger celles qui sont
+# fausses" is an instruction to the candidate, not the header of an answer key.
+# Over 4,225 statements, 23 carried corrig[ée] and ALL 23 were the verb; the
+# noun "corrigé" does not occur once in this corpus. The alternative was
+# recovering nothing and truncating twenty real questions mid-sentence.
 SCHEME_HEAD = re.compile(
     r"أسس\s*ال?تصحيح|معايير\s*التصحيح|سلّ?م\s*ال?تصحيح|"
     r"ال[أإا]?جابة\s*ال?متوقعة|الجواب\s*ال?متوقع|"
-    r"bar[eè]me|corrig[ée]|r[ée]ponses?\s*attendues?|[ée]l[ée]ments?\s*de\s*r[ée]ponse|"
+    r"bar[eè]me|corrig[ée]s?\b|r[ée]ponses?\s*attendues?|[ée]l[ée]ments?\s*de\s*r[ée]ponse|"
+    r"marking\s*scheme|answer\s*key|expected\s*answers?|"
+    r"(?:question|part\s+of).{0,30}(?:answer|answers).{0,30}(?:mark|note)",
+    re.I | re.S,
+)
+
+# The same thing, as it is printed INSIDE a statement. Only `without_scheme`
+# may use this: see the blast-radius note above.
+#
+# The Arabic half of the original was mostly decorative. Counted against all
+# 4,225 live statements in the database:
+#
+#     أسس\s*ال?تصحيح       13   `ال?` is "ا" followed by an OPTIONAL "ل", so the
+#                               alef is mandatory and the form the papers
+#                               actually print — أسس تصحيح مادة الفلسفة, with no
+#                               article — never matched. As (?:ال)? it matches 70.
+#     معايير\s*التصحيح      0   never fired on anything
+#     سلّ?م\s*ال?تصحيح       0   never fired on anything
+#     معيار التصحيح       135   ABSENT, and it is the most common header in this
+#                               corpus: papers title the key مشروع معيار التصحيح.
+#     عناصر الإجابة        60   ABSENT, though it is the exact Arabic of the
+#                               éléments de réponse already listed in French.
+#
+# معيار and معايير stay separate alternatives: they are different words —
+# criterion and criteria — and a pattern that blurs them is one nobody can check
+# against a paper.
+#
+# The 201 statements this newly truncates were each verified: 156 carry a mark
+# column or examiner instructions in the removed text — a signal independent of
+# the pattern that made the cut — and the other 45 were read individually. All
+# are marking schemes. Those 45 lacked automatic corroboration only because OCR
+# damages the corroborating words themselves: العلامـة carrying a tatweel,
+# العلاهة and الوقترحة with م read as ه.
+SCHEME_IN_STATEMENT = re.compile(
+    r"أسس\s*(?:ال)?تصحيح|معايير\s*(?:ال)?تصحيح|معيار\s*(?:ال)?تصحيح|سلّ?م\s*(?:ال)?تصحيح|"
+    r"عناصر\s*(?:ال)?[أإا]?جابة|"
+    r"ال[أإا]?جابة\s*ال?متوقعة|الجواب\s*ال?متوقع|"
+    r"bar[eè]me|corrig[ée]s?\b|r[ée]ponses?\s*attendues?|[ée]l[ée]ments?\s*de\s*r[ée]ponse|"
     r"marking\s*scheme|answer\s*key|expected\s*answers?|"
     r"(?:question|part\s+of).{0,30}(?:answer|answers).{0,30}(?:mark|note)",
     re.I | re.S,
@@ -500,7 +559,7 @@ def without_scheme(statement: str) -> str:
     signal to REPORT on and not good enough to CUT on, and those are different
     bars.
     """
-    hit = SCHEME_HEAD.search(statement)
+    hit = SCHEME_IN_STATEMENT.search(statement)
     if not hit or hit.start() < 40:
         return statement
     return statement[: hit.start()].rstrip()

@@ -50,13 +50,26 @@ FRACTIONS = {"½": 0.5, "¼": 0.25, "¾": 0.75, "⅓": 1 / 3, "⅔": 2 / 3, "⅛
 
 # A mark cell: "1", "1½", "½", "0.5", "1,5", "2 pts". Anchored to the whole
 # cell — a number with prose round it is an answer, not an award.
+# The unit may sit either side of the number. An Arabic cell reads "4 علامات",
+# and the same cell pulled out of an RTL table arrives as "تاملاع 4" — the words
+# mirrored, the digit unchanged. Accepting both orders costs nothing and is what
+# lets an Arabic scheme be read at all.
 MARK_CELL = re.compile(
     rf"^\s*(?:(\d{{1,2}})\s*)?([{''.join(FRACTIONS)}])\s*(?:pts?|points?)?\s*$"
-    rf"|^\s*(\d{{1,2}}(?:[.,]\d{{1,2}})?)\s*(?:pts?|points?|علامات?|نقاط?)?\s*$"
+    rf"|^\s*(?:pts?|points?|علامات?|تاملاع|ناتملاع|ةملاع|نقاط?|طاقن)?\s*"
+    rf"(\d{{1,2}}(?:[.,]\d{{1,2}})?)"
+    rf"\s*(?:pts?|points?|علامات?|تاملاع|ناتملاع|ةملاع|نقاط?|طاقن)?\s*$"
 )
 
 # A label cell: "1", "2a", "3.1", "A3b", "II". Anchored likewise.
-LABEL_CELL = re.compile(r"^\s*([A-F]?\s*\d{1,2}(?:[.\-]\d{1,2})?\s*[a-f]?|[IVX]{1,4})\s*[.)\-]?\s*$", re.I)
+# Arabic papers label their parts أ ب ج د ه و rather than a b c d e f, and a
+# scheme labelled that way is a scheme. Without them every RTL table fails the
+# label-column test even once its columns are the right way round.
+AR_LETTERS = "أابجدهوزحط"
+LABEL_CELL = re.compile(
+    rf"^\s*([A-F]?\s*\d{{1,2}}(?:[.\-]\d{{1,2}})?\s*[a-f]?|[IVX]{{1,4}}|[{AR_LETTERS}])\s*[.)\-]?\s*$",
+    re.I,
+)
 
 # "Q 1", "Q.2", "Exercice 3", "Question II" — the table saying which exercise
 # it marks. These papers print it in the table's own header row.
@@ -93,6 +106,11 @@ def label_of(cell: str):
     if not m:
         return None
     text = re.sub(r"\s+", "", m.group(1)).lower()
+    # Arabic part letters fold onto the Latin ones so a scheme reads the same
+    # whichever alphabet the paper used: أ -> a, ب -> b, ...
+    ar = {"أ": "a", "ا": "a", "ب": "b", "ج": "c", "د": "d", "ه": "e", "و": "f", "ز": "g", "ح": "h", "ط": "i"}
+    if text in ar:
+        return ar[text]
     return ROMAN.get(text, text) and str(ROMAN.get(text, text))
 
 
@@ -107,6 +125,63 @@ def exercise_of(cell: str):
     return ROMAN.get(raw, int(raw) if raw.isdigit() else None)
 
 
+def _first(cells: list) -> str:
+    """The first cell with anything in it."""
+    return next((c for c in cells if c), "")
+
+
+def _last(cells: list) -> str:
+    """The last cell with anything in it."""
+    return next((c for c in reversed(cells) if c), "")
+
+
+def _scores(table: list) -> tuple:
+    """(rows, label-column hits, mark-column hits) reading left to right.
+
+    Both ends skip empty cells, and the label end did not used to. pdfplumber
+    returns a column per ruling line, so a table drawn with a margin rule or a
+    merged first column arrives with one or more empty leading cells — the
+    Arabic scheme in `corpus/extra` is nine columns wide and carries its part
+    label at index 2. Reading `cells[0]` literally scored zero labels on a table
+    whose labels were plainly there, and the mark end never had the problem
+    because it was already written as "last non-empty".
+    """
+    rows = labels = marks = 0
+    for row in table:
+        cells = [(c or "").strip() for c in row]
+        if not any(cells):
+            continue
+        rows += 1
+        if label_of(_first(cells)) is not None:
+            labels += 1
+        if mark_of(_last(cells)) is not None:
+            marks += 1
+    return rows, labels, marks
+
+
+def is_rtl_scheme_table(table: list) -> bool:
+    """Is this a scheme table whose columns arrived right-to-left?
+
+    An Arabic scheme is ruled السؤال | عناصر الإجابة | العلامة and read from the
+    right, so pdfplumber — which walks columns left to right — hands it back
+    with the MARK column first and the question column last. `is_scheme_table`
+    wants labels first and marks last, so every Arabic scheme in the corpus was
+    refused: not mis-read, which would be worse, but never read at all.
+
+    That is almost certainly why every Arabic subject sits at about one
+    criterion per question — جغرافيا 1.00 across 8.1 numbered parts, تربية 1.00,
+    أدب عربي 1.15 — while Chemistry manages 3.12 and Physics 2.38 off the same
+    reader. The marks are printed on the page; nothing could see them.
+
+    Detected rather than assumed from the language: the test is that the table
+    reads as a scheme when its columns are reversed and does not when they are
+    not. A table that satisfies both readings is ambiguous and is left to the
+    left-to-right one.
+    """
+    rows, labels, marks = _scores([list(reversed(r)) for r in table])
+    return rows >= 3 and labels >= rows * 0.5 and marks >= rows * 0.4
+
+
 def is_scheme_table(table: list) -> bool:
     """A ruled table whose first column is labels and whose last is marks.
 
@@ -116,17 +191,17 @@ def is_scheme_table(table: list) -> bool:
     """
     if len(table) < 3 or max((len(r) for r in table), default=0) < 3:
         return False
-    rows = labels = marks = 0
-    for row in table:
-        cells = [(c or "").strip() for c in row]
-        if not any(cells):
-            continue
-        rows += 1
-        if label_of(cells[0]) is not None:
-            labels += 1
-        if mark_of(next((c for c in reversed(cells) if c), "")) is not None:
-            marks += 1
+    rows, labels, marks = _scores(table)
     return rows >= 3 and labels >= rows * 0.5 and marks >= rows * 0.4
+
+
+def orient(table: list) -> list:
+    """The table with its columns in reading order, whichever way it was laid out."""
+    if is_scheme_table(table):
+        return table
+    if len(table) >= 3 and max((len(r) for r in table), default=0) >= 3 and is_rtl_scheme_table(table):
+        return [list(reversed(r)) for r in table]
+    return table
 
 
 def rows_of(table: list) -> list:
@@ -136,11 +211,13 @@ def rows_of(table: list) -> list:
         cells = [(c or "").strip() for c in row]
         if not any(cells):
             continue
-        label = label_of(cells[0])
+        label = label_of(_first(cells))
         if label is None:
             continue
+        # Same skip-the-blanks rule as the scorer, so a table that PASSES
+        # `is_scheme_table` cannot then yield no rows here.
+        body = [c for c in cells if c][1:]
         mark = None
-        body = cells[1:]
         if body and mark_of(body[-1]) is not None:
             mark = mark_of(body[-1])
             body = body[:-1]
@@ -177,6 +254,9 @@ def scheme_from_tables(pdf: Path) -> dict:
         with pdfplumber.open(pdf) as doc:
             for page in doc.pages:
                 for table in page.extract_tables():
+                    # Put the columns in reading order first: an Arabic scheme
+                    # arrives mirrored and would otherwise be refused outright.
+                    table = orient(table)
                     if is_scheme_table(table):
                         tables.append(table)
     except Exception:

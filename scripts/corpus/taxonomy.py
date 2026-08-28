@@ -248,6 +248,111 @@ def clean(text: str) -> str:
     return re.sub(r"[ \t]+", " ", text)
 
 
+# The Arabic block holds its own punctuation, and the tatweel.
+#
+# `[a-z0-9؀-ۿ]` reads as "a letter or a digit", and for Latin it is: a comma is
+# outside the class and folds to a space. U+0600–U+06FF is not that tidy. It
+# contains ، ؛ ؟ and the tatweel ـ, so those survived normalisation as if they
+# were letters, and Arabic titles were held to a stricter comparison than Latin
+# ones: a title transcribed with a comma could never match the same heading
+# printed without one.
+#
+# Found 2026-08-26 on tarbiya's الانتخابات البلدية والاختيارية، وانتخابات...,
+# which the book prints without the comma. The chapter went unplaced and its
+# twenty-two pages were absorbed by the lesson before it.
+#
+# Tested by category rather than by listing the code points, so a punctuation
+# mark nobody has hit yet is handled the same way.
+def is_word_char(c: str) -> bool:
+    if not re.match(r"[a-z0-9؀-ۿ]", c):
+        return False
+    if unicodedata.category(c).startswith("P"):
+        return False
+    return c != "ـ"  # tatweel: elongation, not a letter
+
+
+# The book's own end matter: a glossary, an index, a bibliography.
+BACK_MATTER = re.compile(
+    r"\\section\*?\{\s*(?:lexique|glossaire|glossary|index|bibliographie|bibliography)\s*\}"
+    r"|^\s*#{1,4}\s*(?:lexique|glossaire|glossary|index|bibliographie|bibliography)\s*$",
+    re.I | re.M,
+)
+
+# A glossary entry: a capitalised term, a colon, then its definition.
+GLOSSARY_ENTRY = re.compile(r"^\s*[A-ZÉÈÀÎÔ][\w''’ ()\-]{2,45}\s*:\s+\S", re.M)
+
+# A stray "Index" heading is not the index. A real one spans pages AND sits at
+# the back, and it is the position that carries the argument.
+BACK_MATTER_MIN_PAGES = 3
+BACK_MATTER_TAIL = 0.20
+
+# Enough entries, and enough of the page, to be a glossary rather than a page of
+# prose that happens to define two terms.
+GLOSSARY_MIN_ENTRIES = 8
+GLOSSARY_MIN_RATIO = 0.15
+
+# Below this a page is blank or nearly so, and has no opinion either way. Page
+# 391 of both biology books is empty and sits in the middle of the glossary.
+PAGE_HAS_CONTENT = 10
+
+
+def _glossary_like(text: str):
+    """True, False, or None for a page too empty to judge."""
+    lines = [l for l in text.splitlines() if l.strip()]
+    if len(lines) < PAGE_HAS_CONTENT:
+        return None
+    entries = len(GLOSSARY_ENTRY.findall(text))
+    return entries >= GLOSSARY_MIN_ENTRIES and entries >= len(lines) * GLOSSARY_MIN_RATIO
+
+
+def back_matter_start(pages: dict, after: int):
+    """The first page of the book's end matter, or None.
+
+    The last chapter used to run to `max(pages)` unconditionally, which handed
+    it the glossary. That is not a small thing: a glossary holds every term in
+    the book, so it scores respectably against ANY query in the subject and
+    outranks the chapter that actually answers. `biology-fr` filed eleven
+    glossary chunks under `Evolution humaine`, and a question about a thyroid
+    inflammation retrieved human evolution — over `Régulation des hormones`,
+    which was sitting right there — because the glossary defines "cycle
+    menstruel ... variations dans les concentrations hormonales". Both biology
+    books do it: the last chapter carries 45 chunks where its neighbours carry
+    20 to 30.
+
+    Recognised by the TYPESET heading, and only where the run reaches the end of
+    the book. A per-lesson glossary — tarbiya closes lessons with المصطلحات —
+    is a section inside a chapter and must keep belonging to it; what marks the
+    real thing is that it never returns to teaching.
+    """
+    last = max(pages)
+    floor = last - last * BACK_MATTER_TAIL
+
+    # Walk back from the end while the pages keep looking like end matter, and
+    # stop at the first page of teaching. Structure, not the heading: the
+    # heading is printed on some glossary pages and not others — biology-fr
+    # heads 387, 388, 390 and 395 but not 386, 389 or 391-394 — so anchoring on
+    # it left a page of definitions attached to `Evolution humaine`, which is
+    # the whole failure this exists to stop. The definition-entry count is
+    # unambiguous by comparison: 0 on every page of chapter 19 and 24 to 30 on
+    # every page of the glossary, in both biology books, breaking at the same
+    # page in each.
+    start = None
+    for n in sorted(pages, reverse=True):
+        if n <= after or n < floor:
+            break
+        verdict = _glossary_like(pages[n])
+        if verdict is False and not BACK_MATTER.search(pages[n]):
+            break
+        if verdict is True or BACK_MATTER.search(pages[n]):
+            start = n
+        # None (an empty page) neither extends nor ends the run.
+
+    if start is None:
+        return None
+    real = sum(1 for n in pages if n >= start and _glossary_like(pages[n]) is True)
+    return start if real >= BACK_MATTER_MIN_PAGES else None
+
+
 def normalise_indexed(title: str) -> tuple:
     """Normalise, and remember where each surviving character came from.
 
@@ -267,7 +372,7 @@ def normalise_indexed(title: str) -> tuple:
         decomposed = unicodedata.normalize("NFD", ch.lower())
         decomposed = "".join(c for c in decomposed if unicodedata.category(c) != "Mn")
         for c in decomposed:
-            if re.match(r"[a-z0-9؀-ۿ]", c):
+            if is_word_char(c):
                 out.append(c)
                 idx.append(i)
                 at_space = False
@@ -879,7 +984,9 @@ def build(book: str) -> dict | None:
     for i, c in enumerate(known):
         nxt = known[i + 1] if i + 1 < len(known) else None
         if nxt is None:
-            c["pdfPageEnd"] = max(pages)
+            c["pdfPageEnd"] = back_matter_start(pages, c["pdfPage"]) or max(pages)
+            if c["pdfPageEnd"] != max(pages):
+                c["pdfPageEnd"] -= 1
         elif nxt.get("pdfOffset") is not None:
             c["pdfPageEnd"] = nxt["pdfPage"]
             c["pdfEndOffset"] = nxt["pdfOffset"]
