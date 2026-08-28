@@ -193,15 +193,36 @@ PART_SCORE = re.compile(
 INLINE_MARK = re.compile(
     rf"[(（]\s*{MARK}\s*(?:points?|pts?|علامات?|نقاط?|درجات?)\s*[)）]?", re.I)
 
+# The hierarchy inside a sub-question label: "1.1", "2.3.1", and — because
+# Lebanese papers write it both ways — "1-1" and "1–2".
+#
+# The dash form used to be unreadable. "1-1)" matched the leading 1 and took the
+# dash for the terminator, so every sub-question in section 1 came back labelled
+# "1": six distinct parts of gs/2017 2/phy_fr sharing one label, and with it one
+# mark and one official answer. A dash only continues the label when a digit
+# follows it, so "1- Identification du dipôle" still reads as part 1 with a
+# heading, which is what it is.
+LABEL = r"\d{1,2}(?:[.\-–]\d{1,2}){0,2}"
+
 # "1.1-", "2.3.1)", "1-" at the start of a line: a sub-question label.
 #
 # The separator must be a dash or a bracket, or a full stop with a space after
 # it. Allowing a bare full stop made "1.010-2 mol.L-1" — a concentration wrapped
 # onto its own line — read as sub-question 1.
-PART = re.compile(r"(?m)^[ \t]*(\d{1,2}(?:\.\d{1,2}){0,2})\s*(?:[-–)：:]|\.(?=\s))\s*(?=\S)")
+PART = re.compile(rf"(?m)^[ \t]*({LABEL})\s*(?:[-–)：:]|\.(?=\s))\s*(?=\S)")
 
 # A marking-scheme row: label, the answer, then the mark alone at the end.
-SCHEME_ROW = re.compile(rf"(?m)^[ \t]*(\d{{1,2}}(?:\.\d{{1,2}}){{0,2}})\s+(.+?)\s+{MARK}\s*$")
+SCHEME_ROW = re.compile(rf"(?m)^[ \t]*({LABEL})\s+(.+?)\s+{MARK}\s*$")
+
+
+def norm_label(label: str) -> str:
+    """One spelling for a label, so the paper's half and the scheme's half meet.
+
+    A paper may print "1-2" where its own marking scheme prints "1.2". They are
+    the same sub-question and must key the same, or the answer is attached to
+    nothing. Everything folds to the full stop.
+    """
+    return re.sub(r"[\-–]", ".", label)
 
 # The header of a marking scheme, in any of the three languages.
 #
@@ -627,7 +648,7 @@ def parse_exercises(text: str, allow_subject_split: bool = True) -> list:
         title = re.sub(r"\s+", " ", rest[0]).strip(" :-–)")
         statement = without_scheme((rest[1] if len(rest) > 1 else "").strip())
         index = header_index(m, kind, n + 1)
-        parts = [{"label": p.group(1), "at": p.start()} for p in PART.finditer(statement)]
+        parts = [{"label": norm_label(p.group(1)), "at": p.start()} for p in PART.finditer(statement)]
         for i, part in enumerate(parts):
             end = parts[i + 1]["at"] if i + 1 < len(parts) else len(statement)
             part["text"] = re.sub(r"\s+", " ", statement[part["at"]:end]).strip()
@@ -747,7 +768,7 @@ def parse_scheme(text: str) -> dict:
     for index, block in blocks:
         answers = scheme.setdefault(index, {})
         for m in SCHEME_ROW.finditer(block):
-            label = m.group(1)
+            label = norm_label(m.group(1))
             answer = re.sub(r"\s+", " ", m.group(2)).strip()
             if len(answer) < 3:
                 continue
