@@ -45,10 +45,23 @@ const RANKING_SCHEMA = {
 
 export type Rerankable = { contentText: string };
 
+/**
+ * Which model does the reading, and how hard it thinks.
+ *
+ * Exists so the choice can be MEASURED rather than assumed. The default — the
+ * cheap verify model at low effort — is what the Arabic-only policy in
+ * `retrieval.ts` was measured against, and that policy exists because reranking
+ * as configured HURT French (top-1 52% -> 39%). Whether that is reranking being
+ * wrong for French or the cheap model being wrong for French is a different
+ * question, and it is answerable: see `scripts/compare-rerank-models.ts`.
+ */
+export type RerankOptions = { model?: string; effort?: 'low' | 'medium' | 'high' };
+
 export async function rerankByRelevance<T extends Rerankable>(
   query: string,
   hits: T[],
   keep: number,
+  opts: RerankOptions = {},
 ): Promise<T[]> {
   if (hits.length <= 1 || !isAiConfigured()) return hits;
 
@@ -79,9 +92,9 @@ export async function rerankByRelevance<T extends Rerankable>(
       ],
       schema: RANKING_SCHEMA as unknown as Record<string, unknown>,
       schemaName: 'passage_ranking',
-      effort: 'low',
+      effort: opts.effort ?? 'low',
       maxTokens: 400,
-      model: env().OPENAI_MODEL_VERIFY,
+      model: opts.model ?? env().OPENAI_MODEL_VERIFY,
       parse: (value) => rankingSchema.parse(value),
     });
 

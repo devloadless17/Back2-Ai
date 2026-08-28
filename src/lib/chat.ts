@@ -6,8 +6,13 @@ import { ai } from '@/lib/ai';
 import { db } from '@/lib/db';
 import type { Locale } from '@/lib/i18n/config';
 import { classifyChatIntent, type IntentClassification } from '@/lib/chat-intent';
-import type { QuestionClassification } from '@/lib/question-kind';
+import { missingVisual, type QuestionClassification } from '@/lib/question-kind';
 import { retrieveGrounding, type GroundingResult, type RetrievalSource } from '@/lib/retrieval';
+import { startOfToday } from '@/lib/queries/flashcards';
+import type { QuestionKind } from '@/lib/question-kind';
+import { getNextUp } from '@/lib/queries/next-up';
+import { getProgressForUser, rankChapters } from '@/lib/queries/progress';
+import { getSidebarStanding } from '@/lib/queries/standing';
 import { verifyAgainstContext } from '@/lib/verification';
 
 /**
@@ -51,6 +56,65 @@ export const REFUSAL_TEXT: Record<Locale, string> = {
   ar:
     'هذا الموضوع غير مشمول بالمواد المتاحة لفرعك، لذلك لن أخمّن الإجابة. ' +
     'حاول إعادة صياغة سؤالك، أو اسأل أستاذك.',
+};
+
+/**
+ * Printed above every answer that came from the model rather than the corpus.
+ *
+ * Prepended in code, not asked for in the prompt. A model told to "say when you
+ * are unsure" complies most of the time, and the times it does not are exactly
+ * the confident wrong answers this label exists to catch. Making it a string
+ * concatenation makes it unskippable.
+ *
+ * The wording has one job: tell a student which answers they can put in front of
+ * a corrector and which they cannot. "Check it against your textbook" is the
+ * actionable half — it names the thing to go and do, rather than leaving them
+ * with a warning they will learn to scroll past.
+ */
+const GENERAL_KNOWLEDGE_NOTICE: Record<Locale, string> = {
+  fr:
+    "Je n'ai pas trouvé ce point dans le matériel de ta filière, donc voici ce que j'en sais " +
+    "de manière générale — à vérifier dans ton manuel avant de t'en servir dans une copie.\n\n",
+  en:
+    "I couldn't find this in your track's material, so here is what I know about it in general " +
+    "— check it against your textbook before you rely on it in an exam.\n\n",
+  ar:
+    "لم أجد هذا الموضوع في مواد فرعك، لذلك إليك ما أعرفه عنه بشكل عام — " +
+    "تأكّد منه في كتابك المدرسي قبل الاعتماد عليه في الامتحان.\n\n",
+};
+
+/**
+ * Printed above any answer to a question that points at a figure we do not have.
+ *
+ * `content_images` is empty for all 4,150 questions and 1,190 of them name a
+ * document, figure or diagram. Until today every one of those was answered
+ * without a word about it: a Life Sciences question reading "the results are
+ * shown in document 1" matches ITSELF in the corpus at similarity 1.000, so
+ * `exact_match` fires first and short-circuits the comprehension routing that
+ * would have asked for the document. The student was walked through a graph
+ * nobody can see.
+ *
+ * Prepended in code rather than requested in the prompt, for the same reason
+ * GENERAL_KNOWLEDGE_NOTICE is: a model told to mention a missing figure will
+ * usually mention it, and the times it forgets are exactly the times the
+ * student is misled. Concatenation makes it unskippable.
+ *
+ * It does not refuse. Where the answer is genuinely useful without the figure —
+ * an exact match hands over the official solution — withholding it would help
+ * nobody. It says what is missing and how to supply it, then answers.
+ */
+const MISSING_VISUAL_NOTICE: Record<Locale, (ref: string) => string> = {
+  fr: (ref) =>
+    `Cette question renvoie à « ${ref} », que je n'ai pas sous les yeux : les figures ne sont pas ` +
+    "encore stockées avec les sujets. Photographie-la ou décris-la, et je reprends avec toi. " +
+    'Voici ce que je peux dire sans elle.\n\n',
+  en: (ref) =>
+    `This question refers to “${ref}”, which I do not have in front of me — figures are not yet ` +
+    'stored with the papers. Photograph it or describe it and we will work through it together. ' +
+    'Here is what I can say without it.\n\n',
+  ar: (ref) =>
+    `يشير هذا السؤال إلى «${ref}» وهو ليس أمامي — الأشكال غير مخزّنة بعد مع المسابقات. ` +
+    'صوّره أو صِفه ولنعمل عليه معاً. وإليك ما يمكنني قوله من دونه.\n\n',
 };
 
 /**
@@ -176,7 +240,21 @@ function systemPrompt(
   const common = [
     'You are a tutor for the Lebanese Baccalaureate. You are talking to a student preparing for a national exam.',
     '',
-    `Write in ${LANGUAGE_NAME[locale]}. Use the notation and vocabulary of the Lebanese programme.`,
+    /*
+     * The QUESTION picks the language, not the account setting.
+     *
+     * A Lebanese candidate sits Arabic history, French maths and English
+     * biology off one timetable, and switches language by subject rather than
+     * by profile. `preferred_language` is one value and cannot describe that.
+     * On 2026-08-26 a student asked "quels sont les mécanismes de l'évolution ?"
+     * and was answered in English, because their account said `en` — the tutor
+     * had the French in front of it and used the setting instead.
+     *
+     * The setting stays as the tie-break for a message that names no language
+     * of its own: "merci", a bare formula, a pasted diagram caption.
+     */
+    `Reply in the language the student wrote their message in. If that is unclear, reply in ${LANGUAGE_NAME[locale]}.`,
+    'Use the notation and vocabulary of the Lebanese programme.',
     'Mathematics in LaTeX: $...$ inline, $$...$$ displayed.',
     '',
     'Hard rules:',
@@ -217,6 +295,14 @@ function systemPrompt(
     // here so the map stays exhaustive and a new tier cannot be added without
     // deciding what the grounded prompt should say about it.
     conversational: [],
+    // Also never reached, and for the sharper of the two reasons: this prompt's
+    // first hard rule is "answer ONLY from the material given below", and a
+    // general-knowledge turn has no material below. `generalKnowledgeTurn`
+    // carries its own prompt with its own limits.
+    general_knowledge: [],
+    // Never reached either: a planning turn is answered before retrieval
+    // runs, from the student's own record rather than from any material.
+    study_record: [],
   };
 
   /*
@@ -267,6 +353,8 @@ export type ChatTurnInput = {
   question: string;
   /** Subject scope, derived server-side from the student's locked track. */
   subjectIds: string[];
+  /** The locked track itself, for the lanes that read the student's own record. */
+  trackId: string | null;
   locale: Locale;
   /** Prior turns in this conversation, oldest first. */
   history: { role: 'user' | 'assistant'; content: string }[];
@@ -344,6 +432,10 @@ export async function* runChatTurn(input: ChatTurnInput): AsyncGenerator<ChatEve
    * a worse failure than greeting somebody twice.
    */
   const intent = classifyChatIntent(input.question);
+  if (intent.intent === 'planning') {
+    yield* planningTurn(input, intent);
+    return;
+  }
   if (intent.intent !== 'curriculum') {
     yield* conversationalTurn(input, intent);
     return;
@@ -370,9 +462,49 @@ export async function* runChatTurn(input: ChatTurnInput): AsyncGenerator<ChatEve
     similarity: Math.round(s.similarity * 1000) / 1000,
   }));
 
-  yield { type: 'meta', tier: grounding.tier, sources, topSimilarity: grounding.topSimilarity };
+  /*
+   * The lane is decided before the meta event, not after it.
+   *
+   * `meta` is what the badge over the answer is drawn from, and retrieval only
+   * knows that nothing cleared threshold — it cannot know which of the two
+   * things that means. Emitting `grounding.tier` here put "Not covered by the
+   * curriculum" above an answer that was about to be given, which is both wrong
+   * and the precise mislabelling the general-knowledge tier exists to avoid. It
+   * also disagreed with the tier persisted a moment later, so the badge changed
+   * on reload.
+   */
+  const lane =
+    grounding.tier === 'ungrounded_refused' ? ungroundedLane(grounding.classification.kind) : null;
+  const shownTier: GroundingTier = lane === 'general_knowledge' ? 'general_knowledge' : grounding.tier;
 
-  // --- Nothing cleared threshold: refuse, and record the refusal ------------
+  yield { type: 'meta', tier: shownTier, sources, topSimilarity: grounding.topSimilarity };
+
+  /*
+   * --- Nothing cleared threshold ------------------------------------------
+   *
+   * Two different situations wear the same tier, and they part company here.
+   *
+   * A comprehension question about a passage nobody handed over cannot be
+   * answered from general knowledge either — there is no "in general" answer to
+   * "what does the author mean in line 4". That one still asks for the text.
+   *
+   * A concept or essay question with nothing behind it is a different case
+   * entirely. Refusing it was defensible while the refusal meant "this is off
+   * your programme", but the corpus covers a fraction of the syllabus, so in
+   * practice the product was declining to explain photosynthesis to a candidate
+   * who asked about photosynthesis. That is not caution; it is a gap in the
+   * material being charged to the student.
+   *
+   * So: answer, and say plainly where the answer came from. The guarantee this
+   * product makes is not "everything is from the textbook" — it is "you always
+   * know which is which", and a labelled answer keeps that guarantee where a
+   * refusal only avoided ever testing it.
+   */
+  if (lane === 'general_knowledge') {
+    yield* generalKnowledgeTurn(input, grounding);
+    return;
+  }
+
   if (grounding.tier === 'ungrounded_refused') {
     /*
      * Two refusals, because there are two reasons. "Not on your programme" and
@@ -423,6 +555,16 @@ export async function* runChatTurn(input: ChatTurnInput): AsyncGenerator<ChatEve
   }
 
   // --- Grounded generation -------------------------------------------------
+  //
+  // Before a single token: if the question sends the student to a figure, say
+  // that we do not have it. Checked on the QUESTION, not on the tier, because
+  // the tier that most often answers these is `exact_match` — the one that
+  // never reaches the routing which would otherwise have caught it.
+  const absentVisual = missingVisual(input.question);
+  if (absentVisual) {
+    yield { type: 'delta', text: MISSING_VISUAL_NOTICE[input.locale](absentVisual) };
+  }
+
   const provider = ai();
   const userContent = [
     '# Course material you may use',
@@ -537,7 +679,10 @@ export async function* runChatTurn(input: ChatTurnInput): AsyncGenerator<ChatEve
 function conversationalPrompt(subjects: string[], locale: Locale): string {
   return [
     'You are the study assistant inside a Lebanese Baccalaureate revision app.',
-    `Reply in ${LANGUAGE_NAME[locale]}.`,
+    // The student's own message picks the language; the setting is the
+    // tie-break. See `systemPrompt` for why one account value cannot
+    // describe a trilingual timetable.
+    `Reply in the language the student wrote in. If that is unclear, reply in ${LANGUAGE_NAME[locale]}.`,
     '',
     'The student has sent a greeting, a courtesy, or a question about you rather',
     'than a question about their course. Answer it the way a helpful person would:',
@@ -566,6 +711,352 @@ function conversationalPrompt(subjects: string[], locale: Locale): string {
  * that machinery with empty arguments is how a path like this ends up emitting
  * a confident-looking badge over an ungrounded sentence.
  */
+/**
+ * Which lane an ungrounded question belongs in.
+ *
+ * Named and exported rather than left inline because it is the rule that
+ * decides whether a student is taught or turned away, and it is the composition
+ * of two classifiers that live in different files. A condition spread that
+ * thinly is one nobody can check; this one can be, and is.
+ */
+export function ungroundedLane(kind: QuestionKind): 'general_knowledge' | 'needs_passage' {
+  /*
+   * Comprehension is the only kind that general knowledge cannot rescue. "What
+   * does the author mean here" has no answer that is true independent of the
+   * passage, so answering it from model knowledge would not be a labelled
+   * approximation — it would be fiction about a text nobody has read.
+   */
+  return kind === 'comprehension' ? 'needs_passage' : 'general_knowledge';
+}
+
+/**
+ * Everything the product knows about how this student's revision is going.
+ *
+ * Assembled from the same queries the dashboard and sidebar read, deliberately:
+ * a tutor that tells a student they are 12 days from the exam while the sidebar
+ * says 11 is worse than one that says nothing, and the surest way to keep the
+ * two honest is to have them read the same source.
+ *
+ * Kept small. This goes into a prompt on every planning turn, and a model given
+ * forty chapters will summarise them; a model given the six that matter will
+ * answer about those.
+ */
+async function studySnapshot(input: ChatTurnInput) {
+  const [standing, nextUp, upcoming, dueCount, progress] = await Promise.all([
+    getSidebarStanding(input.userId, input.trackId, input.locale),
+    getNextUp(input.userId, input.trackId, input.locale),
+    db.studySession.findMany({
+      where: { userId: input.userId, scheduledDate: { gte: startOfToday() }, status: "planned" },
+      select: { title: true, scheduledDate: true, durationMinutes: true, taskType: true },
+      orderBy: { scheduledDate: "asc" },
+      take: 12,
+    }),
+    db.flashcardState.count({ where: { userId: input.userId, dueDate: { lte: startOfToday() } } }),
+    getProgressForUser(input.userId, input.trackId, input.locale),
+  ]);
+
+  return {
+    markOutOf20: standing.mark,
+    daysToExam: standing.daysToExam,
+    cardsDueToday: dueCount,
+    suggestedNext: nextUp,
+    weakestChapters: rankChapters(progress, 6).map((c) => ({
+      chapter: c.chapterName,
+      subject: c.subjectName,
+      masteryPercent: Math.round(c.masteryScore * 100),
+    })),
+    plannedSessions: upcoming.map((u) => ({
+      date: u.scheduledDate.toISOString().slice(0, 10),
+      title: u.title,
+      minutes: u.durationMinutes,
+      task: u.taskType,
+    })),
+  };
+}
+
+function planningPrompt(snapshot: unknown, locale: Locale, today: string): string {
+  return [
+    "You are the study assistant inside a Lebanese Baccalaureate revision app,",
+    "talking to a student about their own revision.",
+    // The student's own message picks the language; the setting is the
+    // tie-break. See `systemPrompt` for why one account value cannot
+    // describe a trilingual timetable.
+    `Reply in the language the student wrote in. If that is unclear, reply in ${LANGUAGE_NAME[locale]}.`,
+    `Today is ${today}.`,
+    "",
+    "Below is this student's actual record, taken from the app's own database a",
+    "moment ago. It is not retrieved material and you do not need to hedge about",
+    "it — these are the numbers the rest of the app is showing them right now.",
+    "",
+    JSON.stringify(snapshot, null, 2),
+    "",
+    "HARD LIMITS:",
+    "- Use ONLY the figures above. Do not compute a date, a day count or a mark",
+    "  that is not there, and if a field is null say you do not have it yet",
+    "  rather than estimating one.",
+    "- Do not teach any subject matter. If they ask what a chapter contains, say",
+    "  you will look it up and invite them to ask it as a question — this path",
+    "  retrieved no course material.",
+    "- Do not promise a mark, predict a result, or tell them they will pass or",
+    "  fail. `markOutOf20` is a measure of practice so far, not a forecast.",
+    "- Do not invent a chapter, a subject or a session that is not listed.",
+    "- Do not change their schedule. You can suggest; the app applies plans only",
+    "  when the student accepts one on the schedule page.",
+    "",
+    "Be concrete and short. Name the actual chapter or session rather than",
+    "talking about revision in general. If they ask what to do next, answer with",
+    "one thing, and say why that one. Encouraging without cheerleading: a",
+    "candidate three weeks out wants to be told what to open, not congratulated.",
+  ].join("\n");
+}
+
+/**
+ * The personal-assistant lane.
+ *
+ * Every other lane answers a question about the world; this one answers a
+ * question about the student, and the difference runs all the way through. The
+ * facts are not retrieved and weighed against a threshold — they are simply
+ * held, and stating them is not a claim that could be wrong about the syllabus.
+ * So there is no similarity, no citation, and nothing for
+ * `verifyAgainstContext` to do that the database has not already done.
+ *
+ * Reports `verified: true` for exactly that reason, and it is the one lane
+ * outside the grounded tiers where that word is honest.
+ */
+async function* planningTurn(
+  input: ChatTurnInput,
+  intent: IntentClassification,
+): AsyncGenerator<ChatEvent> {
+  yield { type: "meta", tier: "study_record", sources: [], topSimilarity: null };
+
+  let snapshot: Awaited<ReturnType<typeof studySnapshot>>;
+  try {
+    snapshot = await studySnapshot(input);
+  } catch (err) {
+    console.error("[chat] study snapshot failed", err);
+    yield { type: "error", message: "Could not read your study record." };
+    return;
+  }
+
+  let answer = "";
+  let modelUsed: string | null = null;
+
+  try {
+    const stream = ai().streamText({
+      system: planningPrompt(snapshot, input.locale, startOfToday().toISOString().slice(0, 10)),
+      messages: [...input.history.slice(-8), { role: "user", content: input.question }],
+      effort: "low",
+    });
+
+    let next = await stream.next();
+    while (!next.done) {
+      answer += next.value;
+      yield { type: "delta", text: next.value };
+      next = await stream.next();
+    }
+    modelUsed = next.value.modelUsed;
+    if (next.value.refused || answer.trim().length === 0) {
+      throw new Error("The provider returned no usable answer.");
+    }
+  } catch (err) {
+    /*
+     * The fallback states the two figures a student most often wants and that
+     * need no prose to be useful. Unlike the other lanes there is something
+     * true to say here without a model at all, so an outage costs them the
+     * conversation but not the answer.
+     */
+    console.error("[chat] planning generation failed", err);
+    if (!answer) {
+      answer = planningFallback(snapshot, input.locale);
+      yield { type: "delta", text: answer };
+    }
+  }
+
+  const message = await persistAssistantMessage({
+    sessionId: input.sessionId,
+    content: answer,
+    tier: "study_record",
+    citedSourceIds: [],
+    topSimilarity: null,
+    modelUsed,
+  });
+
+  console.info(`[chat] planning turn (${intent.signal})`);
+  yield { type: "done", messageId: message.id, verified: true };
+}
+
+/** Said when the model is unreachable: the figures, with no prose around them. */
+function planningFallback(
+  snapshot: Awaited<ReturnType<typeof studySnapshot>>,
+  locale: Locale,
+): string {
+  const lines: string[] = [];
+  const L = {
+    fr: {
+      days: (n: number) => `Il te reste ${n} jour(s) avant ton prochain examen.`,
+      cards: (n: number) => `${n} carte(s) à réviser aujourd'hui.`,
+      weak: (c: string) => `Le chapitre le plus faible en ce moment : ${c}.`,
+      none: "Je n'arrive pas à joindre l'assistant pour le moment.",
+    },
+    en: {
+      days: (n: number) => `You have ${n} day(s) until your next exam.`,
+      cards: (n: number) => `${n} card(s) due today.`,
+      weak: (c: string) => `Your weakest chapter right now is ${c}.`,
+      none: "I can't reach the assistant at the moment.",
+    },
+    ar: {
+      days: (n: number) => `بقي ${n} يوم/أيام حتى امتحانك القادم.`,
+      cards: (n: number) => `${n} بطاقة مستحقة اليوم.`,
+      weak: (c: string) => `أضعف فصل لديك حالياً: ${c}.`,
+      none: "لا أستطيع الوصول إلى المساعد في الوقت الحالي.",
+    },
+  }[locale];
+
+  if (snapshot.daysToExam !== null) lines.push(L.days(snapshot.daysToExam));
+  if (snapshot.cardsDueToday > 0) lines.push(L.cards(snapshot.cardsDueToday));
+  const weakest = snapshot.weakestChapters[0];
+  if (weakest) lines.push(L.weak(weakest.chapter));
+
+  return lines.length ? lines.join("\n") : L.none;
+}
+
+function generalKnowledgePrompt(subjects: string[], locale: Locale): string {
+  return [
+    "You are a tutor inside a Lebanese Baccalaureate (Bac II) revision app.",
+    // The student's own message picks the language; the setting is the
+    // tie-break. See `systemPrompt` for why one account value cannot
+    // describe a trilingual timetable.
+    `Reply in the language the student wrote in. If that is unclear, reply in ${LANGUAGE_NAME[locale]}.`,
+    "",
+    "A student has asked a real subject question, and a search of their course",
+    "material found nothing close enough to answer from. Answer it from your own",
+    "knowledge, at the level of a final-year secondary student sitting the",
+    "Lebanese national examination.",
+    "",
+    "The student is being told, above your answer, that this did not come from",
+    "their course material. You need not repeat that, and you must not contradict it.",
+    "",
+    "HARD LIMITS. You have no material in front of you, so:",
+    "- Never say \"your textbook says\", \"the syllabus covers\", or \"in chapter X\",",
+    "  and never point to a page. You have not seen their book.",
+    "- Never cite a source, invent a reference, or attribute anything to the CRDP",
+    "  or to a past examination session.",
+    "- Never state a bareme, a mark allocation, or how examiners weight an answer.",
+    "  Those belong to a paper you have not been given.",
+    "- Never state anything about this student: their progress, marks, schedule, or",
+    "  what they have already studied. You have not been told any of it.",
+    "- If the question turns on a convention that differs between curricula —",
+    "  notation, a definition, an accepted method — say so and give the version you",
+    "  are using, rather than presenting one as universal.",
+    "- If you are not confident, say which part you are unsure about. An unlabelled",
+    "  guess here is the failure this whole path is designed around.",
+    "",
+    "Be direct and teach the thing. Short paragraphs, worked steps where the",
+    "question is a calculation. No preamble about what you are about to do.",
+    "",
+    subjects.length
+      ? `This student takes: ${subjects.join(", ")}. If the question is plainly outside all of them, say so in one line and stop.`
+      : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+/**
+ * Answers from model knowledge, under a label the model cannot remove.
+ *
+ * Deliberately not folded into the grounded generator. That one cites sources,
+ * earns a tier and runs `verifyAgainstContext` afterwards — and every one of
+ * those steps is meaningless against an empty context. Verification in
+ * particular would be actively harmful: checking an answer against nothing and
+ * reporting "verified" is how an ungrounded claim ends up wearing a badge of
+ * authority.
+ *
+ * This turn therefore reports `verified: false`. Nothing checked it, and the
+ * done event must not imply otherwise.
+ */
+async function* generalKnowledgeTurn(
+  input: ChatTurnInput,
+  grounding: GroundingResult,
+): AsyncGenerator<ChatEvent> {
+  const subjects = await db.subject.findMany({
+    where: { id: { in: input.subjectIds } },
+    select: { name: true },
+    orderBy: { name: "asc" },
+  });
+
+  // The notice goes out before a single token of the answer. A student who
+  // reads the first paragraph and stops reading has still seen it.
+  const notice = GENERAL_KNOWLEDGE_NOTICE[input.locale];
+  yield { type: "delta", text: notice };
+
+  let answer = "";
+  let modelUsed: string | null = null;
+
+  try {
+    const stream = ai().streamText({
+      system: generalKnowledgePrompt(subjects.map((s) => s.name), input.locale),
+      messages: [...input.history.slice(-8), { role: "user", content: input.question }],
+      // The same budget the grounded path gets. This lane has no retrieved
+      // material to lean on, so if anything it needs the thinking more.
+      effort: "medium",
+    });
+
+    let next = await stream.next();
+    while (!next.done) {
+      answer += next.value;
+      yield { type: "delta", text: next.value };
+      next = await stream.next();
+    }
+    modelUsed = next.value.modelUsed;
+    if (next.value.refused || answer.trim().length === 0) {
+      throw new Error("The provider returned no usable answer.");
+    }
+  } catch (err) {
+    /*
+     * Falls back to the old refusal rather than to an error. If generation
+     * failed there is genuinely nothing to say, and the refusal is the honest
+     * version of nothing — it sends the student somewhere else instead of
+     * leaving them looking at a broken turn.
+     */
+    console.error("[chat] general-knowledge generation failed", err);
+    if (!answer) {
+      const text =
+        REFUSAL_TEXT[input.locale] +
+        (subjects.length ? `\n\n${scopeNote(subjects.map((s) => s.name), input.locale)}` : "");
+      yield { type: "delta", text };
+
+      const refusal = await persistAssistantMessage({
+        sessionId: input.sessionId,
+        content: notice + text,
+        tier: "ungrounded_refused",
+        citedSourceIds: [],
+        topSimilarity: grounding.topSimilarity,
+        modelUsed: null,
+      });
+      yield { type: "done", messageId: refusal.id, verified: true };
+      return;
+    }
+  }
+
+  // Stored WITH the notice. The thread is rebuilt from these rows on every
+  // reload, and an answer whose label lived only in the stream would come back
+  // after a refresh looking exactly like a grounded one.
+  const message = await persistAssistantMessage({
+    sessionId: input.sessionId,
+    content: notice + answer,
+    tier: "general_knowledge",
+    citedSourceIds: [],
+    topSimilarity: grounding.topSimilarity,
+    modelUsed,
+  });
+
+  console.info(
+    `[chat] general-knowledge turn (kind=${grounding.classification.kind}, top=${grounding.topSimilarity ?? "none"})`,
+  );
+  yield { type: "done", messageId: message.id, verified: false };
+}
+
 async function* conversationalTurn(
   input: ChatTurnInput,
   intent: IntentClassification,

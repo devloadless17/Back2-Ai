@@ -140,6 +140,51 @@ export const PERSONAL_REFERENCE_THRESHOLD = tier.concept;
 export const TRANSLATE_BELOW = tier.concept + 0.05;
 
 /**
+ * Below this, a concept question is worth asking the model what it is ABOUT.
+ *
+ * A Lebanese exercise is titled by its scenario and a chapter is named by its
+ * concept, so the two meet only where their vocabulary overlaps. "Un cas de
+ * thyroïdite. Sarah présente un gonflement au cou" retrieves `Evolution
+ * humaine` at 0.396 — under the gate, so the student is told their own syllabus
+ * does not cover it. Named as concepts — "régulation hormonale, thyroïde,
+ * rétrocontrôle" — the same corpus answers at 0.628.
+ *
+ * SET AT THE GATE, NOT ABOVE IT, and the measurement is why. Expanding every
+ * query is a clear loss: over 180 sampled questions the median top score fell
+ * 0.052 and 75% scored WORSE, because a Lebanese exercise is long and already
+ * contains the words its chapter uses — replacing two thousand characters of
+ * physics with eight keywords throws away the signal. Used as a replacement it
+ * pushed 13 questions under the gate to rescue 2.
+ *
+ * So it fires only where the alternative is refusing outright, and it MERGES
+ * rather than replaces: every raw hit stays in the pool with its own score, so
+ * a question that already worked cannot be made worse by this path.
+ *
+ * Concept questions only. Comprehension answers from the paper's own passage
+ * and essays from the barème; both have their own lane, and neither produced a
+ * single rescue in the sample. Expect this to help around ten questions of the
+ * sixty-eight concept questions currently under the gate — small, safe, and
+ * cheap, since 92% of queries never reach it.
+ */
+export const CONCEPT_EXPAND_BELOW = tier.concept;
+
+/**
+ * How far the expansion's best hit must stand above its own median before its
+ * results are allowed into the pool.
+ *
+ * Not the provider's `lead`, which is 0 on openai and therefore no guard at
+ * all. Measured against the two cases that have been read end to end:
+ *
+ *     thyroïdite   0.486 / 0.476 / 0.466   lead 0.02   wrong chapter, must be refused
+ *     géographie   0.546 → a different, more specific chapter than the raw top
+ *
+ * 0.05 sits above the flat field and below a genuine pull-away. It is a floor
+ * chosen from two observations, which is thin: widen it the moment
+ * `judge:passages` can say whether an expanded answer was useful.
+ */
+export const EXPANSION_LEAD = 0.05;
+
+/**
  * How near a marking scheme has to be before its structure is worth showing.
  *
  * Lower than the concept threshold, and for a reason that is easy to get
@@ -371,6 +416,40 @@ async function otherScriptQuery(query: string, subjectIds: string[]): Promise<st
   } catch {
     // A translation failure must not take the answer down with it — the
     // original query has already been searched.
+    return null;
+  }
+}
+
+/**
+ * The syllabus topics a question tests, named as a chapter would name them.
+ *
+ * Deliberately asked for KEYWORDS rather than a rewritten question: the point
+ * is to reach the vocabulary the textbook uses, and a paraphrase of the
+ * scenario keeps the scenario's words. Told not to echo proper nouns for the
+ * same reason — "Windex" and "Sarah" are exactly what is not in the book.
+ *
+ * Same language as the question, because the cross-script reach is
+ * `otherScriptQuery`'s job and doing it here would confound the two.
+ */
+async function conceptQuery(query: string): Promise<string | null> {
+  try {
+    const response = await ai().complete({
+      system: [
+        'You are given a question from a Lebanese Baccalaureate exam.',
+        'Name the syllabus topics it tests — the concepts a textbook chapter would be titled with.',
+        'Reply with 5 to 10 comma-separated keywords, in the SAME language as the question.',
+        'No commentary, no restating the scenario, and do not repeat proper nouns from the question.',
+      ].join('\n'),
+      messages: [{ role: 'user', content: query.slice(0, 4000) }],
+      maxTokens: 2000,
+      effort: 'low',
+      model: env().OPENAI_MODEL_VERIFY,
+    });
+    const text = response.text.trim();
+    return text.length > 3 && text !== query ? text : null;
+  } catch {
+    // As with translation: the original query has already been searched, so a
+    // failure here costs the expansion and nothing else.
     return null;
   }
 }
@@ -694,6 +773,55 @@ export async function retrieveGrounding(input: RetrievalInput): Promise<Groundin
         translated,
       );
       chunkHits = mergeHits(chunkHits, alternate);
+    }
+  }
+
+  /*
+   * Still nothing that clears the gate. Before refusing, ask what the question
+   * is ABOUT and search for that — the scenario-versus-concept mismatch this
+   * corpus is full of. See CONCEPT_EXPAND_BELOW for why it is concept-only,
+   * why it runs at the gate rather than above it, and why it merges.
+   */
+  if (kind === 'concept' && (chunkHits[0]?.similarity ?? 0) < CONCEPT_EXPAND_BELOW) {
+    const concepts = await conceptQuery(input.query);
+    if (concepts) {
+      const byConcept = await searchContentChunks(
+        await embed(concepts, 'query'),
+        input.subjectIds,
+        FIELD,
+        concepts,
+      );
+
+      /*
+       * THE EXPANSION HAS TO LOOK LIKE AN ANSWER ON ITS OWN.
+       *
+       * Merging on "the score went up" is what makes this path dangerous, and
+       * it is not hypothetical: "Un cas de thyroïdite" has no thyroid chapter
+       * in the LS syllabus, scored 0.396 against `Evolution humaine` and was
+       * correctly refused. Expanded, the same wrong chapter came back at 0.486
+       * and the merge carried it over the gate — a confident answer about
+       * Sarah's thyroid grounded in human evolution, which is precisely the
+       * outcome this pipeline is arranged to avoid.
+       *
+       * `relevanceLead` is the existing test for whether the corpus holds an
+       * answer at all, and it is applied HERE, to the expansion's own hits,
+       * rather than after the merge. After the merge it cannot work: two result
+       * sets at different levels make a bimodal pool whose median sits between
+       * them, so merging manufactures a lead out of the gap. The thyroid case
+       * merges to 0.486/0.476/0.466/0.396/0.385 — a lead of 0.09 that neither
+       * set had alone. Judged by itself the expansion spreads 0.02 across three
+       * hits of the same wrong chapter, which is the flat field that means
+       * nothing here is relevant.
+       *
+       * The provider's own `lead` is 0 on openai, so it cannot serve as this
+       * guard; the constant below is local to this path and deliberately not
+       * that one.
+       */
+      const conceptTop = byConcept[0]?.similarity ?? 0;
+      const conceptLead = relevanceLead(byConcept.map((c) => c.similarity));
+      if (conceptTop >= CONCEPT_LEVEL_THRESHOLD && conceptLead >= EXPANSION_LEAD) {
+        chunkHits = mergeHits(chunkHits, byConcept);
+      }
     }
   }
 
