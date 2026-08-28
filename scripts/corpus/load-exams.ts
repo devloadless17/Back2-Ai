@@ -138,6 +138,34 @@ const MAX_EXERCISE_MARKS = 20;
  * whose names carry no marker at all ("phy_dr.pdf" says nothing). Only then the
  * fallback of a subject that exists in one language anyway.
  */
+/**
+ * A barème reduced to something two copies of it can be compared on.
+ *
+ * NOT `JSON.stringify`. Postgres jsonb does not keep the key order it was
+ * given — it stores keys sorted by length, then bytewise — so a barème written
+ * as {criterion, points} reads back as {"points":…,"criterion":…} and the two
+ * strings never match. The loader used that comparison to decide whether a
+ * question had changed, so the answer was always yes: every run rewrote all
+ * 3,326 questions carrying a barème and, with them, cleared 3,326 embeddings.
+ *
+ * That is not merely wasted work. As the note on the re-embedding step below
+ * says, a question with no vector is invisible to every search in the system
+ * until the backfill runs — so each load silently emptied the corpus of every
+ * marked question for as long as it took somebody to notice and re-embed.
+ *
+ * Positional, and the number is coerced, because 2 and 2.0 are the same mark
+ * and jsonb will hand back whichever it stored.
+ */
+function baremeKey(value: unknown): string {
+  if (!Array.isArray(value)) return '';
+  return JSON.stringify(
+    value.map((c) => {
+      const item = c as { criterion?: unknown; points?: unknown };
+      return [String(item?.criterion ?? ''), Number(item?.points ?? 0)];
+    }),
+  );
+}
+
 function languageOf(file: string, available: string[], detected?: string): Language | null {
   if (/(?:^|[\s_-])(?:en|eng|english)(?:[\s_-]|$)/i.test(file) && available.includes('en')) return 'en';
   if (/(?:^|[\s_-])(?:fr|french|francais)(?:[\s_-]|$)/i.test(file) && available.includes('fr')) return 'fr';
@@ -555,8 +583,8 @@ async function main() {
          * already existed with the same wording, so 921 of them kept their
          * empty solution while the extractor was producing one for each.
          */
-        const priorBareme = JSON.stringify(known[0]!.bareme ?? null);
-        const nextBareme = JSON.stringify(bareme.length ? bareme : null);
+        const priorBareme = baremeKey(known[0]!.bareme);
+        const nextBareme = baremeKey(bareme.length ? bareme : null);
         if (
           known[0]!.content_text !== statement ||
           (known[0]!.official_solution ?? null) !== solution ||
@@ -704,6 +732,49 @@ async function main() {
     console.log(`  retired, no longer extracted ${gone.length}`);
     for (const question of gone.slice(0, 3)) {
       console.log(`    ${question.contentText.replace(/\s+/g, ' ').slice(0, 70)}`);
+    }
+
+    /*
+     * The same exercise, held twice.
+     *
+     * 946 past-exam rows predate `source_ref`. The loader keys on that ref, so
+     * it never matches them, never rewrites them — and the pass above only
+     * considers rows that HAVE a ref, so it never retires them either. The
+     * adoption pass is supposed to absorb them, but it requires the statement
+     * to match EXACTLY, and every improvement to the extractor breaks that
+     * match. Each improvement therefore left the old row in place and wrote a
+     * fresh keyed one beside it: 459 exercises stored twice, once as the paper
+     * reads today and once as it read before the letterhead came out of it.
+     *
+     * Only a refless row with a keyed TWIN is retired. A refless row with no
+     * twin is the only copy of its question — the Arabic-medium science papers
+     * have no loadable subject and would be silently deleted by a broader rule
+     * — so the twin is the whole justification and is required.
+     *
+     * Compared on the first 120 characters with whitespace removed, because
+     * the two copies differ exactly where the extractor improved: a banner
+     * excised, a label re-read. Marked `rejected` rather than deleted, like
+     * everything else here, so the 69 attempts pointing at these rows keep the
+     * question they were answering.
+     */
+    const twinned = await db.$executeRaw`
+      UPDATE questions a
+      SET verified_status = 'rejected'
+      WHERE a.source_ref IS NULL
+        AND a.source_type = 'past_exam'
+        AND a.verified_status <> 'rejected'
+        AND EXISTS (
+          SELECT 1 FROM questions b
+          WHERE b.source_ref IS NOT NULL
+            AND b.source_type = 'past_exam'
+            AND b.verified_status <> 'rejected'
+            AND b.chapter_id = a.chapter_id
+            AND left(regexp_replace(b.content_text, '\s+', '', 'g'), 120)
+              = left(regexp_replace(a.content_text, '\s+', '', 'g'), 120)
+        )
+    `;
+    if (twinned > 0) {
+      console.log(`  retired, superseded by a keyed copy ${twinned}`);
     }
   }
 
