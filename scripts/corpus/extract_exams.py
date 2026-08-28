@@ -224,6 +224,46 @@ def norm_label(label: str) -> str:
     """
     return re.sub(r"[\-–]", ".", label)
 
+
+# A section heading inside an exercise: "I- Dilution of a commercial acid",
+# "II- Titration", "A- Etude du mouvement".
+#
+# An exercise is commonly divided into lettered or roman-numbered sections that
+# each RESTART their numbering at 1, so the number alone does not identify a
+# sub-question. gs/2004 1 chemistry exercise 1 runs 1, 2 under I- and then 1, 2,
+# 3 under II-, and stored five parts under three labels.
+#
+# Alphabetic only. A digit here would swallow ordinary sub-questions, and the
+# distinction is what lets `unqualified` tell a section prefix ("I.1") from a
+# genuine numeric hierarchy ("1.1") later.
+SECTION = re.compile(r"(?m)^[ \t]*([IVX]{1,5}|[A-E])\s*[-–.)]\s*(?=\S)")
+
+
+def sections_in(text: str) -> list:
+    """(position, name) for every section heading, in the order they appear."""
+    return [(m.start(), m.group(1)) for m in SECTION.finditer(text)]
+
+
+def qualify(label: str, pos: int, sections: list) -> str:
+    """The label with the section it sits under, where there is one."""
+    name = None
+    for at, section in sections:
+        if at > pos:
+            break
+        name = section
+    return f"{name}.{label}" if name else label
+
+
+def unqualified(label: str) -> str:
+    """The label without its section, for papers whose scheme prints no sections.
+
+    Only an alphabetic head is stripped. "I.1" is part 1 of section I and
+    reduces to "1"; "1.1" is a numeric hierarchy the paper wrote itself and is
+    left alone.
+    """
+    head = label.split(".", 1)
+    return head[1] if len(head) == 2 and head[0][:1].isalpha() else label
+
 # The header of a marking scheme, in any of the three languages.
 #
 # TWO PATTERNS, BECAUSE THE TWO CALLERS RISK DIFFERENT AMOUNTS.
@@ -648,7 +688,9 @@ def parse_exercises(text: str, allow_subject_split: bool = True) -> list:
         title = re.sub(r"\s+", " ", rest[0]).strip(" :-–)")
         statement = without_scheme((rest[1] if len(rest) > 1 else "").strip())
         index = header_index(m, kind, n + 1)
-        parts = [{"label": norm_label(p.group(1)), "at": p.start()} for p in PART.finditer(statement)]
+        sections = sections_in(statement)
+        parts = [{"label": qualify(norm_label(p.group(1)), p.start(), sections), "at": p.start()}
+                 for p in PART.finditer(statement)]
         for i, part in enumerate(parts):
             end = parts[i + 1]["at"] if i + 1 < len(parts) else len(statement)
             part["text"] = re.sub(r"\s+", " ", statement[part["at"]:end]).strip()
@@ -767,8 +809,9 @@ def parse_scheme(text: str) -> dict:
     scheme = {}
     for index, block in blocks:
         answers = scheme.setdefault(index, {})
+        sections = sections_in(block)
         for m in SCHEME_ROW.finditer(block):
-            label = norm_label(m.group(1))
+            label = qualify(norm_label(m.group(1)), m.start(), sections)
             answer = re.sub(r"\s+", " ", m.group(2)).strip()
             if len(answer) < 3:
                 continue
@@ -1061,8 +1104,20 @@ def read(pdf: Path) -> dict | None:
                 "marks": arabic_marks(essays[ex["index"]]),
             })
         answers = scheme.get(ex["index"], {})
-        for part in ex["parts"]:
-            found = answers.get(part["label"])
+
+        # Both halves are read for sections, but they do not always agree: a
+        # paper divided into I- and II- may be marked by a scheme that numbers
+        # its rows straight through. Qualified labels then match nothing, and
+        # the answers would be lost to a change meant to place them better. So
+        # the section is dropped from both sides and matched again — which is
+        # exactly what happened before sections were read at all, and no worse.
+        keys = [part["label"] for part in ex["parts"]]
+        if answers and not any(k in answers for k in keys):
+            answers = {unqualified(k): v for k, v in answers.items()}
+            keys = [unqualified(k) for k in keys]
+
+        for part, key in zip(ex["parts"], keys):
+            found = answers.get(key)
             if found:
                 part["answer"] = found["answer"]
                 part["marks"] = found["marks"]
