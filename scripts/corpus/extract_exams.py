@@ -626,6 +626,101 @@ def without_scheme(statement: str) -> str:
     return statement[: hit.start()].rstrip()
 
 
+# The ministry's letterhead, printed across the top of every official paper:
+# the two directorates, the examinations office, the session, the branch, the
+# duration, and the blank name and number the candidate fills in.
+#
+# It lands in the middle of a statement often enough to matter — 438 stored
+# questions carry it — because a two-column or multi-page exercise puts the
+# header of the next page inside the text of the current part. It is not the
+# question, it is identical on every paper of that session, and inside an
+# embedding it is 200 characters of noise that every paper shares.
+# Several letters are unreliable in these scans: م comes back as ه, ن or و, and
+# ي as ى. "وزارة التربية والتعلين العالي" and "الوديرية العاهة" are the same
+# banner as everywhere else, and matching them literally missed every paper
+# whose OCR was poor — which is disproportionately the ones that need the help.
+M = "[مهنو]"
+Y = "[يى]"
+MINISTRY_BANNER = re.compile("|".join([
+    rf"وزارة\s*التربية(\s*والتعلي{M}\s*العالي)?",
+    rf"ال{M}ديرية\s*العا{M}ّ?ة?\s*للتربية",
+    rf"دائرة\s*الا{M}تحانات(\s*الرس{M}ي{Y}?\s*ة?)?",
+    rf"ا{M}تحانات\s*الشهادة\s*الثان{Y}?و?{Y}?ة\s*العا{M}ة",
+    rf"{M}سابقة\s*في",
+    r"المدة\s*:\s*\S+",
+    r"الاسم\s*:", r"الرقم\s*:",
+    r"دورة\s*ال?\u0640?(عام|سنة)\s*\d{0,4}",
+    rf"فرع[اي]?\s*:?\s*ال[إا]?جت{M}اع",
+    rf"العلو{M}\s*العا{M}ة",
+    r"ال[إا]?ستثنائية",
+    r"العادية\s*المعدلة",
+    rf"الآداب\s*وال[إا]نسانيات",
+]))
+
+# Two markers closer together than this are one letterhead with connective
+# words between them; further apart and they are separate occurrences.
+BANNER_GAP = 90
+# What makes a run a letterhead: the banner names two offices and a session, so
+# two markers standing together is the signature, and one phrase alone is not.
+#
+# This counts MARKERS rather than characters. A character floor rejected
+# "وزارة التربية والتعليم العالي" followed by "المديرية العامة للتربية" — the
+# ministry and its directorate, unmistakably the banner — for spanning 54
+# characters against a floor of 55.
+BANNER_MIN_MARKERS = 2
+# One marker is still enough when it is the banner's own long form, which
+# appears nowhere else on a paper.
+BANNER_ALONE = re.compile(
+    rf"وزارة\s*التربية\s*والتعلي{M}\s*العالي|"
+    rf"ا{M}تحانات\s*الشهادة\s*الثان{Y}?و?{Y}?ة\s*العا{M}ة"
+)
+
+
+def without_letterhead(statement: str) -> str:
+    """The statement with the ministry's header cut out of it.
+
+    Excised as a block rather than truncated at the first marker, because 170
+    of these carry real content AFTER the header — a paper whose second page
+    begins mid-exercise — and truncating would throw the question away to
+    remove its banner.
+
+    Every cut runs from one marker to another marker. An earlier version ended
+    each pattern with a greedy `[^\\n]{0,60}` tail to sweep up the connective
+    words, and that tail ran past the header into the question: "Doc. 1" came
+    out as "oc. 1" and "Heat from the Sun" as "eat from the Sun". Merging
+    nearby markers into a run does the same job and cannot eat the text on
+    either side of it.
+    """
+    matches = [(m.start(), m.end()) for m in MINISTRY_BANNER.finditer(statement)]
+    if not matches:
+        return statement
+
+    runs = [[matches[0][0], matches[0][1], 1]]
+    for start, end in matches[1:]:
+        if start - runs[-1][1] <= BANNER_GAP:
+            runs[-1][1] = max(runs[-1][1], end)
+            runs[-1][2] += 1
+        else:
+            runs.append([start, end, 1])
+
+    out = statement
+    for start, end, markers in reversed(runs):
+        if markers < BANNER_MIN_MARKERS and not BANNER_ALONE.search(statement[start:end]):
+            continue
+        # Rejoined with a NEWLINE, not spaces. `PART` is anchored to the start
+        # of a line, so closing the gap with spaces pulled the sub-question that
+        # followed the banner into the middle of a line and it stopped being a
+        # sub-question at all: "1- Specify the threshold intensity of fiber F1."
+        # vanished from lh/2018 1/bio_makfufin_en.pdf that way.
+        out = out[:start].rstrip() + chr(10) + out[end:].lstrip()
+
+    out = re.sub(r"[ \t]{3,}", "  ", out).strip()
+    # A statement that was nothing but letterhead is not an exercise. Handed
+    # back whole so the length check downstream discards it, rather than being
+    # stored as a stub — the same rule `without_scheme` follows.
+    return out if len(out) > 40 else statement
+
+
 # The block every Lebanese paper opens with: ministry, directorate, examinations
 # department, session, subject, duration, and two blank fields for the
 # candidate's name and number. Fixed wording, and the only part of the preamble
@@ -686,7 +781,7 @@ def parse_exercises(text: str, allow_subject_split: bool = True) -> list:
         # The title sits on the rest of the header line.
         rest = body.split("\n", 1)
         title = re.sub(r"\s+", " ", rest[0]).strip(" :-–)")
-        statement = without_scheme((rest[1] if len(rest) > 1 else "").strip())
+        statement = without_letterhead(without_scheme((rest[1] if len(rest) > 1 else "").strip()))
         index = header_index(m, kind, n + 1)
         sections = sections_in(statement)
         parts = [{"label": qualify(norm_label(p.group(1)), p.start(), sections), "at": p.start()}
