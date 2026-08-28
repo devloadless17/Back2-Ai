@@ -52,6 +52,10 @@
     "measure:translation-gate": "node --conditions=react-server --env-file=.env --import tsx scripts/measure-translation-gate.ts",
     "check:filing": "node --conditions=react-server --env-file=.env --import tsx scripts/check-question-filing.ts",
     "refile:questions": "node --conditions=react-server --env-file=.env --import tsx scripts/refile-questions.ts",
+    "detect:schemes": "node --conditions=react-server --env-file=.env --import tsx scripts/detect-schemes.ts",
+    "measure:concept-expansion": "node --conditions=react-server --env-file=.env --import tsx scripts/measure-concept-expansion.ts",
+    "compare:embeddings": "node --conditions=react-server --env-file=.env --import tsx scripts/compare-embedding-models.ts",
+    "compare:rerank": "node --conditions=react-server --env-file=.env --import tsx scripts/compare-rerank-models.ts",
     "judge:passages": "node --conditions=react-server --env-file=.env --import tsx scripts/judge-passages.ts"
   },
   "overrides": {
