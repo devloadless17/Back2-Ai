@@ -60,13 +60,29 @@ const SUBJECTS: { match: RegExp; name: Record<string, string | string[]> }[] = [
   { match: /(?:^|[\s_-])(?:phys?|fizi)/i, name: { en: 'Physics', fr: 'Physique' } },
   { match: /(?:^|[\s_-])(?:chem|chim|kimi)/i, name: { en: 'Chemistry', fr: 'Chimie' } },
   { match: /(?:^|[\s_-])(?:bio|svt|ahya)/i, name: { en: 'Life Sciences', fr: 'Sciences de la vie' } },
-  { match: /(?:^|[\s_-])(?:falsafe|philo)/i, name: { ar: ['فلسفة عامة', 'Philosophie'] } },
+  // The trailing "e" is not always printed: se/2008 2/falsaf.pdf.
+  { match: /(?:^|[\s_-])(?:falsafe?|philo)/i, name: { ar: ['فلسفة عامة', 'Philosophie'] } },
   { match: /(?:^|[\s_-])(?:geo|greo)/i, name: { ar: ['جغرافيا', 'Geographie'] } },
   { match: /(?:^|[\s_-])(?:ejteme|ejtema|socio)/i, name: { ar: ['اجتماع', 'Sociologie'] } },
-  { match: /(?:^|[\s_-])(?:ektesad|eqtesad|econo)/i, name: { ar: ['اقتصاد', 'Economie'] } },
+  /*
+   * "Eco", not only "econo". The newer CRDP filenames abbreviate it —
+   * SE_Eco_2024_1_Fr.pdf — and because "econo" did not match, the language
+   * suffix decided the subject instead: two of those were filed as FRENCH
+   * papers and one as Arabic literature. A paper landing in the wrong subject
+   * is worse than one left out, because it is practised as that subject.
+   */
+  { match: /(?:^|[\s_-])(?:ektesad|eqtesad|eco(?:no)?)/i, name: { ar: ['اقتصاد', 'Economie'] } },
   { match: /(?:^|[\s_-])(?:tarbeya|tarbia)/i, name: { ar: ['تربية وطنية', 'Education civique'] } },
   { match: /(?:^|[\s_-])(?:tarekh|terekh|tarikh|history|hsitory)/i, name: { ar: ['تاريخ', 'Histoire'] } },
-  { match: /(?:^|[\s_-])(?:eng|english|emg)/i, name: { en: 'English' } },
+  /*
+   * "en" on its own is the subject too — se/2009 1/en.pdf, en_ehteyejet.pdf.
+   * Added as a separate alternative REQUIRING a terminator rather than by
+   * loosening "eng" to "eng?", so that every filename matching before still
+   * matches and only a bare "en" token is new. Elsewhere "en" is the language
+   * marker (phy_en, math_en), but the sciences are matched above this line, so
+   * by the time a name reaches here "en" can only be the subject.
+   */
+  { match: /(?:^|[\s_-])(?:eng|english|emg)|(?:^|[\s_-])en(?:[\s_.-]|$)/i, name: { en: 'English' } },
   { match: /(?:^|[\s_-])(?:fr|french|francais)/i, name: { fr: 'Francais' } },
   /*
    * Arabic language, last on purpose.
@@ -76,7 +92,10 @@ const SUBJECTS: { match: RegExp; name: Record<string, string | string[]> }[] = [
    * Arabic-language ones. The sciences are matched first above, so by the time
    * a filename reaches this line the only thing "ar" can mean is the subject.
    */
-  { match: /(?:^|[\s_-])(?:arabe|arabic|arabeye|ar)(?:[\s_-]|$)/i, name: { ar: ['أدب عربي', 'Arabe'] } },
+  // The terminator admits a full stop, so "arabe.pdf" is Arabic literature.
+  // Without it the extension itself disqualified the match, and ten papers
+  // named exactly that — ls/2004 2 through ls/2019 1 — had no subject at all.
+  { match: /(?:^|[\s_-])(?:arabe|arabic|arabeye|ar)(?:[\s_.-]|$)/i, name: { ar: ['أدب عربي', 'Arabe'] } },
 ];
 
 /**
