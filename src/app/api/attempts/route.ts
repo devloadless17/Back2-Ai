@@ -88,7 +88,7 @@ export const POST = route(async (request) => {
           officialSolution: true,
           correctOptionId: true,
           bareme: true,
-          chapter: { select: { subject: { select: { language: true } } } },
+          chapter: { select: { subject: { select: { language: true, name: true } } } },
         },
       })
     : await db.generatedProblem.findFirst({
@@ -105,7 +105,7 @@ export const POST = route(async (request) => {
           contentText: true,
           generatedSolution: true,
           bareme: true,
-          chapter: { select: { subject: { select: { language: true } } } },
+          chapter: { select: { subject: { select: { language: true, name: true } } } },
         },
       });
 
@@ -132,6 +132,7 @@ export const POST = route(async (request) => {
       bareme,
       studentAnswer: body.answerText ?? '',
       language,
+      subject: source.chapter.subject.name,
     });
 
     score = outcome.totalScore;

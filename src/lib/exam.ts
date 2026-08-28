@@ -70,7 +70,7 @@ export async function startSimulation(input: StartInput): Promise<{ id: string }
     if (existing.expiresAt.getTime() > Date.now()) {
       throw new ExamError('IN_PROGRESS_EXISTS', 'You already have a simulation in progress.');
     }
-    await submitSimulation({ simulationId: existing.id, userId: input.userId, auto: true, locale: 'fr' });
+    await submitSimulation({ simulationId: existing.id, userId: input.userId, auto: true });
   }
 
   return input.sourceMode === 'real_cycle'
@@ -476,7 +476,6 @@ export type SubmitInput = {
   simulationId: string;
   userId: string;
   auto: boolean;
-  locale: Locale;
 };
 
 /**
@@ -486,7 +485,62 @@ export type SubmitInput = {
  * high effort, and firing twenty of those at once is how you get rate-limited
  * halfway through a student's paper and leave it half-marked.
  */
+/**
+ * Closes the paper. Fast, and deliberately does no marking.
+ *
+ * Marking used to run in this call — a serial model call per question, inside
+ * the HTTP request. On a five-question paper that is a minute or more of held
+ * connection, and in an exam-season window where a few hundred students submit
+ * inside the same ten minutes it fails three ways at once: handlers occupied for
+ * minutes, gateways cutting the request at their own timeout, and provider rate
+ * limits landing partway through the loop.
+ *
+ * So submission now records that the sitting happened and returns. `markSimulation`
+ * does the marking, driven by the cron runner, and the results page already
+ * renders "awaiting marking" per criterion — a student lands on their results and
+ * watches the marks arrive.
+ */
 export async function submitSimulation(
+  input: SubmitInput,
+): Promise<{ status: 'submitted' | 'graded'; questionCount: number }> {
+  const simulation = await db.examSimulation.findFirst({
+    where: { id: input.simulationId, userId: input.userId },
+    select: { id: true, status: true, _count: { select: { questions: true } } },
+  });
+
+  if (!simulation) throw new ExamError('NOT_FOUND', 'Simulation not found.');
+
+  if (simulation.status === 'graded' || simulation.status === 'submitted') {
+    // Idempotent: a retried submit must not reopen a closed paper.
+    return { status: simulation.status, questionCount: simulation._count.questions };
+  }
+
+  await db.examSimulation.update({
+    where: { id: simulation.id },
+    data: { status: 'submitted', submittedAt: new Date() },
+  });
+
+  await recordAudit({
+    actorUserId: input.userId,
+    action: input.auto ? AuditAction.EXAM_SIM_AUTO_SUBMITTED : AuditAction.EXAM_SIM_SUBMITTED,
+    targetType: 'exam_simulation',
+    targetId: simulation.id,
+    metadata: { questionCount: simulation._count.questions },
+  });
+
+  return { status: 'submitted', questionCount: simulation._count.questions };
+}
+
+/**
+ * Marks a submitted paper. Runs off the request path, and is safe to re-run.
+ *
+ * Re-runnability is the point. A marking pass can die halfway — a timeout, a
+ * deploy, a 429 from the provider — and before this was separated that left a
+ * paper stuck at `submitted` with half its answers marked and nothing able to
+ * see it again. Slots that already carry `gradedAt` are skipped, so a second
+ * pass finishes the job rather than double-marking it or starting over.
+ */
+export async function markSimulation(
   input: SubmitInput,
 ): Promise<{ totalScore: number; maxScore: number; unmarked: number }> {
   const simulation = await db.examSimulation.findFirst({
@@ -504,24 +558,25 @@ export async function submitSimulation(
     };
   }
 
-  const submittedAt = new Date();
-  await db.examSimulation.update({
-    where: { id: simulation.id },
-    data: { status: 'submitted', submittedAt },
-  });
-
-  await recordAudit({
-    actorUserId: input.userId,
-    action: input.auto ? AuditAction.EXAM_SIM_AUTO_SUBMITTED : AuditAction.EXAM_SIM_SUBMITTED,
-    targetType: 'exam_simulation',
-    targetId: simulation.id,
-    metadata: { questionCount: simulation.questions.length },
-  });
-
   const marks: MarkEntry[] = [];
   const touchedChapters = new Set<string>();
 
   for (const slot of simulation.questions) {
+    // Already marked on an earlier pass. Carry its result into the tally so the
+    // totals are whole, and do not pay for the model call again.
+    if (slot.answer?.gradedAt) {
+      marks.push(
+        slot.answer.totalScore === null
+          ? { status: 'needs_human_review', totalScore: 0, maxScore: 0 }
+          : {
+              status: 'graded',
+              totalScore: Number(slot.answer.totalScore),
+              maxScore: Number(slot.answer.maxScore ?? 0),
+            },
+      );
+      continue;
+    }
+
     const bareme = parseBareme(slot.baremeSnapshot);
     const content = slotContent(slot);
 
@@ -539,6 +594,7 @@ export async function submitSimulation(
       bareme,
       studentAnswer,
       language: simulation.subject.language,
+      subject: simulation.subject.name,
     });
 
     /*
@@ -725,7 +781,7 @@ function totalOf(baremes: (Bareme | null)[]): number {
 export async function autoSubmitExpired(limit = 20): Promise<number> {
   const expired = await db.examSimulation.findMany({
     where: { status: 'in_progress', expiresAt: { lte: new Date() } },
-    select: { id: true, userId: true, subject: { select: { language: true } } },
+    select: { id: true, userId: true },
     take: limit,
   });
 
@@ -736,11 +792,56 @@ export async function autoSubmitExpired(limit = 20): Promise<number> {
         simulationId: simulation.id,
         userId: simulation.userId,
         auto: true,
-        locale: simulation.subject.language,
       });
       count += 1;
     } catch (err) {
       console.error('[exam] auto-submit failed', simulation.id, err);
+    }
+  }
+  return count;
+}
+
+/**
+ * Marks papers waiting to be marked, including ones a previous pass abandoned.
+ *
+ * The abandoned case is the one that matters. Before marking was moved off the
+ * request path, a submit that timed out left a paper at `submitted` with some
+ * answers marked and some not — and the only sweep in the system looked for
+ * `in_progress`, so nothing ever came back for it. The student's results page
+ * showed a partial mark permanently.
+ */
+export async function markSubmitted(limit = 10): Promise<number> {
+  /*
+   * No staleness delay. An earlier version only picked up papers submitted more
+   * than five minutes ago, on the reasoning that a pass still running should not
+   * be restarted underneath itself — but that made every student wait five
+   * minutes for marking to *begin*, which is a worse outcome than the overlap it
+   * was avoiding. A freshly submitted paper is marked on the next tick.
+   *
+   * Overlap is handled where it should be, per slot: marking skips anything that
+   * already carries `gradedAt`, so two passes meeting on the same paper cost
+   * duplicate reads rather than duplicate marks. Keep the cron interval longer
+   * than a typical run and the two rarely meet at all.
+   *
+   * Oldest first, so a backlog drains in the order students submitted rather
+   * than punishing whoever finished earliest.
+   */
+  const pending = await db.examSimulation.findMany({
+    where: { status: 'submitted' },
+    select: { id: true, userId: true },
+    orderBy: { submittedAt: 'asc' },
+    take: limit,
+  });
+
+  let count = 0;
+  for (const simulation of pending) {
+    try {
+      await markSimulation({ simulationId: simulation.id, userId: simulation.userId, auto: true });
+      count += 1;
+    } catch (err) {
+      // Left at `submitted` on purpose: the next sweep retries it, and the
+      // per-slot skip means it resumes rather than restarts.
+      console.error('[exam] marking failed', simulation.id, err);
     }
   }
   return count;
