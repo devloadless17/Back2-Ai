@@ -861,29 +861,59 @@ def table_marks(pdf: Path, exercises: list) -> dict:
     grouped = {ex: group_to_parts(rows) for ex, rows in read["by_exercise"].items()}
     stated = {e["index"]: e["marks"] for e in exercises}
 
-    ratios = []
+    ratios = {}
     for index, parts in grouped.items():
         total = sum(p["marks"] for p in parts.values() if p["marks"] is not None)
         want = stated.get(index) or 0
         if total > 0 and want > 0:
-            ratios.append(total / want)
+            ratios[index] = total / want
     if not ratios:
         TABLE_STATS["refused: paper states no exercise totals"] += 1
         return {}
-    if max(ratios) - min(ratios) > 0.02:
-        TABLE_STATS["refused: exercises disagree on the scale"] += 1
-        return {}
 
-    scale = next((s for s in SCALES if abs(ratios[0] - s) < 0.02), None)
+    # The scale the exercises agree on, not the scale the first one happens to
+    # show. Requiring unanimity made this a whole-paper veto: gs/2015 2/math_en
+    # reads exercises 1-5 at exactly x2 and exercise 6 at x1.357, and all six
+    # were discarded to punish the one. The agreement is still the detector —
+    # nothing else catches a misread row — but it is applied per exercise, so a
+    # bad exercise costs its own marks instead of the paper's.
+    #
+    # Two agreeing exercises are needed to establish a scale, because one
+    # exercise agreeing with itself is not evidence of anything. A paper with a
+    # single measurable exercise is the exception: there is no second opinion to
+    # be had, and refusing it would drop marks that are accepted today.
+    scale, agreeing = None, ()
+    for candidate in SCALES:
+        matched = tuple(i for i, r in ratios.items() if abs(r - candidate) < 0.02)
+        if len(matched) > len(agreeing):
+            scale, agreeing = candidate, matched
     if scale is None:
-        TABLE_STATS[f"refused: unrecognised scale x{ratios[0]:.2f}"] += 1
+        shown = sorted(ratios.values())[len(ratios) // 2]
+        TABLE_STATS[f"refused: unrecognised scale x{shown:.2f}"] += 1
         return {}
-    TABLE_STATS[f"accepted at scale x{scale:g}"] += 1
+    if len(agreeing) < 2 and len(ratios) > 1:
+        # A recognised scale, but only one exercise showing it while others
+        # disagree. Counted separately: calling this an unrecognised scale
+        # would have read as "the paper is on some other scale" when what
+        # happened is that nothing corroborated the scale it is on.
+        TABLE_STATS[f"refused: only 1 of {len(ratios)} exercises at x{scale:g}"] += 1
+        return {}
 
+    dissenting = set(ratios) - set(agreeing)
+    TABLE_STATS[f"accepted at scale x{scale:g}"] += 1
+    if dissenting:
+        TABLE_STATS["exercises dropped for disagreeing on the scale"] += len(dissenting)
+
+    # An exercise the paper states no total for cannot be checked against the
+    # scale either way. It is kept only when nothing on the paper dissented —
+    # which is exactly the condition under which it was kept before — so this
+    # change adds recovered exercises without quietly widening what an
+    # unverifiable one is worth.
     return {
         index: {label: part["marks"] / scale
                 for label, part in parts.items() if part["marks"] is not None}
         for index, parts in grouped.items()
+        if index in agreeing or (index not in ratios and not dissenting)
     }
 
 
