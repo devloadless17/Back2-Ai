@@ -1,9 +1,9 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
-import { EmptyState } from '@/components/ui/feedback';
-import { Meter } from '@/components/ui/progress';
-import { PageHeader, Sheet, SheetBody, SheetHeader } from '@/components/ui/sheet';
+import { SubjectRings, type SubjectRing } from '@/components/dashboard/subject-rings';
+import { EmptyAction, EmptyState } from '@/components/ui/feedback';
+import { PageHeader } from '@/components/ui/sheet';
 import { requireUser } from '@/lib/auth/guards';
 import { getTranslations } from '@/lib/i18n';
 import { getProgressForUser } from '@/lib/queries/progress';
@@ -23,18 +23,30 @@ export default async function PracticePage() {
   const { t } = await getTranslations();
 
   const [subjects, progress] = await Promise.all([
-    listSubjects(user.trackId),
-    getProgressForUser(user.id, user.trackId),
+    listSubjects(user.trackId, user.preferredLanguage),
+    getProgressForUser(user.id, user.trackId, user.preferredLanguage),
   ]);
 
-  const masteryBySubject = new Map(
-    progress.map((subject) => [
-      subject.subjectId,
-      subject.chapters.length === 0
-        ? 0
-        : subject.chapters.reduce((sum, c) => sum + c.masteryScore, 0) / subject.chapters.length,
-    ]),
-  );
+  // Same ring card as the dashboard, from the same component — this screen and
+  // that panel answer the same question ("which subject is behind?") and a
+  // student should not have to read two different instruments for it.
+  const byId = new Map(progress.map((subject) => [subject.subjectId, subject]));
+
+  const rings: SubjectRing[] = subjects.map((subject) => {
+    const chapters = byId.get(subject.id)?.chapters ?? [];
+    return {
+      subjectId: subject.id,
+      subjectName: subject.name,
+      mastery:
+        chapters.length === 0
+          ? 0
+          : chapters.reduce((sum, c) => sum + c.masteryScore, 0) / chapters.length,
+      mark: null,
+      attemptsCount: chapters.reduce((sum, c) => sum + c.attemptsCount, 0),
+      questionCount: subject.questionCount,
+      chapterCount: subject.chapterCount,
+    };
+  });
 
   return (
     <>
@@ -43,30 +55,12 @@ export default async function PracticePage() {
       {subjects.length === 0 ? (
         <EmptyState
           tone="pending"
-          title={t.practice.noQuestions}
-          body={t.practice.noQuestionsHint}
+          title={t.practice.noSubjectsTitle}
+          body={t.practice.noSubjectsBody}
+          action={<EmptyAction href="/settings/profile" label={t.practice.noSubjectsCta} />}
         />
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2">
-          {subjects.map((subject) => (
-            <Link
-              key={subject.id}
-              href={`/practice/${subject.id}`}
-              className="group block rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2"
-            >
-              <Sheet interactive className="h-full">
-                <SheetHeader title={subject.name} description={t.practice.selectChapter} />
-                <SheetBody className="space-y-3">
-                  <Meter
-                    value={masteryBySubject.get(subject.id) ?? 0}
-                    label={t.practice.mastery}
-                    caption={`${subject.chapterCount} · ${subject.questionCount}`}
-                  />
-                </SheetBody>
-              </Sheet>
-            </Link>
-          ))}
-        </div>
+        <SubjectRings subjects={rings} size="lg" />
       )}
     </>
   );

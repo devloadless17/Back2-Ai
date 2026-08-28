@@ -24,12 +24,12 @@ const config: Config = {
         'ink-faint': 'hsl(var(--ink-faint) / <alpha-value>)',
         rule: 'hsl(var(--rule) / <alpha-value>)',
         'rule-strong': 'hsl(var(--rule-strong) / <alpha-value>)',
-        /** The single accent: cedar. Current state and the primary action only. */
+        /** The spine: indigo. Current state and the primary action only. */
         primary: 'hsl(var(--primary) / <alpha-value>)',
         'primary-hover': 'hsl(var(--primary-hover) / <alpha-value>)',
         'primary-soft': 'hsl(var(--primary-soft) / <alpha-value>)',
         'on-primary': 'hsl(var(--on-primary) / <alpha-value>)',
-        /** Aliased to the accent — this palette has no second decorative colour. */
+        /** Violet: the lighter half of the brand, for gradients and secondary emphasis. */
         accent: 'hsl(var(--accent) / <alpha-value>)',
         'accent-hover': 'hsl(var(--accent-hover) / <alpha-value>)',
         'accent-soft': 'hsl(var(--accent-soft) / <alpha-value>)',
@@ -41,6 +41,9 @@ const config: Config = {
         partial: 'hsl(var(--partial) / <alpha-value>)',
         'partial-soft': 'hsl(var(--partial-soft) / <alpha-value>)',
         focus: 'hsl(var(--focus) / <alpha-value>)',
+        'mark-bright': 'hsl(var(--mark-bright) / <alpha-value>)',
+        'correct-bright': 'hsl(var(--correct-bright) / <alpha-value>)',
+        'partial-bright': 'hsl(var(--partial-bright) / <alpha-value>)',
         viz: {
           1: 'hsl(var(--viz-1) / <alpha-value>)',
           2: 'hsl(var(--viz-2) / <alpha-value>)',
@@ -49,6 +52,7 @@ const config: Config = {
         },
       },
       fontFamily: {
+        display: ['var(--font-display)'],
         serif: ['var(--font-serif)'],
         sans: ['var(--font-sans)'],
         mono: ['var(--font-mono)'],
@@ -60,14 +64,14 @@ const config: Config = {
         xl: 'var(--radius-xl)',
       },
       boxShadow: {
-        // Flat by design. These resolve to nothing so that any component still
-        // asking for a shadow simply gets none, rather than failing to build.
-        pop: 'none',
-        'pop-lg': 'none',
-        glow: 'none',
-        'glow-accent': 'none',
-        sheet: 'none',
-        'sheet-raised': 'none',
+        // Tinted with the brand hue, never black: a neutral shadow over a
+        // lavender ground reads as smudge rather than as lift.
+        sheet: '0 10px 30px hsl(var(--primary) / 0.08)',
+        'sheet-raised': '0 14px 34px hsl(var(--primary) / 0.14)',
+        pop: '0 8px 18px hsl(var(--partial-bright) / 0.35)',
+        'pop-lg': '0 16px 38px hsl(var(--primary) / 0.22)',
+        glow: '0 0 0 4px hsl(var(--primary) / 0.12)',
+        'glow-accent': '0 0 0 4px hsl(var(--accent) / 0.18)',
         focus: '0 0 0 3px hsl(var(--focus) / 0.25)',
       },
       keyframes: {

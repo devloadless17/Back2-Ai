@@ -2,7 +2,8 @@ import type { Metadata } from 'next';
 
 import { LinkButton } from '@/components/ui/button';
 import { RingGauge } from '@/components/ui/charts';
-import { EmptyState } from '@/components/ui/feedback';
+import { EmptyAction, EmptyState } from '@/components/ui/feedback';
+import { BandChip, bandForMastery, type Band } from '@/components/ui/band';
 import { Meter } from '@/components/ui/progress';
 import { PageHeader, Sheet, SheetBody, SheetHeader } from '@/components/ui/sheet';
 import { requireUser } from '@/lib/auth/guards';
@@ -25,7 +26,15 @@ export default async function PerformancePage() {
   const user = await requireUser();
   const { t } = await getTranslations();
 
-  const progress = await getProgressForUser(user.id, user.trackId);
+  const bandLabels: Record<Band, string> = {
+    weak: t.dashboard.bandWeak,
+    developing: t.dashboard.bandDeveloping,
+    mastered: t.dashboard.bandMastered,
+    not_started: t.dashboard.bandNotStarted,
+    needs_review: t.dashboard.bandNeedsReview,
+  };
+
+  const progress = await getProgressForUser(user.id, user.trackId, user.preferredLanguage);
   const weakest = rankChapters(progress, 8);
   const strongest = rankStrongest(progress, 5);
 
@@ -36,7 +45,12 @@ export default async function PerformancePage() {
       <PageHeader title={t.performance.title} description={t.performance.subtitle} />
 
       {progress.length === 0 ? (
-        <EmptyState tone="pending" title={t.practice.noQuestions} body={t.practice.noQuestionsHint} />
+        <EmptyState
+          tone="pending"
+          title={t.practice.noProgressTitle}
+          body={t.practice.noProgressBody}
+          action={<EmptyAction href="/practice" label={t.practice.noProgressCta} />}
+        />
       ) : (
         <div className="space-y-5">
           {/* --- Readiness per subject --- */}
@@ -139,11 +153,26 @@ export default async function PerformancePage() {
                             {t.performance.practiseThis}
                           </a>
                         </div>
-                        <Meter
-                          value={chapter.masteryScore}
-                          size="sm"
-                          caption={`${chapter.attemptsCount} ${t.practice.attempts}`}
-                        />
+                        {/* The band names what the bar only shows. A meter on
+                            its own is a length: a student reads "about a third"
+                            and has to guess whether that is bad. The same chip
+                            vocabulary as the dashboard grid and the chapter
+                            list says it outright. */}
+                        <div className="flex items-center gap-2.5">
+                          <Meter
+                            value={chapter.masteryScore}
+                            size="sm"
+                            caption={`${chapter.attemptsCount} ${t.practice.attempts}`}
+                            className="min-w-0 flex-1"
+                          />
+                          <BandChip
+                            band={bandForMastery(chapter.masteryScore, chapter.attemptsCount)}
+                            label={
+                              bandLabels[bandForMastery(chapter.masteryScore, chapter.attemptsCount)]
+                            }
+                            className="shrink-0"
+                          />
+                        </div>
                       </li>
                     ))}
                   </ul>
@@ -165,11 +194,26 @@ export default async function PerformancePage() {
                           <p className="truncate text-sm font-medium text-ink">{chapter.chapterName}</p>
                           <p className="text-[12px] text-ink-faint">{chapter.subjectName}</p>
                         </div>
-                        <Meter
-                          value={chapter.masteryScore}
-                          size="sm"
-                          caption={`${chapter.attemptsCount} ${t.practice.attempts}`}
-                        />
+                        {/* The band names what the bar only shows. A meter on
+                            its own is a length: a student reads "about a third"
+                            and has to guess whether that is bad. The same chip
+                            vocabulary as the dashboard grid and the chapter
+                            list says it outright. */}
+                        <div className="flex items-center gap-2.5">
+                          <Meter
+                            value={chapter.masteryScore}
+                            size="sm"
+                            caption={`${chapter.attemptsCount} ${t.practice.attempts}`}
+                            className="min-w-0 flex-1"
+                          />
+                          <BandChip
+                            band={bandForMastery(chapter.masteryScore, chapter.attemptsCount)}
+                            label={
+                              bandLabels[bandForMastery(chapter.masteryScore, chapter.attemptsCount)]
+                            }
+                            className="shrink-0"
+                          />
+                        </div>
                       </li>
                     ))}
                   </ul>

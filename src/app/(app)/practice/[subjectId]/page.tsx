@@ -2,7 +2,8 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
-import { Badge, EmptyState } from '@/components/ui/feedback';
+import { Badge, EmptyAction, EmptyState } from '@/components/ui/feedback';
+import { BandChip, bandForMastery, type Band } from '@/components/ui/band';
 import { Meter } from '@/components/ui/progress';
 import { PageHeader, Sheet, SheetBody } from '@/components/ui/sheet';
 import { requireUser } from '@/lib/auth/guards';
@@ -30,6 +31,14 @@ export default async function SubjectChaptersPage({
   const user = await requireUser();
   const { t } = await getTranslations();
 
+  const bandLabels: Record<Band, string> = {
+    weak: t.dashboard.bandWeak,
+    developing: t.dashboard.bandDeveloping,
+    mastered: t.dashboard.bandMastered,
+    not_started: t.dashboard.bandNotStarted,
+    needs_review: t.dashboard.bandNeedsReview,
+  };
+
   const subject = await getSubjectForTrack(subjectId, user.trackId);
   if (!subject) notFound();
 
@@ -49,7 +58,12 @@ export default async function SubjectChaptersPage({
       />
 
       {chapters.length === 0 ? (
-        <EmptyState tone="pending" title={t.practice.noQuestions} body={t.practice.noQuestionsHint} />
+        <EmptyState
+          tone="pending"
+          title={t.practice.noQuestions}
+          body={t.practice.emptyNothing.replace('{subject}', subject.name)}
+          action={<EmptyAction href="/practice" label={t.practice.noPapersCta} />}
+        />
       ) : (
         <div className="space-y-6">
           {[...byUnit.entries()].map(([unitName, unitChapters]) => (
@@ -101,8 +115,18 @@ export default async function SubjectChaptersPage({
                             </div>
                           )}
 
-                          {chapter.attemptsCount === 0 && practisable && (
-                            <Badge tone="neutral">{t.dashboard.readinessNotYet}</Badge>
+                          {/* The same band vocabulary as the dashboard grid and
+                              the results page — icon, label and colour together,
+                              from one primitive. A page-specific variant would
+                              mean a student learning the scale twice. Zero
+                              attempts reads as "not started", never as weak. */}
+                          {practisable && (
+                            <BandChip
+                              band={bandForMastery(chapter.masteryScore, chapter.attemptsCount)}
+                              label={
+                                bandLabels[bandForMastery(chapter.masteryScore, chapter.attemptsCount)]
+                              }
+                            />
                           )}
                         </>
                       );

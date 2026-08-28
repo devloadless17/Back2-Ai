@@ -2,12 +2,14 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 
 import { SplitHero } from '@/components/dashboard/split-hero';
+import { streakFrom, type SubjectRing } from '@/components/dashboard/subject-rings';
+import { WelcomeHero } from '@/components/dashboard/welcome-hero';
 import { NextUpCard } from '@/components/progress/next-up-card';
 import { LinkButton } from '@/components/ui/button';
 import { ActivityColumns, BarRows, type BarDatum } from '@/components/ui/charts';
 import { Badge, EmptyState } from '@/components/ui/feedback';
 import { Meter } from '@/components/ui/progress';
-import { PageHeader, Sheet, SheetBody, SheetHeader, StatTile } from '@/components/ui/sheet';
+import { Sheet, SheetBody, SheetHeader, StatTile } from '@/components/ui/sheet';
 import { requireUser } from '@/lib/auth/guards';
 import { cn } from '@/lib/cn';
 import { db } from '@/lib/db';
@@ -44,7 +46,7 @@ export default async function DashboardPage() {
 
   const [progress, flashcardsDue, announcements, upcomingExams, activity, standing, nextUp, todaySessions] =
     await Promise.all([
-      getProgressForUser(user.id, user.trackId),
+      getProgressForUser(user.id, user.trackId, user.preferredLanguage),
       db.flashcardState.count({ where: { userId: user.id, dueDate: { lte: startOfToday() } } }),
       db.announcement.findMany({
         /*
@@ -76,8 +78,8 @@ export default async function DashboardPage() {
         take: 4,
       }),
       attemptsByDay(user.id, 14),
-      getStanding(user.id, user.trackId),
-      getNextUp(user.id, user.trackId),
+      getStanding(user.id, user.trackId, user.preferredLanguage),
+      getNextUp(user.id, user.trackId, user.preferredLanguage),
       // Today's plan. A plain read — the dashboard must never wait on a model.
       db.studySession.findMany({
         where: { userId: user.id, scheduledDate: startOfToday() },
@@ -120,44 +122,57 @@ export default async function DashboardPage() {
     .sort((a, b) => a.value - b.value)
     .slice(0, 6);
 
-  const heroTiles = progress
-    .flatMap((subject) =>
-      subject.chapters.map((chapter) => ({
-        chapterId: chapter.chapterId,
-        chapterName: chapter.chapterName,
-        subjectName: subject.subjectName,
-        masteryScore: chapter.masteryScore,
-        attemptsCount: chapter.attemptsCount,
-      })),
-    )
-    // Weakest first: the grid is scanned, not read, so the thing that needs
-    // attention has to be in the first row rather than wherever the syllabus
-    // happens to put it.
-    .sort((a, b) => {
-      if (a.attemptsCount === 0 && b.attemptsCount > 0) return 1;
-      if (b.attemptsCount === 0 && a.attemptsCount > 0) return -1;
-      return a.masteryScore - b.masteryScore;
-    });
+  // One ring per subject: mean chapter mastery fills it, the predicted mark
+  // sits in the middle when there is enough evidence to state one.
+  const markBySubject = new Map(standing.subjects.map((s) => [s.subjectId, s.mark]));
+  const subjectRings: SubjectRing[] = progress.map((subject) => {
+    const chapters = subject.chapters;
+    const attemptsCount = chapters.reduce((sum, c) => sum + c.attemptsCount, 0);
+    const mastery =
+      chapters.length === 0
+        ? 0
+        : chapters.reduce((sum, c) => sum + c.masteryScore, 0) / chapters.length;
+    return {
+      subjectId: subject.subjectId,
+      subjectName: subject.subjectName,
+      mastery,
+      mark: markBySubject.get(subject.subjectId) ?? null,
+      attemptsCount,
+    };
+  });
+
+  const streak = streakFrom(activity);
+
+  // The focus line only fires on a chapter with enough attempts behind it to
+  // mean something — the same threshold the planner uses to call a chapter weak.
+  const focus =
+    weakest && weakest.attemptsCount >= MIN_ATTEMPTS_FOR_WEAKNESS
+      ? {
+          chapterName: weakest.chapterName,
+          percent: Math.round(weakest.masteryScore * 100),
+          href: `/practice/${weakest.subjectId}/${weakest.chapterId}`,
+        }
+      : null;
 
   const nextExam = upcomingExams[0] ?? null;
 
   return (
     <>
-      <PageHeader
-        title={`${t.dashboard.greeting}${user.displayName ? `, ${user.displayName.split(' ')[0]}` : ''}`}
-        description={t.practice.subtitle}
-        actions={
-          flashcardsDue > 0 ? (
-            <LinkButton href="/flashcards/review" variant="primary" size="sm">
-              {t.flashcards.startReview}
-            </LinkButton>
-          ) : null
-        }
+      <WelcomeHero
+        firstName={user.displayName?.split(' ')[0] ?? ''}
+        sessionCount={todaySessions.filter((s) => s.status === 'planned').length}
+        totalMinutes={todaySessions
+          .filter((s) => s.status === 'planned')
+          .reduce((sum, s) => sum + (s.durationMinutes ?? 0), 0)}
+        doneCount={todaySessions.filter((s) => s.status === 'done').length}
+        daysToExam={nextExam ? daysUntil(nextExam.examDate) : null}
       />
 
       <SplitHero
         today={todaySessions}
-        tiles={heroTiles}
+        subjects={subjectRings}
+        streak={streak}
+        focus={focus}
         flashcardsDue={flashcardsDue}
         examLabel={nextExam?.label ?? nextExam?.subject?.name ?? null}
         daysToExam={nextExam ? daysUntil(nextExam.examDate) : null}
@@ -236,7 +251,7 @@ export default async function DashboardPage() {
           />
           <SheetBody className="p-0">
             {standing.subjects.length === 0 ? (
-              <p className="px-5 py-4 text-sm text-ink-muted">{t.practice.noQuestionsHint}</p>
+              <p className="px-5 py-4 text-sm text-ink-muted">{t.practice.noStanding}</p>
             ) : (
               <ul className="ruled">
                 {standing.subjects.map((subject) => (

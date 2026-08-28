@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
-import { Alert, Badge, EmptyState } from '@/components/ui/feedback';
+import { Alert, Badge, EmptyAction, EmptyState } from '@/components/ui/feedback';
 import { PageHeader, Sheet, SheetBody, SheetHeader } from '@/components/ui/sheet';
 import { requireUser } from '@/lib/auth/guards';
 import { db } from '@/lib/db';
@@ -50,7 +50,12 @@ export default async function OldCyclesPage() {
       </Alert>
 
       {cycles.length === 0 ? (
-        <EmptyState tone="pending" title={t.oldCycles.noCycles} body={t.practice.noQuestionsHint} />
+        <EmptyState
+          tone="pending"
+          title={t.practice.noPapersTitle}
+          body={t.practice.noPapersBody}
+          action={<EmptyAction href="/practice" label={t.practice.noPapersCta} />}
+        />
       ) : (
         <div className="space-y-5">
           {[...bySubject.entries()].map(([subjectName, subjectCycles]) => (

@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 
+import { LinkButton } from '@/components/ui/button';
 import { cn } from '@/lib/cn';
 
 /**
@@ -65,6 +66,22 @@ export function EmptyState({ tone = 'neutral', title, body, action, className }:
       {body && <p className={cn('max-w-sm text-sm leading-relaxed', styles.body)}>{body}</p>}
       {action && <div className="mt-2">{action}</div>}
     </div>
+  );
+}
+
+/**
+ * The way out of an empty screen.
+ *
+ * Every empty state in this product should end in somewhere to go: a student who
+ * has nothing to do here still has something to do, and naming it is most of
+ * what makes the difference between a report and an assistant. Kept next to
+ * `EmptyState` so the two are never styled apart.
+ */
+export function EmptyAction({ href, label }: { href: string; label: string }) {
+  return (
+    <LinkButton href={href} variant="primary" size="sm">
+      {label}
+    </LinkButton>
   );
 }
 

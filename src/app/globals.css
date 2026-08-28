@@ -5,89 +5,228 @@
 /* ---------------------------------------------------------------------------
  * Design tokens
  *
- * Near-monochrome and flat. Charcoal ink on near-white paper, hairline rules,
- * no shadows, no gradients, no rounded-off corners — the visual language of a
- * serious instrument rather than of an app.
+ * Lavender paper, indigo-to-violet accent, soft-shouldered cards floating on
+ * tinted shadow. Warm and confident rather than austere — a study tool a
+ * seventeen-year-old opens by choice, not an instrument they endure.
  *
- * The register matters commercially. This is bought by parents and schools for
- * a national examination that decides where a seventeen-year-old goes next. A
- * playful interface reads as unserious to the person paying, whatever the
- * student thinks of it.
+ * Indigo is the spine: brand, primary action, focus, the chart ramp. Violet is
+ * its lighter partner and carries gradients and secondary emphasis. The three
+ * status colours — teal, amber, rose — are reserved for what a mark is worth
+ * and are never used decoratively, because a student learns their meaning in
+ * the first session and must be able to trust it afterwards.
  *
- * ONE accent, and it is cedar green. It marks the current thing and the primary
- * action, and nothing else. Red is reserved — it is the examiner's pen, used
- * for lost marks and for the countdown when it becomes urgent, and using it
- * decoratively anywhere would blunt it.
+ * Every status colour here is dark enough to read as text on white. The bright
+ * versions from the design live in the viz ramp and in fills, where contrast is
+ * carried by the shape rather than by the glyph.
  * ------------------------------------------------------------------------- */
 
 :root {
-  /* Surfaces. Paper is very slightly warm; a pure #fff reads as a screen. */
-  --paper: 40 14% 97.5%;
+  /* Surfaces. Paper is lavender-tinted; cards are true white so they lift. */
+  --paper: 253 60% 97%;
   --paper-raised: 0 0% 100%;
-  --paper-sunken: 40 10% 94%;
+  --paper-sunken: 249 63% 96%;
 
-  /* Ink. High contrast — the muted step still clears 4.5:1 on paper. */
-  --ink: 220 14% 11%;
-  --ink-muted: 220 8% 38%;
-  --ink-faint: 220 6% 52%;
+  /* Ink. Deep indigo-black rather than neutral grey — it belongs to the hue
+   * family, so text on lavender never reads as a foreign layer. */
+  --ink: 250 33% 18%;
+  --ink-muted: 250 16% 47%;
+  /* Was 68%, which measured 2.32:1 on paper — below the 3.0 floor for LARGE
+   * text, on a token used 82 times at 11.5–12.5px. 49% is the lightest value
+   * that clears 4.5:1 on all three surfaces (card 5.24, paper 4.76, sunken
+   * 4.59). Hue and saturation are untouched, so the token still reads as the
+   * quietest member of the same family rather than as a different grey. */
+  --ink-faint: 250 18% 49%;
 
-  /* Hairlines. */
-  --rule: 40 8% 88%;
-  --rule-strong: 40 8% 76%;
+  /* Rules, kept faint. The card edge is now carried by shadow, not by a line. */
+  --rule: 249 63% 94%;
+  --rule-strong: 248 62% 88%;
 
-  /* The single accent: cedar. */
-  --primary: 152 44% 24%;
-  --primary-hover: 152 46% 18%;
-  --primary-soft: 152 30% 94%;
-  --on-primary: 40 14% 97.5%;
+  /* The spine: indigo. */
+  --primary: 245 77% 61%;
+  --primary-hover: 245 70% 52%;
+  --primary-soft: 250 100% 96%;
+  --on-primary: 0 0% 100%;
 
-  /* Retained so nothing breaks, but pointed at the accent: this palette has
-   * no second decorative colour. */
-  --accent: 152 44% 24%;
-  --accent-hover: 152 46% 18%;
-  --accent-soft: 152 30% 94%;
+  /* Violet — gradients, secondary emphasis, the lighter half of the brand. */
+  --accent: 264 78% 73%;
+  /* Doubles as the text colour of the accent chip in `feedback.tsx`, which
+   * sits on --accent-soft. At 63% that pair measured 3.60. */
+  --accent-hover: 264 66% 57%;
+  --accent-soft: 264 80% 96%;
 
-  /* Status. The examiner's pen, and the two bands either side of it. */
-  --mark: 0 62% 42%;
-  --mark-soft: 0 60% 96%;
-  --correct: 152 44% 26%;
-  --correct-soft: 152 30% 94%;
-  --partial: 34 82% 34%;
-  --partial-soft: 36 70% 95%;
+  /* Status. Rose is the examiner's pen; teal and amber are the bands above it.
+   * Text-weight values: the display versions are --viz-* and --*-bright. */
+  --mark: 343 62% 46%;
+  --mark-soft: 350 100% 96%;
+  /* 29%, not 30%: 30% measured 4.42 on the sunken surface. */
+  --correct: 172 62% 29%;
+  --correct-soft: 170 60% 94%;
+  /* 34%, not 36%: at 36% this measured 4.44 on paper, a hair under the 4.5
+   * floor, and amber is a mark band a student is meant to read at a glance. */
+  --partial: 30 88% 34%;
+  --partial-soft: 36 100% 94%;
 
-  --focus: 152 44% 24%;
+  /* Display-weight status, for rings, chips and fills where the shape carries
+   * the contrast. These are the design's own values. */
+  --mark-bright: 349 100% 68%;
+  --correct-bright: 170 61% 47%;
+  --partial-bright: 32 100% 62%;
 
-  /* Chart ramp — one hue, light to dark, monotone in lightness. */
-  --viz-1: 152 20% 68%;
-  --viz-2: 152 28% 50%;
-  --viz-3: 152 40% 34%;
-  --viz-4: 152 48% 20%;
+  --focus: 245 77% 61%;
 
-  /* Small radii. A 4px corner is a drawn edge; a 22px corner is a bubble. */
-  --radius-sm: 2px;
-  --radius: 4px;
-  --radius-lg: 6px;
-  --radius-xl: 8px;
+  /* Chart ramp — indigo through violet, monotone in lightness so it still
+   * reads as an ordered scale in greyscale. */
+  --viz-1: 250 100% 88%;
+  --viz-2: 247 87% 73%;
+  --viz-3: 245 77% 61%;
+  --viz-4: 250 60% 40%;
 
-  /* One easing, and it does not overshoot. */
+  /* Soft shoulders. A 22px card and a 999px pill; the corner is part of the
+   * voice, not a leftover. */
+  --radius-sm: 8px;
+  --radius: 14px;
+  --radius-lg: 20px;
+  --radius-xl: 28px;
+
+  /* Two easings: one that settles, one with a little life in it. */
   --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
-  --ease-spring: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 
-  /* A transitional serif for examination prose, a neutral sans for the
-   * interface. No rounded faces. */
-  --font-serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, 'Times New Roman', serif;
-  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto,
-    'Helvetica Neue', Arial, sans-serif;
+  /* Cairo carries the headings — it is a display face with a full Arabic cut,
+   * so an Arabic-track student gets the same typographic voice rather than a
+   * silent substitution. Inter runs the interface. */
+  --font-display: var(--font-cairo), 'Cairo', ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-cairo), 'Cairo', Georgia, 'Times New Roman', serif;
+  --font-sans: var(--font-inter), 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI',
+    Roboto, 'Helvetica Neue', Arial, sans-serif;
   --font-mono: ui-monospace, 'Cascadia Mono', 'Segoe UI Mono', 'Liberation Mono', Menlo, Consolas,
     monospace;
+}
+
+/* ---------------------------------------------------------------------------
+ * Dark
+ *
+ * Students revise at night. The palette holds its hue family rather than going
+ * neutral: the ground is an indigo-black, not a grey, so the same lavender voice
+ * survives and the accent still belongs to the page.
+ *
+ * Two inversions worth naming, because they are not simple lightness flips:
+ *
+ *   Cards lift the other way round. On paper, white cards float above a tinted
+ *   ground. Here the ground is darkest and a card is LIGHTER than it, because a
+ *   shadow does nothing against black — elevation has to be carried by the
+ *   surface itself.
+ *
+ *   The status colours swap which cut does which job. On white, `--mark` is the
+ *   dark rose that reads as text and `--mark-bright` is the fill. On black the
+ *   bright cut is the readable one, so the text values move up to meet it. The
+ *   MEANING never moves: rose is still the examiner's pen and nothing else.
+ *
+ * The viz ramp reverses direction. Light-to-dark encodes "more" on paper; on a
+ * dark ground the same ordering has to run dark-to-light or the scale inverts
+ * its own meaning.
+ *
+ * Written twice on purpose. The media query serves the default "system" setting,
+ * where nothing is stamped on the root; the attribute serves an explicit choice
+ * and has to beat the OS in both directions. CSS gives no way to share one
+ * declaration block across a media query and a selector, so the duplication is
+ * the price of the toggle working.
+ * ------------------------------------------------------------------------- */
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+
+    --paper: 250 30% 9%;
+    --paper-raised: 250 24% 13%;
+    --paper-sunken: 252 32% 7%;
+
+    --ink: 250 30% 94%;
+    --ink-muted: 250 14% 68%;
+    --ink-faint: 250 12% 56%;
+
+    --rule: 250 20% 20%;
+    --rule-strong: 250 20% 29%;
+
+    --primary: 245 85% 74%;
+    --primary-hover: 245 92% 82%;
+    --primary-soft: 246 38% 21%;
+    --on-primary: 250 45% 11%;
+
+    --accent: 264 80% 79%;
+    --accent-hover: 264 88% 86%;
+    --accent-soft: 264 34% 23%;
+
+    --mark: 349 95% 72%;
+    --mark-soft: 345 42% 19%;
+    --correct: 170 58% 56%;
+    --correct-soft: 170 38% 15%;
+    --partial: 33 92% 64%;
+    --partial-soft: 33 46% 17%;
+
+    --mark-bright: 349 100% 72%;
+    --correct-bright: 170 61% 52%;
+    --partial-bright: 32 100% 66%;
+
+    --focus: 245 92% 78%;
+
+    --viz-1: 250 34% 27%;
+    --viz-2: 247 55% 43%;
+    --viz-3: 245 78% 62%;
+    --viz-4: 250 96% 84%;
+  }
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --paper: 250 30% 9%;
+  --paper-raised: 250 24% 13%;
+  --paper-sunken: 252 32% 7%;
+
+  --ink: 250 30% 94%;
+  --ink-muted: 250 14% 68%;
+  --ink-faint: 250 12% 56%;
+
+  --rule: 250 20% 20%;
+  --rule-strong: 250 20% 29%;
+
+  --primary: 245 85% 74%;
+  --primary-hover: 245 92% 82%;
+  --primary-soft: 246 38% 21%;
+  --on-primary: 250 45% 11%;
+
+  --accent: 264 80% 79%;
+  --accent-hover: 264 88% 86%;
+  --accent-soft: 264 34% 23%;
+
+  --mark: 349 95% 72%;
+  --mark-soft: 345 42% 19%;
+  --correct: 170 58% 56%;
+  --correct-soft: 170 38% 15%;
+  --partial: 33 92% 64%;
+  --partial-soft: 33 46% 17%;
+
+  --mark-bright: 349 100% 72%;
+  --correct-bright: 170 61% 52%;
+  --partial-bright: 32 100% 66%;
+
+  --focus: 245 92% 78%;
+
+  --viz-1: 250 34% 27%;
+  --viz-2: 247 55% 43%;
+  --viz-3: 245 78% 62%;
+  --viz-4: 250 96% 84%;
 }
 
 /* Arabic needs its own stacks — a Latin serif has no Arabic glyphs, so the
  * browser silently substitutes and the page loses its typographic voice. */
 :root:lang(ar),
 [dir='rtl'] {
-  --font-serif: 'Noto Naskh Arabic', 'Amiri', 'Traditional Arabic', 'Times New Roman', serif;
-  --font-sans: 'Noto Sans Arabic', 'Segoe UI', Tahoma, system-ui, sans-serif;
+  --font-display: var(--font-cairo), 'Cairo', 'Noto Sans Arabic', 'Segoe UI', Tahoma, sans-serif;
+  --font-serif: var(--font-cairo), 'Cairo', 'Noto Naskh Arabic', 'Amiri', serif;
+  --font-sans: var(--font-cairo), 'Cairo', 'Noto Sans Arabic', 'Segoe UI', Tahoma, system-ui,
+    sans-serif;
 }
 
 @layer base {
@@ -110,7 +249,7 @@
   h2,
   h3,
   h4 {
-    @apply font-sans font-semibold text-ink;
+    @apply font-display font-extrabold text-ink;
     letter-spacing: -0.011em;
     text-wrap: balance;
   }
@@ -142,24 +281,221 @@
 }
 
 @layer components {
-  /* The base surface: white stock inside a hairline. No shadow — a flat plane
-   * with a drawn edge, the way a table is printed on a page. */
+  /* The base surface: white stock lifted off the lavender by a tinted shadow.
+   * The shadow is indigo rather than black — a grey shadow on a coloured ground
+   * reads as dirt, and the difference is the whole warmth of the palette. */
   .sheet {
-    @apply rounded border border-rule bg-paper-raised;
+    @apply rounded-lg bg-paper-raised shadow-sheet;
   }
 
   .sheet-interactive {
-    @apply transition-colors duration-150;
+    @apply transition-[box-shadow,transform] duration-200;
   }
 
   .sheet-interactive:hover {
-    @apply border-rule-strong bg-paper-sunken/50;
+    @apply shadow-sheet-raised;
   }
 
-  /* Kept so callers still compile. In this palette the "hero" card is marked
-   * by a rule in the accent, not by colour or motion. */
+  .sheet-interactive:active {
+    transform: scale(0.99);
+    transition-duration: 120ms;
+  }
+
+  /*
+   * Press feedback for anything tappable that is not a button — chapter rows,
+   * subject cards, mastery tiles, calendar days.
+   *
+   * Hover is not available on a phone, which is where most of this product is
+   * used, so without this a tap on a card is silent until the page changes.
+   * Deliberately smaller than the button's press: a card is large, and the same
+   * 3% on a wide surface reads as the layout wobbling.
+   */
+  .pressable {
+    @apply transition-transform duration-200;
+  }
+
+  .pressable:active {
+    transform: scale(0.99);
+    transition-duration: 120ms;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .sheet-interactive:active,
+    .pressable:active {
+      transform: none;
+    }
+  }
+
+  /* The emphasised card.
+   *
+   * It was a gradient with white text and blurred colour blobs, lifted from the
+   * mockup's marketing banner. That works for a wide hero holding one line of
+   * type; it failed here for two reasons worth writing down. Forcing white on
+   * the container while every child still asked for `text-ink-muted` left the
+   * secondary type dark violet on indigo — unreadable, and invisible to a
+   * contrast check that only ever looks at the token pair. And a 180px blob
+   * inside a 400px card does not sit behind the content, it sits on it.
+   *
+   * So the emphasis is carried by a rule in the brand and a tinted ground the
+   * ink still reads against. Same palette, none of the fight.
+   */
   .sheet-hero {
-    @apply border-t-2 border-t-primary;
+    @apply relative overflow-hidden rounded-lg shadow-sheet-raised;
+    background: linear-gradient(
+      160deg,
+      hsl(var(--primary-soft)) 0%,
+      hsl(var(--paper-raised)) 46%
+    );
+  }
+
+  .sheet-hero::before {
+    content: '';
+    position: absolute;
+    inset-block-start: 0;
+    inset-inline: 0;
+    height: 3px;
+    background: linear-gradient(90deg, hsl(var(--primary)), hsl(var(--accent)));
+  }
+
+  /* Safari still paints the disclosure triangle unless the webkit pseudo is
+   * cleared too; `list-none` alone leaves it. */
+  summary::-webkit-details-marker {
+    display: none;
+  }
+
+  /* The welcome banner: the one gradient surface in the product.
+   *
+   * Wide, few words, everything on it coloured explicitly. The blobs are
+   * pseudo-elements so no markup carries decoration and a screen reader never
+   * meets them, and they are placed with `inset-inline-end` so an Arabic
+   * layout mirrors them rather than dropping them on top of the sentence. */
+  .hero-banner {
+    @apply relative overflow-hidden rounded-xl shadow-pop-lg;
+    background: linear-gradient(
+      120deg,
+      hsl(var(--primary)) 0%,
+      hsl(247 87% 73%) 55%,
+      hsl(var(--accent)) 100%
+    );
+  }
+
+  .hero-banner::before,
+  .hero-banner::after {
+    content: '';
+    position: absolute;
+    border-radius: 9999px;
+    pointer-events: none;
+    filter: blur(2px);
+  }
+
+  .hero-banner::before {
+    width: 240px;
+    height: 240px;
+    top: -80px;
+    inset-inline-end: 70px;
+    background: hsl(var(--mark-bright) / 0.28);
+  }
+
+  .hero-banner::after {
+    width: 150px;
+    height: 150px;
+    bottom: -60px;
+    inset-inline-end: 240px;
+    background: hsl(var(--correct-bright) / 0.22);
+  }
+
+  /*
+   * The flip card.
+   *
+   * The one screen in this product where a 3D transform is the interaction
+   * rather than decoration: turning the card *is* how you reveal the answer, and
+   * the turn is what makes "did I actually know that?" a moment rather than a
+   * scroll. Everything else here is a fade.
+   *
+   * Both faces are always in the DOM and `backface-visibility` hides the one
+   * turned away, so the answer is present for a screen reader from the start —
+   * a card whose back only mounted on flip would be a card a blind student could
+   * not read ahead of grading themselves.
+   *
+   * Reduced motion drops the rotation and keeps the state change: the back
+   * simply appears. The information is identical either way.
+   */
+  .flip-stage {
+    perspective: 1400px;
+  }
+
+  .flip-card {
+    position: relative;
+    width: 100%;
+    transform-style: preserve-3d;
+    transition: transform 500ms cubic-bezier(0.4, 0.2, 0.2, 1);
+  }
+
+  .flip-card.is-flipped {
+    transform: rotateY(180deg);
+  }
+
+  .flip-face {
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+  }
+
+  .flip-face-back {
+    position: absolute;
+    inset: 0;
+    transform: rotateY(180deg);
+    overflow-y: auto;
+  }
+
+  /* RTL turns the other way, so the gesture matches the reading direction. */
+  [dir='rtl'] .flip-card.is-flipped {
+    transform: rotateY(-180deg);
+  }
+
+  [dir='rtl'] .flip-face-back {
+    transform: rotateY(-180deg);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .flip-card,
+    [dir='rtl'] .flip-card.is-flipped,
+    .flip-card.is-flipped {
+      transform: none;
+      transition: none;
+    }
+
+    .flip-face-back,
+    [dir='rtl'] .flip-face-back {
+      transform: none;
+    }
+
+    /* No rotation to hide behind, so visibility is switched outright. */
+    .flip-card:not(.is-flipped) .flip-face-back {
+      visibility: hidden;
+    }
+
+    .flip-card.is-flipped .flip-face-front {
+      visibility: hidden;
+    }
+  }
+
+  /* The data type role.
+   *
+   * Marks, points, clocks and counts are numbers a student compares down a
+   * column — 14/20 against 9/20, 01:24:07 ticking down. Proportional digits
+   * make each row a slightly different width and the eye has to re-find the
+   * decimal every line. Tabular mono holds the column still. Applied to the
+   * figure only, never to the sentence around it. */
+  .numeric {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
+  }
+
+  /* Headings take the display face. */
+  .display {
+    font-family: var(--font-display);
+    font-weight: 800;
   }
 
   /* The ruled rhythm of a mark scheme. */

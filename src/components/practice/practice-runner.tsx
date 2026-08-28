@@ -395,6 +395,15 @@ export function PracticeRunner({
                 <RuledRow key={`${item.criterion}-${i}`} className="flex-col items-stretch gap-1">
                   <div className="flex items-baseline justify-between gap-3">
                     <p className="min-w-0 text-[13.5px] font-medium text-ink">{item.criterion}</p>
+                    {/*
+                      Three states, two of which are current.
+
+                      Marking is binary per criterion now — met or not met — so
+                      anything answered from today on lands on teal or rose. The
+                      amber middle is kept for rows marked before that change,
+                      which carry real fractional awards and would otherwise be
+                      rendered as failures.
+                    */}
                     <p
                       className={cn(
                         'shrink-0 tabular-nums text-[13px] font-semibold',

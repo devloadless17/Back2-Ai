@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation';
 
 import { FlagButton } from '@/components/practice/flag-button';
 import { RevealableSolution } from '@/components/practice/revealable-solution';
-import { Alert, Badge, EmptyState } from '@/components/ui/feedback';
+import { Alert, Badge, EmptyAction, EmptyState } from '@/components/ui/feedback';
 import { QuestionBody } from '@/components/ui/math';
 import { PageHeader, Sheet, SheetBody, SheetHeader } from '@/components/ui/sheet';
 import { requireUser } from '@/lib/auth/guards';
@@ -69,7 +69,12 @@ export default async function ExamCyclePage({
       </Alert>
 
       {cycle.questions.length === 0 ? (
-        <EmptyState tone="pending" title={t.practice.noQuestions} body={t.practice.noQuestionsHint} />
+        <EmptyState
+          tone="pending"
+          title={t.practice.emptyPaperTitle}
+          body={t.practice.emptyPaperBody}
+          action={<EmptyAction href="/old-cycles" label={t.practice.emptyPaperCta} />}
+        />
       ) : (
         <div className="space-y-5">
           {cycle.questions.map((question, index) => (

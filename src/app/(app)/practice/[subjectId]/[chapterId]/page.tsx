@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 
 import { PracticeRunner, type PracticeQuestion } from '@/components/practice/practice-runner';
-import { EmptyState } from '@/components/ui/feedback';
+import { ChapterDeadEnd } from '@/components/practice/chapter-dead-end';
 import { PageHeader } from '@/components/ui/sheet';
 import { requireUser } from '@/lib/auth/guards';
 import { db } from '@/lib/db';
@@ -112,7 +112,11 @@ export default async function ChapterPracticePage({
       />
 
       {prepared.length === 0 ? (
-        <EmptyState tone="pending" title={t.practice.noQuestions} body={t.practice.noQuestionsHint} />
+        <ChapterDeadEnd
+          chapterId={chapter.id}
+          subjectId={chapter.subject.id}
+          subjectName={chapter.subject.name}
+        />
       ) : (
         <PracticeRunner
           chapterId={chapter.id}

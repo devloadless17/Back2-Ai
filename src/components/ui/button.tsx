@@ -21,10 +21,29 @@ import { cn } from '@/lib/cn';
  */
 const VARIANTS = {
   primary: 'bg-primary text-on-primary border-primary hover:bg-primary-hover',
-  accent: 'bg-primary text-on-primary border-primary hover:bg-primary-hover',
+  /*
+   * Violet, and tinted rather than filled.
+   *
+   * This was byte-identical to `primary` — same background, same border, same
+   * hover — so the variant this file describes as "a reward-flavoured action"
+   * rendered as a second primary button, and the rule above ("exactly one
+   * primary per screen") was broken by the escape hatch offered for the case
+   * that needs two. Nothing used it yet, which is the moment to make it true.
+   *
+   * Tinted because a solid violet cannot carry a label: white on --accent
+   * measures 2.83 in light mode. The tint also does the job better — a filled
+   * violet beside a filled indigo reads as two primaries competing, where a
+   * tinted one reads as the lighter-weight offer it is. 4.66 light, 7.96 dark.
+   */
+  accent: 'bg-accent-soft text-accent-hover border-accent/30 hover:bg-accent/20',
   secondary: 'bg-paper-raised text-ink border-rule-strong hover:bg-paper-sunken',
   quiet: 'bg-transparent text-ink-muted border-transparent hover:bg-paper-sunken hover:text-ink',
-  mark: 'bg-mark text-on-primary border-mark hover:brightness-95',
+  /*
+   * `hover:brightness-95` was the odd one out: a filter rather than a colour,
+   * so it darkened on white and did nothing useful on a dark ground. The rose
+   * has a hover cut like every other colour here — use it.
+   */
+  mark: 'bg-mark text-on-primary border-mark hover:bg-mark/90',
 } as const;
 
 const SIZES = {
@@ -33,9 +52,25 @@ const SIZES = {
   lg: 'h-11 px-5 text-[15px] gap-2',
 } as const;
 
+/*
+ * The press.
+ *
+ * This file has described a press since it was written and never had one — only
+ * `transition-colors` and a hover. On a phone, where most of these students are,
+ * `hover:` does not exist at all, so a tap produced no feedback until the
+ * navigation completed. On a slow connection that gap is long enough for someone
+ * to tap a second time believing they missed.
+ *
+ * 120ms and a 3% scale: under the ~200ms floor where motion starts to feel like
+ * latency, and small enough that it cannot shift anything around it. Reduced
+ * motion drops the transform and keeps the colour change, so the feedback
+ * survives without the movement.
+ */
 const BASE =
   'inline-flex items-center justify-center rounded border font-medium ' +
-  'transition-colors duration-150 ' +
+  'transition-[background-color,border-color,color,transform] duration-150 ' +
+  'active:scale-[0.97] active:duration-[120ms] ' +
+  'motion-reduce:active:scale-100 motion-reduce:transition-colors ' +
   'disabled:pointer-events-none disabled:opacity-50 ' +
   'aria-busy:pointer-events-none aria-busy:opacity-70';
 

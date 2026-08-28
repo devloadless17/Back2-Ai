@@ -5,7 +5,7 @@ import { useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/field';
-import { Alert, EmptyState } from '@/components/ui/feedback';
+import { Alert, EmptyAction, EmptyState } from '@/components/ui/feedback';
 import { Sheet, SheetBody, SheetFooter, SheetHeader } from '@/components/ui/sheet';
 import { cn } from '@/lib/cn';
 import { ApiRequestError, sendJson } from '@/lib/client/request';
@@ -54,7 +54,7 @@ export function NewSimulationForm({ options }: { options: SimulationOption[] }) 
     } catch (err) {
       setError(
         err instanceof ApiRequestError && err.code === 'NO_CONTENT'
-          ? t.practice.noQuestionsHint
+          ? t.practice.simNotEnough
           : err instanceof ApiRequestError && err.code === 'IN_PROGRESS_EXISTS'
             ? t.examSim.inProgressNotice
             : t.common.unknownError,
@@ -64,7 +64,14 @@ export function NewSimulationForm({ options }: { options: SimulationOption[] }) 
   }
 
   if (options.length === 0) {
-    return <EmptyState tone="pending" title={t.practice.noQuestions} body={t.practice.noQuestionsHint} />;
+    return (
+      <EmptyState
+        tone="pending"
+        title={t.practice.simNoneTitle}
+        body={t.practice.simNoneBody}
+        action={<EmptyAction href="/practice" label={t.practice.simNoneCta} />}
+      />
+    );
   }
 
   return (
