@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
-import { baremeMaxScore, markingStyle, parseBareme, parseBaremeResult, pointsFor } from '@/lib/grading';
+import {
+  baremeMaxScore,
+  groundedIn,
+  markingStyle,
+  parseBareme,
+  parseBaremeResult,
+  pointsFor,
+  statedMarksOf,
+} from '@/lib/grading';
 
 describe('parseBareme', () => {
   it('accepts a well-formed barème', () => {
@@ -112,5 +120,61 @@ describe('subjects are not marked the same way', () => {
     // instruction is the specific mistake this mapping exists to prevent.
     expect(markingStyle('\u0641\u0644\u0633\u0641\u0629 \u0639\u0627\u0645\u0629')).not.toBe('maths');
     expect(markingStyle('Mathematics')).not.toBe('philosophy');
+  });
+});
+
+describe('a proposed criterion has to be grounded', () => {
+  const material =
+    'The pancreas secretes insulin when blood glucose rises. Insulin promotes the uptake of ' +
+    'glucose by muscle and liver cells, which lowers glycaemia back towards its set point.';
+
+  it('accepts a citation that is really in the material', () => {
+    expect(groundedIn('Insulin promotes the uptake of glucose by muscle and liver cells', material)).toBe(true);
+  });
+
+  it('accepts it through the line breaks a PDF put in', () => {
+    // A model copying a sentence reproduces its words, not the newline a PDF
+    // dropped through the middle of it.
+    expect(groundedIn('The pancreas secretes insulin\n   when blood glucose rises', material)).toBe(true);
+  });
+
+  it('refuses a citation the material does not contain', () => {
+    // This is the model recalling a different syllabus. The criterion is
+    // dropped before any marking rather than believed.
+    expect(groundedIn('Glucagon is released by the alpha cells of the islets', material)).toBe(false);
+  });
+
+  it('refuses a citation too short to ground anything', () => {
+    expect(groundedIn('insulin', material)).toBe(false);
+    expect(groundedIn('the cells', material)).toBe(false);
+  });
+});
+
+describe('statedMarksOf', () => {
+  it('reads the tariff a Lebanese paper prints after the question', () => {
+    expect(statedMarksOf('Calculer la vitesse du mobile au point B. (1,5 pt)')).toBe(1.5);
+    expect(statedMarksOf('Determine the concentration of the solution. (2 pts)')).toBe(2);
+    expect(statedMarksOf('Justifier votre réponse. (3 points)')).toBe(3);
+  });
+
+  it('reads an Arabic tariff', () => {
+    expect(statedMarksOf('اشرح مفهوم الحرية عند سبينوزا. (٣ علامات)'.replace(/٣/, '3'))).toBe(3);
+    expect(statedMarksOf('عرّف المفهوم التالي. (علامتان) (2 علامة)')).toBe(2);
+  });
+
+  it('takes the tariff, not a number from the physics', () => {
+    // "3 points" here is a set of points in the plane, and it is not in the
+    // tail anyway — the tariff is what is printed last.
+    expect(statedMarksOf('On considère 3 points A, B et C du plan. Montrer qu ils sont alignés. (1 pt)')).toBe(1);
+  });
+
+  it('returns null when the paper states nothing', () => {
+    expect(statedMarksOf('Démontrer que la suite est convergente.')).toBeNull();
+    expect(statedMarksOf('')).toBeNull();
+  });
+
+  it('refuses a year dressed as a mark', () => {
+    // "Session 2018 points" must not become a 2018-mark question.
+    expect(statedMarksOf('Sujet de la session de 2018 points de repère.')).toBeNull();
   });
 });

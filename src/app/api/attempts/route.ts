@@ -13,7 +13,8 @@ import {
 } from '@/lib/api';
 import { apiUser } from '@/lib/auth/guards';
 import { db } from '@/lib/db';
-import { gradeAgainstBareme, parseBareme } from '@/lib/grading';
+import { gradeAgainstBareme, gradeWithoutBareme, parseBareme, statedMarksOf } from '@/lib/grading';
+import { retrieveGrounding } from '@/lib/retrieval';
 import { ensureCard } from '@/lib/queries/flashcards';
 import { recomputeChapterMastery } from '@/lib/queries/progress';
 
@@ -88,7 +89,7 @@ export const POST = route(async (request) => {
           officialSolution: true,
           correctOptionId: true,
           bareme: true,
-          chapter: { select: { subject: { select: { language: true, name: true } } } },
+          chapter: { select: { subject: { select: { id: true, language: true, name: true } } } },
         },
       })
     : await db.generatedProblem.findFirst({
@@ -105,7 +106,7 @@ export const POST = route(async (request) => {
           contentText: true,
           generatedSolution: true,
           bareme: true,
-          chapter: { select: { subject: { select: { language: true, name: true } } } },
+          chapter: { select: { subject: { select: { id: true, language: true, name: true } } } },
         },
       });
 
@@ -139,9 +140,51 @@ export const POST = route(async (request) => {
     maxScore = outcome.maxScore;
     baremeResult = outcome.results;
     needsHumanReview = outcome.status === 'needs_human_review';
+  } else if ((body.answerText ?? '').trim().length > 0) {
+    /*
+     * No barème, but the student wrote something.
+     *
+     * This is where practice used to go quiet: the attempt was logged and the
+     * student got nothing back. The marker now proposes the criteria a
+     * Lebanese examiner would use, grounded in retrieved course material, and
+     * the result is flagged provisional so nobody mistakes it for the
+     * ministry's. Where nothing can be grounded — or the question turns on a
+     * figure we do not store — it still declines rather than inventing.
+     *
+     * Not anchored on this question: anchoring hands back the question and its
+     * own solution, and a criterion grounded in the question it was invented
+     * for is grounded in nothing.
+     */
+    const grounding = await retrieveGrounding({
+      query: source.contentText,
+      subjectIds: [source.chapter.subject.id],
+      userId: user.id,
+    });
+
+    const outcome = await gradeWithoutBareme({
+      questionText: source.contentText,
+      officialSolution: isQuestion ? source.officialSolution : source.generatedSolution,
+      bareme: [],
+      studentAnswer: body.answerText ?? '',
+      language,
+      subject: source.chapter.subject.name,
+      statedMarks: statedMarksOf(source.contentText),
+      courseMaterial: grounding.context,
+    });
+
+    if (outcome.status === 'graded_provisional') {
+      score = outcome.totalScore;
+      maxScore = outcome.maxScore;
+      baremeResult = outcome.results;
+      isCorrect = outcome.maxScore > 0 ? outcome.totalScore >= outcome.maxScore / 2 : null;
+    } else {
+      // Declined — a figure it cannot see, or nothing groundable. Recorded as
+      // practice activity, not as a failure.
+      isCorrect = null;
+    }
   } else {
-    // No barème and not multiple choice: the attempt is recorded as practice
-    // activity, but it cannot be scored, and it must not count as a failure.
+    // No barème, no answer: the attempt is recorded as practice activity, but
+    // it cannot be scored, and it must not count as a failure.
     isCorrect = null;
   }
 

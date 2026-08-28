@@ -66,6 +66,23 @@ export const baremeResultItemSchema = z.object({
    * `GRADING_SCHEMA` govern the model's output and neither is relaxed here.
    */
   explanation: z.string().default(''),
+  /**
+   * True when this criterion is ours, not the examiner's.
+   *
+   * 868 questions reached the corpus without a barème, and the marker proposes
+   * criteria for those rather than refusing. A proposed criterion marked like
+   * an official one is the worst version of that feature, so the distinction
+   * travels with the criterion itself and the results screen says so.
+   *
+   * It rides in the JSONB rather than in a column of its own because it
+   * qualifies the criteria, not the attempt: a paper can mix an exercise whose
+   * scheme survived extraction with one whose did not, and a row-level flag
+   * would have to lie about one of them. Optional and defaulted false, for the
+   * same reason `explanation` is — this schema meets rows written before the
+   * field existed, and requiring it would empty every marking result already
+   * stored.
+   */
+  provisional: z.boolean().default(false),
 });
 
 export const baremeResultSchema = z.array(baremeResultItemSchema);
@@ -73,13 +90,27 @@ export const baremeResultSchema = z.array(baremeResultItemSchema);
 export type BaremeResultItem = z.infer<typeof baremeResultItemSchema>;
 
 export type GradingOutcome = {
-  status: 'graded' | 'needs_human_review';
+  /**
+   * `graded` is a mark against the paper's own barème and is the only one that
+   * carries the ministry's authority.
+   *
+   * `graded_provisional` is a mark against criteria the model proposed, for the
+   * 868 questions that arrived with no scheme at all — 799 of them with no
+   * official solution either, and 659 in the Arabic subjects, where a student
+   * previously wrote an answer and got `needs_human_review` and silence. It is
+   * a different KIND of number and never presented as the other: the caller is
+   * expected to label it, and the student is told the criteria are our reading
+   * of the question rather than the examiner's.
+   */
+  status: 'graded' | 'graded_provisional' | 'needs_human_review';
   results: BaremeResultItem[];
   totalScore: number;
   maxScore: number;
   modelUsed: string | null;
   /** Populated when status is 'needs_human_review'. */
   reason?: string;
+  /** The criteria the model proposed, when it had to invent them. */
+  provisionalBareme?: Bareme;
 };
 
 export type GradeInput = {
@@ -322,6 +353,7 @@ export async function gradeAgainstBareme(input: GradeInput): Promise<GradingOutc
         points_possible: c.points,
         justification: 'No answer was submitted for this question.',
         explanation: '',
+        provisional: false,
       })),
       totalScore: 0,
       maxScore,
@@ -390,6 +422,9 @@ export async function gradeAgainstBareme(input: GradeInput): Promise<GradingOutc
         // explanations that matter. Read off `awarded` rather than off `met` so
         // it still holds for a criterion the model never returned.
         explanation: awarded < criterion.points ? (marked?.explanation ?? '') : '',
+        // This path marks against the paper's own barème. These criteria are
+        // the examiner's, and are the only ones that carry that authority.
+        provisional: false,
       };
     });
 
@@ -423,6 +458,7 @@ export async function gradeAgainstBareme(input: GradeInput): Promise<GradingOutc
         points_possible: c.points,
         justification: 'Automatic marking was unavailable for this answer.',
         explanation: '',
+        provisional: false,
       })),
       totalScore: 0,
       maxScore,
@@ -539,6 +575,36 @@ export function parseBaremeResult(value: unknown): BaremeResultItem[] {
   return parsed.success ? parsed.data : [];
 }
 
+/**
+ * What the paper says a question is worth, read off the paper.
+ *
+ * A question with no barème still prints its own tariff — "(1,5 pt)" at the end
+ * of the line, "(٣ علامات)" on an Arabic paper. That number is the examiner's,
+ * not ours, and it is the one thing that lets a provisional mark sit on the
+ * same scale as an official one instead of inviting a conversion nobody
+ * performs.
+ *
+ * Only the LAST occurrence is taken, and only from the tail of the statement.
+ * The tariff is printed after the question; a number earlier in the text is
+ * part of the physics — "une masse de 3 points" is not a mark allocation.
+ * Anything above 20 is rejected outright: a Lebanese question is worth marks,
+ * and 2018 is a year.
+ */
+export function statedMarksOf(text: string): number | null {
+  const tail = text.slice(-220);
+  const unit = String.raw`pts?\b|points?\b|marks?\b|علام(?:ة|تان|ات)|درجات?|ن\b`;
+  // The lookbehind is load-bearing: without it "session de 2018 points" is read
+  // as an 18-mark question, because \d{1,2} happily matches the tail of a year.
+  const re = new RegExp(String.raw`(?<![\d.,٫])(\d{1,2}(?:[.,٫]\d{1,2})?)\s*(?:${unit})`, 'giu');
+
+  let best: number | null = null;
+  for (const m of tail.matchAll(re)) {
+    const value = Number(m[1]!.replace(/[,٫]/, '.'));
+    if (Number.isFinite(value) && value > 0 && value <= 20) best = value;
+  }
+  return best;
+}
+
 
 function clamp(value: number, min: number, max: number): number {
   if (!Number.isFinite(value)) return min;
@@ -547,4 +613,228 @@ function clamp(value: number, min: number, max: number): number {
 
 function round2(value: number): number {
   return Math.round(value * 100) / 100;
+}
+
+/* ---------------------------------------------------------------------------
+ * Marking a question that arrived without a scheme
+ * ------------------------------------------------------------------------ */
+
+const PROPOSED_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['markable', 'criteria'],
+  properties: {
+    markable: {
+      type: 'boolean',
+      description:
+        'false if the question cannot be marked without material you were not given — a figure, a printed passage, a document.',
+    },
+    criteria: {
+      type: 'array',
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['criterion', 'points', 'grounded_in', 'met', 'justification', 'explanation'],
+        properties: {
+          criterion: {
+            type: 'string',
+            description: 'What a Lebanese Bac examiner would award this part of the answer for.',
+          },
+          points: { type: 'number', description: 'Marks this criterion is worth.' },
+          grounded_in: {
+            type: 'string',
+            description:
+              'The sentence from the course material that supports this criterion, copied from it verbatim. Empty string if the course material does not cover it.',
+          },
+          met: { type: 'boolean' },
+          justification: { type: 'string' },
+          explanation: { type: 'string' },
+        },
+      },
+    },
+  },
+} as const;
+
+const proposedSchema = z.object({
+  markable: z.boolean(),
+  criteria: z.array(
+    z.object({
+      criterion: z.string(),
+      points: z.number(),
+      grounded_in: z.string(),
+      met: z.boolean(),
+      justification: z.string(),
+      explanation: z.string(),
+    }),
+  ),
+});
+
+export type ProvisionalInput = GradeInput & {
+  /** Retrieved course material. This is the check on the model's own invention. */
+  courseMaterial: string;
+  /** What the paper says this question is worth, where it says so. */
+  statedMarks?: number | null;
+};
+
+/**
+ * Marks an answer when the paper's scheme never reached the corpus.
+ *
+ * 868 questions have no barème and 799 have no official solution either, so
+ * until now a student wrote an answer to one and was told the paper needed a
+ * human. That is honest and useless, and it falls almost entirely on the Arabic
+ * subjects: Falsafa 377, Adab Arabi 92, Tarikh 79, Tarbiya 68, Joghrafya 43.
+ *
+ * The model knows what a Lebanese Bac answer of this subject and shape has to
+ * contain. The objection was never that it could not judge — it was that a
+ * judgement dressed as the ministry's is a lie. So it judges, and the result is
+ * `graded_provisional` all the way to the student, who is told the criteria are
+ * our reading of the question rather than the examiner's.
+ *
+ * Two guards keep the invention honest.
+ *
+ *   EVERY CRITERION MUST BE GROUNDED. The model is handed the retrieved course
+ *   material and must copy out the sentence supporting each criterion. The
+ *   citation is then checked against the material we actually sent, not taken
+ *   on trust — a criterion whose support cannot be found is the model recalling
+ *   a different country's syllabus, and it is dropped before any marking. If
+ *   nothing survives, the question goes to human review exactly as before.
+ *
+ *   IT MAY REFUSE. `markable: false` is the right answer for a question turning
+ *   on a figure or a printed passage nobody handed over, and 29% of this corpus
+ *   does. Inventing criteria for a graph it cannot see would be the worst
+ *   version of this feature, not the most useful one.
+ *
+ * Marks are scaled to what the paper says the question is worth, where it says
+ * so, and a provisional score then sits on the same scale as an official one
+ * instead of inviting a conversion nobody performs.
+ */
+export async function gradeWithoutBareme(input: ProvisionalInput): Promise<GradingOutcome> {
+  if (input.studentAnswer.trim().length === 0) {
+    return { status: 'graded', results: [], totalScore: 0, maxScore: 0, modelUsed: null };
+  }
+
+  const style = markingStyle(input.subject ?? '');
+  const system = [
+    'You are a Lebanese Baccalaureate examiner. This question reached us without its official',
+    'marking scheme, so you must first say what the marks are for, and then award them.',
+    '',
+    ...(STYLE_RULES[style].length ? [...STYLE_RULES[style], ''] : []),
+    'Rules:',
+    '- Propose the criteria a Lebanese examiner would actually use for this question, in the order',
+    '  the question asks for them. One criterion per thing being assessed.',
+    '- GROUND EACH ONE. Copy into grounded_in the sentence from the course material below that',
+    '  supports it. Where the course material does not support a criterion, return an empty string:',
+    '  do not paraphrase and do not invent a citation. Ungrounded criteria are discarded.',
+    '- Then mark the student against your own criteria. Each is MET or NOT MET, never in between.',
+    '- Set markable to false if the question depends on a figure, document or printed passage you',
+    '  were not given. Do not guess at what it showed.',
+    `- Write justification and explanation in ${LANGUAGE_NAME[input.language]}, addressed to the student.`,
+    '',
+    'You are proposing a scheme, not reciting one. Be the examiner this paper should have had.',
+  ].join('\n');
+
+  const userPrompt = [
+    '# Question',
+    input.questionText,
+    ...(input.statedMarks ? ['', `# The paper says this question is worth ${input.statedMarks} marks`] : []),
+    ...(input.officialSolution ? ['', '# Official solution (reference only)', input.officialSolution] : []),
+    '',
+    '# Course material',
+    input.courseMaterial || '(none retrieved)',
+    '',
+    '# The answer the student wrote',
+    input.studentAnswer,
+  ].join('\n');
+
+  try {
+    const provider = ai();
+    const response = await provider.completeJson({
+      system,
+      messages: [{ role: 'user', content: userPrompt }],
+      schema: PROPOSED_SCHEMA as unknown as Record<string, unknown>,
+      schemaName: 'provisional_marking',
+      effort: 'high',
+      model: provider.verifyModel,
+      parse: (value) => proposedSchema.parse(value),
+    });
+
+    if (!response.data.markable) {
+      return {
+        status: 'needs_human_review',
+        results: [],
+        totalScore: 0,
+        maxScore: 0,
+        modelUsed: response.modelUsed,
+        reason: 'The question depends on a figure or passage that is not stored with it.',
+      };
+    }
+
+    const grounded = response.data.criteria.filter((c) => groundedIn(c.grounded_in, input.courseMaterial));
+
+    if (grounded.length === 0) {
+      return {
+        status: 'needs_human_review',
+        results: [],
+        totalScore: 0,
+        maxScore: 0,
+        modelUsed: response.modelUsed,
+        reason: 'No proposed criterion could be grounded in the course material.',
+      };
+    }
+
+    const rawTotal = grounded.reduce((sum, c) => sum + Math.max(c.points, 0), 0) || 1;
+    const scale = input.statedMarks && input.statedMarks > 0 ? input.statedMarks / rawTotal : 1;
+
+    const bareme: Bareme = grounded.map((c) => ({
+      criterion: c.criterion,
+      points: round2(Math.max(c.points, 0) * scale),
+    }));
+
+    const results: BaremeResultItem[] = grounded.map((c, i) => {
+      const possible = bareme[i]!.points;
+      const awarded = pointsFor(bareme[i]!, c.met);
+      return {
+        criterion: c.criterion,
+        points_awarded: round2(awarded),
+        points_possible: possible,
+        justification: c.justification,
+        explanation: awarded < possible ? c.explanation : '',
+        provisional: true,
+      };
+    });
+
+    return {
+      status: 'graded_provisional',
+      results,
+      totalScore: round2(results.reduce((s, r) => s + r.points_awarded, 0)),
+      maxScore: round2(bareme.reduce((s, c) => s + c.points, 0)),
+      modelUsed: response.modelUsed,
+      provisionalBareme: bareme,
+    };
+  } catch {
+    return {
+      status: 'needs_human_review',
+      results: [],
+      totalScore: 0,
+      maxScore: 0,
+      modelUsed: null,
+      reason: 'The marker could not be reached, or returned an unusable response.',
+    };
+  }
+}
+
+/**
+ * Is this citation actually in the material we sent?
+ *
+ * Whitespace-folded on both sides and matched on a prefix, because a model
+ * copying a sentence out of a passage reliably reproduces its words and does
+ * not reliably reproduce the line breaks a PDF put through the middle of it.
+ * Short strings are refused outright: "the cell" appears in any biology
+ * chapter and grounds nothing.
+ */
+export function groundedIn(citation: string, material: string): boolean {
+  const fold = (s: string) => s.toLowerCase().replace(/\s+/g, ' ').trim();
+  const cite = fold(citation);
+  if (cite.length < 20) return false;
+  return fold(material).includes(cite.slice(0, 60));
 }

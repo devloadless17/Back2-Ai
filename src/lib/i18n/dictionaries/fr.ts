@@ -385,6 +385,9 @@ export const fr: Dictionary = {
     resultsTitle: 'Résultats',
     totalScore: 'Total',
     baremeBreakdown: 'Détail du barème',
+    provisionalMarking: 'Correction provisoire',
+    provisionalNotice:
+      'Cette épreuve nous est parvenue sans son barème officiel. Les critères ci-dessous sont notre lecture de la question, vérifiée sur votre cours — ce ne sont pas ceux du correcteur. La note est donc indicative.',
     criterion: 'Critère',
     awarded: 'Obtenu',
     possible: 'Sur',

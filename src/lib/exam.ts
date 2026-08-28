@@ -9,11 +9,14 @@ import {
   baremeMaxScore,
   checkOcrConsistency,
   gradeAgainstBareme,
+  gradeWithoutBareme,
   parseBareme,
+  statedMarksOf,
   type Bareme,
 } from '@/lib/grading';
 import type { Locale } from '@/lib/i18n/config';
 import { recomputeChapterMastery } from '@/lib/queries/progress';
+import { retrieveGrounding } from '@/lib/retrieval';
 
 /**
  * Exam simulation: composition, submission, marking.
@@ -579,23 +582,48 @@ export async function markSimulation(
 
     const bareme = parseBareme(slot.baremeSnapshot);
     const content = slotContent(slot);
-
-    if (!bareme) {
-      // No marking scheme means no defensible mark. Recorded as unmarked
-      // rather than as a zero.
-      marks.push({ status: 'needs_human_review', totalScore: 0, maxScore: 0 });
-      continue;
-    }
-
     const studentAnswer = answerTextOf(slot.answer);
-    const outcome = await gradeAgainstBareme({
-      questionText: content.contentText,
-      officialSolution: content.officialSolution,
-      bareme,
-      studentAnswer,
-      language: simulation.subject.language,
-      subject: simulation.subject.name,
-    });
+
+    /*
+     * No official scheme is not the same as no mark.
+     *
+     * 868 questions reached the corpus without a barème, and until now every
+     * one of them told the student their paper needed a human — honest, and
+     * useless, and falling almost entirely on the Arabic subjects. So the
+     * marker proposes the criteria instead, grounded in retrieved course
+     * material and labelled `graded_provisional` all the way to the results
+     * screen, where the student is told these are our reading of the question
+     * rather than the examiner's.
+     *
+     * The retrieval is deliberately NOT anchored on this question: anchoring
+     * returns the question and its own solution as context, and a criterion
+     * "grounded" in the question it was invented for is grounded in nothing.
+     */
+    const outcome = bareme
+      ? await gradeAgainstBareme({
+          questionText: content.contentText,
+          officialSolution: content.officialSolution,
+          bareme,
+          studentAnswer,
+          language: simulation.subject.language,
+          subject: simulation.subject.name,
+        })
+      : await gradeWithoutBareme({
+          questionText: content.contentText,
+          officialSolution: content.officialSolution,
+          bareme: [],
+          studentAnswer,
+          language: simulation.subject.language,
+          subject: simulation.subject.name,
+          statedMarks: statedMarksOf(content.contentText),
+          courseMaterial: (
+            await retrieveGrounding({
+              query: content.contentText,
+              subjectIds: [simulation.subject.id],
+              userId: input.userId,
+            })
+          ).context,
+        });
 
     /*
      * A question the marker could not mark is NOT a zero.
@@ -724,8 +752,15 @@ export function answerTextOf(
 }
 
 export type MarkEntry = {
-  /** 'needs_human_review' means the marker could not mark it — never a zero. */
-  status: 'graded' | 'needs_human_review';
+  /**
+   * 'needs_human_review' means the marker could not mark it — never a zero.
+   *
+   * 'graded_provisional' is a mark against criteria we proposed because the
+   * paper's own scheme is not in the corpus. It travels as its own status the
+   * whole way rather than collapsing into 'graded', so nothing downstream can
+   * present it with the authority of an official barème by accident.
+   */
+  status: 'graded' | 'graded_provisional' | 'needs_human_review';
   totalScore: number;
   maxScore: number;
 };

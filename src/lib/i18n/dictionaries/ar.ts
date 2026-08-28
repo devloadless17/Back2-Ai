@@ -377,6 +377,9 @@ export const ar: Dictionary = {
     resultsTitle: 'النتائج',
     totalScore: 'المجموع',
     baremeBreakdown: 'تفصيل سلّم التصحيح',
+    provisionalMarking: 'تصحيح مبدئي',
+    provisionalNotice:
+      'وصلتنا هذه المسابقة من دون سلّم التصحيح الرسمي. المعايير أدناه هي قراءتنا للسؤال، مُستندة إلى مادتك الدراسية، وليست معايير المصحّح. اعتبر العلامة إرشادية.',
     criterion: 'المعيار',
     awarded: 'الممنوح',
     possible: 'من',

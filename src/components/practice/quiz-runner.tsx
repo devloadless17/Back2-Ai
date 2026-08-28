@@ -40,7 +40,14 @@ type AttemptResponse = {
   score: number | null;
   maxScore: number | null;
   baremeResult:
-    | { criterion: string; points_awarded: number; points_possible: number; justification: string }[]
+    | {
+        criterion: string;
+        points_awarded: number;
+        points_possible: number;
+        justification: string;
+        /** Set when the criterion is ours rather than the examiner's. */
+        provisional?: boolean;
+      }[]
     | null;
   solution: string | null;
   needsHumanReview: boolean;
@@ -163,6 +170,12 @@ export function QuizRunner({
                   images={q.contentImages}
                 />
               </SheetBody>
+
+              {outcome.baremeResult?.some((item) => item.provisional) && (
+                <Alert tone="warning" className="mt-3">
+                  {t.examSim.provisionalNotice}
+                </Alert>
+              )}
 
               {outcome.baremeResult && outcome.baremeResult.length > 0 && (
                 <SheetBody className="p-0">

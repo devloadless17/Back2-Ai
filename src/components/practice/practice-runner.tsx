@@ -52,6 +52,8 @@ type BaremeResultItem = {
   points_awarded: number;
   points_possible: number;
   justification: string;
+  /** Set when the criterion is ours rather than the examiner's. */
+  provisional?: boolean;
 };
 
 type AttemptResponse = {
@@ -385,6 +387,16 @@ export function PracticeRunner({
         {outcome.needsHumanReview && (
           <SheetBody className="pb-0">
             <Alert tone="warning">{t.chat.aiNotConfiguredHint}</Alert>
+          </SheetBody>
+        )}
+
+        {/*
+          * Said before the marks, not after them. A student who has already
+          * read a score has already believed it.
+          */}
+        {outcome.baremeResult?.some((item) => item.provisional) && (
+          <SheetBody className="pb-0">
+            <Alert tone="warning">{t.examSim.provisionalNotice}</Alert>
           </SheetBody>
         )}
 

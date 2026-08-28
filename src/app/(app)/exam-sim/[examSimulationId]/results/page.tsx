@@ -6,6 +6,7 @@ import { MarkExplanation } from '@/components/exam/mark-explanation';
 import { LinkButton } from '@/components/ui/button';
 import { Alert, Badge, EmptyState } from '@/components/ui/feedback';
 import { MathText, QuestionBody } from '@/components/ui/math';
+import { BandChip } from '@/components/ui/band';
 import { Meter } from '@/components/ui/progress';
 import { PageHeader, Sheet, SheetBody, SheetFooter, SheetHeader } from '@/components/ui/sheet';
 import { requireUser } from '@/lib/auth/guards';
@@ -173,12 +174,16 @@ export default async function ExamResultsPage({
                               : 'mark'
                         }
                       >
-                        {slotTotal} / {slotMax}
+                        <span className="numeric">
+                          {slotTotal} / {slotMax}
+                        </span>
                       </Badge>
                     ) : slot.answer?.gradedAt ? (
                       // Graded, but with no mark — the marker could not mark it.
                       // Distinct from "not answered", which is the student's zero.
-                      <Badge tone="partial">{t.examSim.grading}</Badge>
+                      // Carries the same question-badge icon as everywhere else
+                      // this state appears, so it is recognisable without colour.
+                      <BandChip band="needs_review" label={t.examSim.grading} />
                     ) : (
                       <Badge tone="neutral">{t.examSim.notAnswered}</Badge>
                     )
@@ -216,7 +221,25 @@ export default async function ExamResultsPage({
                 {/* Barème */}
                 {results.length > 0 && (
                   <>
-                    <SheetHeader title={t.examSim.baremeBreakdown} className="border-t" />
+                    <SheetHeader
+                      title={
+                        results.some((item) => item.provisional)
+                          ? t.examSim.provisionalMarking
+                          : t.examSim.baremeBreakdown
+                      }
+                      className="border-t"
+                    />
+                    {/*
+                     * Said before the marks, not after them. A student who has
+                     * already read a score has already believed it, and a
+                     * caveat underneath is a footnote to a number they have
+                     * taken as the examiner's.
+                     */}
+                    {results.some((item) => item.provisional) && (
+                      <SheetBody className="border-b border-rule pb-3">
+                        <Alert tone="warning">{t.examSim.provisionalNotice}</Alert>
+                      </SheetBody>
+                    )}
                     <SheetBody className="p-0">
                       <div className="ruled">
                         {results.map((item, i) => (

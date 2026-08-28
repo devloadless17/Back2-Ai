@@ -386,6 +386,9 @@ export const en = {
     resultsTitle: 'Results',
     totalScore: 'Total',
     baremeBreakdown: 'Barème breakdown',
+    provisionalMarking: 'Provisional marking',
+    provisionalNotice:
+      'This paper reached us without its official marking scheme. The criteria below are our reading of the question, checked against your course material — not the examiner’s own. Treat the mark as an indication.',
     criterion: 'Criterion',
     awarded: 'Awarded',
     possible: 'Possible',
