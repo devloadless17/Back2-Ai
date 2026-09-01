@@ -1,5 +1,7 @@
 import type { HTMLAttributes, ReactNode } from 'react';
 
+import Link from 'next/link';
+
 import { cn } from '@/lib/cn';
 
 /**
@@ -160,6 +162,7 @@ export function StatTile({
   caption,
   tone = 'plain',
   footer,
+  href,
   className,
 }: {
   label: string;
@@ -168,10 +171,24 @@ export function StatTile({
   /** `mark` prints the figure in the accent — used for the predicted mark only. */
   tone?: 'plain' | 'mark';
   footer?: ReactNode;
+  /**
+   * Makes the whole tile the way to act on the figure it prints.
+   *
+   * A number a student cannot do anything with is a number they read once. It
+   * is optional because most of these are readings — a predicted mark is not a
+   * destination — and a tile that looks clickable and is not is worse than a
+   * plain one.
+   */
+  href?: string;
   className?: string;
 }) {
-  return (
-    <div className={cn('sheet flex flex-col gap-1.5 p-4', className)}>
+  /*
+   * Two branches rather than one dynamic tag. `const Tile = href ? Link : 'div'`
+   * reads better and does not typecheck: the union widens `href` to
+   * `string | undefined`, which `Link` will not accept.
+   */
+  const body = (
+    <>
       <p className="label">{label}</p>
 
       <p
@@ -185,6 +202,16 @@ export function StatTile({
 
       {caption && <p className="text-caption text-ink-muted">{caption}</p>}
       {footer && <div className="mt-1">{footer}</div>}
-    </div>
+    </>
+  );
+
+  const shell = cn('sheet flex flex-col gap-1.5 p-4', className);
+
+  return href ? (
+    <Link href={href} className={cn(shell, 'sheet-interactive pressable')}>
+      {body}
+    </Link>
+  ) : (
+    <div className={shell}>{body}</div>
   );
 }

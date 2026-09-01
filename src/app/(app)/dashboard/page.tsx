@@ -248,7 +248,15 @@ export default async function DashboardPage() {
             available: standing.coverage.available,
           })}
         />
+        {/*
+          The one figure here a student can act on, so it is the way to act on
+          it. The deck overview lost its sidebar entry when the study group was
+          cut to the subject and asking — this is now how it is reached, which
+          is the right place for it anyway: nobody goes looking for "flashcards"
+          without first wondering what is due.
+        */}
         <StatTile
+          href="/flashcards"
           label={t.dashboard.dueToday}
           value={flashcardsDue}
           caption={format(t.dashboard.dueTodayCount, { count: flashcardsDue })}
