@@ -73,7 +73,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         everywhere is worth more than that, and the anchored path still exists
         where it matters most — beside a marked answer, and on a past paper.
       */}
-      <TutorDock />
+      <TutorDock
+        tutorName={user.tutorName}
+        firstName={user.displayName?.split(' ')[0] ?? null}
+      />
 
       <main className="min-w-0 flex-1">
         {/* No centred column. Reading measure is held where it belongs — by

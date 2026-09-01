@@ -405,6 +405,12 @@ model User {
   /// a second country is a data change rather than a migration.
   country           String    @default("LB") @db.Char(2)
   displayName       String?   @map("display_name")
+  /// What this student calls their tutor. Null means they have not named it and
+  /// the locale's default is shown. It lives on the account rather than in the
+  /// browser because the point of naming it is that it is *theirs* — a name that
+  /// vanished when they opened the app on the school computer would say the
+  /// opposite of what naming it is for.
+  tutorName         String?   @map("tutor_name")
   isActive          Boolean   @default(true) @map("is_active")
   lastLoginAt       DateTime? @map("last_login_at") @db.Timestamptz(6)
   createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)

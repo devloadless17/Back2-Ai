@@ -19,6 +19,8 @@ export type SessionUser = {
   /** ISO 3166-1 alpha-2, chosen at signup. */
   country: string;
   displayName: string | null;
+  /** What this student calls their tutor. Null until they have named it. */
+  tutorName: string | null;
 };
 
 export type ActiveSession = {
@@ -99,6 +101,7 @@ export const getSession = cache(async (): Promise<ActiveSession | null> => {
           preferredLanguage: true,
           country: true,
           displayName: true,
+          tutorName: true,
           isActive: true,
         },
       },
@@ -136,6 +139,7 @@ export const getSession = cache(async (): Promise<ActiveSession | null> => {
       preferredLanguage: row.user.preferredLanguage,
       country: row.user.country,
       displayName: row.user.displayName,
+      tutorName: row.user.tutorName,
     },
   };
 });

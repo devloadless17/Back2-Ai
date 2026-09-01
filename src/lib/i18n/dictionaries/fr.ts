@@ -514,6 +514,12 @@ export const fr: Dictionary = {
     dockChipQuiz: 'Interroge-moi',
     dockChipFlashcards: 'Cartes',
     dockChipPlan: 'Ajuster mon plan',
+    tutorDefaultName: 'Nour',
+    dockYourTutor: 'Votre tuteur',
+    dockGreeting: 'Prêt quand vous voulez, {name}.',
+    dockGreetingAnon: 'Prêt quand vous voulez.',
+    dockRenameLabel: 'Nommez votre tuteur',
+    dockRenameHint: 'Vous seul voyez ce nom.',
   },
 
   upload: {

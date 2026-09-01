@@ -532,6 +532,15 @@ export const en = {
     dockChipQuiz: 'Quiz me',
     dockChipFlashcards: 'Flashcards',
     dockChipPlan: 'Adjust my plan',
+    /* The tutor has a name so it can be renamed. A default that is already a
+       name — not "Assistant" — is what makes renaming feel like changing it
+       rather than filling in a blank. Nour reads as a name in all three. */
+    tutorDefaultName: 'Nour',
+    dockYourTutor: 'Your tutor',
+    dockGreeting: 'Ready when you are, {name}.',
+    dockGreetingAnon: 'Ready when you are.',
+    dockRenameLabel: 'Name your tutor',
+    dockRenameHint: 'Only you see this name.',
   },
 
   upload: {

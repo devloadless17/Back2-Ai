@@ -4,7 +4,8 @@ import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 
 import { useTutorSession } from '@/components/chat/use-tutor-session';
-import { IconChat, IconClose } from '@/components/shell/icons';
+import { TutorAvatar } from '@/components/chat/tutor-avatar';
+import { IconClose } from '@/components/shell/icons';
 import { useI18n } from '@/lib/i18n/client';
 import { cn } from '@/lib/cn';
 
@@ -17,14 +18,19 @@ import { cn } from '@/lib/cn';
  * one — so "Explain this" on the results screen still means *this* answer of
  * *mine*, not a generic walkthrough.
  *
- * It is mounted per page rather than in the app layout, and that is the point:
- * `/exam-sim/[id]` is a paper under a running clock and must stay assistant-free.
- * A dock in the layout would have to know which route it was on and hide itself,
- * which is exactly the kind of rule that survives one refactor and not two. A
- * page that wants the tutor asks for it; the exam does not ask.
+ * It is mounted once in the `(app)` layout. The paper under a running clock is
+ * excluded structurally rather than by a rule someone has to remember: the exam
+ * runner lives in the `(exam)` group with its own layout and never renders this
+ * one, so no future addition here can hand a student an assistant mid-exam.
  *
  * The chips are entries, not a second navigation. Each one is a thing the
  * student was already going to do next, one tap closer.
+ *
+ * The tutor has a face and a name the student chooses. Both are the same idea:
+ * a bubble labelled "Chat" is a feature you are offered, and somebody called
+ * Nour who greets you by name is a person you have. The name is stored on the
+ * account, not in the browser, because one that vanished on the school computer
+ * would undercut the only thing naming it was for.
  */
 
 export type TutorDockContext = {
@@ -34,11 +40,52 @@ export type TutorDockContext = {
   attemptId?: string;
 };
 
-export function TutorDock({ context }: { context?: TutorDockContext }) {
+export function TutorDock({
+  context,
+  tutorName,
+  firstName,
+}: {
+  context?: TutorDockContext;
+  /** What this student calls their tutor. Null until they have named it. */
+  tutorName?: string | null;
+  /** Used to greet them. Absent is fine — the greeting drops the name. */
+  firstName?: string | null;
+}) {
   const { t, format } = useI18n();
   const { open: openSession, opening, failed } = useTutorSession();
 
   const [open, setOpen] = useState(false);
+
+  /*
+   * The name is held here as well as on the account so a rename lands the
+   * instant it is typed. Waiting for a round trip to redraw the header would
+   * make the one personal thing in the product feel like the slowest.
+   */
+  const [name, setName] = useState(tutorName ?? '');
+  const [renaming, setRenaming] = useState(false);
+
+  // If the account's name changes elsewhere — another tab, another device —
+  // the server value wins over whatever this dock last showed.
+  useEffect(() => setName(tutorName ?? ''), [tutorName]);
+
+  const shown = name.trim() || t.chat.tutorDefaultName;
+
+  async function saveName(next: string) {
+    const cleaned = next.replace(/\s+/g, ' ').trim().slice(0, 24);
+    setName(cleaned);
+    setRenaming(false);
+    try {
+      await fetch('/api/settings/tutor', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ name: cleaned }),
+      });
+    } catch {
+      // The name still stands for this visit. A failed rename is not worth an
+      // error banner over the one thing here that is purely the student's.
+    }
+  }
+
   const panelRef = useRef<HTMLDivElement>(null);
   const toggleRef = useRef<HTMLButtonElement>(null);
 
@@ -61,6 +108,13 @@ export function TutorDock({ context }: { context?: TutorDockContext }) {
 
   const anchor = context?.questionId || context?.attemptId ? context : undefined;
 
+  /*
+   * Three states, each of them a fact rather than a flourish: a request is in
+   * flight, or the page has handed the tutor something to look at, or neither.
+   * Nothing here animates on a timer — see `tutor-avatar.tsx`.
+   */
+  const mood = opening ? 'thinking' : anchor ? 'attentive' : 'idle';
+
   return (
     <>
       {open && (
@@ -71,9 +125,43 @@ export function TutorDock({ context }: { context?: TutorDockContext }) {
           aria-label={t.chat.dockTitle}
           className="sheet fixed bottom-24 end-4 z-40 flex w-[min(20rem,calc(100vw-2rem))] flex-col overflow-hidden shadow-pop-lg animate-fade-up sm:end-6"
         >
-          <header className="border-b border-rule px-4 py-3">
-            <p className="text-meta font-semibold text-ink">{t.chat.dockTitle}</p>
-            <p className="text-caption text-ink-muted">{t.chat.dockSubtitle}</p>
+          <header className="flex items-center gap-3 border-b border-rule px-4 py-3">
+            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-primary-soft text-primary">
+              <TutorAvatar mood={mood} ink="paper" size={26} />
+            </span>
+
+            <div className="min-w-0 flex-1">
+              {renaming ? (
+                <NameField
+                  initial={name}
+                  label={t.chat.dockRenameLabel}
+                  hint={t.chat.dockRenameHint}
+                  save={t.common.save}
+                  cancel={t.common.cancel}
+                  onSave={(value) => void saveName(value)}
+                  onCancel={() => setRenaming(false)}
+                />
+              ) : (
+                <>
+                  {/* The name is the button. A pencil beside a heading is a
+                      control you have to notice; a name you can press is one
+                      you find by trying to press it. */}
+                  <button
+                    type="button"
+                    onClick={() => setRenaming(true)}
+                    title={t.chat.dockRenameLabel}
+                    className="-mx-1 block max-w-full truncate rounded px-1 text-start text-meta font-semibold text-ink transition-colors hover:bg-paper-sunken"
+                  >
+                    {shown}
+                  </button>
+                  <p className="truncate text-caption text-ink-muted">
+                    {firstName
+                      ? format(t.chat.dockGreeting, { name: firstName })
+                      : t.chat.dockGreetingAnon}
+                  </p>
+                </>
+              )}
+            </div>
           </header>
 
           <div className="space-y-3 px-4 py-3">
@@ -118,7 +206,7 @@ export function TutorDock({ context }: { context?: TutorDockContext }) {
           'motion-reduce:active:scale-100 sm:end-6',
         )}
       >
-        {open ? <IconClose width={22} height={22} /> : <IconChat width={22} height={22} />}
+        {open ? <IconClose width={22} height={22} /> : <TutorAvatar mood={mood} size={30} />}
       </button>
     </>
   );
@@ -150,6 +238,82 @@ function Chip({
     >
       {label}
     </button>
+  );
+}
+
+/**
+ * Renaming, in place.
+ *
+ * Its own component so the draft lives and dies with the field. Held in the
+ * dock, a half-typed name would survive closing the panel and reappear later as
+ * a change the student thought they had abandoned.
+ *
+ * Enter saves and Escape cancels, because this is a one-line field inside a
+ * panel that already closes on Escape — the field takes the key first, so the
+ * first press abandons the rename and only the second closes the tutor.
+ */
+function NameField({
+  initial,
+  label,
+  hint,
+  save,
+  cancel,
+  onSave,
+  onCancel,
+}: {
+  initial: string;
+  label: string;
+  hint: string;
+  save: string;
+  cancel: string;
+  onSave: (value: string) => void;
+  onCancel: () => void;
+}) {
+  const [draft, setDraft] = useState(initial);
+
+  return (
+    <div>
+      <label className="sr-only" htmlFor="tutor-name-field">
+        {label}
+      </label>
+      <div className="flex items-center gap-1.5">
+        <input
+          id="tutor-name-field"
+          autoFocus
+          value={draft}
+          maxLength={24}
+          placeholder={label}
+          onChange={(event) => setDraft(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') {
+              event.preventDefault();
+              onSave(draft);
+            }
+            if (event.key === 'Escape') {
+              // Stops the panel's own Escape handler closing the whole dock.
+              event.stopPropagation();
+              onCancel();
+            }
+          }}
+          className="min-w-0 flex-1 rounded border border-rule-strong bg-paper px-2 py-1 text-meta font-semibold text-ink outline-none focus:border-primary"
+        />
+        <button
+          type="button"
+          onClick={() => onSave(draft)}
+          className="rounded px-1.5 py-1 text-caption font-semibold text-primary hover:bg-primary-soft"
+        >
+          {save}
+        </button>
+        <button
+          type="button"
+          onClick={onCancel}
+          className="rounded px-1.5 py-1 text-caption text-ink-muted hover:bg-paper-sunken"
+        >
+          {cancel}
+        </button>
+      </div>
+      <p className="mt-1 text-caption text-ink-faint">{hint}</p>
+    </div>
   );
 }
 

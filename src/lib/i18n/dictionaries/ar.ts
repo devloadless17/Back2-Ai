@@ -529,6 +529,12 @@ export const ar: Dictionary = {
     dockChipQuiz: 'اختبرني',
     dockChipFlashcards: 'البطاقات',
     dockChipPlan: 'عدّل خطتي',
+    tutorDefaultName: 'نور',
+    dockYourTutor: 'مُعلّمك',
+    dockGreeting: 'جاهز متى شئت يا {name}.',
+    dockGreetingAnon: 'جاهز متى شئت.',
+    dockRenameLabel: 'سمِّ مُعلّمك',
+    dockRenameHint: 'لا يرى هذا الاسم سواك.',
   },
 
   upload: {
