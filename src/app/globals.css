@@ -22,9 +22,14 @@
 
 :root {
   /* Surfaces. Paper is lavender-tinted; cards are true white so they lift. */
-  --paper: 253 60% 97%;
+  /* Deepened from 97%/96%. The cards are white and the ground was one per cent
+   * off white, so nothing on the page separated from anything else and the
+   * whole product read as one flat sheet. This is as far as it goes: at 95%
+   * the sunken surface drops --ink-muted to 4.48, under the 4.5 floor, so the
+   * remaining separation has to be carried by shadow rather than by tone. */
+  --paper: 253 55% 96%;
   --paper-raised: 0 0% 100%;
-  --paper-sunken: 249 63% 96%;
+  --paper-sunken: 249 58% 95%;
 
   /* Ink. Deep indigo-black rather than neutral grey — it belongs to the hue
    * family, so text on lavender never reads as a foreign layer. */
@@ -105,6 +110,28 @@
 
   /* Soft shoulders. A 22px card and a 999px pill; the corner is part of the
    * voice, not a leftover. */
+
+  /*
+   * Subject identity, six tints.
+   *
+   * Not the `--viz-*` ramp, which is four steps of the same indigo and cannot
+   * tell chemistry from philosophy. Not the semantic colours either: `--mark`
+   * is the examiner's pen and means lost marks, `--correct` and `--partial`
+   * mean what they say, and a subject that happened to land on red would be
+   * making a claim about the student's work. These six carry no meaning beyond
+   * "a different subject from the one above it", which is the only thing they
+   * are asked to say. Reds and ambers are left out of the set on purpose.
+   *
+   * Every one measured against --ink-muted on its own ground: the lowest is
+   * indigo at 4.55, above the 4.5 floor for normal text.
+   */
+  --subject-1: 245 80% 96%;
+  --subject-2: 278 70% 95%;
+  --subject-3: 182 55% 92%;
+  --subject-4: 205 80% 93%;
+  --subject-5: 148 50% 92%;
+  --subject-6: 315 55% 94%;
+
   --radius-sm: 8px;
   --radius: 14px;
   --radius-lg: 20px;
@@ -121,6 +148,11 @@
   );
   --bubble-shadow: 0 1px 2px hsl(var(--primary) / 0.06),
     0 10px 20px hsl(var(--primary) / 0.10), 0 24px 46px hsl(var(--primary) / 0.13);
+  /* The same shadow with the card further off the page. Used on hover only —
+   * the lift is the answer to "is this clickable", so it has to be visibly
+   * more than the resting state rather than a slightly darker smudge. */
+  --bubble-shadow-raised: 0 2px 4px hsl(var(--primary) / 0.08),
+    0 16px 28px hsl(var(--primary) / 0.16), 0 34px 60px hsl(var(--primary) / 0.20);
   /* The lit top edge. White on a near-white card, so it is a hairline rather
    * than a stripe. */
   --bubble-sheen: inset 0 1px 0 hsl(0 0% 100% / 0.9);
@@ -232,8 +264,19 @@
      * gradient, it is a rounding error with a comment attached. The lift here is
      * the card being lighter than the page behind it, which is how every other
      * dark surface in this file works. */
+    /* The same six, as grounds rather than tints. Lowest --ink-muted is 5.54. */
+    --subject-1: 245 30% 17%;
+    --subject-2: 278 26% 17%;
+    --subject-3: 182 30% 15%;
+    --subject-4: 205 34% 16%;
+    --subject-5: 148 26% 15%;
+    --subject-6: 315 24% 17%;
     --bubble-face: hsl(var(--paper-raised));
     --bubble-shadow: 0 2px 6px hsl(250 40% 3% / 0.5), 0 18px 40px hsl(250 40% 3% / 0.45);
+    /* Deeper black, not a brighter indigo — on a dark ground the light theme's
+     * tinted lift reads as a glow escaping from under the card. */
+    --bubble-shadow-raised: 0 4px 10px hsl(250 40% 3% / 0.6),
+      0 26px 56px hsl(250 40% 3% / 0.55);
     --bubble-sheen: inset 0 1px 0 hsl(0 0% 100% / 0.07);
   }
 }
@@ -297,8 +340,19 @@
    * gradient, it is a rounding error with a comment attached. The lift here is
    * the card being lighter than the page behind it, which is how every other
    * dark surface in this file works. */
+  /* The same six, as grounds rather than tints. Lowest --ink-muted is 5.54. */
+  --subject-1: 245 30% 17%;
+  --subject-2: 278 26% 17%;
+  --subject-3: 182 30% 15%;
+  --subject-4: 205 34% 16%;
+  --subject-5: 148 26% 15%;
+  --subject-6: 315 24% 17%;
   --bubble-face: hsl(var(--paper-raised));
   --bubble-shadow: 0 2px 6px hsl(250 40% 3% / 0.5), 0 18px 40px hsl(250 40% 3% / 0.45);
+  /* Deeper black, not a brighter indigo — on a dark ground the light theme's
+   * tinted lift reads as a glow escaping from under the card. */
+  --bubble-shadow-raised: 0 4px 10px hsl(250 40% 3% / 0.6),
+    0 26px 56px hsl(250 40% 3% / 0.55);
   --bubble-sheen: inset 0 1px 0 hsl(0 0% 100% / 0.07);
 }
 
@@ -364,23 +418,92 @@
 }
 
 @layer components {
-  /* The base surface: white stock lifted off the lavender by a tinted shadow.
+  /*
+   * The base surface — now the same inflated card the flashcards use.
+   *
+   * It was a 20px rectangle of flat white with a single faint shadow, and six
+   * of them stacked down the dashboard read as one undifferentiated sheet of
+   * paper. The three things that make an object look like an object are all
+   * here instead: a corner big enough to see, a face that is lighter at the top
+   * than the bottom so the eye reads a curve, and a shadow in three layers so
+   * the card has a near edge and a far one.
+   *
    * The shadow is indigo rather than black — a grey shadow on a coloured ground
-   * reads as dirt, and the difference is the whole warmth of the palette. */
+   * reads as dirt, and that is the whole warmth of the palette.
+   *
+   * Deliberately NOT `overflow: hidden`, which is what `.card-bubble` needs. A
+   * chart tooltip is positioned above its bar and escapes the top of the card
+   * by design (`charts.tsx`), and clipping every sheet to round its corners
+   * would silently cut those in half. The header and footer round their own
+   * corners instead — see `.sheet-head` and `.sheet-foot`.
+   */
   .sheet {
-    @apply rounded-lg bg-paper-raised shadow-sheet;
+    border-radius: var(--radius-xl);
+    background: var(--bubble-face);
+    box-shadow: var(--bubble-shadow), var(--bubble-sheen);
   }
 
+  /*
+   * A sheet in a subject's colour.
+   *
+   * It has to be a background-image, not a background-colour utility: `.sheet`
+   * sets `background` as a shorthand, so its gradient paints over any
+   * `bg-*` class a caller adds and the tint disappears with no error. The same
+   * face as `--bubble-face`, rolled out of the subject's hue instead of white,
+   * so a tinted card and a white one still read as the same object.
+   *
+   * `--tint` is set inline by the caller, which is also how six colours survive
+   * Tailwind: a class name built from a template compiles to nothing, an
+   * inline custom property does not go through Tailwind at all.
+   */
+  .sheet-tinted {
+    background-image: linear-gradient(
+      180deg,
+      hsl(var(--tint) / 0.45) 0%,
+      hsl(var(--tint)) 100%
+    );
+  }
+
+  /*
+   * The card's top and bottom bands.
+   *
+   * They carry a background, so at a 28px corner they would square off the
+   * curve the card just spent three shadows earning. They round themselves to
+   * match rather than the card clipping them.
+   */
+  .sheet-head {
+    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+    background: linear-gradient(
+      180deg,
+      hsl(var(--primary-soft)) 0%,
+      hsl(var(--primary-soft) / 0.35) 100%
+    );
+  }
+
+  .sheet-foot {
+    border-radius: 0 0 var(--radius-xl) var(--radius-xl);
+  }
+
+  /*
+   * Clickable cards lift toward the pointer.
+   *
+   * A colour change under the cursor says "something is here"; moving says
+   * "this is a thing you can pick up", and that is the difference the product
+   * was missing. This is interaction motion, not ambient — nothing moves until
+   * a pointer is on it, so it does not reopen the decision that turned `float`
+   * and `pulse-slow` off in `tailwind.config.ts`.
+   */
   .sheet-interactive {
     @apply transition-[box-shadow,transform] duration-200;
   }
 
   .sheet-interactive:hover {
-    @apply shadow-sheet-raised;
+    transform: translateY(-3px);
+    box-shadow: var(--bubble-shadow-raised), var(--bubble-sheen);
   }
 
   .sheet-interactive:active {
-    transform: scale(0.99);
+    transform: translateY(0) scale(0.99);
     transition-duration: 120ms;
   }
 
@@ -403,6 +526,7 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
+    .sheet-interactive:hover,
     .sheet-interactive:active,
     .pressable:active {
       transform: none;

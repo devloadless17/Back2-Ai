@@ -6,6 +6,7 @@ import { Badge, EmptyAction, EmptyState } from '@/components/ui/feedback';
 import { BandChip, bandForMastery, type Band } from '@/components/ui/band';
 import { Meter } from '@/components/ui/progress';
 import { Sheet, SheetBody } from '@/components/ui/sheet';
+import { TutorAnchor } from '@/components/chat/tutor-context';
 import { SubjectHub } from '@/components/practice/subject-hub';
 import { getSubjectHub } from '@/lib/queries/subject-hub';
 import { requireUser } from '@/lib/auth/guards';
@@ -62,6 +63,9 @@ export default async function SubjectChaptersPage({
         The chapter list is still here and unchanged — it is the index, and an
         index belongs under the things it indexes rather than in place of them.
       */}
+      {/* So the tutor knows which subject the student is standing in. */}
+      <TutorAnchor label={subject.name} />
+
       <SubjectHub subjectId={subject.id} subjectName={subject.name} counts={hub} />
 
       <h2 id="chapters" className="label mb-2 px-1 pt-1">

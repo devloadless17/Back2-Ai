@@ -20,7 +20,12 @@ export const metadata: Metadata = { title: 'Past papers' };
  * legitimate way to study, and it should not quietly move a mastery number that
  * the rest of the product treats as evidence of what they can do unaided.
  */
-export default async function OldCyclesPage() {
+export default async function OldCyclesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ subject?: string }>;
+}) {
+  const { subject: onlySubject } = await searchParams;
   const user = await requireUser();
   const { t } = await getTranslations();
 
@@ -43,6 +48,16 @@ export default async function OldCyclesPage() {
     where: {
       subject: { trackId: user.trackId ?? undefined },
       language: { in: subjectLanguagesFor(user.preferredLanguage) },
+      /*
+       * Narrowed when the student arrived from a subject.
+       *
+       * The track filter still applies underneath, so a hand-edited id belonging
+       * to another track returns nothing rather than papers this student is not
+       * sitting. `undefined` — not a bare spread — because Prisma treats an
+       * explicit `subjectId: undefined` as "no constraint", which is exactly the
+       * unfiltered list we want when the parameter is absent.
+       */
+      subjectId: onlySubject || undefined,
     },
     select: {
       id: true,
@@ -69,6 +84,19 @@ export default async function OldCyclesPage() {
       <Alert tone="info" className="mb-5">
         {t.oldCycles.unscoredNotice}
       </Alert>
+
+      {/* A filtered list that does not say it is filtered reads as a subject
+          with three past papers to its name. */}
+      {onlySubject && cycles.length > 0 && (
+        <p className="mb-4">
+          <Link
+            href="/old-cycles"
+            className="text-meta font-semibold text-primary underline-offset-2 hover:underline"
+          >
+            {t.oldCycles.showAllSubjects}
+          </Link>
+        </p>
+      )}
 
       {cycles.length === 0 ? (
         <EmptyState

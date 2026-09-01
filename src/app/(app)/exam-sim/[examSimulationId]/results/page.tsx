@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { notFound, redirect } from 'next/navigation';
 
-import { TutorDock } from '@/components/chat/tutor-dock';
+import { TutorAnchor } from '@/components/chat/tutor-context';
 import { TutorButton } from '@/components/chat/tutor-button';
 import { MarkExplanation } from '@/components/exam/mark-explanation';
 import { LinkButton } from '@/components/ui/button';
@@ -111,6 +111,8 @@ export default async function ExamResultsPage({
 
   return (
     <>
+      <TutorAnchor label={simulation.subject.name} />
+
       <PageHeader
         title={t.examSim.resultsTitle}
         description={`${simulation.subject.name}${simulation.examCycle ? ` · ${simulation.examCycle.title}` : ''}`}

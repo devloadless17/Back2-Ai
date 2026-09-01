@@ -35,8 +35,15 @@ export type ReviewScope =
   | { kind: 'chapter'; chapterId: string }
   /** Several chapters at once — revising a whole topic before a test. */
   | { kind: 'chapters'; chapterIds: string[] }
-  /** The chapters the student's own attempts say they are weakest in. */
-  | { kind: 'weak' };
+  /**
+   * The chapters the student's own attempts say they are weakest in.
+   *
+   * `subjectId` narrows it to one subject. Reached from inside a subject the
+   * unscoped deck is wrong twice over: it mixes in chapters the student did not
+   * ask about, and the count beside the card counts them, so a subject with no
+   * weak chapters advertises six.
+   */
+  | { kind: 'weak'; subjectId?: string };
 
 export type DueCard = {
   /**
@@ -136,13 +143,16 @@ export async function weakChapters(
   userId: string,
   trackId: string | null,
   limit = WEAK_CHAPTER_LIMIT,
+  subjectId?: string,
 ): Promise<WeakChapter[]> {
   const rows = await db.chapterMastery.findMany({
     where: {
       userId,
       attemptsCount: { gte: MIN_ATTEMPTS_FOR_WEAKNESS },
       masteryScore: { lt: WEAKNESS_MASTERY_CEILING },
-      chapter: { subject: { trackId: trackId ?? undefined } },
+      // The track filter stays underneath the subject one, so a hand-edited id
+      // from another track returns nothing rather than another track's work.
+      chapter: { subject: { trackId: trackId ?? undefined, id: subjectId || undefined } },
     },
     select: {
       chapterId: true,
@@ -170,7 +180,7 @@ export function startOfToday(): Date {
 
 export async function countDue(userId: string, trackId: string | null, scope: ReviewScope = { kind: 'all' }) {
   if (scope.kind === 'weak') {
-    const chapters = await weakChapters(userId, trackId);
+    const chapters = await weakChapters(userId, trackId, WEAK_CHAPTER_LIMIT, scope.subjectId);
     if (chapters.length === 0) return 0;
 
     return db.flashcardState.count({
@@ -340,7 +350,7 @@ export async function getDueCards(
    */
   topUp = false,
 ): Promise<DueCard[]> {
-  if (scope.kind === 'weak') return getWeakCards(userId, trackId, limit);
+  if (scope.kind === 'weak') return getWeakCards(userId, trackId, limit, scope.subjectId);
 
   const where = scopeWhere(scope, trackId);
 
@@ -384,8 +394,13 @@ export async function getDueCards(
  * Thursday", and the top-up cards are labelled so the choice is visible rather
  * than silent.
  */
-async function getWeakCards(userId: string, trackId: string | null, limit: number): Promise<DueCard[]> {
-  const chapters = await weakChapters(userId, trackId);
+async function getWeakCards(
+  userId: string,
+  trackId: string | null,
+  limit: number,
+  subjectId?: string,
+): Promise<DueCard[]> {
+  const chapters = await weakChapters(userId, trackId, WEAK_CHAPTER_LIMIT, subjectId);
   if (chapters.length === 0) return [];
 
   const chapterIds = chapters.map((chapter) => chapter.chapterId);

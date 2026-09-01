@@ -9,6 +9,7 @@ import {
   IconExam,
   IconPractice,
   IconShield,
+  IconChat,
 } from '@/components/shell/icons';
 import { Sheet, SheetBody, SheetHeader } from '@/components/ui/sheet';
 import { getTranslations } from '@/lib/i18n';
@@ -35,6 +36,13 @@ import { cn } from '@/lib/cn';
  * A card with nothing behind it is shown disabled rather than hidden. A student
  * who cannot find the past papers does not conclude there are none — they
  * conclude the app is broken, and go looking again tomorrow.
+ *
+ * Every card carries the subject with it. Three of them used to point at the
+ * unscoped page — `/exam-sim/new`, `/old-cycles`, weak-spot cards — so opening
+ * "Mock paper" from inside Chemistry landed on a picker asking which subject you
+ * meant, and "Your mistakes" offered a deck drawn from every subject the student
+ * takes. The hub is the subject's front door; a door that forgets which room it
+ * is in is worse than no door, because the student has already answered.
  */
 export async function SubjectHub({
   subjectId,
@@ -99,7 +107,7 @@ export async function SubjectHub({
           emptyHint={t.hub.bankEmpty}
         />
         <HubCard
-          href="/exam-sim/new"
+          href={`/exam-sim/new?subject=${subjectId}`}
           icon={IconExam}
           title={t.hub.mock}
           hint={t.hub.mockHint}
@@ -108,13 +116,37 @@ export async function SubjectHub({
           emptyHint={t.hub.mockEmpty}
         />
         <HubCard
-          href="/old-cycles"
+          href={`/old-cycles?subject=${subjectId}`}
           icon={IconArchive}
           title={t.hub.papers}
           hint={t.hub.papersHint}
           count={format(t.hub.paperCount, { count: counts.papers })}
           disabled={counts.papers === 0}
           emptyHint={t.hub.papersEmpty}
+        />
+      </Section>
+
+      {/*
+        Asking, as a section of its own.
+
+        The tutor floats on every screen, but a floating button is furniture —
+        a student who has not pressed it does not know it is a tutor rather than
+        a help widget. Named here, beside the other things this subject can do,
+        it is the answer to "none of these cards is what I need", which is the
+        moment a student would otherwise close the app.
+
+        It goes to `/chat` rather than opening a session directly: this is a
+        server component, and starting a conversation is a POST. The dock beside
+        it does the anchored version, and knows which subject this is because
+        the page publishes it — see `TutorAnchor`.
+      */}
+      <Section title={t.hub.ask}>
+        <HubCard
+          href="/chat"
+          icon={IconChat}
+          title={t.hub.ask}
+          hint={t.hub.askHint}
+          count={t.hub.askCount}
         />
       </Section>
 
@@ -133,7 +165,7 @@ export async function SubjectHub({
           emptyHint={t.hub.cardsEmpty}
         />
         <HubCard
-          href="/flashcards/review?scope=weak"
+          href={`/flashcards/review?scope=weak&id=${subjectId}`}
           icon={IconShield}
           title={t.hub.mistakes}
           hint={t.hub.mistakesHint}

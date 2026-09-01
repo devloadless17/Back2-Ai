@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from 'react';
 
 import { useTutorSession } from '@/components/chat/use-tutor-session';
 import { TutorAvatar } from '@/components/chat/tutor-avatar';
+import { useTutorContext } from '@/components/chat/tutor-context';
 import { IconClose } from '@/components/shell/icons';
 import { useI18n } from '@/lib/i18n/client';
 import { cn } from '@/lib/cn';
@@ -41,10 +42,11 @@ export type TutorDockContext = {
 };
 
 export function TutorDock({
-  context,
+  context: override,
   tutorName,
   firstName,
 }: {
+  /** Overrides the page's published anchor. Rarely needed; the dock subscribes. */
   context?: TutorDockContext;
   /** What this student calls their tutor. Null until they have named it. */
   tutorName?: string | null;
@@ -53,6 +55,15 @@ export function TutorDock({
 }) {
   const { t, format } = useI18n();
   const { open: openSession, opening, failed } = useTutorSession();
+
+  /*
+   * The page says what it is showing; this reads it. Mounted in the layout, the
+   * dock cannot see the route below it, so without this it could only ever
+   * offer a fresh conversation — a tutor beside you that cannot tell what you
+   * are looking at is a chat button in a different corner.
+   */
+  const published = useTutorContext();
+  const context = override ?? published ?? undefined;
 
   const [open, setOpen] = useState(false);
 

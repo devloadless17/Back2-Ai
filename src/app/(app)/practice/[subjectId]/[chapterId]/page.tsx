@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 
+import { TutorAnchor } from '@/components/chat/tutor-context';
 import { PracticeRunner, type PracticeQuestion } from '@/components/practice/practice-runner';
 import { ChapterDeadEnd } from '@/components/practice/chapter-dead-end';
 import { PageHeader } from '@/components/ui/sheet';
@@ -106,6 +107,8 @@ export default async function ChapterPracticePage({
 
   return (
     <>
+      <TutorAnchor label={chapter.name} />
+
       <PageHeader
         title={chapter.name}
         description={`${chapter.subject.name}${chapter.unit?.name ? ` · ${chapter.unit.name}` : ''}`}

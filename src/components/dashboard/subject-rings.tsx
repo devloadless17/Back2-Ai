@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import type { CSSProperties } from 'react';
 
 import { MasteryRing } from '@/components/dashboard/mastery-ring';
 import { BandIcon, bandForMastery, bandStyle, type Band } from '@/components/ui/band';
@@ -33,6 +34,42 @@ export type SubjectRing = {
   chapterCount?: number;
   questionCount?: number;
 };
+
+/*
+ * A tint per subject.
+ *
+ * Six white cards in a row is a list you have to read; six coloured ones is a
+ * shelf you recognise, and a student opens this screen several times a day for
+ * two years. The colour says nothing about their work — the ring already does
+ * that, and the two must not be confused — so these tints are deliberately
+ * drawn from a set with no semantic colours in it. See `--subject-*`.
+ *
+ * Applied as a custom property rather than a class. Tailwind reads class names
+ * out of the source, so one assembled at runtime compiles to nothing; and
+ * `.sheet` sets `background` as a shorthand, so a `bg-*` utility would simply be
+ * painted over by the card's own gradient, with no error to notice.
+ */
+const SUBJECT_TINTS = [
+  'var(--subject-1)',
+  'var(--subject-2)',
+  'var(--subject-3)',
+  'var(--subject-4)',
+  'var(--subject-5)',
+  'var(--subject-6)',
+] as const;
+
+/**
+ * Stable per subject, so a subject keeps its colour between visits and between
+ * the dashboard panel and the picker. Derived from the id rather than the
+ * position in the list, which changes as subjects are added.
+ */
+function tintFor(subjectId: string): string {
+  let hash = 0;
+  for (let i = 0; i < subjectId.length; i += 1) {
+    hash = (hash * 31 + subjectId.charCodeAt(i)) >>> 0;
+  }
+  return SUBJECT_TINTS[hash % SUBJECT_TINTS.length]!;
+}
 
 /**
  * Two sizes: the compact one for the dashboard panel, a larger one for the
@@ -75,7 +112,8 @@ export async function SubjectRings({
           <li key={subject.subjectId}>
             <Link
               href={`/practice/${subject.subjectId}`}
-              className="pressable flex h-full flex-col items-center rounded-lg bg-paper-raised px-3 py-4 text-center shadow-sheet transition-[box-shadow,transform] duration-200 hover:shadow-sheet-raised"
+              className="sheet sheet-tinted sheet-interactive pressable flex h-full flex-col items-center px-3 py-4 text-center"
+              style={{ '--tint': tintFor(subject.subjectId) } as CSSProperties}
             >
               <MasteryRing
                 value={filled}

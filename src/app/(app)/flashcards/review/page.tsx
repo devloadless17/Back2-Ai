@@ -44,7 +44,9 @@ export default async function FlashcardReviewPage({
           : scopeParam === 'subject' && id
             ? { kind: 'subject', subjectId: id }
             : scopeParam === 'weak'
-              ? { kind: 'weak' }
+              // `id` alongside `weak` narrows the deck to one subject's weak
+              // chapters — how this is reached from a subject hub.
+              ? { kind: 'weak', subjectId: id }
               : { kind: 'all' };
 
   // An explicit scope means the student asked for that deck, so fill it even if
@@ -54,7 +56,9 @@ export default async function FlashcardReviewPage({
   const isWeakScope = scope.kind === 'weak';
 
   if (isWeakScope) {
-    const chapters = await weakChapters(user.id, user.trackId);
+    // Same narrowing as the deck itself, or the empty state disagrees with it:
+    // "you have no weak chapters" printed over a page that then lists six.
+    const chapters = await weakChapters(user.id, user.trackId, undefined, id);
 
     if (chapters.length === 0) {
       return (

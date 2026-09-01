@@ -27,13 +27,30 @@ export type SimulationOption = {
  * server the instant this posts, and closing the tab does not pause it. A
  * student who did not understand that would learn it by losing a paper.
  */
-export function NewSimulationForm({ options }: { options: SimulationOption[] }) {
+export function NewSimulationForm({
+  options,
+  initialSubjectId,
+}: {
+  options: SimulationOption[];
+  /**
+   * The subject the student arrived from.
+   *
+   * Reaching this page from inside a subject and being asked which subject you
+   * meant is the navigation losing what it already knew. Ignored when it names
+   * a subject this student cannot sit — a hand-edited URL should fall back to
+   * the first option, not render a form with nothing selected.
+   */
+  initialSubjectId?: string;
+}) {
   const { t, format } = useI18n();
   const router = useRouter();
 
-  const [subjectId, setSubjectId] = useState(options[0]?.subjectId ?? '');
+  const start =
+    options.find((option) => option.subjectId === initialSubjectId) ?? options[0];
+
+  const [subjectId, setSubjectId] = useState(start?.subjectId ?? '');
   const [mode, setMode] = useState<'real_cycle' | 'ai_generated' | 'real_mixed'>('real_cycle');
-  const [cycleId, setCycleId] = useState(options[0]?.cycles[0]?.id ?? '');
+  const [cycleId, setCycleId] = useState(start?.cycles[0]?.id ?? '');
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 

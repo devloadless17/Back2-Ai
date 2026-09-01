@@ -9,10 +9,8 @@ import { LanguageSwitcher } from '@/components/shell/language-switcher';
 import { useI18n } from '@/lib/i18n/client';
 
 import {
-  IconArchive,
   IconBell,
   IconCalendar,
-  IconCards,
   IconChart,
   IconChat,
   IconCheckList,
@@ -24,7 +22,6 @@ import {
   IconSettings,
   IconShield,
   IconTrophy,
-  IconBook,
 } from './icons';
 
 export type SidebarUser = {
@@ -87,10 +84,27 @@ export function Sidebar({
     {
       label: t.nav.sections.study,
       items: [
-        { href: '/practice', label: t.nav.practice, icon: IconPractice },
-        { href: '/old-cycles', label: t.nav.oldCycles, icon: IconArchive },
-        { href: '/summaries', label: t.nav.summaries, icon: IconBook },
-        { href: '/flashcards', label: t.nav.flashcards, icon: IconCards, badge: counts.flashcardsDue },
+        /*
+         * One door into the course material, not four.
+         *
+         * Past papers, summaries and flashcards used to sit here beside it, and
+         * every one of them opened the same picker asking which subject you
+         * meant. A student revising chemistry answered that question four times
+         * to do four things to the same chapter, and this rail offered no way to
+         * say "chemistry" once. They are all reached from the subject now — see
+         * `SubjectHub` — where the answer is already known and every count
+         * beside them is that subject's.
+         *
+         * Asking a question stays global because it is the one thing here that
+         * is not about a subject: a student who cannot say which subject their
+         * question belongs to is exactly the student who needs to ask it.
+         *
+         * Losing the flashcard badge from this rail is the real cost of the
+         * move. The dashboard is the landing page and carries the due count
+         * twice — a figure in the stat row, a link in the hero whenever any are
+         * due — so the nudge survives; the fourth picker does not.
+         */
+        { href: '/practice', label: t.nav.subjects, icon: IconPractice },
         /*
          * One entry, not two.
          *

@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 
+import { TutorAnchor } from '@/components/chat/tutor-context';
 import { AskWhy } from '@/components/practice/ask-why';
 import { FlagButton } from '@/components/practice/flag-button';
 import { RevealableSolution } from '@/components/practice/revealable-solution';
@@ -77,6 +78,8 @@ export default async function ExamCyclePage({
 
   return (
     <>
+      <TutorAnchor label={cycle.title} />
+
       <PageHeader
         title={cycle.title}
         description={`${cycle.subject.name} · ${cycle.year}${cycle.session ? ` · ${cycle.session}` : ''} · ${format(t.oldCycles.duration, { count: cycle.durationMinutes })}`}

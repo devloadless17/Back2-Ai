@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
+import { TutorAnchor } from '@/components/chat/tutor-context';
 import { Alert, Badge, EmptyState } from '@/components/ui/feedback';
 import { PageHeader, Sheet, SheetBody, SheetHeader } from '@/components/ui/sheet';
 import { requireUser } from '@/lib/auth/guards';
@@ -46,6 +47,8 @@ export default async function ChapterSummaryPage({
 
   return (
     <>
+      <TutorAnchor label={chapter.name} />
+
       <PageHeader title={chapter.name} description={chapter.subject.name} />
 
       <Link

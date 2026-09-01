@@ -5,11 +5,15 @@ import { cn } from '@/lib/cn';
 /**
  * Surfaces.
  *
- * A "sheet" is the base container: white stock inside a hairline, flat on the
- * page. No shadow and no lift — depth is decoration, and this design carries
- * hierarchy with rules, weight and space instead.
+ * A "sheet" is the base container: an inflated card with a tinted header, the
+ * same object language as the flashcards. It used to be flat white stock, on
+ * the argument that depth is decoration and hierarchy should come from rules
+ * and space. That holds for one card. It does not survive six of them stacked
+ * down a dashboard, which is what this product actually renders — with nothing
+ * lifting and nothing tinted, the page reads as a single sheet of paper and a
+ * student cannot tell where one thing ends and the next begins.
  *
- * `interactive` warms the background under the pointer, which is how a student
+ * `interactive` lifts the card toward the pointer, which is how a student
  * learns a whole card is clickable. `hero` draws the accent rule along the top
  * edge, and there should be at most one per screen — the moment there are two,
  * neither reads as the important one.
@@ -54,7 +58,8 @@ export function SheetHeader({
   return (
     <header
       className={cn(
-        'flex flex-wrap items-start justify-between gap-3 border-b border-rule px-5 py-4',
+        // `sheet-head` tints the band and rounds the top corners to the card's.
+        'sheet-head flex flex-wrap items-start justify-between gap-3 border-b border-rule px-5 py-4',
         className,
       )}
     >
@@ -88,7 +93,7 @@ export function SheetFooter({ className, children }: { className?: string; child
   return (
     <footer
       className={cn(
-        'flex flex-wrap items-center gap-2 border-t border-rule bg-paper-sunken/40 px-5 py-3',
+        'sheet-foot flex flex-wrap items-center gap-2 border-t border-rule bg-paper-sunken/40 px-5 py-3',
         className,
       )}
     >

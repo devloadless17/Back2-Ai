@@ -33,6 +33,7 @@ export const fr: Dictionary = {
   nav: {
     dashboard: 'Tableau de bord',
     practice: 'Entraînement',
+    subjects: 'Mes matières',
     oldCycles: 'Anciens sujets',
     summaries: 'Résumés',
     examSim: 'Simulation d’examen',
@@ -352,6 +353,7 @@ export const fr: Dictionary = {
     subtitle: 'Sujets officiels complets, dans leur ordre d’origine. Rien n’est noté ni enregistré ici.',
     unscoredNotice:
       'Ce mode sert à lire et à s’auto-corriger. Les réponses ici n’affectent pas votre maîtrise.',
+    showAllSubjects: 'Afficher toutes les matières',
     noCycles: 'Aucun ancien sujet n’est encore disponible pour cette matière.',
     year: 'Année',
     session: 'Session',
@@ -770,6 +772,9 @@ export const fr: Dictionary = {
     learn: 'Apprendre',
     practise: 'S’entraîner',
     review: 'Réviser',
+    ask: 'Demander au tuteur',
+    askHint: 'Bloqué sur un point ? Posez la question avec vos propres mots.',
+    askCount: 'Les réponses citent votre cours',
     book: 'Le cours',
     bookHint: 'Le programme expliqué, chapitre par chapitre.',
     bookEmpty: 'Aucun contenu de cours n’a encore été chargé pour cette matière.',

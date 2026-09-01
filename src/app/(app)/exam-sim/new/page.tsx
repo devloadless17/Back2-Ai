@@ -20,7 +20,12 @@ export const metadata: Metadata = { title: 'New simulation' };
  * would be a worse version of the same constraint — the review gate is not
  * something to discover after choosing.
  */
-export default async function NewSimulationPage() {
+export default async function NewSimulationPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ subject?: string }>;
+}) {
+  const { subject: fromSubject } = await searchParams;
   const user = await requireUser();
   const { t } = await getTranslations();
 
@@ -113,7 +118,7 @@ export default async function NewSimulationPage() {
   return (
     <>
       <PageHeader title={t.examSim.newTitle} description={t.examSim.subtitle} />
-      <NewSimulationForm options={options} />
+      <NewSimulationForm options={options} initialSubjectId={fromSubject} />
     </>
   );
 }

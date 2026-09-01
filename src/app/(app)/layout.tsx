@@ -1,3 +1,4 @@
+import { TutorContextProvider } from '@/components/chat/tutor-context';
 import { TutorDock } from '@/components/chat/tutor-dock';
 import { Sidebar, type SidebarCounts, type SidebarStanding } from '@/components/shell/sidebar';
 import { requireSession } from '@/lib/auth/guards';
@@ -45,48 +46,52 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   };
 
   return (
-    <div className="flex min-h-dvh flex-col lg:flex-row">
-      <Sidebar
-        user={{
-          displayName: user.displayName,
-          email: user.email,
-          role: user.role,
-          trackCode: track?.code ?? null,
-        }}
-        counts={counts}
-        standing={sidebarStanding}
-      />
+    /* The page publishes what it is showing; the dock below reads it. Without
+       this the dock is mounted above the route and cannot see it. */
+    <TutorContextProvider>
+      <div className="flex min-h-dvh flex-col lg:flex-row">
+        <Sidebar
+          user={{
+            displayName: user.displayName,
+            email: user.email,
+            role: user.role,
+            trackCode: track?.code ?? null,
+          }}
+          counts={counts}
+          standing={sidebarStanding}
+        />
 
-      {/*
-        The tutor, on every page under this layout.
+        {/*
+          The tutor, on every page under this layout.
 
-        It used to be mounted per page, on four of them, with a comment arguing
-        that a dock in the layout would have to know which route it was on and
-        hide itself inside an exam. That argument was wrong about this codebase:
-        the exam runner lives in the `(exam)` route group, which has its own
-        layout and never renders this one. So the exclusion is structural rather
-        than a condition someone has to remember — a paper under a running clock
-        cannot acquire an assistant by accident, whatever is added here later.
+          It used to be mounted per page, on four of them, with a comment arguing
+          that a dock in the layout would have to know which route it was on and
+          hide itself inside an exam. That argument was wrong about this codebase:
+          the exam runner lives in the `(exam)` route group, which has its own
+          layout and never renders this one. So the exclusion is structural rather
+          than a condition someone has to remember — a paper under a running clock
+          cannot acquire an assistant by accident, whatever is added here later.
 
-        What is lost is the per-page anchor: the dashboard used to open the
-        tutor already pointed at the student's weakest chapter. Following them
-        everywhere is worth more than that, and the anchored path still exists
-        where it matters most — beside a marked answer, and on a past paper.
-      */}
-      <TutorDock
-        tutorName={user.tutorName}
-        firstName={user.displayName?.split(' ')[0] ?? null}
-      />
+          What is lost is the per-page anchor: the dashboard used to open the
+          tutor already pointed at the student's weakest chapter. Following them
+          everywhere is worth more than that, and the anchored path still exists
+          where it matters most — beside a marked answer, and on a past paper.
+        */}
+        <TutorDock
+          tutorName={user.tutorName}
+          firstName={user.displayName?.split(' ')[0] ?? null}
+        />
 
-      <main className="min-w-0 flex-1">
+        <main className="min-w-0 flex-1">
         {/* No centred column. Reading measure is held where it belongs — by
             `.prose-exam` at 68ch on the pages that are prose — so capping the
             whole shell only ever produced dead margin either side of grids and
             tables that would happily have used the room. The page fills the
             window; padding steps down to the phone rather than up from it. */}
-        <div className="w-full px-3 py-5 sm:px-6 sm:py-6 lg:px-8 lg:py-8">{children}</div>
-      </main>
-    </div>
+          <div className="w-full px-3 py-5 sm:px-6 sm:py-6 lg:px-8 lg:py-8">{children}</div>
+        </main>
+      </div>
+    </TutorContextProvider>
   );
 }
 
