@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
+import { TutorDock } from '@/components/chat/tutor-dock';
 import { Badge, EmptyAction, EmptyState } from '@/components/ui/feedback';
 import { BandChip, bandForMastery, type Band } from '@/components/ui/band';
 import { Meter } from '@/components/ui/progress';
@@ -69,7 +70,7 @@ export default async function SubjectChaptersPage({
           {[...byUnit.entries()].map(([unitName, unitChapters]) => (
             <section key={unitName || 'ungrouped'}>
               {unitName && (
-                <h2 className="mb-2 px-1 text-[12px] font-semibold uppercase tracking-wider text-ink-faint">
+                <h2 className="mb-2 px-1 text-caption font-semibold uppercase tracking-wider text-ink-faint">
                   {unitName}
                 </h2>
               )}
@@ -102,7 +103,7 @@ export default async function SubjectChaptersPage({
                             >
                               {chapter.name}
                             </p>
-                            <p className="text-[12px] text-ink-faint">
+                            <p className="text-caption text-ink-faint">
                               {practisable
                                 ? `${chapter.questionCount} · ${chapter.attemptsCount} ${t.practice.attempts}`
                                 : t.practice.noQuestions}
@@ -152,7 +153,7 @@ export default async function SubjectChaptersPage({
                           <div className="-mt-2 px-5 pb-2.5">
                             <Link
                               href={`/practice/${subject.id}/${chapter.id}/quiz`}
-                              className="text-[12.5px] font-medium text-primary underline-offset-2 hover:underline"
+                              className="text-meta font-medium text-primary underline-offset-2 hover:underline"
                             >
                               {t.todos.actionQuiz}
                             </Link>
@@ -168,6 +169,8 @@ export default async function SubjectChaptersPage({
           ))}
         </div>
       )}
+
+      <TutorDock context={{ label: subject.name }} />
     </>
   );
 }

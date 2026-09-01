@@ -1,0 +1,13 @@
+-- A sixth tier: answered from this student's own records.
+--
+-- "When should I revise physics?" and "am I behind?" were being sent down the
+-- curriculum path, finding no textbook passage that answers them — because none
+-- ever could — and coming back as a refusal or, worse, as a general-knowledge
+-- answer wearing a notice saying it was not from their material. Both are wrong
+-- about where the answer lives: it is in their own schedule, mastery and exam
+-- date, which the product already holds and can state exactly.
+--
+-- Its own tier rather than a reuse of personal_reference, which means "your
+-- uploaded documents". The provenance being recorded here is different, and the
+-- badge a student reads has to say which one it was.
+ALTER TYPE "grounding_tier" ADD VALUE IF NOT EXISTS 'study_record';

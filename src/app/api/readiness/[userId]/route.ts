@@ -21,12 +21,16 @@ export const GET = route(async (_request, context: { params: Promise<{ userId: s
 
   const target =
     userId === auth.user.id
-      ? { id: auth.user.id, trackId: auth.user.trackId }
-      : await db.user.findUnique({ where: { id: userId }, select: { id: true, trackId: true } });
+      ? {
+          id: auth.user.id,
+          trackId: auth.user.trackId,
+          preferredLanguage: auth.user.preferredLanguage,
+        }
+      : await db.user.findUnique({ where: { id: userId }, select: { id: true, trackId: true, preferredLanguage: true } });
 
   if (!target) return fail(404, 'NOT_FOUND');
 
-  const progress = await getProgressForUser(target.id, target.trackId);
+  const progress = await getProgressForUser(target.id, target.trackId, target.preferredLanguage);
 
   return ok({
     subjects: progress.map((subject) => ({

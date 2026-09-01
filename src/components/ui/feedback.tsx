@@ -62,7 +62,7 @@ export function EmptyState({ tone = 'neutral', title, body, action, className }:
         className,
       )}
     >
-      <p className={cn('text-[15px] font-semibold', styles.title)}>{title}</p>
+      <p className={cn('text-body font-semibold', styles.title)}>{title}</p>
       {body && <p className={cn('max-w-sm text-sm leading-relaxed', styles.body)}>{body}</p>}
       {action && <div className="mt-2">{action}</div>}
     </div>
@@ -130,7 +130,7 @@ export function Badge({ tone = 'neutral', children, className }: BadgeProps) {
   return (
     <span
       className={cn(
-        'inline-flex items-center rounded-sm border px-1.5 py-0.5 text-[11px] font-semibold leading-tight',
+        'inline-flex items-center rounded-sm border px-1.5 py-0.5 text-micro font-semibold leading-tight',
         BADGE_TONE[tone],
         className,
       )}

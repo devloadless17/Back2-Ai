@@ -104,6 +104,8 @@ export type QuestionHit = SimilarityHit & {
   chapterName: string;
   subjectId: string;
   contentText: string;
+  /** The text printed on the paper this question is asked about, if any. */
+  sourcePassage: string | null;
   contentLatex: string | null;
   officialSolution: string | null;
   officialSolutionLatex: string | null;
@@ -171,6 +173,7 @@ export async function searchQuestions(
       c.name                     AS "chapterName",
       c.subject_id               AS "subjectId",
       q.content_text             AS "contentText",
+      q.source_passage           AS "sourcePassage",
       q.content_latex            AS "contentLatex",
       q.official_solution        AS "officialSolution",
       q.official_solution_latex  AS "officialSolutionLatex",
@@ -392,6 +395,57 @@ export async function searchContentChunks(
         WHERE l.chunk_id = cc.id AND ${subjectFilter('c.subject_id', scope)}
       )
     ORDER BY cc.embedding <=> ${literal}::vector
+    LIMIT ${limit}
+  `));
+}
+
+export type MarkingSchemeHit = SimilarityHit & {
+  chapterId: string;
+  chapterName: string;
+  contentText: string;
+  officialSolution: string | null;
+  /** [{ criterion, points }] as the extractor read it off the paper. */
+  bareme: { criterion: string; points: number }[] | null;
+};
+
+/**
+ * The marking schemes nearest to a question — how the examiner awards the marks.
+ *
+ * This is not a fourth tier. It is what an essay prompt needs and chapter
+ * retrieval cannot give: "Sujet : Partagez-vous le point de vue…" has no answer
+ * sitting in a chapter waiting to be found, and handing over eight passages
+ * about the topic produces a fluent piece that a Lebanese marker gives four out
+ * of twenty, because the marks are for an introduction, a stated problematic, a
+ * discussion and a conclusion, and the barème says so in as many words.
+ *
+ * Restricted to questions that actually carry one — 1,701 of the 5,254 in the
+ * corpus have a barème and 894 an official solution, with philosophy the
+ * largest single holding at 626 and 51 — so a subject with no schemes returns
+ * nothing and the essay path simply does not fire there.
+ */
+export async function searchMarkingSchemes(
+  embedding: number[],
+  scope: SubjectScope,
+  limit = 3,
+): Promise<MarkingSchemeHit[]> {
+  const literal = toVectorLiteral(embedding);
+
+  return withFullRecall((tx) => tx.$queryRaw<MarkingSchemeHit[]>(Prisma.sql`
+    SELECT
+      q.id                AS "id",
+      q.chapter_id        AS "chapterId",
+      c.name              AS "chapterName",
+      q.content_text      AS "contentText",
+      q.official_solution AS "officialSolution",
+      q.bareme            AS "bareme",
+      1 - (q.embedding <=> ${literal}::vector) AS "similarity"
+    FROM questions q
+    JOIN chapters c ON c.id = q.chapter_id
+    WHERE ${subjectFilter('c.subject_id', scope)}
+      AND q.embedding IS NOT NULL
+      AND q.verified_status <> 'rejected'
+      AND (q.bareme IS NOT NULL OR q.official_solution IS NOT NULL)
+    ORDER BY q.embedding <=> ${literal}::vector
     LIMIT ${limit}
   `));
 }

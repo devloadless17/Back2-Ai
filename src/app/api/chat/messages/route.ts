@@ -15,7 +15,7 @@ import { encodeEvent, runChatTurn, titleFromQuestion, type AnchorAttempt } from 
 import { db } from '@/lib/db';
 import { isAiConfigured, isEmbeddingConfigured } from '@/lib/env';
 import { parseBareme } from '@/lib/grading';
-import { subjectIdsForTrack } from '@/lib/queries/taxonomy';
+import { subjectIdsForStudent } from '@/lib/queries/taxonomy';
 
 /**
  * One chat turn, streamed.
@@ -33,6 +33,19 @@ const bodySchema = z.object({
   sessionId: z.string().uuid(),
   content: z.string().trim().min(1).max(4000),
 });
+
+/**
+ * Long enough for a grounded answer to finish streaming.
+ *
+ * Streaming does not exempt a function from the execution ceiling — the clock
+ * runs until the response closes, so a default of a few seconds truncates a
+ * multi-step derivation mid-sentence and the student sees a half-answer with no
+ * error. Retrieval plus a reasoning model comfortably exceeds that.
+ *
+ * 60 is Vercel's Hobby ceiling, so it deploys everywhere; raise it if the plan
+ * allows and answers are being cut off.
+ */
+export const maxDuration = 60;
 
 export const POST = route(async (request) => {
   assertSameOrigin(request);
@@ -74,7 +87,7 @@ export const POST = route(async (request) => {
     });
   }
 
-  const subjectIds = await subjectIdsForTrack(user.trackId);
+  const subjectIds = await subjectIdsForStudent(user.trackId, user.preferredLanguage);
 
   // Correction-key mode. Assembled here rather than in the pipeline so that the
   // pipeline keeps taking plain data and stays testable without a database.
@@ -87,6 +100,14 @@ export const POST = route(async (request) => {
       }
     : null;
 
+  const anchorPassage = session.question
+    ? (
+        await db.$queryRaw<{ source_passage: string | null }[]>`
+          SELECT source_passage FROM questions WHERE id = ${session.question.id}::uuid
+        `
+      )[0]?.source_passage ?? null
+    : null;
+
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
       try {
@@ -95,9 +116,22 @@ export const POST = route(async (request) => {
           sessionId: session.id,
           question: body.content,
           subjectIds,
+          trackId: user.trackId,
           locale: user.preferredLanguage,
           history: session.messages.map((m) => ({ role: m.role, content: m.content })),
-          anchorQuestion: session.question,
+          anchorQuestion: session.question && {
+            ...session.question,
+            /*
+             * The extract printed on the paper this question is asked about.
+             *
+             * Fetched separately rather than added to the `select` above,
+             * because `prisma generate` cannot refresh the client's types while
+             * a dev server holds the query engine, and a chat turn must not
+             * depend on whether somebody restarted it. Fold it into the select
+             * once the client knows the column.
+             */
+            sourcePassage: anchorPassage,
+          },
           anchorAttempt,
         })) {
           controller.enqueue(encodeEvent(event));

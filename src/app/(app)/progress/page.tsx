@@ -32,7 +32,7 @@ export default async function StandingPage() {
   const user = await requireUser();
   const { t } = await getTranslations();
 
-  const standing = await getStanding(user.id, user.trackId);
+  const standing = await getStanding(user.id, user.trackId, user.preferredLanguage);
   const scale = markOutOf20(1);
 
   const bandLabel: Record<MarkBand, string> = {
@@ -100,7 +100,13 @@ export default async function StandingPage() {
       <Sheet className="mt-5">
         <SheetHeader title={t.standing.bySubject} description={t.standing.equalWeighting} />
         <SheetBody className="p-0">
-          <table className="w-full text-sm">
+          {/* Contained sideways scroll. A subject table on a 360px phone is the
+              one place in this product where horizontal scroll is the right
+              answer — the alternative is a stacked list that loses the
+              column-to-column comparison the table exists for. The page body
+              still never scrolls sideways; only this box does. */}
+          <div className="scroll-x">
+            <table className="w-full min-w-[30rem] text-sm">
             <thead>
               <tr className="border-b border-rule">
                 <th scope="col" className="label px-5 py-2 text-start font-semibold">
@@ -120,7 +126,7 @@ export default async function StandingPage() {
                   <td className="px-5 py-3">
                     <span className="font-medium text-ink">{subject.subjectName}</span>
                     {subject.band && (
-                      <span className="ms-2 text-[12px] text-ink-muted">
+                      <span className="ms-2 text-caption text-ink-muted">
                         {bandLabel[subject.band]}
                       </span>
                     )}
@@ -128,11 +134,11 @@ export default async function StandingPage() {
 
                   <td className="px-3 py-3 text-end">
                     {subject.mark === null ? (
-                      <span className="text-[12.5px] text-ink-faint">{t.standing.notEnoughYet}</span>
+                      <span className="text-meta text-ink-faint">{t.standing.notEnoughYet}</span>
                     ) : (
                       <span
                         className={cn(
-                          'figure text-[15px]',
+                          'figure text-body',
                           subject.mark < PASS_MARK ? 'text-mark' : 'text-ink',
                         )}
                       >
@@ -141,13 +147,14 @@ export default async function StandingPage() {
                     )}
                   </td>
 
-                  <td className="hidden px-3 py-3 text-[12.5px] text-ink-muted sm:table-cell">
+                  <td className="hidden px-3 py-3 text-meta text-ink-muted sm:table-cell">
                     {trendLabel[subject.trend]}
                   </td>
                 </tr>
               ))}
             </tbody>
-          </table>
+            </table>
+          </div>
         </SheetBody>
       </Sheet>
 
@@ -164,7 +171,7 @@ export default async function StandingPage() {
             caption={`${Math.round(standing.coverage.ratio * 100)}%`}
             tone="primary"
           />
-          <p className="text-[12.5px] text-ink-muted">
+          <p className="text-meta text-ink-muted">
             {format(t.standing.passMark, { mark: PASS_MARK })} ·{' '}
             <Link href="/performance" className="text-primary underline-offset-2 hover:underline">
               {t.performance.title}

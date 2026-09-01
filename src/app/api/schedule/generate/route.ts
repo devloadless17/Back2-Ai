@@ -69,13 +69,22 @@ export const POST = route(async (request) => {
     // quiz — the cheapest win available, and one that expires if ignored.
     db.flashcardState.findMany({
       where: { userId: user.id, dueDate: { lte: from } },
-      select: { question: { select: { chapterId: true } } },
+      // A card reaches its chapter through whichever source it has. Reading
+      // only `question` here counted an attempted card and ignored one written
+      // from the textbook, so a chapter seeded with cards but never practised
+      // looked to the planner like a chapter with nothing due.
+      select: {
+        question: { select: { chapterId: true } },
+        generatedCard: { select: { chapterId: true, retiredAt: true } },
+      },
     }),
   ]);
 
   const dueByChapter = new Map<string, number>();
   for (const card of dueCards) {
-    const id = card.question.chapterId;
+    if (card.generatedCard?.retiredAt) continue;
+    const id = card.question?.chapterId ?? card.generatedCard?.chapterId;
+    if (!id) continue;
     dueByChapter.set(id, (dueByChapter.get(id) ?? 0) + 1);
   }
 

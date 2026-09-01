@@ -409,7 +409,7 @@ async function otherScriptQuery(query: string, subjectIds: string[]): Promise<st
       messages: [{ role: 'user', content: `Translate into ${target}:\n${query}` }],
       maxTokens: 300,
       effort: 'low',
-      model: env().OPENAI_MODEL_VERIFY,
+      model: ai().verifyModel,
     });
     const text = response.text.trim();
     return text && text !== query ? text : null;
@@ -443,7 +443,7 @@ async function conceptQuery(query: string): Promise<string | null> {
       messages: [{ role: 'user', content: query.slice(0, 4000) }],
       maxTokens: 2000,
       effort: 'low',
-      model: env().OPENAI_MODEL_VERIFY,
+      model: ai().verifyModel,
     });
     const text = response.text.trim();
     return text.length > 3 && text !== query ? text : null;
@@ -492,7 +492,94 @@ export type GroundingResult = {
    * instruction to write against it is just more text.
    */
   classification: QuestionClassification;
+  /**
+   * The syllabus this question sits nearest to, when nothing could be grounded.
+   *
+   * Populated only on the refusal path, because that is the only path that has
+   * to answer without material. It is NOT grounding and must never be handed
+   * over as if it were — see `SyllabusScope`.
+   */
+  syllabus?: SyllabusScope | null;
 };
+
+/**
+ * What the curriculum covers, without saying anything the model could cite.
+ *
+ * The general-knowledge lane exists because the corpus covers a fraction of the
+ * syllabus, and it answers from the model's own knowledge. Its only curriculum
+ * constraint today is the student's list of subject NAMES — "this student takes
+ * Philosophy, History, Geography" — which is barely a constraint at all. A
+ * Lebanese philosophy paper and a French one share a subject name and not a
+ * syllabus, and nothing in that prompt can tell them apart.
+ *
+ * Every subject in this corpus has a chapter list, including the ones whose
+ * passages are too thin to ground an answer: history 11 chapters, geography 14,
+ * general philosophy 18. That list IS the syllabus, and it is available whether
+ * or not any passage clears a threshold.
+ *
+ * WHY TITLES AND QUESTION STEMS, AND NOT PASSAGES.
+ *
+ * The obvious move is to hand over the passages that scored below the gate.
+ * That is the one thing that must not happen. A sub-threshold passage handed to
+ * a model that then quotes it has laundered material the pipeline REFUSED into
+ * an answer that reads as sourced — the precise failure the thresholds exist to
+ * prevent, arriving through the door marked "context".
+ *
+ * A chapter title is not a claim, and a past question is not an answer. Neither
+ * can be quoted as a fact about the world, so neither can turn an ungrounded
+ * answer into an apparently-grounded one. They bound the SCOPE without
+ * supplying any content, which is exactly the job.
+ */
+export type SyllabusScope = {
+  subject: string;
+  /** The chapter list, in curriculum order — the syllabus outline. */
+  chapters: string[];
+  /**
+   * Openings of the nearest past exam questions in that subject. They say what
+   * this syllabus actually examines and at what depth, which a chapter title
+   * alone does not.
+   */
+  examples: string[];
+};
+
+/** How many past questions are shown as examples of what the syllabus examines. */
+const SCOPE_EXAMPLES = 4;
+
+/** How much of each example question is shown. Enough to see what it asks, not to answer it. */
+const EXAMPLE_SHOWN = 220;
+
+/**
+ * The syllabus nearest the question, for a question nothing could be grounded in.
+ *
+ * The subject is chosen by the best hit the search already produced rather than
+ * by asking the model — the search failed to clear a THRESHOLD, which is not the
+ * same as failing to indicate a subject, and its top hit is still the best
+ * available evidence of which of the student's subjects this belongs to.
+ *
+ * Costs one query and no embedding: the vector is the one `retrieveGrounding`
+ * has already computed, and chapters are read by id.
+ */
+async function syllabusScope(
+  subjectId: string,
+  queryVector: number[],
+): Promise<SyllabusScope | null> {
+  const subject = await db.subject.findUnique({
+    where: { id: subjectId },
+    select: {
+      name: true,
+      chapters: { select: { name: true }, orderBy: { orderIndex: 'asc' } },
+    },
+  });
+  if (!subject || subject.chapters.length === 0) return null;
+
+  const examples = await searchQuestions(queryVector, [subjectId], SCOPE_EXAMPLES);
+
+  return {
+    subject: subject.name,
+    chapters: subject.chapters.map((c) => c.name),
+    examples: examples.map((q) => q.contentText.replace(/\s+/g, ' ').trim().slice(0, EXAMPLE_SHOWN)),
+  };
+}
 
 export type RetrievalInput = {
   query: string;
@@ -906,7 +993,31 @@ export async function retrieveGrounding(input: RetrievalInput): Promise<Groundin
     };
   }
 
-  // --- Nothing cleared threshold anywhere ---------------------------------
+  /*
+   * --- Nothing cleared threshold anywhere ---------------------------------
+   *
+   * The syllabus is attached here and only here. Downstream this is either a
+   * refusal, which ignores it, or the general-knowledge lane, which answers
+   * from the model's own knowledge and until now had nothing to bound that by
+   * except the student's list of subject names.
+   *
+   * The subject is taken from the best hit the search produced. Failing a
+   * threshold is not the same as indicating nothing: a question about the
+   * Lebanese civil war still lands nearest history even when no passage is
+   * close enough to answer from, and that is the syllabus worth bounding by.
+   */
+  const nearest = chunkHits[0] ?? topQuestion;
+  const nearestSubject =
+    chunkHits[0] !== undefined
+      ? (await db.chapter.findUnique({
+          where: { id: chunkHits[0].chapterId },
+          select: { subjectId: true },
+        }))?.subjectId
+      : topQuestion?.subjectId;
+
+  const syllabus =
+    nearest && nearestSubject ? await syllabusScope(nearestSubject, queryVector) : null;
+
   return {
     tier: 'ungrounded_refused',
     topSimilarity: topQuestion?.similarity ?? null,
@@ -914,6 +1025,7 @@ export async function retrieveGrounding(input: RetrievalInput): Promise<Groundin
     classification,
     sources: [],
     context: '',
+    syllabus,
   };
 }
 

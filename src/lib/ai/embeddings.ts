@@ -48,11 +48,46 @@ type Extractor = (
 
 let localExtractor: Promise<Extractor> | null = null;
 
+/**
+ * The package name, deliberately held in a variable.
+ *
+ * `import('@huggingface/transformers')` with a literal is followed by Next's
+ * file tracer, which then pulls the whole ONNX runtime into the server bundle
+ * of every route that can reach this module — 69 MB of `onnxruntime-node` plus
+ * its native binaries, traced into the chat function of a deployment that is
+ * almost always configured for hosted embeddings and will never load it.
+ *
+ * On a container that is merely wasteful. On a serverless host it is close to
+ * fatal: the function size limit is 250 MB uncompressed, and this spends a
+ * quarter of it on a code path `EMBEDDING_PROVIDER` has switched off.
+ *
+ * An opaque specifier plus `webpackIgnore` defeats the static analysis on both
+ * sides, so the dependency is resolved at runtime from `node_modules` or not at
+ * all. The trade is explicit and is stated in the error below: a deployment
+ * that wants `EMBEDDING_PROVIDER=local` has to be one where the package is
+ * actually installed on disk — the container, or the ingestion box. Corpus
+ * embedding is a batch job that runs there anyway.
+ */
+const LOCAL_PACKAGE = '@huggingface/transformers';
+
 function getLocal(): Promise<Extractor> {
   if (!localExtractor) {
-    localExtractor = import('@huggingface/transformers').then(
-      ({ pipeline }) => pipeline('feature-extraction', env().EMBEDDING_MODEL) as unknown as Promise<Extractor>,
-    );
+    localExtractor = import(/* webpackIgnore: true */ LOCAL_PACKAGE)
+      .then(
+        ({ pipeline }: { pipeline: (task: string, model: string) => Promise<Extractor> }) =>
+          pipeline('feature-extraction', env().EMBEDDING_MODEL) as unknown as Promise<Extractor>,
+      )
+      .catch((cause) => {
+        // Reset, so a deployment that installs the package later is not stuck
+        // with a rejected promise cached for the life of the process.
+        localExtractor = null;
+        throw new AiError(
+          `EMBEDDING_PROVIDER=local needs ${LOCAL_PACKAGE} installed on the server. ` +
+            'It is deliberately excluded from the traced serverless bundle — use a hosted ' +
+            'embedding provider there, or run ingestion where the package is present.',
+          cause,
+        );
+      });
   }
   return localExtractor;
 }

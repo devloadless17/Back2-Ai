@@ -112,7 +112,7 @@ export function ReferenceManager({ references }: { references: ReferenceItem[] }
               <li key={reference.id} className="flex items-center gap-3 px-5 py-3">
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium text-ink">{reference.fileName ?? '—'}</p>
-                  <p className="text-[11.5px] text-ink-faint">{formatDate(reference.createdAt)}</p>
+                  <p className="text-caption text-ink-faint">{formatDate(reference.createdAt)}</p>
                 </div>
 
                 <Badge tone={reference.searchable ? 'correct' : 'partial'}>
@@ -122,7 +122,7 @@ export function ReferenceManager({ references }: { references: ReferenceItem[] }
                 <button
                   type="button"
                   onClick={() => remove(reference.id)}
-                  className="shrink-0 rounded px-2 py-1 text-[12px] text-ink-faint transition-colors hover:text-mark"
+                  className="shrink-0 rounded px-2 py-1 text-caption text-ink-faint transition-colors hover:text-mark"
                 >
                   {t.common.delete}
                 </button>

@@ -99,7 +99,7 @@ export function AnnouncementManager({
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-ink">{announcement.title}</p>
-                      <p className="mt-0.5 whitespace-pre-wrap text-[13px] leading-snug text-ink-muted">
+                      <p className="mt-0.5 whitespace-pre-wrap text-meta leading-snug text-ink-muted">
                         {announcement.body}
                       </p>
                       <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
@@ -109,7 +109,7 @@ export function AnnouncementManager({
                         {announcement.targetSubject && (
                           <Badge tone="primary">{announcement.targetSubject}</Badge>
                         )}
-                        <span className="text-[11.5px] text-ink-faint">
+                        <span className="text-caption text-ink-faint">
                           {formatDate(announcement.createdAt)}
                           {announcement.author ? ` · ${announcement.author}` : ''}
                         </span>
@@ -119,7 +119,7 @@ export function AnnouncementManager({
                     <button
                       type="button"
                       onClick={() => remove(announcement.id)}
-                      className="shrink-0 rounded px-2 py-1 text-[12px] text-ink-faint transition-colors hover:text-mark"
+                      className="shrink-0 rounded px-2 py-1 text-caption text-ink-faint transition-colors hover:text-mark"
                     >
                       {t.common.delete}
                     </button>

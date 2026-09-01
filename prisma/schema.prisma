@@ -157,6 +157,32 @@ enum GroundingTier {
   /// off-programme, and so refusal rates measure refusals rather than hellos.
   conversational
 
+  /// Answered from the model's own knowledge, with no material behind it.
+  ///
+  /// The corpus does not yet cover most of what a candidate will ask, and a
+  /// refusal is only the honest answer when the claim being refused is "this is
+  /// off your programme". For everything else it was the product declining to
+  /// help with something it knows perfectly well.
+  ///
+  /// The bargain: the answer is given, and it is *labelled* — the student is
+  /// told plainly that this one is not from their textbook, so they know which
+  /// answers they can quote to a teacher and which they cannot. Kept as its own
+  /// tier so grounded and ungrounded answers never blend in the numbers.
+  general_knowledge
+
+  /// Answered from this student's own schedule, mastery and exam dates.
+  ///
+  /// "Am I behind?" has no answer in any textbook, so the curriculum path could
+  /// only ever refuse it — and once general knowledge existed, could only
+  /// answer it generically under a notice saying it was not from their
+  /// material. Both misdescribe where the answer actually lives.
+  ///
+  /// Separate from `personal_reference`, which means the documents a student
+  /// uploaded. This one is the record the product itself keeps about them, and
+  /// it is the only tier whose facts the product can state without qualifying
+  /// them at all: it is not recalling this data, it is holding it.
+  study_record
+
   @@map("grounding_tier")
 }
 
@@ -191,6 +217,11 @@ enum ReviewItemType {
   generated_problem
   tagged_question
   flagged_content
+  /// A revision card written from the textbook. Unlike a generated problem
+  /// these are dealt to the student immediately and reviewed afterwards — see
+  /// `GeneratedCard` for why that trade is acceptable for a card and would not
+  /// be for a question.
+  generated_flashcard
 
   @@map("review_item_type")
 }
@@ -339,6 +370,7 @@ model Chapter {
 
   questions         Question[]
   generatedProblems GeneratedProblem[]
+  generatedCards    GeneratedCard[]
   contentChunks     ChapterContentChunk[]
   chapterMastery    ChapterMastery[]
   studySessions     StudySession[]
@@ -392,6 +424,7 @@ model User {
   auditEvents     AuditEvent[]
   ingestionJobs   IngestionJob[]
   subscription    Subscription?
+  generatedCards  GeneratedCard[]
 
   @@index([trackId])
   @@map("users")
@@ -582,6 +615,7 @@ model ContentChunk {
 
   sourceDocument SourceDocument?       @relation(fields: [sourceDocumentId], references: [id], onDelete: SetNull)
   chapters       ChapterContentChunk[]
+  generatedCards GeneratedCard[]
 
   @@index([kind])
   @@map("content_chunks")
@@ -770,21 +804,81 @@ model ChapterMastery {
   @@map("chapter_mastery")
 }
 
+/// SM-2 scheduling for one card, whichever kind of card it is.
+///
+/// The composite primary key became a surrogate id so that `question_id` could
+/// be nullable: a card is now either a question the student has attempted or a
+/// `GeneratedCard` written from their textbook, and exactly one of the two
+/// columns is set. That is the same shape `Attempt` already uses to carry
+/// either a question or a generated problem, so it is the pattern this schema
+/// had rather than a new one.
+///
+/// Both unique constraints survive the change, which matters more than it
+/// looks: `userId_questionId` is what every existing lookup and the SM-2 update
+/// path resolve through, so none of that code had to move.
 model FlashcardState {
-  userId         String    @map("user_id") @db.Uuid
-  questionId     String    @map("question_id") @db.Uuid
-  easiness       Decimal   @default(2.5) @db.Decimal(3, 2)
-  intervalDays   Int       @default(1) @map("interval_days")
-  repetitions    Int       @default(0)
-  dueDate        DateTime  @default(dbgenerated("CURRENT_DATE")) @map("due_date") @db.Date
-  lastReviewedAt DateTime? @map("last_reviewed_at") @db.Timestamptz(6)
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId          String    @map("user_id") @db.Uuid
+  questionId      String?   @map("question_id") @db.Uuid
+  generatedCardId String?   @map("generated_card_id") @db.Uuid
+  easiness        Decimal   @default(2.5) @db.Decimal(3, 2)
+  intervalDays    Int       @default(1) @map("interval_days")
+  repetitions     Int       @default(0)
+  dueDate         DateTime  @default(dbgenerated("CURRENT_DATE")) @map("due_date") @db.Date
+  lastReviewedAt  DateTime? @map("last_reviewed_at") @db.Timestamptz(6)
 
-  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  question      Question?      @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  generatedCard GeneratedCard? @relation(fields: [generatedCardId], references: [id], onDelete: Cascade)
 
-  @@id([userId, questionId])
+  @@unique([userId, questionId])
+  @@unique([userId, generatedCardId])
   @@index([userId, dueDate])
   @@map("flashcard_state")
+}
+
+/// A revision card written from the textbook, for a chapter with no attempts
+/// behind it yet.
+///
+/// Deliberately not a `Question`, and that is the whole point of the table.
+/// The corpus of questions is the product's central claim — every one of them
+/// comes off an official paper or out of the official programme, and nothing in
+/// it was written by a model. Persisting these as questions with
+/// `source_type = generated` would have been less code and would have made that
+/// claim false, because a generated row would then be indistinguishable from a
+/// real one to every query that reads the library.
+///
+/// So they live here instead: reachable only from the deck of the student who
+/// asked for them, never from retrieval, never from an exam, never from
+/// practice, and never counted in coverage or mastery.
+///
+/// The provenance is kept because it is what makes the card checkable. Every
+/// card names the passage it was written from, and it was only kept if a second
+/// model call could answer its front from that passage alone and agreed with
+/// its back — see `fillFlashcardBank`.
+model GeneratedCard {
+  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  chapterId        String    @map("chapter_id") @db.Uuid
+  /// The passage this was written from and checked against.
+  sourceChunkId    String    @map("source_chunk_id") @db.Uuid
+  /// Whose deck it belongs to. A card is generated on request, for one student.
+  createdForUserId String    @map("created_for_user_id") @db.Uuid
+  front            String
+  back             String
+  modelUsed        String?   @map("model_used")
+  /// Set when a reviewer retires the card. A retired card stops being dealt but
+  /// is not deleted — the review queue entry has to keep pointing somewhere.
+  retiredAt        DateTime? @map("retired_at") @db.Timestamptz(6)
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  chapter     Chapter          @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  sourceChunk ContentChunk     @relation(fields: [sourceChunkId], references: [id], onDelete: Cascade)
+  createdFor  User             @relation(fields: [createdForUserId], references: [id], onDelete: Cascade)
+  cardStates  FlashcardState[]
+
+  @@index([createdForUserId, createdAt])
+  @@index([chapterId])
+  @@map("generated_cards")
 }
 
 model ReadinessScore {
@@ -894,19 +988,19 @@ model UserGrade {
 // ===========================================================================
 
 model StudySession {
-  id              String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  userId          String             @map("user_id") @db.Uuid
-  chapterId       String?            @map("chapter_id") @db.Uuid
+  id              String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId          String                @map("user_id") @db.Uuid
+  chapterId       String?               @map("chapter_id") @db.Uuid
   title           String
-  scheduledDate   DateTime           @map("scheduled_date") @db.Date
-  durationMinutes Int?               @map("duration_minutes")
+  scheduledDate   DateTime              @map("scheduled_date") @db.Date
+  durationMinutes Int?                  @map("duration_minutes")
   taskType        StudySessionTaskType? @map("task_type")
-  source          StudySessionSource @default(manual)
-  status          StudySessionStatus @default(planned)
+  source          StudySessionSource    @default(manual)
+  status          StudySessionStatus    @default(planned)
   /// Set on a generated session: the one-line reason it was scheduled, shown to
   /// the student. A plan that cannot explain itself gets ignored.
   rationale       String?
-  createdAt       DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdAt       DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
 
   user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   chapter Chapter? @relation(fields: [chapterId], references: [id], onDelete: SetNull)

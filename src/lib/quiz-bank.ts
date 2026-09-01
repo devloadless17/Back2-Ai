@@ -4,7 +4,7 @@ import { z } from 'zod';
 
 import { ai } from '@/lib/ai';
 import { db } from '@/lib/db';
-import { env, isAiConfigured } from '@/lib/env';
+import { isAiConfigured } from '@/lib/env';
 
 /**
  * Multiple-choice items, written from the textbook and checked before anyone
@@ -252,7 +252,7 @@ export async function fillQuizBank(input: {
         schema: SOLVE_SCHEMA as unknown as Record<string, unknown>,
         schemaName: 'quiz_solve',
         effort: 'low',
-        model: env().OPENAI_MODEL_VERIFY,
+        model: ai().verifyModel,
         parse: (value) => solveSchema.parse(value),
       });
     } catch {

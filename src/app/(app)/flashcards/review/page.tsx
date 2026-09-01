@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 
+import { TutorDock } from '@/components/chat/tutor-dock';
 import { ReviewSession } from '@/components/flashcards/review-session';
 import { LinkButton } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/feedback';
@@ -26,22 +27,30 @@ export const metadata: Metadata = { title: 'Review' };
 export default async function FlashcardReviewPage({
   searchParams,
 }: {
-  searchParams: Promise<{ scope?: string; id?: string }>;
+  searchParams: Promise<{ scope?: string; id?: string; ids?: string; anyway?: string }>;
 }) {
-  const { scope: scopeParam, id } = await searchParams;
+  const { scope: scopeParam, id, ids, anyway } = await searchParams;
   const user = await requireUser();
   const { t } = await getTranslations();
 
+  const chapterIds = (ids ?? '').split(',').map((value) => value.trim()).filter(Boolean);
+
   const scope: ReviewScope =
-    scopeParam === 'chapter' && id
-      ? { kind: 'chapter', chapterId: id }
-      : scopeParam === 'unit' && id
-        ? { kind: 'unit', unitId: id }
-        : scopeParam === 'subject' && id
-          ? { kind: 'subject', subjectId: id }
-          : scopeParam === 'weak'
-            ? { kind: 'weak' }
-            : { kind: 'all' };
+    scopeParam === 'chapters' && chapterIds.length > 0
+      ? { kind: 'chapters', chapterIds }
+      : scopeParam === 'chapter' && id
+        ? { kind: 'chapter', chapterId: id }
+        : scopeParam === 'unit' && id
+          ? { kind: 'unit', unitId: id }
+          : scopeParam === 'subject' && id
+            ? { kind: 'subject', subjectId: id }
+            : scopeParam === 'weak'
+              ? { kind: 'weak' }
+              : { kind: 'all' };
+
+  // An explicit scope means the student asked for that deck, so fill it even if
+  // SM-2 has nothing scheduled today. The plain deck stays due-only.
+  const reviewAnyway = anyway === '1' || (scope.kind !== 'all' && scope.kind !== 'weak');
 
   const isWeakScope = scope.kind === 'weak';
 
@@ -67,7 +76,7 @@ export default async function FlashcardReviewPage({
     }
   }
 
-  const cards = await getDueCards(user.id, user.trackId, scope);
+  const cards = await getDueCards(user.id, user.trackId, scope, 40, reviewAnyway);
 
   return (
     <>
@@ -76,6 +85,12 @@ export default async function FlashcardReviewPage({
         description={isWeakScope ? t.flashcards.scopeWeakHint : t.flashcards.subtitle}
       />
       <ReviewSession cards={cards} />
+
+      {/* Not inside the card itself: a panel over a card being graded would
+          cover the four grade buttons the whole screen exists for. */}
+      <TutorDock
+        context={{ label: isWeakScope ? t.flashcards.scopeWeak : t.flashcards.title }}
+      />
     </>
   );
 }

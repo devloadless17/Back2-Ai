@@ -112,7 +112,7 @@ export function GradeLog({
                         <p className="truncate text-sm font-medium text-ink">
                           {entry.label ?? entry.subjectName ?? '—'}
                         </p>
-                        <p className="text-[11.5px] text-ink-faint">
+                        <p className="text-caption text-ink-faint">
                           {[entry.subjectName, entry.date ? formatDate(entry.date) : null]
                             .filter(Boolean)
                             .join(' · ')}
@@ -122,7 +122,7 @@ export function GradeLog({
                       <div className="flex shrink-0 items-baseline gap-3">
                         <p className="text-lg font-semibold tabular-nums">
                           {entry.grade === null ? '—' : formatScore(entry.grade)}
-                          <span className="text-[13px] font-normal text-ink-faint">
+                          <span className="text-meta font-normal text-ink-faint">
                             {' / '}
                             {entry.maxGrade === null ? '—' : formatScore(entry.maxGrade)}
                           </span>
@@ -130,7 +130,7 @@ export function GradeLog({
                         <button
                           type="button"
                           onClick={() => remove(entry.id)}
-                          className="text-[12px] text-ink-faint transition-colors hover:text-mark"
+                          className="text-caption text-ink-faint transition-colors hover:text-mark"
                         >
                           {t.common.delete}
                         </button>
@@ -167,7 +167,7 @@ export function GradeLog({
               )}
             </Field>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid gap-3 sm:grid-cols-2">
               <Field label={t.settings.gradeValue} required>
                 {({ id }) => (
                   <Input id={id} name="grade" type="number" step="0.25" min="0" required />

@@ -85,9 +85,35 @@ function buildMessages(request: AiRequest): ChatCompletionMessageParam[] {
   return messages;
 }
 
+/**
+ * An exhausted balance is not a rate limit, however it arrives.
+ *
+ * OpenAI returns "You have no credits remaining" as HTTP 429 with
+ * `type: insufficient_quota`, which `RateLimitError` catches and this used to
+ * mark retryable. Nothing about that is retryable: the SDK's own three attempts
+ * run, then every caller's backoff runs on top, and the answer is the same at
+ * the end as it was at the start. A corpus job spends an hour discovering it; a
+ * student watches a spinner for a minute to be told the tutor is unavailable,
+ * when it was knowable on the first response.
+ *
+ * Checked on the body's `type`/`code` rather than the message text, which is
+ * prose the provider is free to reword.
+ */
+function isQuotaExhausted(err: InstanceType<typeof OpenAI.APIError>): boolean {
+  const body = err.error as { type?: string; code?: string } | undefined;
+  return body?.type === 'insufficient_quota' || body?.code === 'credit_balance_exhausted';
+}
+
 function wrapError(err: unknown): never {
   if (err instanceof AiError) throw err;
   if (err instanceof OpenAI.RateLimitError) {
+    if (isQuotaExhausted(err)) {
+      throw new AiError(
+        'The AI account has no credits remaining. This will not resolve by retrying — top up the balance.',
+        err,
+        false,
+      );
+    }
     throw new AiError('The AI service is rate limited. Please try again shortly.', err, true);
   }
   if (err instanceof OpenAI.APIConnectionError) {

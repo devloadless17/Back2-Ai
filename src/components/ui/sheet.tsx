@@ -59,8 +59,8 @@ export function SheetHeader({
       )}
     >
       <div className="min-w-0 space-y-0.5">
-        <h2 className="text-[14px] font-semibold leading-snug">{title}</h2>
-        {description && <p className="text-[13px] leading-snug text-ink-muted">{description}</p>}
+        <h2 className="text-lead font-semibold">{title}</h2>
+        {description && <p className="text-meta text-ink-muted">{description}</p>}
       </div>
       {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
     </header>
@@ -123,7 +123,7 @@ export function PageHeader({
       )}
     >
       <div className="min-w-0 space-y-1">
-        <h1 className="text-[21px] font-semibold leading-tight sm:text-[23px]">{title}</h1>
+        <h1 className="text-title font-semibold sm:text-heading">{title}</h1>
         {description && <p className="max-w-2xl text-sm leading-relaxed text-ink-muted">{description}</p>}
       </div>
       {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}
@@ -171,14 +171,14 @@ export function StatTile({
 
       <p
         className={cn(
-          'figure text-[26px] leading-none sm:text-[28px]',
+          'figure text-heading leading-none sm:text-display',
           tone === 'mark' ? 'text-primary' : 'text-ink',
         )}
       >
         {value}
       </p>
 
-      {caption && <p className="text-[12px] leading-snug text-ink-muted">{caption}</p>}
+      {caption && <p className="text-caption text-ink-muted">{caption}</p>}
       {footer && <div className="mt-1">{footer}</div>}
     </div>
   );

@@ -247,7 +247,7 @@ export function PracticeRunner({
           <SheetBody className="border-t border-rule">
             {question.questionType === 'mcq' && question.options ? (
               <fieldset className="space-y-2" disabled={Boolean(result)}>
-                <legend className="mb-2 text-[13px] font-medium text-ink">{t.practice.yourAnswer}</legend>
+                <legend className="mb-2 text-meta font-medium text-ink">{t.practice.yourAnswer}</legend>
                 {question.options.map((option) => (
                   <label
                     key={option.id}
@@ -275,7 +275,7 @@ export function PracticeRunner({
               </fieldset>
             ) : (
               <div className="space-y-2">
-                <label htmlFor="working" className="block text-[13px] font-medium text-ink">
+                <label htmlFor="working" className="block text-meta font-medium text-ink">
                   {t.practice.yourAnswer}
                 </label>
                 <WorkingArea
@@ -286,7 +286,7 @@ export function PracticeRunner({
                   disabled={Boolean(result)}
                 />
                 {question.baremeCriteria.length > 0 && !result && (
-                  <p className="text-[12.5px] text-ink-muted">
+                  <p className="text-meta text-ink-muted">
                     {`${t.examSim.baremeBreakdown}: ${question.baremeCriteria.length}`}
                   </p>
                 )}
@@ -406,7 +406,7 @@ export function PracticeRunner({
               {outcome.baremeResult.map((item, i) => (
                 <RuledRow key={`${item.criterion}-${i}`} className="flex-col items-stretch gap-1">
                   <div className="flex items-baseline justify-between gap-3">
-                    <p className="min-w-0 text-[13.5px] font-medium text-ink">{item.criterion}</p>
+                    <p className="min-w-0 text-body font-medium text-ink">{item.criterion}</p>
                     {/*
                       Three states, two of which are current.
 
@@ -418,7 +418,7 @@ export function PracticeRunner({
                     */}
                     <p
                       className={cn(
-                        'shrink-0 tabular-nums text-[13px] font-semibold',
+                        'shrink-0 tabular-nums text-meta font-semibold',
                         item.points_awarded >= item.points_possible
                           ? 'text-correct'
                           : item.points_awarded > 0
@@ -429,7 +429,7 @@ export function PracticeRunner({
                       {formatScore(item.points_awarded)} / {formatScore(item.points_possible)}
                     </p>
                   </div>
-                  <p className="text-[12.5px] leading-snug text-ink-muted">{item.justification}</p>
+                  <p className="text-meta leading-snug text-ink-muted">{item.justification}</p>
                 </RuledRow>
               ))}
             </div>

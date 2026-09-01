@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, type ReactNode } from 'react';
+import { useId, useMemo, useState, type ReactNode } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Field, Input, Select } from '@/components/ui/field';
@@ -26,7 +26,14 @@ import { LOCALE_LABELS, LOCALES } from '@/lib/i18n/config';
  * Two answers here are permanent. Section and language are locked once the
  * account exists, because changing either invalidates every mastery number
  * computed against them — so both screens say so before the student commits,
- * rather than after.
+ * and both make them tick a box acknowledging it before Continue will move.
+ *
+ * The box is the part worth defending. A warning banner is read by nobody: it
+ * sits above the control, in the same position as every other piece of helper
+ * text in the product, and the student's eye has already learned to skip that
+ * position. A checkbox that stops the button from working is the only version
+ * of this warning that a student in a hurry actually meets. It costs one tap on
+ * the two screens in the whole product that are genuinely one-way.
  */
 
 export type WizardTrack = { id: string; code: string; name: string };
@@ -45,7 +52,7 @@ type Screen = {
   key: keyof WizardDetails | 'password';
   title: string;
   encouragement: string;
-  /** Permanent answers get a warning before, not after. */
+  /** Permanent answers get a warning before, not after — and a box to tick. */
   locked?: boolean;
   render: (ctx: {
     details: WizardDetails;
@@ -152,24 +159,28 @@ function buildScreens(t: Dict, format: Fmt, locale: string): Screen[] {
     locked: true,
     validate: (d) => (d.trackId ? null : t.auth.wizardTrackRequired),
     render: ({ details, set, tracks }) => (
-      <Field label={t.auth.track} required>
-        {({ id, describedBy }) => (
-          <Select
-            id={id}
-            autoFocus
-            value={details.trackId}
-            onChange={(e) => set({ trackId: e.target.value })}
-            aria-describedby={describedBy}
-          >
-            <option value="">{t.auth.selectTrack}</option>
-            {tracks.map((track) => (
-              <option key={track.id} value={track.id}>
-                {track.name} ({track.code})
-              </option>
-            ))}
-          </Select>
-        )}
-      </Field>
+      /*
+       * Cards rather than the select this used to be.
+       *
+       * There are four sections, the choice decides the entire programme, and
+       * the code alone ("SE") means nothing to a student who has not yet been
+       * told what it stands for. Cards show the code and the name together and
+       * put all four on screen at once, which a menu cannot. Below five options
+       * that is simply the better control; the country list, at two hundred,
+       * stays a select for the same reason.
+       */
+      <ChoiceCards
+        legend={t.auth.track}
+        name="track"
+        columns={tracks.length > 2 ? 2 : 1}
+        value={details.trackId}
+        onChange={(id) => set({ trackId: id })}
+        options={tracks.map((track) => ({
+          value: track.id,
+          label: track.code,
+          note: track.name,
+        }))}
+      />
     ),
   },
   {
@@ -179,23 +190,14 @@ function buildScreens(t: Dict, format: Fmt, locale: string): Screen[] {
     locked: true,
     validate: () => null,
     render: ({ details, set }) => (
-      <Field label={t.auth.language} required>
-        {({ id, describedBy }) => (
-          <Select
-            id={id}
-            autoFocus
-            value={details.preferredLanguage}
-            onChange={(e) => set({ preferredLanguage: e.target.value })}
-            aria-describedby={describedBy}
-          >
-            {LOCALES.map((code) => (
-              <option key={code} value={code}>
-                {LOCALE_LABELS[code]}
-              </option>
-            ))}
-          </Select>
-        )}
-      </Field>
+      <ChoiceCards
+        legend={t.auth.language}
+        name="preferredLanguage"
+        columns={LOCALES.length > 2 ? 2 : 1}
+        value={details.preferredLanguage}
+        onChange={(code) => set({ preferredLanguage: code })}
+        options={LOCALES.map((code) => ({ value: code, label: LOCALE_LABELS[code] }))}
+      />
     ),
   },
   {
@@ -243,11 +245,23 @@ export function OnboardingWizard({
   const [details, setDetails] = useState<WizardDetails>(initial);
   const [index, setIndex] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  /*
+   * Which permanent choices the student has acknowledged, by screen.
+   *
+   * Kept across a change of answer on the same screen: what was acknowledged is
+   * that the choice cannot be undone, which does not stop being true when they
+   * switch from GS to LS. Going back and forth should not make them tick the
+   * same box again.
+   */
+  const [confirmed, setConfirmed] = useState<Record<string, boolean>>({});
 
   const screens = useMemo(() => buildScreens(t, format, locale), [t, format, locale]);
   const screen = screens[index] as Screen;
   const isLast = index === screens.length - 1;
   const progress = useMemo(() => ((index + 1) / screens.length) * 100, [index, screens.length]);
+
+  const needsConfirmation = Boolean(screen.locked);
+  const acknowledged = confirmed[screen.key] === true;
 
   function set(patch: Partial<WizardDetails>) {
     setDetails((current) => ({ ...current, ...patch }));
@@ -258,6 +272,10 @@ export function OnboardingWizard({
     const problem = screen.validate(details);
     if (problem) {
       setError(problem);
+      return;
+    }
+    if (needsConfirmation && !acknowledged) {
+      setError(t.auth.wizardLockRequired);
       return;
     }
     if (isLast) {
@@ -271,7 +289,7 @@ export function OnboardingWizard({
   return (
     <div className="space-y-5">
       <div>
-        <div className="mb-2 flex items-center justify-between text-[12px] text-ink-muted">
+        <div className="mb-2 flex items-center justify-between text-caption text-ink-muted">
           <span>{format(t.auth.stepOf, { current: index + 1, total: screens.length })}</span>
           {/* Progress is stated in words as well as drawn, so the bar is never
               the only thing carrying it. */}
@@ -291,15 +309,9 @@ export function OnboardingWizard({
       </div>
 
       <div className="space-y-1">
-        <h2 className="text-[17px] font-semibold leading-snug">{screen.title}</h2>
-        <p className="text-[13px] text-ink-muted">{screen.encouragement}</p>
+        <h2 className="text-lead font-semibold leading-snug">{screen.title}</h2>
+        <p className="text-meta text-ink-muted">{screen.encouragement}</p>
       </div>
-
-      {screen.locked ? (
-        <Alert tone="warning" title={t.auth.wizardPermanentTitle}>
-          {t.auth.wizardPermanentBody}
-        </Alert>
-      ) : null}
 
       {error ? <Alert tone="error">{error}</Alert> : null}
 
@@ -313,8 +325,31 @@ export function OnboardingWizard({
       >
         {screen.render({ details, set, tracks })}
 
+        {needsConfirmation ? (
+          <LockConfirmation
+            checked={acknowledged}
+            onChange={(value) => {
+              setConfirmed((current) => ({ ...current, [screen.key]: value }));
+              setError(null);
+            }}
+            disabled={submitting}
+          />
+        ) : null}
+
         <div className="flex items-center gap-2">
-          <Button type="submit" variant="primary" disabled={submitting}>
+          <Button
+            type="submit"
+            variant="primary"
+            /*
+             * Disabled rather than merely rejected on submit.
+             *
+             * A student who has not ticked the box should see that the way
+             * forward is closed, not press Continue and be told off. The
+             * `next()` guard stays as well — a disabled button is a hint, and
+             * the rule has to hold whatever the DOM is doing.
+             */
+            disabled={submitting || (needsConfirmation && !acknowledged)}
+          >
             {isLast ? t.auth.createAccount : t.auth.continueToPayment}
           </Button>
           {index > 0 ? (
@@ -345,5 +380,109 @@ export function OnboardingWizard({
         ))}
       </ol>
     </div>
+  );
+}
+
+/**
+ * The permanence warning, with the box that gates the way forward.
+ *
+ * The warning keeps the amber it has everywhere else in the product, and the
+ * checkbox lives inside it rather than beneath it — a tick-box floating under a
+ * banner reads as an unrelated preference, and this one is the banner's whole
+ * point.
+ */
+function LockConfirmation({
+  checked,
+  onChange,
+  disabled,
+}: {
+  checked: boolean;
+  onChange: (value: boolean) => void;
+  disabled?: boolean;
+}) {
+  const { t } = useI18n();
+  const id = useId();
+
+  return (
+    <Alert tone="warning" title={t.auth.wizardPermanentTitle}>
+      <p>{t.auth.wizardPermanentBody}</p>
+
+      <label htmlFor={id} className="mt-3 flex cursor-pointer items-start gap-2.5 font-semibold">
+        <input
+          id={id}
+          type="checkbox"
+          checked={checked}
+          disabled={disabled}
+          onChange={(event) => onChange(event.target.checked)}
+          className="mt-0.5 h-4 w-4 shrink-0 accent-[hsl(var(--primary))]"
+        />
+        <span>{t.auth.wizardLockConfirm}</span>
+      </label>
+    </Alert>
+  );
+}
+
+/**
+ * A small set of mutually exclusive answers, as cards.
+ *
+ * Radio inputs underneath, so the keyboard behaviour, the grouping and the
+ * announced role are the browser's rather than something reimplemented with
+ * divs. Selection is carried by the border and the tinted ground *and* by the
+ * radio itself being checked — never by the tint alone.
+ */
+function ChoiceCards({
+  legend,
+  name,
+  options,
+  value,
+  onChange,
+  columns = 2,
+}: {
+  legend: string;
+  name: string;
+  options: { value: string; label: string; note?: string }[];
+  value: string;
+  onChange: (value: string) => void;
+  columns?: 1 | 2;
+}) {
+  return (
+    <fieldset>
+      <legend className="mb-2 text-meta font-medium text-ink">{legend}</legend>
+
+      <div className={cn('grid gap-2.5', columns === 2 ? 'grid-cols-2' : 'grid-cols-1')}>
+        {options.map((option) => {
+          const selected = value === option.value;
+          return (
+            <label
+              key={option.value}
+              className={cn(
+                'flex cursor-pointer items-start gap-2.5 rounded-lg border-2 px-3.5 py-3',
+                'transition-colors duration-150',
+                selected
+                  ? 'border-primary bg-primary-soft'
+                  : 'border-rule-strong hover:bg-paper-sunken',
+              )}
+            >
+              <input
+                type="radio"
+                name={name}
+                value={option.value}
+                checked={selected}
+                onChange={() => onChange(option.value)}
+                className="mt-0.5 h-4 w-4 shrink-0 accent-[hsl(var(--primary))]"
+              />
+              <span className="min-w-0">
+                <span className="block text-sm font-bold text-ink">{option.label}</span>
+                {option.note ? (
+                  <span className="mt-0.5 block text-caption leading-snug text-ink-muted">
+                    {option.note}
+                  </span>
+                ) : null}
+              </span>
+            </label>
+          );
+        })}
+      </div>
+    </fieldset>
   );
 }

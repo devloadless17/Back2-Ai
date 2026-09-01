@@ -58,7 +58,22 @@ ORD_FR = {"premier": 1, "première": 1, "deuxième": 2, "deuxieme": 2, "troisiè
 ORD_AR = {"الأول": 1, "الاول": 1, "الثاني": 2, "الثالث": 3, "الرابع": 4, "الخامس": 5,
           "الأولى": 1, "الثانية": 2, "الثالثة": 3, "الرابعة": 4}
 
-MARK = r"(\d{1,2}(?:[.,]\d{1,2})?|[٠-٩۰-۹]{1,2})"
+# Vulgar fractions, in both forms these PDFs emit them: the single character
+# (½) and the digit-fraction-slash-digit sequence (1⁄2) that some fonts
+# shed instead. A Lebanese paper writes half a mark either way.
+FRACTION_VALUE = {
+    "½": 0.5, "¼": 0.25, "¾": 0.75,
+    "⅓": 1 / 3, "⅔": 2 / 3, "⅛": 0.125,
+}
+FRACTION = r"(?:[½¼¾⅓⅔⅛]|\d\s*[⁄/]\s*\d)"
+
+# Ordered widest-first: "6 1⁄2" must match as six-and-a-half rather than as a
+# bare 6 with the fraction left behind, which would silently halve the mark
+# instead of failing loudly.
+MARK = (
+    r"(\d{1,2}\s*" + FRACTION + r"|" + FRACTION + r"|"
+    r"\d{1,2}(?:[.,]\d{1,2})?|[٠-٩۰-۹]{1,2})"
+)
 
 # Arabic papers in the humanities write their marks as words, not digits:
 # "(أربع علامات)" is four marks and "(علامتان)" is two. Every digit-based pattern
@@ -126,8 +141,15 @@ EXERCISE = re.compile(
     rf"Exercise\s+(?P<en_num>\d{{1,2}}|[IVX]{{1,4}})|"
     rf"(?P<fr_ord>Premier|Première|Deuxi[èe]me|Troisi[èe]me|Quatri[èe]me|Cinqui[èe]me)\s+exercice|"
     rf"Exercice\s+(?P<fr_num>\d{{1,2}}|[IVX]{{1,4}})|"
-    rf"التمرين\s+(?P<ar_ord>الأول|الاول|الثاني|الثالث|الرابع|الخامس)|"
-    rf"التمرين\s+(?P<ar_num>[\d٠-٩]{{1,2}})"
+    # `\s*`, not `\s+`. Arabic PDFs in this corpus routinely emit the heading
+    # with the space between the noun and its ordinal missing —
+    # "التمرينالثاني" rather than "التمرين الثاني" — because the shaping font
+    # joins them and extraction never puts the space back. Requiring a space
+    # meant those headings were not headings, and on gs/2016 1/phy_ar.pdf that
+    # recovered two exercises of four. The ordinals are specific enough words
+    # that allowing zero spaces cannot match anything else.
+    rf"التمرين\s*(?P<ar_ord>الأول|الاول|الثاني|الثالث|الرابع|الخامس)|"
+    rf"التمرين\s*(?P<ar_num>[\d٠-٩]{{1,2}})"
     rf")\s*[:\-–]?\s*[(（]?\s*{MARK}\s*(?:points?|pts?|علامات?|نقاط?|درجات?)",
     re.I | re.M,
 )
@@ -373,8 +395,31 @@ PAGE_COUNT = re.compile(
 
 
 def to_number(raw: str) -> float:
+    """The value of a mark as these papers write it.
+
+    Widened alongside `MARK` to read fractions. A mixed number is whole plus
+    part; a bare fraction is the part alone. Anything unreadable stays 0.0, so a
+    pattern that matches something this cannot value fails closed rather than
+    inventing a mark.
+    """
+    if raw is None:
+        return 0.0
+    text = str(raw).translate(AR_DIGITS).strip()
+
+    # "1⁄2" or "1/2" written out.
+    slashed = re.match(r"^(\d{1,2})?\s*(\d)\s*[⁄/]\s*(\d)$", text)
+    if slashed:
+        whole = float(slashed.group(1) or 0)
+        num, den = float(slashed.group(2)), float(slashed.group(3))
+        return whole + (num / den if den else 0.0)
+
+    # "6½" or a bare "½".
+    m = re.match(r"^(\d{1,2})?\s*([½¼¾⅓⅔⅛])$", text)
+    if m:
+        return float(m.group(1) or 0) + FRACTION_VALUE[m.group(2)]
+
     try:
-        return float(raw.translate(AR_DIGITS).replace(",", "."))
+        return float(text.replace(",", "."))
     except (ValueError, AttributeError):
         return 0.0
 

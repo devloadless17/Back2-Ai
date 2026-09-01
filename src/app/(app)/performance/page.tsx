@@ -111,13 +111,13 @@ export default async function PerformancePage() {
                       </div>
                     ) : (
                       <div key={subject.subjectId} className="space-y-1">
-                        <p className="text-[12.5px] font-medium uppercase tracking-wide text-ink-muted">
+                        <p className="text-meta font-medium uppercase tracking-wide text-ink-muted">
                           {subject.subjectName}
                         </p>
                         <p className="text-lg font-bold text-ink-faint">
                           {t.dashboard.readinessNotYet}
                         </p>
-                        <p className="text-[12.5px] leading-snug text-ink-muted">
+                        <p className="text-meta leading-snug text-ink-muted">
                           {t.performance.noDataHint}
                         </p>
                       </div>
@@ -144,11 +144,11 @@ export default async function PerformancePage() {
                             <p className="truncate text-sm font-medium text-ink">
                               {chapter.chapterName}
                             </p>
-                            <p className="text-[12px] text-ink-faint">{chapter.subjectName}</p>
+                            <p className="text-caption text-ink-faint">{chapter.subjectName}</p>
                           </div>
                           <a
                             href={`/practice/${chapter.subjectId}/${chapter.chapterId}`}
-                            className="shrink-0 text-[12.5px] font-medium text-primary underline-offset-2 hover:underline"
+                            className="shrink-0 text-meta font-medium text-primary underline-offset-2 hover:underline"
                           >
                             {t.performance.practiseThis}
                           </a>
@@ -192,7 +192,7 @@ export default async function PerformancePage() {
                       <li key={chapter.chapterId} className="px-5 py-3">
                         <div className="mb-1.5 min-w-0">
                           <p className="truncate text-sm font-medium text-ink">{chapter.chapterName}</p>
-                          <p className="text-[12px] text-ink-faint">{chapter.subjectName}</p>
+                          <p className="text-caption text-ink-faint">{chapter.subjectName}</p>
                         </div>
                         {/* The band names what the bar only shows. A meter on
                             its own is a length: a student reads "about a third"

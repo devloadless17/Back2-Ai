@@ -74,6 +74,28 @@
 
   --focus: 245 77% 61%;
 
+  /* The welcome banner's gradient, stop by stop.
+   *
+   * Its own three tokens rather than a reach into --primary and --accent,
+   * because the banner has a constraint those tokens do not: white type sits
+   * directly on it. Measured against the stops it used to have, white was
+   * 5.62:1 at the indigo end, 3.26 at the midpoint and 2.83 at the violet — so
+   * the h1 was under the 3.0 floor for large text across the back half of the
+   * banner, and the 15px summary line under it was never anywhere near 4.5.
+   *
+   * The midpoint drops from 73% to 66% and the violet end from 73% to 62%,
+   * which is the highest each hue can sit and still carry white at 4.5:1. The
+   * indigo end is already 5.62 and does not move. Hue and saturation are
+   * untouched, so the banner is the same colour, half a step deeper.
+   *
+   * --accent itself is deliberately NOT edited. It is a chip ground, a tinted
+   * button and a 3px rule elsewhere, and nothing ever prints white on it —
+   * darkening the token to fix a surface that misuses it would be paying for
+   * this banner everywhere else in the product. */
+  --hero-from: 245 77% 61%;
+  --hero-mid: 247 87% 66%;
+  --hero-to: 264 78% 62%;
+
   /* Chart ramp — indigo through violet, monotone in lightness so it still
    * reads as an ordered scale in greyscale. */
   --viz-1: 250 100% 88%;
@@ -87,6 +109,21 @@
   --radius: 14px;
   --radius-lg: 20px;
   --radius-xl: 28px;
+
+  /* The flashcard's surface. A face barely lighter at the top than the bottom,
+   * which is what makes a flat rectangle read as inflated — the eye takes the
+   * gradient as a highlight rolling over a curve. Two per cent is enough; any
+   * more and it looks like a button from 2009. */
+  --bubble-face: linear-gradient(
+    180deg,
+    hsl(var(--paper-raised)) 0%,
+    hsl(250 40% 98%) 100%
+  );
+  --bubble-shadow: 0 1px 2px hsl(var(--primary) / 0.06),
+    0 10px 20px hsl(var(--primary) / 0.10), 0 24px 46px hsl(var(--primary) / 0.13);
+  /* The lit top edge. White on a near-white card, so it is a hairline rather
+   * than a stripe. */
+  --bubble-sheen: inset 0 1px 0 hsl(0 0% 100% / 0.9);
 
   /* Two easings: one that settles, one with a little life in it. */
   --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
@@ -170,10 +207,34 @@
 
     --focus: 245 92% 78%;
 
+    /* The banner inverts here: light stops, dark ink. --on-primary measures
+     * 6.00, 5.70 and 8.40 against these three, so unlike the light palette
+     * nothing needs to move. */
+    --hero-from: 245 85% 74%;
+    --hero-mid: 247 87% 73%;
+    --hero-to: 264 80% 79%;
+
     --viz-1: 250 34% 27%;
     --viz-2: 247 55% 43%;
     --viz-3: 245 78% 62%;
     --viz-4: 250 96% 84%;
+
+    /* Inverted, like every other surface here. On a dark ground a shadow does
+     * nothing, so the lift is carried by the face being lighter than the paper
+     * behind it, and the sheen drops to a trace — a bright inset edge on a dark
+     * card reads as a border someone forgot to remove.
+     *
+     * Flat, with no gradient at all, and that is a measurement rather than a
+     * preference. `--ink-faint` — which is what "Tap to reveal" is printed in —
+     * measures 4.62 on --paper-raised, already close to the floor. Lifting the top
+     * of the card to 16% to light it took that to 4.31, and the highest top stop
+     * that still clears 4.5 is 14%: a one per cent gradient, which is not a
+     * gradient, it is a rounding error with a comment attached. The lift here is
+     * the card being lighter than the page behind it, which is how every other
+     * dark surface in this file works. */
+    --bubble-face: hsl(var(--paper-raised));
+    --bubble-shadow: 0 2px 6px hsl(250 40% 3% / 0.5), 0 18px 40px hsl(250 40% 3% / 0.45);
+    --bubble-sheen: inset 0 1px 0 hsl(0 0% 100% / 0.07);
   }
 }
 
@@ -213,10 +274,32 @@
 
   --focus: 245 92% 78%;
 
+  /* Light stops, dark ink — see the note in the media query above. */
+  --hero-from: 245 85% 74%;
+  --hero-mid: 247 87% 73%;
+  --hero-to: 264 80% 79%;
+
   --viz-1: 250 34% 27%;
   --viz-2: 247 55% 43%;
   --viz-3: 245 78% 62%;
   --viz-4: 250 96% 84%;
+
+  /* Inverted, like every other surface here. On a dark ground a shadow does
+   * nothing, so the lift is carried by the face being lighter than the paper
+   * behind it, and the sheen drops to a trace — a bright inset edge on a dark
+   * card reads as a border someone forgot to remove.
+   *
+   * Flat, with no gradient at all, and that is a measurement rather than a
+   * preference. `--ink-faint` — which is what "Tap to reveal" is printed in —
+   * measures 4.62 on --paper-raised, already close to the floor. Lifting the top
+   * of the card to 16% to light it took that to 4.31, and the highest top stop
+   * that still clears 4.5 is 14%: a one per cent gradient, which is not a
+   * gradient, it is a rounding error with a comment attached. The lift here is
+   * the card being lighter than the page behind it, which is how every other
+   * dark surface in this file works. */
+  --bubble-face: hsl(var(--paper-raised));
+  --bubble-shadow: 0 2px 6px hsl(250 40% 3% / 0.5), 0 18px 40px hsl(250 40% 3% / 0.45);
+  --bubble-sheen: inset 0 1px 0 hsl(0 0% 100% / 0.07);
 }
 
 /* Arabic needs its own stacks — a Latin serif has no Arabic glyphs, so the
@@ -369,13 +452,23 @@
    * pseudo-elements so no markup carries decoration and a screen reader never
    * meets them, and they are placed with `inset-inline-end` so an Arabic
    * layout mirrors them rather than dropping them on top of the sentence. */
+  /*
+   * One rule for anything written on this banner: no alpha on the ink.
+   *
+   * The stops are tuned so that solid --on-primary clears 4.5:1 across the
+   * whole sweep, and there is nothing left over. `text-on-primary/90` measured
+   * 4.08 at the midpoint and 4.03 at the violet end, and /85 is worse — the
+   * hierarchy those alphas were reaching for has to come from size and weight,
+   * which on a surface holding a 40px headline and a 12px label it already
+   * does. Backgrounds and borders may use alpha freely; glyphs may not.
+   */
   .hero-banner {
     @apply relative overflow-hidden rounded-xl shadow-pop-lg;
     background: linear-gradient(
       120deg,
-      hsl(var(--primary)) 0%,
-      hsl(247 87% 73%) 55%,
-      hsl(var(--accent)) 100%
+      hsl(var(--hero-from)) 0%,
+      hsl(var(--hero-mid)) 55%,
+      hsl(var(--hero-to)) 100%
     );
   }
 
@@ -420,15 +513,59 @@
    * Reduced motion drops the rotation and keeps the state change: the back
    * simply appears. The information is identical either way.
    */
+  /*
+   * The card, inflated.
+   *
+   * A flashcard is the one surface in this product that is *held* rather than
+   * read — you turn it, judge yourself, throw it away and get another. Giving
+   * it the same 20px corner and flat drop shadow as an admin table made a
+   * fifty-card session feel like fifty rows of data. This is rounder, lifted
+   * further off the page, and lit from the top so it reads as an object with a
+   * front and a back.
+   *
+   * Where the line is. The register this product refused is *gamification* —
+   * the XP, the badges and the balloons that were taken out on purpose because
+   * they make a national examination look like a children's app. A softer
+   * corner is not that. It changes how a surface feels in the hand without
+   * inventing a single score, and the palette's own header asks for exactly
+   * this: warm and confident rather than austere.
+   *
+   * The shadow is three stops rather than one, all in the brand hue. A single
+   * large blur reads as haze; a tight contact shadow under a wide soft one is
+   * what makes something look like it is resting on the page rather than
+   * printed on it.
+   *
+   * `overflow: hidden` matters more than it looks: the header and footer rules
+   * inside run the full width, and at a 28px corner an unclipped rule crosses
+   * the curve and the whole thing stops reading as one object.
+   */
+  .card-bubble {
+    border-radius: var(--radius-xl);
+    background: var(--bubble-face);
+    box-shadow: var(--bubble-shadow), var(--bubble-sheen);
+    overflow: hidden;
+  }
+
   .flip-stage {
     perspective: 1400px;
   }
 
+  /*
+   * `--ease-spring` was defined in this file with the note "one that settles,
+   * one with a little life in it" and then used by nothing. This is the place
+   * it was written for: the turn is the interaction, and a card that overshoots
+   * a few degrees and rocks back has weight, where a linear-ish settle has the
+   * feel of a slide transition.
+   *
+   * The overshoot is safe on a rotation — past 180° the back face is still the
+   * one facing the reader, so the card wobbles to a stop rather than flashing
+   * its front. Reduced motion drops the whole transform below, as before.
+   */
   .flip-card {
     position: relative;
     width: 100%;
     transform-style: preserve-3d;
-    transition: transform 500ms cubic-bezier(0.4, 0.2, 0.2, 1);
+    transition: transform 620ms var(--ease-spring);
   }
 
   .flip-card.is-flipped {

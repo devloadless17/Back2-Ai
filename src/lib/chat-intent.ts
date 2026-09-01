@@ -22,7 +22,17 @@
  *                honest answer names the subjects this student actually has,
  *                which is knowable without retrieving anything.
  *
- *   CURRICULUM   everything else, unchanged: retrieve, ground, or refuse.
+ *   PLANNING     "when should I revise physics", "am I behind", "what's my
+ *                plan for this week", "how many days until the exam"
+ *                A question about their own revision rather than about the
+ *                course. No passage in any textbook answers it; the answer is
+ *                in their schedule, their mastery and their exam date, all of
+ *                which the product holds exactly. Sending these to retrieval
+ *                produced a refusal about the syllabus for a question that was
+ *                never about the syllabus.
+ *
+ *   CURRICULUM   everything else, unchanged: retrieve, ground, or answer from
+ *                general knowledge under a label.
  *
  * Rules rather than a model, for the reasons `classifyQuestionKind` gives: this
  * runs before every retrieval, so a model call here is a model call on the
@@ -32,7 +42,7 @@
  * system exists to prevent. When in doubt this returns 'curriculum'.
  */
 
-export type ChatIntent = 'smalltalk' | 'capability' | 'curriculum';
+export type ChatIntent = 'smalltalk' | 'capability' | 'planning' | 'curriculum';
 
 export type IntentClassification = {
   intent: ChatIntent;
@@ -115,6 +125,54 @@ const CAPABILITY = [
   'بماذا تساعدني', 'ما هي المواد',
 ].map(fold);
 
+/*
+ * Questions about their own revision rather than about the course.
+ *
+ * Every entry is possessive, second-person-imperative, or bounded by a word
+ * that pins it to this student — "my schedule", "should i revise", "days until
+ * the exam". That is not stylistic. The bare nouns are all collisions:
+ *
+ *   `plan`      French for the outline of an essay. "Quel est le plan du
+ *               texte ?" is a comprehension question about a passage, and
+ *               reading it as a scheduling request would answer a literature
+ *               question with a revision timetable. Only `mon planning`,
+ *               `mon plan de revision` and `emploi du temps` are here.
+ *   `revision`  "revision of the constitution" in history.
+ *   `how many days` "How many days does Mercury take to orbit the Sun?" is a
+ *               physics question. Only the forms that name the exam are here.
+ *   `program`   "programme" is the syllabus itself in French, so `mon
+ *               programme de revision` is qualified twice over.
+ *
+ * Searched as substrings, like CAPABILITY, because they arrive inside real
+ * sentences: "ok so what should i revise tonight".
+ */
+const PLANNING = [
+  // English
+  'my schedule', 'my plan', 'my revision', 'my study plan', 'my timetable',
+  'study plan', 'revision plan', 'what should i study', 'what should i revise',
+  'should i study', 'should i revise', 'what should i do next',
+  'what do i do next', 'where do i start', 'where should i start',
+  'what s next', 'whats next', 'am i ready', 'am i behind', 'am i on track',
+  'how am i doing', 'days until', 'days till', 'days left', 'days to go',
+  'how long until', 'how long do i have', 'what s due', 'whats due',
+  'what is due', 'plan my', 'organise my', 'organize my', 'help me plan',
+  'time to study', 'how much time should i',
+  // French
+  'mon planning', 'mon emploi du temps', 'emploi du temps',
+  'mon plan de revision', 'mon programme de revision', 'plan de revision',
+  'programme de revision', 'que dois je reviser', 'qu est ce que je dois reviser',
+  'je dois reviser quoi', 'par quoi commencer', 'par ou commencer',
+  'je suis pret', 'suis je pret', 'je suis en retard', 'ou j en suis',
+  'combien de jours avant', 'combien de jours il me reste',
+  'combien de temps il me reste', 'organise moi', 'aide moi a planifier',
+  'quoi reviser',
+  // Arabic
+  'برنامجي', 'جدولي', 'خطتي', 'جدول الدراسه', 'خطه المراجعه', 'برنامج المراجعه',
+  'ماذا ادرس', 'ماذا اراجع', 'من اين ابدا', 'هل انا جاهز', 'هل انا متاخر',
+  'كم يوم بقي', 'كم بقي من الوقت', 'كم يوما تبقى', 'نظم لي', 'ساعدني في التخطيط',
+  'ما التالي',
+].map(fold);
+
 /**
  * A message that asks nothing has no question in it to be off-syllabus.
  *
@@ -124,6 +182,27 @@ const CAPABILITY = [
  */
 const SMALLTALK_MAX_WORDS = 4;
 
+/**
+ * Above this, a message is a curriculum question whatever phrase it contains.
+ *
+ * Both non-default tables are matched as substrings, because their entries
+ * arrive inside real sentences. That is right for a sentence and wrong for a
+ * pasted exam paper, and students paste exam papers constantly — it is the
+ * commonest way they ask anything here.
+ *
+ * Measured over the 5,297 past-exam questions in the corpus, 22 of them matched
+ * a non-curriculum phrase buried somewhere in their body: ten English papers
+ * contained "what is this", eleven Arabic ones contained "من انت" as a
+ * substring inside ordinary words, and one French economics text mentioned an
+ * "emploi du temps". Every one of those would have answered a student's pasted
+ * question with a description of what the tutor can do.
+ *
+ * A length ceiling separates the two cleanly, because the collision needs a
+ * long body to hide in. Thirty words is far above any real "what can you do"
+ * or "what should I revise tonight" and far below a pasted question.
+ */
+const CONVERSATIONAL_MAX_WORDS = 30;
+
 export function classifyChatIntent(text: string): IntentClassification {
   const folded = fold(text);
 
@@ -131,6 +210,26 @@ export function classifyChatIntent(text: string): IntentClassification {
 
   if (folded.split(' ').length <= SMALLTALK_MAX_WORDS && SMALLTALK_SET.has(folded)) {
     return { intent: 'smalltalk', signal: `courtesy:${folded}` };
+  }
+
+  /*
+   * Long messages skip both tables. See CONVERSATIONAL_MAX_WORDS: a phrase
+   * match inside a pasted paper is a coincidence, not an intent.
+   */
+  if (folded.split(' ').length > CONVERSATIONAL_MAX_WORDS) {
+    return { intent: 'curriculum', signal: 'default:too-long' };
+  }
+
+  /*
+   * Planning before capability, because the capability phrasings are the more
+   * general of the two and would otherwise swallow the specific case: "can you
+   * help me with my schedule" matches `can you help me with`, and answering it
+   * by listing the student's subjects is not an answer to it. Ordering this way
+   * costs nothing in the other direction — "can you help me with maths" carries
+   * no planning marker and still reaches capability.
+   */
+  for (const phrase of PLANNING) {
+    if (folded.includes(phrase)) return { intent: 'planning', signal: `planning:${phrase}` };
   }
 
   for (const phrase of CAPABILITY) {

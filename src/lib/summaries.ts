@@ -4,7 +4,7 @@ import { z } from 'zod';
 
 import { ai } from '@/lib/ai';
 import { db } from '@/lib/db';
-import { env, isAiConfigured } from '@/lib/env';
+import { isAiConfigured } from '@/lib/env';
 
 /**
  * Revision summaries for a chapter or a whole subject.
@@ -105,6 +105,78 @@ function rank(kind: string): number {
   return kind === 'definition' ? 0 : kind === 'theorem' ? 1 : kind === 'formula' ? 2 : kind === 'worked_example' ? 3 : 4;
 }
 
+type CachedRow = {
+  overview: string;
+  key_points: { heading: string; detail: string }[];
+  watch_out: string[];
+  batched: boolean;
+  source_chunk_ids: string[];
+};
+
+/**
+ * A summary already written for this chapter, if it is still about this chapter.
+ *
+ * The passage ids are the whole point of the check. A summary is a claim about
+ * a particular set of passages, and a chapter that has been re-chunked since —
+ * a better OCR pass, a book replaced, a split chapter — is a different set. A
+ * cache keyed on the chapter alone would go on serving a summary of material
+ * that no longer exists, which is worse than paying for the model call, because
+ * it is wrong quietly.
+ *
+ * Compared as sets: chunk order is not stable across re-chunking and carries no
+ * meaning here.
+ */
+async function cachedChapterSummary(
+  chapterId: string,
+  currentChunkIds: string[],
+): Promise<CachedRow | null> {
+  const [row] = await db.$queryRaw<CachedRow[]>`
+    SELECT overview, key_points, watch_out, batched, source_chunk_ids::text[] AS source_chunk_ids
+    FROM chapter_summaries WHERE chapter_id = ${chapterId}::uuid
+  `;
+  if (!row) return null;
+
+  const stored = new Set(row.source_chunk_ids);
+  const fresh = currentChunkIds.length === stored.size && currentChunkIds.every((id) => stored.has(id));
+  return fresh ? row : null;
+}
+
+async function storeChapterSummary(chapterId: string, summary: ChapterSummary): Promise<void> {
+  /*
+   * Written by raw SQL rather than the generated client, like every other new
+   * column in this codebase: `prisma generate` cannot refresh its types while a
+   * dev server holds the query engine, and a page render must not depend on
+   * whether somebody restarted it.
+   *
+   * A failure here loses the cache entry, never the summary. The student has
+   * already got their answer by this point; the worst case is that the next
+   * view pays for it again.
+   */
+  try {
+    await db.$executeRaw`
+      INSERT INTO chapter_summaries
+        (chapter_id, overview, key_points, watch_out, batched, source_chunk_ids)
+      VALUES (
+        ${chapterId}::uuid,
+        ${summary.overview},
+        ${JSON.stringify(summary.keyPoints)}::jsonb,
+        ${summary.watchOut},
+        ${summary.batched},
+        ${summary.sourceChunkIds}::uuid[]
+      )
+      ON CONFLICT (chapter_id) DO UPDATE SET
+        overview = EXCLUDED.overview,
+        key_points = EXCLUDED.key_points,
+        watch_out = EXCLUDED.watch_out,
+        batched = EXCLUDED.batched,
+        source_chunk_ids = EXCLUDED.source_chunk_ids,
+        created_at = now()
+    `;
+  } catch (err) {
+    console.error('[summaries] could not cache chapter summary', err);
+  }
+}
+
 export async function summariseChapter(chapterId: string): Promise<ChapterSummary> {
   const blank = {
     chapterId,
@@ -143,6 +215,32 @@ export async function summariseChapter(chapterId: string): Promise<ChapterSummar
       chapterName: chapter.name,
       subjectName: chapter.subject.name,
       status: 'no_material',
+    };
+  }
+
+  /*
+   * Served from the cache when one exists for exactly this set of passages.
+   *
+   * This is checked after the passages are read and before anything is
+   * generated, because the passage ids ARE the cache key — there is no cheaper
+   * way to ask whether a stored summary is still about this chapter. One index
+   * lookup against a model call over the whole chapter, which for a chapter
+   * summarised in eight batches is eight model calls.
+   */
+  const cached = await cachedChapterSummary(chapterId, passages.map((p) => p.id));
+  if (cached) {
+    return {
+      chapterId: chapter.id,
+      chapterName: chapter.name,
+      subjectName: chapter.subject.name,
+      overview: cached.overview,
+      keyPoints: cached.key_points,
+      watchOut: cached.watch_out,
+      pastQuestions: chapter._count.questions,
+      sourceChunkIds: cached.source_chunk_ids,
+      batched: cached.batched,
+      source: 'generated',
+      status: 'ok',
     };
   }
 
@@ -191,7 +289,7 @@ export async function summariseChapter(chapterId: string): Promise<ChapterSummar
         schema: NOTES_SCHEMA as unknown as Record<string, unknown>,
         schemaName: 'chapter_notes',
         effort: 'low',
-        model: env().OPENAI_MODEL_VERIFY,
+        model: ai().verifyModel,
         parse: (value) => notesSchema.parse(value),
       });
       notes = notes.concat(response.data.notes);
@@ -237,7 +335,7 @@ export async function summariseChapter(chapterId: string): Promise<ChapterSummar
     parse: (value) => chapterSchema.parse(value),
   });
 
-  return {
+  const summary: ChapterSummary = {
     chapterId: chapter.id,
     chapterName: chapter.name,
     subjectName: chapter.subject.name,
@@ -250,6 +348,77 @@ export async function summariseChapter(chapterId: string): Promise<ChapterSummar
     source: 'generated',
     status: 'ok',
   };
+
+  await storeChapterSummary(chapter.id, summary);
+  return summary;
+}
+
+/**
+ * The chapter summaries already written for a subject, and only those.
+ *
+ * `summariseSubject` composes an overview out of chapter summaries and does not
+ * generate them, which is what makes it safe to call from a page: it describes
+ * the chapters that have been read, names the rest, and never triggers a
+ * cascade of chapter generations because somebody opened a subject.
+ */
+export async function cachedChapterSummaries(
+  subjectId: string,
+): Promise<Pick<ChapterSummary, 'chapterId' | 'chapterName' | 'overview' | 'pastQuestions'>[]> {
+  return db.$queryRaw`
+    SELECT cs.chapter_id AS "chapterId",
+           ch.name       AS "chapterName",
+           cs.overview   AS "overview",
+           (SELECT count(*)::int FROM questions q WHERE q.chapter_id = ch.id) AS "pastQuestions"
+    FROM chapter_summaries cs
+    JOIN chapters ch ON ch.id = cs.chapter_id
+    WHERE ch.subject_id = ${subjectId}::uuid
+    ORDER BY ch.order_index ASC
+  `;
+}
+
+/** A subject overview already written for exactly this set of chapters. */
+export async function cachedSubjectSummary(
+  subjectId: string,
+  chapterIds: string[],
+): Promise<SubjectSummary | null> {
+  const [row] = await db.$queryRaw<
+    { overview: string; chapters: SubjectSummary['chapters']; source_chapter_ids: string[] }[]
+  >`
+    SELECT overview, chapters, source_chapter_ids::text[] AS source_chapter_ids
+    FROM subject_summaries WHERE subject_id = ${subjectId}::uuid
+  `;
+  if (!row) return null;
+  const stored = new Set(row.source_chapter_ids);
+  const fresh = chapterIds.length === stored.size && chapterIds.every((id) => stored.has(id));
+  if (!fresh) return null;
+  return {
+    subjectId,
+    subjectName: '',
+    overview: row.overview,
+    chapters: row.chapters,
+    status: 'ok',
+  };
+}
+
+async function storeSubjectSummary(
+  subjectId: string,
+  summary: SubjectSummary,
+  chapterIds: string[],
+): Promise<void> {
+  try {
+    await db.$executeRaw`
+      INSERT INTO subject_summaries (subject_id, overview, chapters, source_chapter_ids)
+      VALUES (${subjectId}::uuid, ${summary.overview},
+              ${JSON.stringify(summary.chapters)}::jsonb, ${chapterIds}::uuid[])
+      ON CONFLICT (subject_id) DO UPDATE SET
+        overview = EXCLUDED.overview,
+        chapters = EXCLUDED.chapters,
+        source_chapter_ids = EXCLUDED.source_chapter_ids,
+        created_at = now()
+    `;
+  } catch (err) {
+    console.error('[summaries] could not cache subject summary', err);
+  }
 }
 
 /**
@@ -274,6 +443,10 @@ export async function summariseSubject(input: {
   if (!subject || input.chapterSummaries.length === 0) {
     return { ...blank, status: 'no_material' };
   }
+
+  const chapterIds = input.chapterSummaries.map((c) => c.chapterId);
+  const cached = await cachedSubjectSummary(subject.id, chapterIds);
+  if (cached) return { ...cached, subjectName: subject.name };
 
   const response = await ai().completeJson({
     system: [
@@ -310,7 +483,7 @@ export async function summariseSubject(input: {
 
   const lines = new Map(response.data.key_points.map((p) => [p.heading.trim(), p.detail]));
 
-  return {
+  const summary: SubjectSummary = {
     subjectId: subject.id,
     subjectName: subject.name,
     overview: response.data.overview,
@@ -322,4 +495,7 @@ export async function summariseSubject(input: {
     })),
     status: 'ok',
   };
+
+  await storeSubjectSummary(subject.id, summary, chapterIds);
+  return summary;
 }

@@ -11,7 +11,6 @@ import {
   IconArchive,
   IconBell,
   IconCalendar,
-  IconCamera,
   IconCards,
   IconChart,
   IconChat,
@@ -91,8 +90,17 @@ export function Sidebar({
         { href: '/old-cycles', label: t.nav.oldCycles, icon: IconArchive },
         { href: '/summaries', label: t.nav.summaries, icon: IconBook },
         { href: '/flashcards', label: t.nav.flashcards, icon: IconCards, badge: counts.flashcardsDue },
+        /*
+         * One entry, not two.
+         *
+         * "Ask a question" and "Upload a photo" were separate destinations
+         * because photo upload used to be its own page that ended by creating a
+         * conversation. The chat composer takes an attachment directly now, so
+         * two nav items pointed at the same activity and made a student choose
+         * between them before knowing they were the same thing. /upload
+         * redirects here.
+         */
         { href: '/chat', label: t.nav.chat, icon: IconChat },
-        { href: '/upload', label: t.nav.upload, icon: IconCamera },
       ],
     },
     {
@@ -147,7 +155,7 @@ export function Sidebar({
         >
           <IconMenu />
         </button>
-        <Link href="/dashboard" className="text-[15px] font-semibold">
+        <Link href="/dashboard" className="text-body font-semibold">
           {t.common.appName}
         </Link>
       </div>
@@ -164,14 +172,26 @@ export function Sidebar({
       <aside
         className={cn(
           'fixed inset-y-0 start-0 z-50 flex w-64 flex-col border-e border-rule bg-paper-raised',
-          'transition-transform duration-200 ease-soft lg:sticky lg:top-0 lg:h-dvh lg:translate-x-0',
-          // Logical transform: RTL slides in from the right, LTR from the left.
-          open ? 'translate-x-0' : 'ltr:-translate-x-full rtl:translate-x-full lg:translate-x-0',
+          'transition-transform duration-200 ease-soft lg:sticky lg:top-0 lg:h-dvh',
+          /*
+           * Logical transform: RTL slides in from the right, LTR from the left.
+           *
+           * Scoped with `max-lg:` rather than reset with `lg:translate-x-0`,
+           * and the difference is not cosmetic — it is why the sidebar was
+           * invisible on every desktop. `ltr:` compiles to `[dir="ltr"] &`, an
+           * attribute selector, so it outranks a plain `lg:` utility on
+           * specificity no matter which is written last. The off-screen
+           * transform therefore won at *every* width and the panel sat parked
+           * outside the viewport. Applying the transform only below `lg` means
+           * there is nothing to override above it, so no specificity contest
+           * to lose.
+           */
+          open ? 'translate-x-0' : 'max-lg:ltr:-translate-x-full max-lg:rtl:translate-x-full',
         )}
       >
         <div className="flex items-center justify-between border-b border-rule px-4 py-4">
           <Link href="/dashboard" className="group min-w-0">
-            <span className="block text-[15px] font-semibold leading-none">{t.common.appName}</span>
+            <span className="block text-body font-semibold leading-none">{t.common.appName}</span>
             {user.trackCode && (
               <span className="label mt-1.5 block">{user.trackCode}</span>
             )}
@@ -228,25 +248,25 @@ export function Sidebar({
         >
           <span className="flex items-baseline justify-between gap-3 px-1">
             <span className="label">{t.standing.predictedMark}</span>
-            <span className="figure text-[15px]">
+            <span className="figure text-body">
               {standing.mark === null ? '—' : `${standing.mark} / ${standing.scale}`}
             </span>
           </span>
           {standing.daysToExam !== null && (
             <span className="mt-1 flex items-baseline justify-between gap-3 px-1">
               <span className="label">{t.standing.daysLeft}</span>
-              <span className="figure text-[15px]">{standing.daysToExam}</span>
+              <span className="figure text-body">{standing.daysToExam}</span>
             </span>
           )}
         </Link>
 
         <div className="border-t border-rule px-4 py-3">
-          <p className="truncate text-[13px] font-medium text-ink">{user.displayName ?? user.email}</p>
-          <p className="truncate text-[11.5px] text-ink-faint">{user.email}</p>
+          <p className="truncate text-meta font-medium text-ink">{user.displayName ?? user.email}</p>
+          <p className="truncate text-caption text-ink-faint">{user.email}</p>
           <form action="/api/auth/logout" method="post" className="mt-2">
             <button
               type="submit"
-              className="text-[12.5px] font-medium text-ink-muted underline-offset-2 hover:text-mark hover:underline"
+              className="text-meta font-medium text-ink-muted underline-offset-2 hover:text-mark hover:underline"
             >
               {t.nav.logout}
             </button>
@@ -275,7 +295,7 @@ function NavLink({
       href={href}
       aria-current={active ? 'page' : undefined}
       className={cn(
-        'group relative flex items-center gap-2.5 border-s-2 px-3 py-2 text-[13.5px]',
+        'group relative flex items-center gap-2.5 border-s-2 px-3 py-2 text-body',
         'transition-colors duration-150',
         active
           ? 'border-s-primary bg-primary-soft/60 font-semibold text-ink'
@@ -292,7 +312,7 @@ function NavLink({
       {badge !== undefined && badge > 0 && (
         <span
           className={cn(
-            'shrink-0 rounded-sm border px-1.5 py-0.5 text-[11px] font-semibold leading-none tabular-nums',
+            'shrink-0 rounded-sm border px-1.5 py-0.5 text-micro font-semibold leading-none tabular-nums',
             'border-rule-strong bg-paper-sunken text-ink-muted',
           )}
         >

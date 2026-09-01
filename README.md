@@ -4,10 +4,21 @@ Exam preparation for the Lebanese Baccalaureate, grounded in the official
 curriculum. Next.js (App Router) + PostgreSQL/pgvector + a provider-neutral AI
 layer.
 
-The governing principle, which explains most of the design decisions below: the
-system may only say things it can trace to real curriculum material. When it
-cannot, it says so. A confident wrong answer to an exam candidate is worse than
-no answer.
+The governing principle, which explains most of the design decisions below: a
+student always knows where an answer came from. Anything traced to real
+curriculum material is cited and badged as such; anything the model supplied
+from its own knowledge is answered under a notice that says so, in the answer
+itself. A confident wrong answer to an exam candidate is worse than no answer,
+and an unlabelled one is how a confident wrong answer gets believed.
+
+This used to read "the system may only say things it can trace to curriculum
+material; when it cannot, it says nothing." That was the right rule while the
+corpus was the only thing worth standing behind, but it does not survive contact
+with a corpus that covers a fraction of the syllabus: in practice the product
+spent most of its refusals declining to explain a definition it knew perfectly
+well, to a candidate three weeks from an exam. Labelling the answer keeps the
+guarantee the refusal was protecting — you can still tell which answers to quote
+to a corrector — without charging the student for a gap in our material.
 
 ---
 
@@ -70,7 +81,7 @@ embedding key to enable chat, generation, marking, OCR and ingestion.
 | `npm run ingest -- --embed-missing` | backfill embeddings for anything without a vector |
 | `npm run ingest -- --recalibrate` | recompute question difficulty from observed attempts |
 | `npm run eval` | retrieval eval harness — measures whether the tier thresholds fit the corpus |
-| `npm run cron [job]` | scheduled maintenance; `job` is one of `auto_submit`, `notify`, `readiness`, `difficulty`, `sessions` |
+| `npm run cron [job]` | scheduled maintenance; `job` is one of `auto_submit`, `mark`, `notify`, `readiness`, `difficulty`, `sessions` |
 | `npm run vector:resize` | after changing `EMBEDDING_MODEL`/`EMBEDDING_DIM` |
 
 ### Scheduled work
@@ -82,14 +93,173 @@ schedulers). Prefer the CLI where you can — `auto_submit` marks papers abandon
 by students who closed the tab, and those marks should not depend on the web
 tier being reachable.
 
-Suggested cadence: `auto_submit` every 5 minutes, `notify` daily and early,
-`readiness` and `difficulty` daily off-peak, `sessions` weekly.
+Suggested cadence: `auto_submit` and `mark` every 2 minutes, `notify` daily and
+early, `readiness` and `difficulty` daily off-peak, `sessions` weekly.
+
+`mark` is the one that matters during an exam window, and it is a **safety net
+rather than the primary path**. Submitting a paper closes it, returns
+immediately, and starts marking in the background; the job exists to finish
+papers whose marking pass died — a timeout, a deploy mid-pass, a 429 from the
+provider — and to catch papers auto-submitted by `auto_submit`.
+
+Run it every couple of minutes during an exam window anyway. It is safe to run
+concurrently with itself and with the inline pass: marking skips slots that
+already carry a mark, so an overlap costs a read and finds nothing to do. It is
+also the reason nothing is lost if the host freezes the process after a
+response — see the note on ingestion in the known gaps below.
 
 The CLI scripts run with `--conditions=react-server` so that `server-only`
 resolves to its no-op rather than throwing. They are server code; the guard
 exists to keep these modules out of the *client* bundle.
 
 ---
+
+## Deploying to Vercel
+
+Two paths. The first is for an MVP or a demo and takes about twenty minutes; the
+second is what has to be true before real students use it.
+
+### Demo / MVP
+
+`vercel.json` and the route `maxDuration`s are set so this deploys on **any
+plan**, Hobby included. One caveat worth knowing rather than discovering: Vercel
+Hobby forbids commercial use, so the moment this stops being a demo it has to
+move to Pro.
+
+**1 — Postgres with pgvector.** Neon's free tier works. The first migration runs
+`CREATE EXTENSION "vector"` and `"pgcrypto"`, and three tables hold
+`vector(1536)`. Take the connection string.
+
+**2 — Migrate and seed, from your machine.**
+
+```bash
+export DATABASE_URL="<your neon url>"
+npx prisma migrate deploy
+npm run db:seed:taxonomy   # the real curriculum: tracks, subjects, chapters
+npm run db:demo            # Maya Haddad, a populated Grade 12 account
+```
+
+`db:demo` is the one that makes this worth showing. An empty product demos
+terribly — every screen here is built around a history, and with none they all
+correctly render their empty states. It builds 60 days of practice weighted so
+some chapters are visibly weak, a deck with cards due today, a marked paper with
+a barème breakdown including one answer awaiting human marking, and five
+tutoring conversations of which one is a refusal. It carries its own content, so
+**no corpus ingestion is needed for a demo**.
+
+Sign in as `demo@bac2.local` / `DemoDay2026!`.
+
+Skipping `db:seed:taxonomy` is not survivable: with no `Track` rows `/signup`
+renders "Configuration incomplète" and nobody can register at all.
+
+A shell-level `DATABASE_URL` takes precedence over the `--env-file=.env` these
+scripts load, so exporting it really does redirect them.
+
+**3 — Import the repo on Vercel and set four variables.**
+
+| Variable | Value |
+|---|---|
+| `DATABASE_URL` | the same URL |
+| `SESSION_SECRET` | 32+ random bytes. Required, no default — the app throws without it |
+| `APP_URL` | the deployment URL |
+| `AI_PROVIDER` + that provider's key | omit it and every AI surface renders its "not configured" state, which is honest but dull to demo |
+
+Everything else has a working default. `CRON_SECRET` can wait — without it
+`/api/cron` returns 503 and nothing else changes.
+
+**4 — Deploy.** That is the whole demo path.
+
+**What is degraded, and it is better to know than to find out on stage:**
+
+* **Uploads do not persist.** `STORAGE_DRIVER` defaults to the local driver,
+  which writes to a per-invocation `/tmp`; the file is gone by the next request.
+  The write *appears* to succeed. Either skip the photo-answer and reference-
+  document features, or set up R2 and `STORAGE_DRIVER=s3`.
+* **"Generate 10 cards" returns two or three.** The demo seed gives most
+  chapters a single textbook passage, and the writer can only draw so many
+  distinct cards from one. It works; it just will not produce ten.
+* **Cron runs daily at 03:00**, because Hobby allows two jobs at daily
+  granularity. Marking happens inline when a paper is submitted, so the job is
+  only a safety net — fine for a demo, not for an exam window.
+
+### Production
+
+Everything above, plus the four below. None of them matter at demo scale and all
+of them matter with real students.
+
+**Plan.** Hobby forbids commercial use. Pro also lifts `maxDuration` to 300s
+and cron to any schedule — raise the 60 in `src/app/api/cron/route.ts` and the
+daily schedule in `vercel.json` once you are on it. A `maxDuration` above the
+plan's ceiling *fails the deployment* rather than being clamped, so change those
+two together.
+
+**Storage.** Set `STORAGE_DRIVER=s3` and real `S3_*` credentials — R2 or S3.
+`S3_FORCE_PATH_STYLE=false` for AWS, `true` for R2 and MinIO. This is the one
+that fails silently: the local driver accepts every write and loses the file.
+
+**Connection pooling.** Every serverless invocation is its own process with its
+own Prisma client, so a direct Postgres URL opens a connection per concurrent
+request and exhausts `max_connections` under ordinary load. Point `DATABASE_URL`
+at a pooler — Neon's pooled endpoint, Supabase's `6543`, PgBouncer, or Prisma
+Accelerate — with `?pgbouncer=true&connection_limit=1` where the pooler is in
+transaction mode. Keep the **direct** URL for migrations.
+
+**Migrations stay manual.** `vercel.json` deliberately does not run
+`prisma migrate deploy` in the build command: a build cannot tell a preview from
+production, so putting migrations there points every pull-request preview at the
+production database.
+
+**A first administrator.** There is no bootstrap script, on purpose. Sign up
+through `/signup` like a student, then promote that row once:
+
+```bash
+echo "UPDATE users SET role = 'admin' WHERE email = 'you@example.com';" \
+  | npx prisma db execute --url "<direct>" --stdin
+```
+
+`db execute` needs `--url` or `--schema` explicitly; it does not read
+`DATABASE_URL` from the environment the way the other commands here do.
+
+**The corpus.** Until this runs the library holds only the demo content and the
+assistant correctly refuses everything else. It is a long batch job needing the
+corpus files on disk, so run it from a workstation or the container — never from
+Vercel:
+
+```bash
+DATABASE_URL="<direct>" npm run ingest
+DATABASE_URL="<direct>" npm run ingest -- --embed-missing   # backfill vectors
+```
+
+**Cron belongs off Vercel.** `vercel.json`'s schedule is a fallback. The
+argument above still stands: `auto_submit` marks papers abandoned by students
+who closed the tab, and those marks should not depend on the web tier being
+reachable. Run `npm run cron` on a machine you control, every couple of minutes
+during an exam window.
+
+Verify whichever you use — Vercel Cron sends GET with the secret as a bearer
+token, which is why the route exports both verbs:
+
+```bash
+curl -i -H "authorization: Bearer $CRON_SECRET" https://<app>/api/cron
+```
+
+A 401 means the secret differs between your shell and the deployment; a 405
+means the GET export was lost.
+
+**`EMBEDDING_PROVIDER=local` does not work on Vercel**, deliberately. The ONNX
+runtime behind it is 69 MB of native binaries, and tracing it into every
+function that can reach `lib/ai/embeddings.ts` spent a quarter of the 250 MB
+function limit on a path a hosted-embeddings deployment never executes. The
+import is opaque to the bundler so the weight stays out, and the module throws a
+named error if the provider is `local` and the package is absent. Embed from the
+container, which is where that batch job belongs.
+
+**The rate limiter counts in process memory.** `rateLimit` in `src/lib/api.ts`
+is documented as needing Redis before multi-instance production, and a
+serverless deploy *is* multi-instance: each instance keeps its own map, so the
+effective limit multiplies by the number of warm instances — including the
+six-per-hour cap on card generation, the most expensive endpoint here. Nothing
+in it is a security control, but the cost control is weaker than it reads.
 
 ## Architecture notes
 
@@ -103,9 +273,46 @@ stateless JWT cannot offer it.
 
 **Retrieval is tiered and stops at the first hit** (`src/lib/retrieval.ts`):
 near-exact past question (≥ 0.85) → chapter course material (≥ 0.72) → the
-student's own uploaded documents (≥ 0.72) → explicit refusal. Every assistant
-message records which tier fired and the similarity that triggered it, so the
-thresholds can be tuned against real traffic. `npm run eval` measures them.
+student's own uploaded documents (≥ 0.72). Every assistant message records which
+tier fired and the similarity that triggered it, so the thresholds can be tuned
+against real traffic. `npm run eval` measures them.
+
+**Below the last threshold there are three outcomes, not one** (`src/lib/chat.ts`):
+
+| The message | What happens | Tier recorded |
+|---|---|---|
+| A greeting, a courtesy, a question about the tutor | Answered as chat, no grounding claimed, no badge shown | `conversational` |
+| A question about their own revision — "am I behind?", "what should I do next?" | Answered from their schedule, mastery and exam date | `study_record` |
+| A comprehension question about a passage nobody supplied | Asks for the passage | `ungrounded_refused` |
+| Any other subject question | Answered from the model's own knowledge, under a notice saying it is not from their course material | `general_knowledge` |
+
+Intent is decided before retrieval (`src/lib/chat-intent.ts`) by rules rather
+than by a model, because it runs on the critical path of every question asked.
+The tables are matched as substrings, so they are bounded by a length ceiling:
+above thirty words a message is treated as a curriculum question whatever phrase
+it contains. That is not a guess — of the 5,297 past-exam questions in the
+corpus, 22 contained a stray "what is this" or "من انت" in their body and were
+being answered with a description of the tutor instead of with help. Students
+paste exam papers constantly; it is the commonest way they ask anything here.
+
+The planning lane reads the same queries the dashboard and sidebar read, so the
+tutor cannot tell a student they are 12 days from the exam while the sidebar
+says 11. It is forbidden from teaching, from predicting a result, and from
+changing a schedule — plans are applied only when a student accepts one on the
+schedule page.
+
+The notice is prepended in code rather than requested in the prompt. A model
+asked to flag its own uncertainty complies most of the time, and the times it
+does not are exactly the confident wrong answers the label exists to catch.
+It is also stored on the message, so the label is still there after a reload
+rather than living only in the stream.
+
+That lane runs its own prompt with its own limits — no citations, no page or
+chapter references, no barème, nothing about the student's own progress — and
+reports `verified: false`, because `verifyAgainstContext` has no context to
+check anything against. Comprehension is the one kind held back from it: there
+is no general-knowledge answer to "what does the author mean in line 4", so
+labelling one would not make it less invented.
 
 **Generated content is admin-gated.** A generated problem is written from real
 questions in the same chapter, checked for near-duplicates by embedding, solved

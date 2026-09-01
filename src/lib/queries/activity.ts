@@ -86,3 +86,60 @@ export function streakFrom(activity: ActivityDay[]): number {
 function startOfUtcDay(value: Date): Date {
   return new Date(Date.UTC(value.getUTCFullYear(), value.getUTCMonth(), value.getUTCDate()));
 }
+
+/**
+ * What the last seven days actually produced.
+ *
+ * The dashboard hero prints three figures a student recognises: how many
+ * questions they answered this week, how much of it they got right, and how
+ * many chapters are currently flagged weak. The third is derived from progress
+ * the page already has; these two are the ones that need the database.
+ *
+ * `accuracy` is deliberately nullable. Marks are the honest denominator when
+ * they exist — a barème-marked answer worth 3 of 4 is not "wrong" — so the
+ * ratio prefers `score / max_score` and only falls back to counting right and
+ * wrong answers where no barème was involved. With neither, it returns null and
+ * the hero prints that we cannot say yet, rather than printing 0% at a student
+ * who has done nothing to be 0% at.
+ */
+export type WeeklyEffort = {
+  /** Attempts in the window, whatever their outcome. */
+  answered: number;
+  /** 0–1, or null when nothing in the window carries a verdict. */
+  accuracy: number | null;
+};
+
+export async function weeklyEffort(userId: string, days = 7): Promise<WeeklyEffort> {
+  const span = Math.max(1, Math.min(90, days));
+  const from = startOfUtcDay(new Date());
+  from.setUTCDate(from.getUTCDate() - (span - 1));
+
+  const [row] = await db.$queryRaw<
+    { answered: number; scored: string; available: string; correct: number; judged: number }[]
+  >`
+    SELECT COUNT(*)::int                                                  AS "answered",
+           COALESCE(SUM(score)     FILTER (WHERE max_score > 0), 0)::text AS "scored",
+           COALESCE(SUM(max_score) FILTER (WHERE max_score > 0), 0)::text AS "available",
+           COUNT(*) FILTER (WHERE is_correct IS TRUE)::int                AS "correct",
+           COUNT(*) FILTER (WHERE is_correct IS NOT NULL)::int            AS "judged"
+    FROM attempts
+    WHERE user_id = ${userId}::uuid
+      AND attempted_at >= ${from}
+  `;
+
+  if (!row) return { answered: 0, accuracy: null };
+
+  const available = Number(row.available);
+  if (available > 0) {
+    return { answered: row.answered, accuracy: clamp01(Number(row.scored) / available) };
+  }
+  if (row.judged > 0) {
+    return { answered: row.answered, accuracy: clamp01(row.correct / row.judged) };
+  }
+  return { answered: row.answered, accuracy: null };
+}
+
+function clamp01(value: number): number {
+  if (!Number.isFinite(value)) return 0;
+  return Math.min(1, Math.max(0, value));
+}

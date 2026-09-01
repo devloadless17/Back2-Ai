@@ -71,7 +71,7 @@ export default async function OldCyclesPage() {
                       >
                         <div className="min-w-0">
                           <p className="truncate text-sm font-medium text-ink">{cycle.title}</p>
-                          <p className="text-[12px] text-ink-faint">
+                          <p className="text-caption text-ink-faint">
                             {format(t.oldCycles.questionCount, { count: cycle._count.questions })}
                             {' · '}
                             {format(t.oldCycles.duration, { count: cycle.durationMinutes })}

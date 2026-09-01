@@ -27,7 +27,7 @@ export function SettingsTabs() {
             href={tab.href}
             aria-current={active ? 'page' : undefined}
             className={cn(
-              'whitespace-nowrap border-b-2 px-3 py-2 text-[13.5px] font-medium transition-colors duration-150',
+              'whitespace-nowrap border-b-2 px-3 py-2 text-body font-medium transition-colors duration-150',
               active
                 ? 'border-primary text-primary'
                 : 'border-transparent text-ink-muted hover:border-rule-strong hover:text-ink',

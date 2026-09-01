@@ -51,7 +51,7 @@ export default async function SchedulePage() {
       },
       orderBy: { examDate: 'asc' },
     }),
-    listSubjects(user.trackId),
+    listSubjects(user.trackId, user.preferredLanguage),
     db.chapter.findMany({
       where: { subject: { trackId: user.trackId ?? undefined } },
       select: { id: true, name: true, subject: { select: { name: true } } },

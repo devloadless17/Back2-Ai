@@ -26,7 +26,7 @@ export function RevokeSessionsButton({ otherSessions }: { otherSessions: number 
   }
 
   if (otherSessions === 0) {
-    return <p className="text-[12.5px] text-ink-muted">{t.settings.noOtherSessions}</p>;
+    return <p className="text-meta text-ink-muted">{t.settings.noOtherSessions}</p>;
   }
 
   async function revoke() {
@@ -56,7 +56,7 @@ export function RevokeSessionsButton({ otherSessions }: { otherSessions: number 
         <button
           type="button"
           onClick={() => setArmed(false)}
-          className="text-[12.5px] text-ink-muted underline-offset-2 hover:underline"
+          className="text-meta text-ink-muted underline-offset-2 hover:underline"
         >
           {t.common.cancel}
         </button>

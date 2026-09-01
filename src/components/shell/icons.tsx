@@ -191,3 +191,52 @@ export function IconClose(props: IconProps) {
     </Icon>
   );
 }
+
+/* ---------------------------------------------------------------------------
+ * Self-grading icons.
+ *
+ * The four SM-2 grades run hard-to-easy, which invites a colour gradient across
+ * four buttons — and a gradient is the one thing the status rules forbid,
+ * because "slightly redder than the next one" is not a distinction under
+ * protanopia or in greyscale. Each grade gets its own shape instead: a loop
+ * back, a climb, a check, a check clearing the top. Legible with the colour
+ * removed, which is the whole test.
+ * ------------------------------------------------------------------------- */
+
+/** Again — the card comes back round. */
+export function IconAgain(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M3.5 8a6.5 6.5 0 1 1 1.9 4.6" />
+      <path d="M3.2 13.2V9.6h3.6" />
+    </Icon>
+  );
+}
+
+/** Hard — a climb. */
+export function IconHard(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M3 15.5 8.4 5.2l3 5 1.8-2.6 3.8 7.9z" />
+    </Icon>
+  );
+}
+
+/** Good — a plain check. */
+export function IconGood(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="m4.2 10.4 3.4 3.4 8.2-8.6" />
+    </Icon>
+  );
+}
+
+/** Easy — a check that clears the bar. */
+export function IconEasy(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="m2.6 10.6 3.1 3.1 6-6.4" />
+      <path d="m9.4 10.9 2.2 2.2 6-6.4" />
+    </Icon>
+  );
+}

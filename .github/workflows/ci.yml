@@ -1,0 +1,78 @@
+# Continuous integration.
+#
+# The repo had none. Every check below was already runnable locally and was
+# being run by hand, which works exactly until the day somebody is in a hurry —
+# and the checks that matter here are the cheap ones: a corpus loader that
+# silently empties 528 embeddings is a type-correct change that no test caught,
+# so the value of running the suite on every push is not that it is clever but
+# that it is unskippable.
+#
+# Postgres runs with pgvector because the schema declares vector columns; a
+# migration check against a stock postgres image fails on the extension, not on
+# the migration, and that failure teaches nobody anything.
+name: CI
+
+on:
+  push:
+    branches: [main, demo]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      db:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: bac2
+          POSTGRES_PASSWORD: bac2_ci
+          POSTGRES_DB: bac2
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U bac2 -d bac2"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    env:
+      DATABASE_URL: postgresql://bac2:bac2_ci@localhost:5432/bac2
+      # Required for the app to boot. Never a real secret — every AI call is
+      # mocked or absent in CI, and the app is designed to stay navigable with
+      # no key configured.
+      SESSION_SECRET: ci-session-secret-not-used-anywhere-else-0000000000
+      OPENAI_API_KEY: ''
+      ANTHROPIC_API_KEY: ''
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Tests
+        run: npm test
+
+      # Applies every migration to an empty database. Catches a migration that
+      # is valid on a developer's machine because their schema already drifted
+      # into the shape it assumes.
+      - name: Migrations apply cleanly
+        run: npx prisma migrate deploy
+
+      - name: Build
+        run: npm run build

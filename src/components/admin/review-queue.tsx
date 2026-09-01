@@ -13,7 +13,7 @@ import { useI18n } from '@/lib/i18n/client';
 
 export type ReviewItem = {
   id: string;
-  itemType: 'generated_problem' | 'tagged_question' | 'flagged_content';
+  itemType: 'generated_problem' | 'tagged_question' | 'flagged_content' | 'generated_flashcard';
   flagReason: string | null;
   createdAt: string;
   flaggedBy: string | null;
@@ -79,7 +79,9 @@ export function ReviewQueue({ items }: { items: ReviewItem[] }) {
             title={
               item.itemType === 'generated_problem'
                 ? t.admin.itemType + ': ' + t.examSim.modeAiGenerated
-                : item.itemType === 'tagged_question'
+                : item.itemType === 'generated_flashcard'
+                  ? t.admin.itemType + ': ' + t.admin.itemTypeGeneratedCard
+                  : item.itemType === 'tagged_question'
                   ? t.practice.question
                   : t.chat.title
             }
@@ -101,7 +103,7 @@ export function ReviewQueue({ items }: { items: ReviewItem[] }) {
 
           {item.flagReason && (
             <SheetBody className="pb-0">
-              <p className="whitespace-pre-wrap rounded border border-rule bg-paper-sunken px-3 py-2 text-[12.5px] leading-relaxed text-ink-muted">
+              <p className="whitespace-pre-wrap rounded border border-rule bg-paper-sunken px-3 py-2 text-meta leading-relaxed text-ink-muted">
                 {item.flagReason}
               </p>
             </SheetBody>
@@ -119,7 +121,7 @@ export function ReviewQueue({ items }: { items: ReviewItem[] }) {
               <SheetBody>
                 <MathText>{item.solution}</MathText>
                 {item.finalAnswer && (
-                  <p className="mt-3 text-[13px] text-ink">
+                  <p className="mt-3 text-meta text-ink">
                     <span className="font-semibold">{t.examSim.awarded}: </span>
                     {item.finalAnswer}
                   </p>
@@ -135,8 +137,8 @@ export function ReviewQueue({ items }: { items: ReviewItem[] }) {
                 <div className="ruled">
                   {item.bareme.map((criterion, index) => (
                     <RuledRow key={index} className="justify-between">
-                      <span className="min-w-0 text-[13.5px] text-ink">{criterion.criterion}</span>
-                      <span className="shrink-0 tabular-nums text-[13px] font-semibold text-ink-muted">
+                      <span className="min-w-0 text-body text-ink">{criterion.criterion}</span>
+                      <span className="shrink-0 tabular-nums text-meta font-semibold text-ink-muted">
                         {criterion.points}
                       </span>
                     </RuledRow>
@@ -155,10 +157,10 @@ export function ReviewQueue({ items }: { items: ReviewItem[] }) {
               className="min-h-[4rem]"
             />
             {item.itemType === 'generated_problem' && (
-              <p className="mt-2 text-[12.5px] text-ink-muted">{t.admin.publishNotice}</p>
+              <p className="mt-2 text-meta text-ink-muted">{t.admin.publishNotice}</p>
             )}
             {item.modelUsed && (
-              <p className="mt-1 text-[11.5px] text-ink-faint">{item.modelUsed}</p>
+              <p className="mt-1 text-caption text-ink-faint">{item.modelUsed}</p>
             )}
           </SheetBody>
 

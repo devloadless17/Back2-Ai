@@ -1,0 +1,11 @@
+node_modules
+.next
+.git
+.env
+.env.*
+uploads
+corpus
+docs
+tests
+*.log
+*.xlsx

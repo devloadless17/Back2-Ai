@@ -127,7 +127,7 @@ export function IngestionConsole({
                       <p className="truncate text-sm font-medium text-ink">
                         {job.sourceLabel ?? job.kind}
                       </p>
-                      <p className="text-[12px] text-ink-faint">
+                      <p className="text-caption text-ink-faint">
                         {[job.subjectName, job.kind, formatDate(job.createdAt)]
                           .filter(Boolean)
                           .join(' · ')}
@@ -158,7 +158,7 @@ export function IngestionConsole({
                   )}
 
                   {job.errorMessage && (
-                    <p className="mt-2 text-[12.5px] text-mark">{job.errorMessage}</p>
+                    <p className="mt-2 text-meta text-mark">{job.errorMessage}</p>
                   )}
                 </li>
               ))}
@@ -193,7 +193,7 @@ export function IngestionConsole({
                 )}
               </Field>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid gap-3 sm:grid-cols-2">
                 <Field label={t.oldCycles.year}>
                   {({ id }) => <Input id={id} name="year" type="number" min="1990" max="2100" />}
                 </Field>

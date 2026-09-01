@@ -1,7 +1,7 @@
 import { Sidebar, type SidebarCounts, type SidebarStanding } from '@/components/shell/sidebar';
 import { requireSession } from '@/lib/auth/guards';
 import { db } from '@/lib/db';
-import { getStanding } from '@/lib/queries/standing';
+import { getSidebarStanding } from '@/lib/queries/standing';
 import { markOutOf20 } from '@/lib/standing';
 
 /**
@@ -15,6 +15,12 @@ import { markOutOf20 } from '@/lib/standing';
  * The sidebar carries the two figures a candidate checks constantly — the
  * predicted mark out of 20, and how many days are left — so they are on every
  * screen without anyone having to navigate to them.
+ *
+ * Those two come from the nightly readiness snapshot rather than from a live
+ * `getStanding`. This layout renders on every page in the app, and recomputing
+ * the whole progress picture — every chapter in the track plus 120 days of
+ * attempts — to print two numbers was the largest avoidable cost on the read
+ * path. See `getSidebarStanding`.
  */
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const session = await requireSession();
@@ -27,12 +33,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     db.notification.count({ where: { userId: user.id, isRead: false } }),
     user.role === 'admin' ? db.reviewQueueItem.count({ where: { status: 'pending' } }) : Promise.resolve(0),
     user.trackId ? db.track.findUnique({ where: { id: user.trackId }, select: { code: true } }) : null,
-    getStanding(user.id, user.trackId),
+    getSidebarStanding(user.id, user.trackId, user.preferredLanguage),
   ]);
 
   const counts: SidebarCounts = { flashcardsDue, unreadNotifications, pendingReview };
   const sidebarStanding: SidebarStanding = {
-    mark: standing.overall,
+    mark: standing.mark,
     scale: markOutOf20(1),
     daysToExam: standing.daysToExam,
   };
@@ -51,9 +57,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       />
 
       <main className="min-w-0 flex-1">
-        {/* max-w keeps line length readable on wide monitors; the page body
-            itself must never scroll horizontally. */}
-        <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 lg:px-10 lg:py-10">{children}</div>
+        {/* No centred column. Reading measure is held where it belongs — by
+            `.prose-exam` at 68ch on the pages that are prose — so capping the
+            whole shell only ever produced dead margin either side of grids and
+            tables that would happily have used the room. The page fills the
+            window; padding steps down to the phone rather than up from it. */}
+        <div className="w-full px-3 py-5 sm:px-6 sm:py-6 lg:px-8 lg:py-8">{children}</div>
       </main>
     </div>
   );

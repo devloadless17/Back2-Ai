@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 
 import { ChatThread, type ChatMessageView } from '@/components/chat/chat-thread';
-import { Alert, Badge } from '@/components/ui/feedback';
+import { Alert } from '@/components/ui/feedback';
 import { QuestionBody } from '@/components/ui/math';
 import { PageHeader, Sheet, SheetBody, SheetHeader } from '@/components/ui/sheet';
 import { requireUser } from '@/lib/auth/guards';
@@ -89,36 +89,48 @@ export default async function ChatSessionPage({
         </Sheet>
       )}
 
-      {/* Correction-key mode. The student's own answer is pinned next to the
-          question, because the conversation is about the gap between them and
-          reading the tutor's references to "your line 3" is impossible without
-          line 3 on screen. */}
+      {/*
+        Correction-key mode.
+
+        The anchor stays on screen. It was a card at the top of the thread,
+        which is the same as not being there once the conversation is six
+        messages long — and this whole mode exists because the tutor says
+        things like "your line 3", which is unreadable without line 3 present.
+
+        So it sticks, collapsed to a chip by default. `<details>` rather than
+        state: it survives without JavaScript, the summary is focusable and
+        announced as a disclosure for free, and the open/closed choice persists
+        while the student scrolls rather than resetting on every re-render.
+      */}
       {session.attempt && (
-        <Sheet className="mb-5">
-          <SheetHeader
-            title={t.chat.anchoredAttempt}
-            description={t.chat.anchoredAttemptHint}
-            actions={
-              session.attempt.score !== null && session.attempt.maxScore !== null ? (
-                <Badge tone="partial">
-                  {Number(session.attempt.score)} / {Number(session.attempt.maxScore)}
-                </Badge>
-              ) : null
-            }
-          />
-          <SheetBody className="bg-paper-sunken/40">
-            <p className="mb-1.5 text-[12px] font-semibold uppercase tracking-wide text-ink-faint">
+        <details className="sticky top-0 z-20 mb-5 rounded-lg bg-paper-raised shadow-sheet" open>
+          <summary className="flex cursor-pointer list-none flex-wrap items-center gap-2 rounded-lg px-4 py-2.5 marker:hidden hover:bg-paper-sunken/60">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-primary-soft px-2.5 py-1 text-caption font-semibold text-primary">
+              {t.chat.anchoredAttempt}
+            </span>
+            {session.attempt.score !== null && session.attempt.maxScore !== null ? (
+              <span className="numeric text-meta font-semibold text-ink">
+                {Number(session.attempt.score)} / {Number(session.attempt.maxScore)}
+              </span>
+            ) : null}
+            <span className="min-w-0 flex-1 truncate text-caption text-ink-muted">
+              {t.chat.anchoredAttemptHint}
+            </span>
+          </summary>
+
+          <div className="border-t border-rule px-4 py-3">
+            <p className="mb-1.5 text-caption font-semibold uppercase tracking-wide text-ink-faint">
               {t.practice.yourAnswer}
             </p>
             {session.attempt.submittedAnswer?.trim() ? (
-              <pre className="scroll-x whitespace-pre-wrap font-mono text-[13px] leading-relaxed text-ink">
+              <pre className="scroll-x max-h-56 overflow-y-auto whitespace-pre-wrap font-mono text-meta leading-relaxed text-ink">
                 {session.attempt.submittedAnswer}
               </pre>
             ) : (
               <p className="text-sm text-ink-muted">{t.examSim.notAnswered}</p>
             )}
-          </SheetBody>
-        </Sheet>
+          </div>
+        </details>
       )}
 
       {session.uploadedImageUrl && (

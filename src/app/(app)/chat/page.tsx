@@ -76,7 +76,7 @@ export default async function ChatIndexPage() {
                     <span className="min-w-0 truncate text-sm text-ink">
                       {session.title ?? t.chat.newSession}
                     </span>
-                    <span className="shrink-0 text-[12px] text-ink-faint">
+                    <span className="shrink-0 text-caption text-ink-faint">
                       {formatDate(locale, session.updatedAt)}
                     </span>
                   </Link>

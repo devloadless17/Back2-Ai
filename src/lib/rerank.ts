@@ -3,7 +3,7 @@ import 'server-only';
 import { z } from 'zod';
 
 import { ai } from '@/lib/ai';
-import { env, isAiConfigured } from '@/lib/env';
+import { isAiConfigured } from '@/lib/env';
 
 /**
  * Reordering retrieved passages by reading them.
@@ -94,7 +94,7 @@ export async function rerankByRelevance<T extends Rerankable>(
       schemaName: 'passage_ranking',
       effort: opts.effort ?? 'low',
       maxTokens: 400,
-      model: opts.model ?? env().OPENAI_MODEL_VERIFY,
+      model: opts.model ?? ai().verifyModel,
       parse: (value) => rankingSchema.parse(value),
     });
 

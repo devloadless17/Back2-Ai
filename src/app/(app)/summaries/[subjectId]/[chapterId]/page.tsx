@@ -50,7 +50,7 @@ export default async function ChapterSummaryPage({
 
       <Link
         href={`/summaries/${chapter.subject.id}`}
-        className="mb-5 inline-block text-[13px] text-ink-faint underline-offset-2 hover:underline"
+        className="mb-5 inline-block text-meta text-ink-faint underline-offset-2 hover:underline"
       >
         ← {chapter.subject.name}
       </Link>
@@ -72,7 +72,7 @@ export default async function ChapterSummaryPage({
             <SheetHeader title={t.summaries.overview} />
             <SheetBody>
               <p className="text-sm leading-relaxed text-ink">{summary.overview}</p>
-              <p className="mt-3 text-[12px] text-ink-faint">
+              <p className="mt-3 text-caption text-ink-faint">
                 {format(t.summaries.writtenFrom, { count: summary.sourceChunkIds.length })}
                 {summary.pastQuestions > 0
                   ? ` · ${format(t.summaries.pastQuestions, { count: summary.pastQuestions })}`

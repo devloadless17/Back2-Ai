@@ -4,7 +4,7 @@ import { z } from 'zod';
 
 import { ai } from '@/lib/ai';
 import { db } from '@/lib/db';
-import { env, isAiConfigured } from '@/lib/env';
+import { isAiConfigured } from '@/lib/env';
 
 /**
  * Flashcards written from the textbook, for chapters a student has not
@@ -203,6 +203,19 @@ export async function fillFlashcardBank(input: {
   const drafts: FlashcardDraft[] = [];
   const rejected: FlashcardBankResult['rejected'] = [];
 
+  /*
+   * Cheap filters first, in order, because the duplicate test is the only one
+   * that depends on what came before it.
+   *
+   * It now compares a card against everything still standing rather than
+   * against the cards that went on to pass verification. That is a real change
+   * and it is the better rule: two cards asking the same thing are duplicates
+   * of each other whether or not the first survives its check, and the old
+   * version made the outcome depend on the order the model happened to emit
+   * them in.
+   */
+  const candidates: { card: (typeof response.data.cards)[number]; passageId: string; text: string }[] = [];
+
   for (const card of response.data.cards) {
     const cited = numbered.find((n) => n.number === card.passage);
     if (!cited) {
@@ -213,67 +226,209 @@ export async function fillFlashcardBank(input: {
       rejected.push({ reason: 'back too long to self-grade', front: card.front });
       continue;
     }
-    if (drafts.some((d) => overlap(d.front, card.front) >= NEAR_DUPLICATE)) {
+    if (candidates.some((c) => overlap(c.card.front, card.front) >= NEAR_DUPLICATE)) {
       rejected.push({ reason: 'near-duplicate of another card', front: card.front });
       continue;
     }
+    candidates.push({ card, passageId: cited.passage.id, text: cited.passage.contentText });
+  }
 
-    let checked;
-    try {
-      checked = await ai().completeJson({
-        system: [
-          'You are given one passage from a textbook, one flashcard front, and the back that was',
-          'written for it.',
-          '',
-          'Answer the front from the passage alone, then report two things:',
-          'answerable — whether the passage actually answers the front at all.',
-          'agrees — whether the given back says the same thing as the passage does.',
-          '',
-          'Judge only on the passage. A back that is correct in general but not supported by this',
-          'passage is not agreement: say false. Wording may differ; meaning may not.',
-        ].join('\n'),
-        messages: [
-          {
-            role: 'user',
-            content: [
-              '# Passage',
-              cited.passage.contentText.slice(0, 2500),
-              '',
-              '# Front',
-              card.front,
-              '',
-              '# Back as written',
-              card.back,
-            ].join('\n'),
-          },
-        ],
-        schema: CHECK_SCHEMA as unknown as Record<string, unknown>,
-        schemaName: 'flashcard_check',
-        effort: 'low',
-        model: env().OPENAI_MODEL_VERIFY,
-        parse: (value) => checkSchema.parse(value),
-      });
-    } catch {
-      rejected.push({ reason: 'the check could not be run', front: card.front });
+  /*
+   * Then the expensive one, all at once.
+   *
+   * Each check reads one passage and one card and knows nothing about the
+   * others, so running them in series bought no ordering and cost a full round
+   * trip each: a ten-card request measured about 48 seconds end to end, against
+   * the 60-second ceiling a serverless host allows a function on its entry
+   * plan — and that is before the drafting call above is counted. Concurrently
+   * the whole step costs roughly one call.
+   *
+   * `allSettled` rather than `all`: one check failing has to reject one card,
+   * not discard the nine that came back fine.
+   */
+  const checks = await Promise.allSettled(
+    candidates.map((entry) => verifyCard(entry.card, entry.text)),
+  );
+
+  for (const [index, settled] of checks.entries()) {
+    const entry = candidates[index];
+    if (!entry) continue;
+
+    if (settled.status === 'rejected') {
+      rejected.push({ reason: 'the check could not be run', front: entry.card.front });
       continue;
     }
-
-    if (!checked.data.answerable) {
-      rejected.push({ reason: 'the passage does not answer the front', front: card.front });
+    if (!settled.value.answerable) {
+      rejected.push({ reason: 'the passage does not answer the front', front: entry.card.front });
       continue;
     }
-    if (!checked.data.agrees) {
-      rejected.push({ reason: 'the back does not match the passage', front: card.front });
+    if (!settled.value.agrees) {
+      rejected.push({ reason: 'the back does not match the passage', front: entry.card.front });
       continue;
     }
 
     drafts.push({
       chapterId: chapter.id,
-      sourceChunkId: cited.passage.id,
-      front: card.front,
-      back: card.back,
+      sourceChunkId: entry.passageId,
+      front: entry.card.front,
+      back: entry.card.back,
     });
   }
 
   return { drafts, rejected, status: 'ok' };
+}
+
+/**
+ * The second opinion on one card.
+ *
+ * Given the passage alone it answers the front itself, then reports whether the
+ * passage answers it at all and whether the back as written agrees. Lifted out
+ * of the loop so the checks can run concurrently; the prompt is unchanged.
+ */
+async function verifyCard(
+  card: { front: string; back: string },
+  passageText: string,
+): Promise<{ agrees: boolean; answerable: boolean }> {
+  const checked = await ai().completeJson({
+    system: [
+      'You are given one passage from a textbook, one flashcard front, and the back that was',
+      'written for it.',
+      '',
+      'Answer the front from the passage alone, then report two things:',
+      'answerable — whether the passage actually answers the front at all.',
+      'agrees — whether the given back says the same thing as the passage does.',
+      '',
+      'Judge only on the passage. A back that is correct in general but not supported by this',
+      'passage is not agreement: say false. Wording may differ; meaning may not.',
+    ].join('\n'),
+    messages: [
+      {
+        role: 'user',
+        content: [
+          '# Passage',
+          passageText.slice(0, 2500),
+          '',
+          '# Front',
+          card.front,
+          '',
+          '# Back as written',
+          card.back,
+        ].join('\n'),
+      },
+    ],
+    schema: CHECK_SCHEMA as unknown as Record<string, unknown>,
+    schemaName: 'flashcard_check',
+    effort: 'low',
+    model: ai().verifyModel,
+    parse: (value) => checkSchema.parse(value),
+  });
+
+  return checked.data;
+}
+
+/**
+ * The result of seeding one chapter's deck.
+ *
+ * `added` can be less than `wanted` without anything being wrong: a card is
+ * dropped if the passage it cites does not answer it, if the check disagrees
+ * with its back, or if it repeats a card the student already has. Reporting the
+ * number that survived rather than the number asked for is the honest figure,
+ * and the screen shows it.
+ */
+export type SeedResult = {
+  added: number;
+  status: 'ok' | 'not_configured' | 'no_material';
+};
+
+/**
+ * Writes a chapter's cards and puts them in one student's deck.
+ *
+ * This is the step `fillFlashcardBank` deliberately does not take — it drafts
+ * and checks, and stops. Everything that decides whether a card is *published*
+ * lives here, where it can be read in one place:
+ *
+ *   * Rows go to `generated_cards`, never to `questions`. The question corpus
+ *     is the product's central claim and no model writes into it.
+ *   * The card belongs to the student who asked for it. Nobody else is dealt it,
+ *     and it is invisible to retrieval, practice, exams, coverage and mastery.
+ *   * It is due immediately — a student who asked for ten cards tonight meant
+ *     tonight, and SM-2 takes over from the first grade.
+ *   * Every card is filed to the review queue as it is dealt. A human still sees
+ *     all of it; they see it after the student rather than before, and rejecting
+ *     one retires it. That trade is defensible for a private revision prompt
+ *     grounded in a cited passage. It would not be for a marked question, which
+ *     is why generated *problems* still wait for approval.
+ *
+ * Re-seeding the same chapter tops it up rather than duplicating it: a draft
+ * that repeats a card the student already holds is dropped on the same
+ * near-duplicate test used within a batch.
+ */
+export async function seedChapterDeck(input: {
+  userId: string;
+  chapterId: string;
+  count?: number;
+}): Promise<SeedResult> {
+  const result = await fillFlashcardBank({ chapterId: input.chapterId, count: input.count });
+  if (result.status !== 'ok') return { added: 0, status: result.status };
+
+  const existing = await db.generatedCard.findMany({
+    where: { createdForUserId: input.userId, chapterId: input.chapterId, retiredAt: null },
+    select: { front: true },
+  });
+
+  const fresh = result.drafts.filter(
+    (draft) => !existing.some((card) => overlap(card.front, draft.front) >= NEAR_DUPLICATE),
+  );
+  if (fresh.length === 0) return { added: 0, status: 'ok' };
+
+  const modelUsed = ai().defaultModel;
+
+  /*
+   * One transaction. A card row without its scheduling row is a card that can
+   * never be dealt, and a scheduling row without its review-queue entry is a
+   * card in a student's deck that no human was ever told about — the second is
+   * the one that matters, because the whole basis for dealing these before
+   * review is that the review reliably happens.
+   */
+  await db.$transaction(async (tx) => {
+    for (const draft of fresh) {
+      const card = await tx.generatedCard.create({
+        data: {
+          chapterId: draft.chapterId,
+          sourceChunkId: draft.sourceChunkId,
+          createdForUserId: input.userId,
+          front: draft.front,
+          back: draft.back,
+          modelUsed,
+        },
+        select: { id: true },
+      });
+
+      await tx.flashcardState.create({
+        data: { userId: input.userId, generatedCardId: card.id, dueDate: startOfUtcToday() },
+      });
+
+      await tx.reviewQueueItem.create({
+        data: {
+          itemType: 'generated_flashcard',
+          itemId: card.id,
+          flaggedByUserId: input.userId,
+          flagReason: 'written from the textbook and dealt to a student',
+        },
+      });
+    }
+  });
+
+  return { added: fresh.length, status: 'ok' };
+}
+
+/**
+ * Midnight UTC today — the same boundary `flashcard_state.due_date`,
+ * `startOfToday` in the deck queries and every other date in this product use.
+ * A card seeded with a local-midnight date would be due a day early west of
+ * UTC and a day late east of it.
+ */
+function startOfUtcToday(): Date {
+  const now = new Date();
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
 }

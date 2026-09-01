@@ -187,7 +187,7 @@ export function TodoList({
               <button
                 type="button"
                 onClick={() => setShowCompleted((current) => !current)}
-                className="text-[12.5px] font-medium text-primary underline-offset-2 hover:underline"
+                className="text-meta font-medium text-primary underline-offset-2 hover:underline"
               >
                 {showCompleted ? t.todos.hideCompleted : t.todos.showCompleted}
               </button>
@@ -232,12 +232,12 @@ export function TodoList({
                           {href ? (
                             <Link
                               href={href}
-                              className="text-[12px] font-medium text-primary underline-offset-2 hover:underline"
+                              className="text-caption font-medium text-primary underline-offset-2 hover:underline"
                             >
                               {item.chapterName}
                             </Link>
                           ) : (
-                            <span className="text-[12px] text-ink-faint">{item.chapterName}</span>
+                            <span className="text-caption text-ink-faint">{item.chapterName}</span>
                           )}
                           {item.linkedAction && (
                             <Badge tone="neutral">
@@ -257,7 +257,7 @@ export function TodoList({
                     <button
                       type="button"
                       onClick={() => remove(item.id)}
-                      className="shrink-0 rounded px-2 py-0.5 text-[12px] text-ink-faint transition-colors hover:text-mark"
+                      className="shrink-0 rounded px-2 py-0.5 text-caption text-ink-faint transition-colors hover:text-mark"
                     >
                       {t.common.delete}
                     </button>

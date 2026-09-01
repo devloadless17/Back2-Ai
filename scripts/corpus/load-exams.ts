@@ -29,6 +29,8 @@
  */
 
 import { createHash } from 'node:crypto';
+
+import { loadSidecars, schemeFor } from './scheme-sidecars';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 
@@ -334,6 +336,7 @@ async function main() {
   let understated = 0;
   /** Barèmes refused because their total cannot be right. */
   let implausible = 0;
+  let fromScheme = 0;
   /** Exercises whose unmarked parts were given the shortfall as one criterion. */
   let completed = 0;
 
@@ -347,6 +350,18 @@ async function main() {
    */
   const seenRefs = new Set<string>();
   const touchedCycles = new Set<string>();
+
+  /*
+   * The schemes recovered by `corpus:schemes`, if any have been.
+   *
+   * Read once rather than per paper: there is one small file per paper and a
+   * full corpus load walks every paper, so opening the directory each time
+   * would be thousands of redundant reads of data that cannot change during
+   * the run. An empty directory is the normal case on a machine that has
+   * never run the reader, and everything below then behaves as it did before.
+   */
+  const sidecars = loadSidecars(path.resolve('corpus/schemes'));
+  if (sidecars.size > 0) console.log(`  marking schemes on hand    ${sidecars.size} paper(s)`);
 
   for (const exam of exams) {
     if (BREVET.test(exam.file) || BREVET.test(exam.path)) {
@@ -445,8 +460,30 @@ async function main() {
         continue;
       }
 
+      /*
+       * The paper's own marking scheme, where `corpus:schemes` recovered it.
+       *
+       * Preferred over everything inferred below, and not as a better guess:
+       * the text path is trying to RECONSTRUCT this table from marks printed
+       * beside the questions, and where a paper prints none it falls back to
+       * one criterion covering the whole exercise. 2,221 questions are in that
+       * state, which marks a six-part exercise as a single lump and tells a
+       * student who got four parts right only that they lost marks somewhere.
+       * The scheme is the ministry's own row-by-row version of exactly that.
+       *
+       * Per exercise, not per paper. A scheme read only in part still gives
+       * its exercises to the questions it covered, and the rest fall through
+       * to the text path rather than being blanked.
+       */
+      const sidecar = sidecars.get(exam.sha256);
+      const scheme = sidecar ? schemeFor(sidecar, exercise.index, order + 1) : null;
+
       const answered = exercise.parts.filter((p) => p.answer);
-      const solution = answered.length ? clean(answered.map((p) => `${p.label} ${p.answer}`).join('\n')) : null;
+      const solution = scheme?.solution
+        ? clean(scheme.solution)
+        : answered.length
+          ? clean(answered.map((p) => `${p.label} ${p.answer}`).join('\n'))
+          : null;
       const perPart = exercise.parts
         .filter((p) => typeof p.marks === 'number')
         .map((p) => ({ criterion: clean(`${p.label} ${p.text}`).slice(0, 300), points: p.marks as number }));
@@ -454,11 +491,14 @@ async function main() {
       // Per-part marks where the paper gives them; otherwise the exercise as a
       // whole, worth what its header states. See `wholeExerciseCriterion`.
       const bareme =
-        perPart.length > 0
-          ? perPart
-          : exercise.marks > 0
-            ? [{ criterion: wholeExerciseCriterion(exercise), points: exercise.marks }]
-            : [];
+        scheme && scheme.bareme.length > 0
+          ? scheme.bareme.map((c) => ({ ...c }))
+          : perPart.length > 0
+            ? perPart
+            : exercise.marks > 0
+              ? [{ criterion: wholeExerciseCriterion(exercise), points: exercise.marks }]
+              : [];
+      const baremeFromScheme = Boolean(scheme && scheme.bareme.length > 0);
 
       /*
        * An exercise whose parts carry only SOME of its marks was scored out of
@@ -478,7 +518,12 @@ async function main() {
        * every part already marked means a mark was misread somewhere, and
        * inventing a criterion for it would paper over that.
        */
-      if (perPart.length > 0 && exercise.marks > 0) {
+      // Not against a scheme-derived barème. The shortfall rule exists because
+      // the text path recovers only SOME parts' marks; a scheme that already
+      // reconciled against the exercise total has no shortfall to explain, and
+      // inventing a criterion for a rounding difference would corrupt an
+      // official reading.
+      if (!baremeFromScheme && perPart.length > 0 && exercise.marks > 0) {
         const covered = perPart.reduce((sum, c) => sum + c.points, 0);
         const missing = exercise.marks - covered;
         const unmarked = exercise.parts.filter((p) => typeof p.marks !== 'number');
@@ -514,7 +559,21 @@ async function main() {
       questions += 1;
       if (solution) withSolution += 1;
       if (bareme.length) withBareme += 1;
-      if (!perPart.length && bareme.length) wholeExercise += 1;
+      if (baremeFromScheme) fromScheme += 1;
+      /*
+       * A multi-part exercise carrying ONE criterion for the whole of it.
+       *
+       * Keyed off the barème that was actually stored, not off `perPart`.
+       * Keying it off `perPart` measured whether the TEXT path found per-part
+       * marks, which stopped being the same question the moment a scheme could
+       * supply them instead: 529 exercises went from a single lump to a
+       * row-by-row breakdown and this counter did not move, because it was
+       * still reporting on a path they no longer take.
+       *
+       * What matters to a student is whether their marks come back split by
+       * part or as one number, so that is what is counted.
+       */
+      if (bareme.length === 1 && exercise.parts.length > 1) wholeExercise += 1;
 
       /*
        * An exercise whose parts carry SOME of its marks is scored out of those
@@ -585,21 +644,53 @@ async function main() {
          */
         const priorBareme = baremeKey(known[0]!.bareme);
         const nextBareme = baremeKey(bareme.length ? bareme : null);
-        if (
-          known[0]!.content_text !== statement ||
+
+        /*
+         * THE EMBEDDING IS CLEARED ONLY WHEN THE STATEMENT CHANGED.
+         *
+         * The vector is computed from `content_text` and nothing else — see the
+         * `embed(statement)` call below. A solution, a barème or a passage can
+         * change without moving it by a thousandth, so clearing it for those is
+         * not conservative, it is destructive: a question with no vector is
+         * invisible to every search in the system until a backfill runs.
+         *
+         * This file already carries that warning, against the jsonb key-order
+         * bug that used to rewrite all 3,326 marked questions every load. That
+         * fix corrected the COMPARISON and left the INVALIDATION as wide as it
+         * had always been, so the same failure came back through a different
+         * door: loading 129 recovered marking schemes changed 528 questions'
+         * solutions and barèmes — their statements untouched — and emptied 528
+         * valid vectors, taking those questions out of retrieval entirely.
+         *
+         * Narrow the invalidation to what the vector is actually made of.
+         */
+        const statementChanged = known[0]!.content_text !== statement;
+        const anythingChanged =
+          statementChanged ||
           (known[0]!.official_solution ?? null) !== solution ||
           priorBareme !== nextBareme ||
-          (known[0]!.source_passage ?? null) !== passage
-        ) {
-          await db.$executeRaw`
-            UPDATE questions
-            SET content_text = ${statement},
-                official_solution = ${solution},
-                bareme = ${bareme.length ? JSON.stringify(bareme) : null}::jsonb,
-                source_passage = ${passage},
-                embedding = NULL
-            WHERE id = ${known[0]!.id}::uuid
-          `;
+          (known[0]!.source_passage ?? null) !== passage;
+
+        if (anythingChanged) {
+          if (statementChanged) {
+            await db.$executeRaw`
+              UPDATE questions
+              SET content_text = ${statement},
+                  official_solution = ${solution},
+                  bareme = ${bareme.length ? JSON.stringify(bareme) : null}::jsonb,
+                  source_passage = ${passage},
+                  embedding = NULL
+              WHERE id = ${known[0]!.id}::uuid
+            `;
+          } else {
+            await db.$executeRaw`
+              UPDATE questions
+              SET official_solution = ${solution},
+                  bareme = ${bareme.length ? JSON.stringify(bareme) : null}::jsonb,
+                  source_passage = ${passage}
+              WHERE id = ${known[0]!.id}::uuid
+            `;
+          }
           revised += 1;
         }
         continue;
@@ -680,6 +771,9 @@ async function main() {
   }
   console.log(`  with an official solution ${withSolution}`);
   console.log(`  with a barème             ${withBareme}`);
+  if (fromScheme > 0) {
+    console.log(`    from the paper's own scheme ${fromScheme}   (row by row, on the paper's scale)`);
+  }
   console.log(`    of those, marked whole  ${wholeExercise}   (paper states a total, not a split)`);
   console.log(`  with the paper's passage  ${withPassage}`);
   if (completed) {

@@ -64,6 +64,15 @@ export function SignupForm({ tracks }: { tracks: SignupTrack[] }) {
   const [, setFieldErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
 
+  /*
+   * Whether this step can take money at all.
+   *
+   * Read once here rather than in three places below, because every branch on
+   * this screen — which plans are selectable, whether a card is asked for,
+   * whether "skip" is even a thing to skip — is the same question.
+   */
+  const paidPlansLocked = !PAYMENTS_ENABLED;
+
   /**
    * Creates the account.
    *
@@ -157,21 +166,39 @@ export function SignupForm({ tracks }: { tracks: SignupTrack[] }) {
         />
       ) : (
         <div className="space-y-5">
-          <PlanPicker value={plan} onChange={setPlan} disabled={submitting} />
+          <PlanPicker
+            value={plan}
+            onChange={setPlan}
+            disabled={submitting}
+            lockPaidPlans={paidPlansLocked}
+          />
 
-          {PLANS[plan].requiresCard && (
+          {/*
+            While nothing can be charged this step is a placeholder and says so.
+            No card is asked for, because asking for one at the end of signup is
+            the single most expensive question a product can pose, and this one
+            would be asked for a plan that does not exist yet and a charge that
+            cannot be made. The billing screen still takes a card afterwards for
+            anyone who wants to leave one; the front door does not.
+          */}
+          {paidPlansLocked ? (
+            <Alert tone="info">{t.billing.planLaunchNote}</Alert>
+          ) : (
             <>
-              <div className="space-y-1 border-t border-rule pt-5">
-                <h2 className="text-[15px] font-medium text-ink">{t.billing.paymentMethod}</h2>
-              </div>
-              <CardFields value={card} onChange={setCard} errors={cardErrors} disabled={submitting} />
+              {PLANS[plan].requiresCard && (
+                <>
+                  <div className="space-y-1 border-t border-rule pt-5">
+                    <h2 className="text-body font-medium text-ink">{t.billing.paymentMethod}</h2>
+                  </div>
+                  <CardFields
+                    value={card}
+                    onChange={setCard}
+                    errors={cardErrors}
+                    disabled={submitting}
+                  />
+                </>
+              )}
             </>
-          )}
-
-          {!PAYMENTS_ENABLED && (
-            <Alert tone="info" title={t.billing.notConnected}>
-              {t.billing.notConnectedBody}
-            </Alert>
           )}
 
           <div className="flex flex-col gap-2 sm:flex-row-reverse">
@@ -180,35 +207,37 @@ export function SignupForm({ tracks }: { tracks: SignupTrack[] }) {
               size="lg"
               fullWidth
               loading={submitting}
-              onClick={() => createAccount(true)}
+              onClick={() => createAccount(!paidPlansLocked)}
             >
               {t.billing.finishSignup}
             </Button>
-            <Button
-              size="lg"
-              fullWidth
-              disabled={submitting}
-              onClick={() => createAccount(false)}
-              // Skipping is a real choice here, so it stays a visible button
-              // rather than a link buried under the primary action.
-              className={cn(isCardStarted(card) && 'sm:flex-1')}
-            >
-              {t.billing.skipForNow}
-            </Button>
+            {paidPlansLocked ? null : (
+              <Button
+                size="lg"
+                fullWidth
+                disabled={submitting}
+                onClick={() => createAccount(false)}
+                // Skipping is a real choice here, so it stays a visible button
+                // rather than a link buried under the primary action.
+                className={cn(isCardStarted(card) && 'sm:flex-1')}
+              >
+                {t.billing.skipForNow}
+              </Button>
+            )}
           </div>
 
           <button
             type="button"
             onClick={() => setStep(1)}
             disabled={submitting}
-            className="text-[13px] font-medium text-ink-muted underline-offset-2 hover:text-ink hover:underline disabled:opacity-50"
+            className="text-meta font-medium text-ink-muted underline-offset-2 hover:text-ink hover:underline disabled:opacity-50"
           >
             ← {t.auth.backToDetails}
           </button>
         </div>
       )}
 
-      <p className="text-center text-[12px] text-ink-faint">
+      <p className="text-center text-caption text-ink-faint">
         {format(t.auth.stepOf, { current: step, total: 2 })}
       </p>
     </div>
@@ -229,7 +258,7 @@ function StepIndicator({ step }: { step: 1 | 2 }) {
             <div
               aria-current={state === 'current' ? 'step' : undefined}
               className={cn(
-                'border-t-2 pt-2 text-[12.5px] font-medium transition-colors duration-150',
+                'border-t-2 pt-2 text-meta font-medium transition-colors duration-150',
                 state === 'upcoming' ? 'border-rule text-ink-faint' : 'border-primary text-primary',
               )}
             >

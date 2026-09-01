@@ -106,7 +106,19 @@ export function BillingManager({ initial }: { initial: BillingState }) {
             </Badge>
           </div>
 
-          <PlanPicker value={plan} onChange={setPlan} disabled={saving} />
+          {/*
+            Same treatment as signup: the paid tiers are shown and disabled
+            while no processor is connected, rather than offered as if choosing
+            one did something. A student already on a paid plan still sees it
+            ticked — it is their plan, it is simply not a thing they can switch
+            to or away from here today.
+          */}
+          <PlanPicker
+            value={plan}
+            onChange={setPlan}
+            disabled={saving}
+            lockPaidPlans={!PAYMENTS_ENABLED}
+          />
 
           {PLANS[plan].requiresCard && !hasStoredCard && !editingCard && (
             <Alert tone="warning">{t.billing.noCard}</Alert>
@@ -133,7 +145,7 @@ export function BillingManager({ initial }: { initial: BillingState }) {
                   {format(t.billing.endsIn, { last4: initial.cardLast4 ?? '' })}
                 </p>
                 {initial.cardExpMonth && initial.cardExpYear && (
-                  <p className="text-[12.5px] text-ink-muted">
+                  <p className="text-meta text-ink-muted">
                     {format(t.billing.expiresOn, {
                       month: String(initial.cardExpMonth).padStart(2, '0'),
                       year: initial.cardExpYear,

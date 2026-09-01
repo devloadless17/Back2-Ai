@@ -3,10 +3,12 @@
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
+import { FlipCard } from '@/components/flashcards/flip-card';
 import { Button, LinkButton } from '@/components/ui/button';
 import { Badge, EmptyState } from '@/components/ui/feedback';
 import { MathText } from '@/components/ui/math';
-import { Meter } from '@/components/ui/progress';
+import { IconAgain, IconEasy, IconGood, IconHard } from '@/components/shell/icons';
+import { Meter, SessionDots } from '@/components/ui/progress';
 import { Sheet, SheetBody, SheetFooter, SheetHeader } from '@/components/ui/sheet';
 import { cn } from '@/lib/cn';
 import { sendJson } from '@/lib/client/request';
@@ -27,11 +29,20 @@ import type { ReviewGrade } from '@/lib/scoring/sm2';
  * in-session repeat is on top of that, not instead of it.
  */
 
-const GRADES: { grade: ReviewGrade; tone: string }[] = [
-  { grade: 'again', tone: 'border-mark/40 text-mark hover:bg-mark-soft' },
-  { grade: 'hard', tone: 'border-partial/40 text-partial hover:bg-partial-soft' },
-  { grade: 'good', tone: 'border-rule-strong text-ink hover:bg-paper-sunken' },
-  { grade: 'easy', tone: 'border-correct/40 text-correct hover:bg-correct-soft' },
+/**
+ * Each grade carries its own shape, not a position on a colour ramp.
+ *
+ * Four buttons shading red-through-green is the classic spaced-repetition
+ * layout and it is exactly the pattern the status rules rule out: "a bit more
+ * orange than the one beside it" is not a distinction a colourblind student can
+ * make, and it is no distinction at all in greyscale. The icon does the work;
+ * the colour agrees with it.
+ */
+const GRADES: { grade: ReviewGrade; tone: string; Icon: typeof IconAgain }[] = [
+  { grade: 'again', tone: 'border-mark/40 text-mark hover:bg-mark-soft', Icon: IconAgain },
+  { grade: 'hard', tone: 'border-partial/40 text-partial hover:bg-partial-soft', Icon: IconHard },
+  { grade: 'good', tone: 'border-rule-strong text-ink hover:bg-paper-sunken', Icon: IconGood },
+  { grade: 'easy', tone: 'border-correct/40 text-correct hover:bg-correct-soft', Icon: IconEasy },
 ];
 
 export function ReviewSession({ cards }: { cards: DueCard[] }) {
@@ -104,7 +115,8 @@ export function ReviewSession({ cards }: { cards: DueCard[] }) {
     // Post in the background — the student should not wait on the network
     // between two cards.
     void sendJson('/api/flashcards/review', 'POST', {
-      questionId: card.questionId,
+      source: card.source,
+      cardId: card.cardId,
       grade: value,
     }).catch(() => undefined);
 
@@ -150,60 +162,92 @@ export function ReviewSession({ cards }: { cards: DueCard[] }) {
     );
   }
 
-  const progress = total === 0 ? 0 : Math.min(1, reviewed / total);
-
   return (
     <div className="mx-auto max-w-2xl space-y-4">
-      <Meter
-        value={progress}
-        label={`${Math.min(reviewed + 1, total)} ${t.common.of} ${total}`}
-        caption={format(t.flashcards.dueCount, { count: queue.length - index })}
-        size="sm"
-        tone="primary"
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <SessionDots
+          total={total}
+          done={reviewed}
+          label={`${Math.min(reviewed + 1, total)} ${t.common.of} ${total}`}
+        />
+        <p className="numeric text-caption text-ink-muted">
+          {format(t.flashcards.dueCount, { count: queue.length - index })}
+        </p>
+      </div>
+
+      {/*
+        The card turns to reveal the answer.
+        
+        The turn is the interaction, not decoration — it is what makes "did I
+        actually know that?" a moment rather than a scroll past the answer. Both
+        faces are in the DOM from the start so the answer exists for a screen
+        reader before the flip; `backface-visibility` is what hides it visually.
+      */}
+      <FlipCard
+        className={cn('transition-opacity duration-150', leaving ? 'opacity-0' : 'animate-fade-in')}
+        flipped={flipped}
+        onFlip={() => setFlipped(true)}
+        label={flipped ? t.flashcards.answer : t.flashcards.tapToReveal}
+        front={
+          <>
+            <SheetHeader
+              title={card.chapterName}
+              description={
+                card.source === 'generated'
+                  ? t.flashcards.fromTextbookHint
+                  : card.aheadOfSchedule
+                    ? t.flashcards.aheadOfScheduleHint
+                    : card.subjectName
+              }
+              actions={
+                <div className="flex items-center gap-1.5">
+                  {/* A student is owed the knowledge that this one was written
+                      from their textbook rather than set by an examiner — the
+                      two are worth different amounts when revising, and the
+                      product says so everywhere else it matters. */}
+                  {card.source === 'generated' && (
+                    <Badge tone="accent">{t.flashcards.fromTextbook}</Badge>
+                  )}
+                  {card.aheadOfSchedule && (
+                    <Badge tone="partial">{t.flashcards.aheadOfSchedule}</Badge>
+                  )}
+                  <Badge tone="neutral">
+                    {card.repetitions === 0 ? '1' : `${card.repetitions + 1}`}
+                  </Badge>
+                </div>
+              }
+            />
+            <SheetBody className="flex flex-1 items-center justify-center text-center">
+              <MathText>{card.contentLatex || card.contentText}</MathText>
+            </SheetBody>
+            {!flipped && (
+              <p className="pb-3 text-center text-caption text-ink-faint">
+                {t.flashcards.tapToReveal}
+              </p>
+            )}
+          </>
+        }
+        back={
+          <>
+            <SheetHeader title={t.flashcards.answer} description={card.chapterName} />
+            <SheetBody className="flex flex-1 items-center justify-center text-center">
+              {card.officialSolutionLatex || card.officialSolution ? (
+                <MathText>{card.officialSolutionLatex ?? card.officialSolution ?? ''}</MathText>
+              ) : (
+                <p className="text-sm text-ink-muted">{t.flashcards.noSolution}</p>
+              )}
+            </SheetBody>
+          </>
+        }
       />
 
-      {/* The card fades as it is graded, so the deck visibly shortens rather
-          than silently replacing its first item. */}
-      <Sheet
-        className={cn(
-          'transition-opacity duration-150',
-          leaving ? 'opacity-0' : 'animate-fade-in',
-        )}
-      >
-        <SheetHeader
-          title={card.chapterName}
-          description={card.aheadOfSchedule ? t.flashcards.aheadOfScheduleHint : card.subjectName}
-          actions={
-            <div className="flex items-center gap-1.5">
-              {card.aheadOfSchedule && <Badge tone="partial">{t.flashcards.aheadOfSchedule}</Badge>}
-              <Badge tone="neutral">{card.repetitions === 0 ? '1' : `${card.repetitions + 1}`}</Badge>
-            </div>
-          }
-        />
-
-        <SheetBody className="min-h-[9rem]">
-          <MathText>{card.contentLatex || card.contentText}</MathText>
-        </SheetBody>
-
-        {flipped && (
-          <SheetBody className="animate-fade-in border-t border-rule bg-paper-sunken/40">
-            <p className="mb-2 text-[12px] font-semibold uppercase tracking-wide text-ink-faint">
-              {t.practice.solution}
-            </p>
-            {card.officialSolution || card.officialSolutionLatex ? (
-              <MathText>{card.officialSolutionLatex || card.officialSolution || ''}</MathText>
-            ) : (
-              <p className="text-sm text-ink-muted">{t.examSim.notAnswered}</p>
-            )}
-          </SheetBody>
-        )}
-
+      <Sheet>
         <SheetFooter className={flipped ? 'flex-col items-stretch gap-3' : ''}>
           {flipped ? (
             <>
-              <p className="text-[13px] font-medium text-ink">{t.flashcards.howWasIt}</p>
+              <p className="text-meta font-medium text-ink">{t.flashcards.howWasIt}</p>
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                {GRADES.map(({ grade: value, tone }, position) => (
+                {GRADES.map(({ grade: value, tone, Icon }, position) => (
                   <button
                     key={value}
                     type="button"
@@ -216,13 +260,14 @@ export function ReviewSession({ cards }: { cards: DueCard[] }) {
                       tone,
                     )}
                   >
+                    <Icon width={17} height={17} className="mb-0.5" />
                     <span className="text-sm font-medium">
                       {t.flashcards[value]}
-                      <kbd className="ms-1.5 hidden font-mono text-[10px] font-normal text-ink-faint sm:inline">
+                      <kbd className="ms-1.5 hidden font-mono text-micro font-normal text-ink-faint sm:inline">
                         {position + 1}
                       </kbd>
                     </span>
-                    <span className="text-[11.5px] text-ink-faint">
+                    <span className="text-caption text-ink-faint">
                       {t.flashcards[`${value}Hint` as const]}
                     </span>
                   </button>
@@ -232,7 +277,7 @@ export function ReviewSession({ cards }: { cards: DueCard[] }) {
           ) : (
             <Button variant="primary" fullWidth onClick={() => setFlipped(true)}>
               {t.flashcards.showAnswer}
-              <kbd className="ms-1.5 hidden font-mono text-[10px] font-normal opacity-70 sm:inline">
+              <kbd className="ms-1.5 hidden font-mono text-micro font-normal opacity-70 sm:inline">
                 space
               </kbd>
             </Button>
@@ -244,7 +289,7 @@ export function ReviewSession({ cards }: { cards: DueCard[] }) {
         <button
           type="button"
           onClick={() => router.push('/flashcards')}
-          className="text-[12.5px] text-ink-faint underline-offset-2 hover:text-ink hover:underline"
+          className="text-meta text-ink-faint underline-offset-2 hover:text-ink hover:underline"
         >
           {t.common.close}
         </button>

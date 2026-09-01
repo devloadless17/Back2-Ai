@@ -46,6 +46,9 @@ export type ExamSlot = {
 
 const AUTOSAVE_DELAY_MS = 1500;
 
+/** Widening backoff. A fixed interval from every client keeps a sick server sick. */
+const RETRY_DELAYS_MS = [2_000, 5_000, 15_000];
+
 export function ExamRunner({
   simulationId,
   subjectName,
@@ -81,6 +84,8 @@ export function ExamRunner({
   const [uploading, setUploading] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  /** Slots whose latest text the server has not confirmed. */
+  const [unsaved, setUnsaved] = useState<Set<string>>(() => new Set());
   const [notice, setNotice] = useState<string | null>(null);
 
   const slot = slots[index];
@@ -128,21 +133,53 @@ export function ExamRunner({
   }, [submit]);
 
   // --- Autosave -----------------------------------------------------------
+  /*
+   * Autosave, with retries.
+   *
+   * A failed save used to be dropped: the notice appeared and the write was
+   * gone, and because the debounce only re-fires when the text changes, a
+   * student who typed a paragraph, hit a failure and then stopped to think had
+   * that paragraph in memory only. Under load — which is exactly when saves
+   * fail — that is a lost answer in a timed paper.
+   *
+   * So a failure is queued and retried on a widening delay. The backoff matters
+   * as much as the retry: hundreds of clients hammering a struggling server at a
+   * fixed interval is the thing that keeps it struggling.
+   */
   const save = useCallback(
-    async (slotId: string, value: string) => {
+    async (slotId: string, value: string, attempt = 0) => {
       setSaving(true);
       try {
         await sendJson(`/api/exam-sim/${simulationId}/answers`, 'POST', {
           slotId,
           answer: value,
         });
+        setUnsaved((current) => {
+          if (!current.has(slotId)) return current;
+          const next = new Set(current);
+          next.delete(slotId);
+          return next;
+        });
+        setNotice(null);
       } catch {
-        setNotice(t.common.unknownError);
+        setUnsaved((current) => new Set(current).add(slotId));
+
+        if (attempt < RETRY_DELAYS_MS.length) {
+          // Tell them it is still trying. "Something went wrong" invites a
+          // student to do something about it, and there is nothing to do.
+          setNotice(t.examSim.saveRetrying);
+          const delay = RETRY_DELAYS_MS[attempt] as number;
+          window.setTimeout(() => void save(slotId, value, attempt + 1), delay);
+        } else {
+          // Out of retries. Say so plainly — at this point the honest advice is
+          // to keep the tab open, because the flush on hide is the last chance.
+          setNotice(t.examSim.saveFailed);
+        }
       } finally {
         setSaving(false);
       }
     },
-    [simulationId, t.common.unknownError],
+    [simulationId, t.examSim.saveRetrying, t.examSim.saveFailed],
   );
 
   useEffect(() => {
@@ -172,7 +209,11 @@ export function ExamRunner({
 
       for (const s of slots) {
         const value = answers[s.id] ?? '';
-        if (value === (s.savedAnswer ?? '') || value.trim().length === 0) continue;
+        // Anything the server has not confirmed, plus anything typed since the
+        // page loaded. `unsaved` is the one that catches a retry still in
+        // flight when the tab goes away.
+        const dirty = unsaved.has(s.id) || value !== (s.savedAnswer ?? '');
+        if (!dirty || value.trim().length === 0) continue;
 
         const payload = new Blob([JSON.stringify({ slotId: s.id, answer: value })], {
           type: 'application/json',
@@ -187,7 +228,7 @@ export function ExamRunner({
       document.removeEventListener('visibilitychange', flush);
       window.removeEventListener('pagehide', flush);
     };
-  }, [answers, slots, simulationId]);
+  }, [answers, slots, simulationId, unsaved]);
 
   async function uploadPhoto(file: File) {
     if (!slot) return;
@@ -233,13 +274,13 @@ export function ExamRunner({
       <header className="sticky top-0 z-20 -mx-4 border-b border-rule bg-paper-raised/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="min-w-0">
-            <p className="truncate text-[15px] font-semibold text-ink">{title}</p>
-            <p className="text-[12px] text-ink-faint">{subjectName}</p>
+            <p className="truncate text-body font-semibold text-ink">{title}</p>
+            <p className="text-caption text-ink-faint">{subjectName}</p>
           </div>
 
           <div className="flex items-center gap-3">
             <div className="text-end">
-              <p className="text-[11px] uppercase tracking-wide text-ink-faint">
+              <p className="text-micro uppercase tracking-wide text-ink-faint">
                 {t.examSim.timeRemaining}
               </p>
               <p
@@ -260,10 +301,24 @@ export function ExamRunner({
           </div>
         </div>
 
-        {urgent && <p className="mt-2 text-[12.5px] font-medium text-mark">{t.examSim.timeAlmostUp}</p>}
+        {urgent && <p className="mt-2 text-meta font-medium text-mark">{t.examSim.timeAlmostUp}</p>}
       </header>
 
-      {/* --- Question navigation --- */}
+      {/*
+        Question navigator.
+
+        Each chip carries its barème — what the question is worth is the thing a
+        candidate is triaging on with twenty minutes left, and it was previously
+        only visible once you opened the question.
+
+        Deliberately no status colour. The earlier version painted answered
+        chips in `correct`, which is the marking green: on the results page that
+        colour means "you got the marks", and here it would mean "you typed
+        something". Reusing it teaches a student that green means two different
+        things on two screens, and the one that matters is the marking one. So
+        answered is carried by fill and ink weight, current by a heavier border
+        — no hue, nothing to unlearn.
+      */}
       <nav className="scroll-x flex gap-1.5 pb-1" aria-label={t.examSim.title}>
         {slots.map((s, i) => {
           const answered = (answers[s.id] ?? '').trim().length > 0 || photoState[s.id] === 'ok';
@@ -274,15 +329,18 @@ export function ExamRunner({
               onClick={() => setIndex(i)}
               aria-current={i === index ? 'step' : undefined}
               className={cn(
-                'h-8 w-8 shrink-0 rounded border text-[13px] font-medium tabular-nums transition-colors duration-150',
+                'flex h-11 w-10 shrink-0 flex-col items-center justify-center gap-0 rounded leading-none transition-colors duration-150',
                 i === index
-                  ? 'border-ink bg-ink text-paper'
+                  ? 'border-2 border-ink bg-paper-raised text-ink'
                   : answered
-                    ? 'border-correct/40 bg-correct-soft text-correct'
-                    : 'border-rule-strong bg-paper-raised text-ink-muted hover:bg-paper-sunken',
+                    ? 'border border-rule-strong bg-paper-sunken text-ink'
+                    : 'border border-rule bg-paper-raised text-ink-muted hover:bg-paper-sunken',
               )}
             >
-              {i + 1}
+              <span className="numeric text-meta font-semibold">{i + 1}</span>
+              {s.maxScore !== null ? (
+                <span className="numeric text-micro opacity-70">{s.maxScore}pt</span>
+              ) : null}
             </button>
           );
         })}
@@ -312,10 +370,10 @@ export function ExamRunner({
 
         <SheetBody className="space-y-3 border-t border-rule">
           <div className="flex items-center justify-between gap-3">
-            <label htmlFor="answer" className="text-[13px] font-medium text-ink">
+            <label htmlFor="answer" className="text-meta font-medium text-ink">
               {t.examSim.answerTyped}
             </label>
-            <span className="text-[11.5px] text-ink-faint">
+            <span className="text-caption text-ink-faint">
               {saving ? t.common.saving : ''}
             </span>
           </div>
@@ -332,8 +390,8 @@ export function ExamRunner({
 
           <div className="flex flex-wrap items-center gap-3 border-t border-rule pt-3">
             <div className="min-w-0 flex-1">
-              <p className="text-[13px] font-medium text-ink">{t.examSim.answerPhoto}</p>
-              <p className="text-[12px] text-ink-muted">{t.examSim.photoHint}</p>
+              <p className="text-meta font-medium text-ink">{t.examSim.answerPhoto}</p>
+              <p className="text-caption text-ink-muted">{t.examSim.photoHint}</p>
             </div>
 
             <input

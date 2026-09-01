@@ -109,7 +109,7 @@ export default async function ExamSimIndexPage() {
                         <p className="truncate text-sm font-medium text-ink">
                           {simulation.subject.name}
                         </p>
-                        <p className="text-[12px] text-ink-faint">
+                        <p className="text-caption text-ink-faint">
                           {simulation.submittedAt ? formatDate(locale, simulation.submittedAt) : '—'}
                           {' · '}
                           {simulation.sourceMode === 'real_cycle'

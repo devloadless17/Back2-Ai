@@ -1,11 +1,13 @@
 import type { Metadata } from 'next';
 
+import { DeckSeeder, type SeedSubject } from '@/components/flashcards/deck-seeder';
 import { ScopeSelector, type ScopeSubject, type WeakScope } from '@/components/flashcards/scope-selector';
 import { LinkButton } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/feedback';
 import { PageHeader, Sheet, SheetBody, SheetHeader } from '@/components/ui/sheet';
 import { requireUser } from '@/lib/auth/guards';
 import { db } from '@/lib/db';
+import { subjectLanguagesFor } from '@/lib/queries/taxonomy';
 import { getTranslations } from '@/lib/i18n';
 import { format, formatDate } from '@/lib/i18n/format';
 import { countDue, deckSummary, dueCountsByChapter, weakChapters } from '@/lib/queries/flashcards';
@@ -35,7 +37,10 @@ export default async function FlashcardsPage() {
     deckSummary(user.id),
     dueCountsByChapter(user.id),
     db.subject.findMany({
-      where: { trackId: user.trackId ?? undefined },
+      where: {
+        trackId: user.trackId ?? undefined,
+        language: { in: subjectLanguagesFor(user.preferredLanguage) },
+      },
       select: {
         id: true,
         name: true,
@@ -62,6 +67,22 @@ export default async function FlashcardsPage() {
   };
 
   const dueByChapterId = new Map(dueByChapter.map((row) => [row.chapterId, row.due]));
+
+  /*
+   * Every chapter, unfiltered, for the seeder.
+   *
+   * The exact opposite of the list below it: the scope tree drops anything with
+   * nothing due, because it answers "what should I review?". The seeder answers
+   * "what have I got nothing for?", and a chapter reading zero is precisely the
+   * one it exists to offer. Same query, two shapes.
+   */
+  const seedSubjects: SeedSubject[] = subjects
+    .filter((subject) => subject.chapters.length > 0)
+    .map((subject) => ({
+      id: subject.id,
+      name: subject.name,
+      chapters: subject.chapters.map((chapter) => ({ id: chapter.id, name: chapter.name })),
+    }));
 
   // Chapters and units with nothing due are dropped: a selector listing 55
   // chapters of which 3 have cards is a list nobody reads to the end of.
@@ -110,16 +131,22 @@ export default async function FlashcardsPage() {
       />
 
       {summary.total === 0 ? (
-        <EmptyState
-          tone="neutral"
-          title={t.flashcards.emptyDeck}
-          body={t.flashcards.emptyDeckHint}
-          action={
-            <LinkButton href="/practice" variant="primary">
-              {t.dashboard.noActivityCta}
-            </LinkButton>
-          }
-        />
+        <div className="space-y-5">
+          <EmptyState
+            tone="neutral"
+            title={t.flashcards.emptyDeck}
+            body={t.flashcards.emptyDeckHint}
+            action={
+              <LinkButton href="/practice" variant="primary">
+                {t.dashboard.noActivityCta}
+              </LinkButton>
+            }
+          />
+          {/* The empty state used to be the whole screen, and its only advice
+              was to go and practise. That is still the better deck; it is no
+              longer the only way to get one. */}
+          <DeckSeeder subjects={seedSubjects} />
+        </div>
       ) : (
         <div className="grid gap-5 lg:grid-cols-3">
           <Sheet className="lg:col-span-2">
@@ -153,6 +180,10 @@ export default async function FlashcardsPage() {
           </Sheet>
 
           <ScopeSelector subjects={scopeSubjects} totalDue={summary.due} weak={weak} />
+
+          <div className="lg:col-span-2">
+            <DeckSeeder subjects={seedSubjects} />
+          </div>
         </div>
       )}
     </>

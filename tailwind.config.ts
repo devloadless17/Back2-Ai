@@ -57,6 +57,38 @@ const config: Config = {
         sans: ['var(--font-sans)'],
         mono: ['var(--font-mono)'],
       },
+      /**
+       * The type scale.
+       *
+       * Written because there wasn't one. Every size in the app was an ad-hoc
+       * `text-[Npx]`, and counting them found 176 of about 210 uses inside a
+       * 2.5px band — 12.5px (49), 13px (47), 12px (44), 11.5px (25) — and then
+       * a cliff straight to 26px. There was no middle. The page read as
+       * caption, caption, caption, headline, which is most of why a carefully
+       * built palette still looked inexpensive.
+       *
+       * Half-pixel steps were the other symptom: 8.5, 10.5, 11.5, 12.5, 13.5.
+       * Fourteen distinct values is not a scale, it is nudging until it fits.
+       *
+       * Seven steps on a ~1.22 ratio, all integers. Named for the job rather
+       * than the size, so a component asks for `text-title` and inherits any
+       * later change to what a title is worth.
+       *
+       * `micro` is a floor, not a step to design with: 8.5px and 10px were both
+       * in use, and this product is open at one in the morning by someone who
+       * has been reading all day.
+       */
+      fontSize: {
+        micro: ['11px', { lineHeight: '1.45' }],
+        caption: ['12px', { lineHeight: '1.45' }],
+        meta: ['13px', { lineHeight: '1.5' }],
+        body: ['15px', { lineHeight: '1.6' }],
+        lead: ['17px', { lineHeight: '1.55' }],
+        title: ['21px', { lineHeight: '1.3', letterSpacing: '-0.01em' }],
+        heading: ['26px', { lineHeight: '1.2', letterSpacing: '-0.015em' }],
+        display: ['32px', { lineHeight: '1.12', letterSpacing: '-0.02em' }],
+        hero: ['40px', { lineHeight: '1.06', letterSpacing: '-0.025em' }],
+      },
       borderRadius: {
         sm: 'var(--radius-sm)',
         DEFAULT: 'var(--radius)',

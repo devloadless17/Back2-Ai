@@ -2,7 +2,7 @@ import 'server-only';
 
 import { purgeExpiredSessions } from '@/lib/auth/session';
 import { db } from '@/lib/db';
-import { autoSubmitExpired } from '@/lib/exam';
+import { autoSubmitExpired, markSubmitted } from '@/lib/exam';
 import { recalibrateDifficulty } from '@/lib/ingestion';
 import { startOfToday } from '@/lib/queries/flashcards';
 import { getProgressForUser } from '@/lib/queries/progress';
@@ -17,9 +17,16 @@ import { getProgressForUser } from '@/lib/queries/progress';
  * behind a health check.
  */
 
-export type JobName = 'auto_submit' | 'readiness' | 'notify' | 'difficulty' | 'sessions';
+export type JobName = 'auto_submit' | 'mark' | 'readiness' | 'notify' | 'difficulty' | 'sessions';
 
-export const JOB_NAMES: JobName[] = ['auto_submit', 'readiness', 'notify', 'difficulty', 'sessions'];
+export const JOB_NAMES: JobName[] = [
+  'auto_submit',
+  'mark',
+  'readiness',
+  'notify',
+  'difficulty',
+  'sessions',
+];
 
 /**
  * Writes the readiness snapshot.
@@ -30,13 +37,13 @@ export const JOB_NAMES: JobName[] = ['auto_submit', 'readiness', 'notify', 'diff
 export async function refreshReadinessCache(): Promise<number> {
   const users = await db.user.findMany({
     where: { isActive: true, trackId: { not: null } },
-    select: { id: true, trackId: true },
+    select: { id: true, trackId: true, preferredLanguage: true },
   });
 
   let rows = 0;
 
   for (const user of users) {
-    const progress = await getProgressForUser(user.id, user.trackId);
+    const progress = await getProgressForUser(user.id, user.trackId, user.preferredLanguage);
 
     for (const subject of progress) {
       if (!subject.readiness.reportable) continue;
@@ -148,6 +155,18 @@ export async function runJobs(job: JobName | 'all'): Promise<Record<string, numb
 
   const steps: [JobName, string, () => Promise<number>][] = [
     ['auto_submit', 'autoSubmitted', () => autoSubmitExpired()],
+    /*
+     * Marking. Runs often and takes a small bite each time.
+     *
+     * `auto_submit` must come first in an `all` run: it closes expired papers,
+     * and this then marks them on the same pass rather than leaving a student
+     * whose clock ran out waiting for the next tick.
+     *
+     * The batch is deliberately small. Each paper is several model calls, and a
+     * cron tick that tried to clear a whole exam-season backlog at once would
+     * hit the same provider limits that made marking-in-request untenable.
+     */
+    ['mark', 'papersMarked', () => markSubmitted()],
     ['readiness', 'readinessRows', () => refreshReadinessCache()],
     ['notify', 'notifications', () => sendReminders()],
     ['difficulty', 'difficultyUpdated', () => recalibrateDifficulty()],

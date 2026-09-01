@@ -56,7 +56,10 @@
     "measure:concept-expansion": "node --conditions=react-server --env-file=.env --import tsx scripts/measure-concept-expansion.ts",
     "compare:embeddings": "node --conditions=react-server --env-file=.env --import tsx scripts/compare-embedding-models.ts",
     "compare:rerank": "node --conditions=react-server --env-file=.env --import tsx scripts/compare-rerank-models.ts",
-    "judge:passages": "node --conditions=react-server --env-file=.env --import tsx scripts/judge-passages.ts"
+    "judge:passages": "node --conditions=react-server --env-file=.env --import tsx scripts/judge-passages.ts",
+    "corpus:schemes": "node --conditions=react-server --env-file=.env --import tsx scripts/corpus/read-schemes.ts",
+    "judge:export": "node --conditions=react-server --env-file=.env --import tsx scripts/judge-passages-xlsx.ts",
+    "judge:import": "node --conditions=react-server --env-file=.env --import tsx scripts/judge-passages-xlsx.ts --import"
   },
   "overrides": {
     "postcss": "$postcss",
@@ -71,6 +74,7 @@
     "@prisma/client": "^6.2.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
+    "exceljs": "^4.4.0",
     "katex": "^0.16.11",
     "next": "^15.1.6",
     "openai": "^7.1.0",

@@ -57,7 +57,7 @@ export function Meter({ value, label, caption, size = 'md', tone = 'auto', class
   return (
     <div className={cn('space-y-1', className)}>
       {(label || caption) && (
-        <div className="flex items-baseline justify-between gap-3 text-[12.5px]">
+        <div className="flex items-baseline justify-between gap-3 text-meta">
           {label && <span className="min-w-0 truncate font-medium text-ink">{label}</span>}
           {caption && <span className="shrink-0 tabular-nums text-ink-muted">{caption}</span>}
         </div>
@@ -90,4 +90,54 @@ export function Meter({ value, label, caption, size = 'md', tone = 'auto', class
 function clamp01(value: number): number {
   if (!Number.isFinite(value)) return 0;
   return Math.min(1, Math.max(0, value));
+}
+
+/**
+ * Session progress as discrete dots.
+ *
+ * A percentage bar is the right instrument for something long and continuous —
+ * a syllabus, a term. A flashcard sitting is eight cards, and eight dots answer
+ * "how much is left" in a single glance, without the student converting 62% into
+ * "three more". Below ten items the dots are also simply more honest: a bar at
+ * 62% implies a precision that five cards does not have.
+ *
+ * Above `MAX_DOTS` it falls back to a count, because forty dots is a texture,
+ * not a reading.
+ */
+const MAX_DOTS = 14;
+
+export function SessionDots({
+  total,
+  done,
+  label,
+  className,
+}: {
+  total: number;
+  done: number;
+  label: string;
+  className?: string;
+}) {
+  if (total <= 0) return null;
+
+  if (total > MAX_DOTS) {
+    return (
+      <p className={cn('numeric text-caption text-ink-muted', className)} aria-label={label}>
+        {done} / {total}
+      </p>
+    );
+  }
+
+  return (
+    <div className={cn('flex items-center gap-1.5', className)} role="img" aria-label={label}>
+      {Array.from({ length: total }, (_, i) => (
+        <span
+          key={i}
+          className={cn(
+            'h-[7px] w-[7px] rounded-full transition-colors duration-200',
+            i < done ? 'bg-primary' : i === done ? 'bg-primary/40 ring-2 ring-primary/25' : 'bg-rule-strong',
+          )}
+        />
+      ))}
+    </div>
+  );
 }

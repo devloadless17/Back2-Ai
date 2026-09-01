@@ -28,14 +28,14 @@ export function RevealableSolution({ solution }: { solution: string | null }) {
   return (
     <div className="border-t border-rule">
       <div className="flex items-center justify-between gap-3 px-5 py-2.5">
-        <p className="text-[12.5px] font-medium uppercase tracking-wide text-ink-faint">
+        <p className="text-meta font-medium uppercase tracking-wide text-ink-faint">
           {t.practice.solution}
         </p>
         <button
           type="button"
           onClick={() => setPinned((current) => !current)}
           aria-expanded={revealed}
-          className="text-[12.5px] font-medium text-primary underline-offset-2 hover:underline"
+          className="text-meta font-medium text-primary underline-offset-2 hover:underline"
         >
           {pinned ? t.oldCycles.hideSolution : t.oldCycles.revealSolution}
         </button>
@@ -60,7 +60,7 @@ export function RevealableSolution({ solution }: { solution: string | null }) {
 
         {!revealed && (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-            <span className="rounded-sm border border-rule-strong bg-paper-raised px-2.5 py-1 text-[12px] font-medium text-ink-muted shadow-sheet">
+            <span className="rounded-sm border border-rule-strong bg-paper-raised px-2.5 py-1 text-caption font-medium text-ink-muted shadow-sheet">
               {t.oldCycles.hoverToReveal}
             </span>
           </div>

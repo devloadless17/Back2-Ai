@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useState } from 'react';
 
+import { SeedButton } from '@/components/flashcards/deck-seeder';
 import { Badge } from '@/components/ui/feedback';
 import { Sheet, SheetBody, SheetHeader } from '@/components/ui/sheet';
 import { cn } from '@/lib/cn';
@@ -24,6 +25,7 @@ import { useI18n } from '@/lib/i18n/client';
 export type ScopeChapter = { id: string; name: string; unitId: string | null; due: number };
 
 export type WeakScope = {
+  /** Whether the deck may be topped up from the textbook. */
   /** Cards due inside the weak chapters. Zero still offers the scope — it tops up. */
   due: number;
   chapters: { id: string; name: string; subjectName: string; masteryScore: number }[];
@@ -82,7 +84,7 @@ export function ScopeSelector({
                 >
                   <span
                     className={cn(
-                      'block text-[11px] transition-transform duration-150',
+                      'block text-micro transition-transform duration-150',
                       weakOpen && 'rotate-90',
                     )}
                     aria-hidden="true"
@@ -95,20 +97,36 @@ export function ScopeSelector({
               {weakOpen && (
                 <ul className="animate-fade-up border-t border-rule bg-paper-sunken/40 px-5 py-2">
                   {weak.chapters.map((chapter) => (
-                    <li
-                      key={chapter.id}
-                      className="flex items-baseline justify-between gap-3 py-1 text-[13px]"
-                    >
-                      <span className="min-w-0 truncate text-ink-muted">
-                        {chapter.name}
-                        <span className="text-ink-faint"> · {chapter.subjectName}</span>
-                      </span>
-                      <span className="shrink-0 tabular-nums text-ink-faint">
-                        {formatPercent(chapter.masteryScore)}
-                      </span>
+                    <li key={chapter.id} className="py-1.5 text-meta">
+                      <div className="flex items-baseline justify-between gap-3">
+                        <span className="min-w-0 truncate text-ink-muted">
+                          {chapter.name}
+                          <span className="text-ink-faint"> · {chapter.subjectName}</span>
+                        </span>
+                        <span className="shrink-0 tabular-nums text-ink-faint">
+                          {formatPercent(chapter.masteryScore)}
+                        </span>
+                      </div>
+
+                      {/*
+                        Top up the chapter the student is worst at, from here.
+                        This list is where they have just been told which
+                        chapters those are, and "nothing is due in your weakest
+                        chapter" is exactly the moment more cards are wanted —
+                        sending them to a picker at the bottom of the page to
+                        re-select a chapter they are already looking at is the
+                        kind of small friction that stops a feature being used.
+                      */}
+                      <div className="mt-1.5">
+                        <SeedButton
+                          chapterId={chapter.id}
+                          label={t.flashcards.seedTopUp}
+                          size="sm"
+                        />
+                      </div>
                     </li>
                   ))}
-                  <li className="pt-1.5 text-[12px] leading-snug text-ink-faint">
+                  <li className="pt-1.5 text-caption leading-snug text-ink-faint">
                     {t.flashcards.scopeWeakHint}
                   </li>
                 </ul>
@@ -139,7 +157,7 @@ export function ScopeSelector({
                     >
                       <span
                         className={cn(
-                          'block text-[11px] transition-transform duration-150',
+                          'block text-micro transition-transform duration-150',
                           isOpen && 'rotate-90',
                         )}
                         aria-hidden="true"
@@ -228,7 +246,7 @@ function ScopeRow({
       <span
         className={cn(
           'min-w-0 truncate',
-          strong ? 'text-sm font-medium text-ink' : muted ? 'text-[13px] text-ink-muted' : 'text-sm text-ink',
+          strong ? 'text-sm font-medium text-ink' : muted ? 'text-meta text-ink-muted' : 'text-sm text-ink',
         )}
       >
         {label}

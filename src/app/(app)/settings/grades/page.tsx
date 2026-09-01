@@ -26,7 +26,7 @@ export default async function GradesSettingsPage() {
       },
       orderBy: [{ date: 'desc' }, { createdAt: 'desc' }],
     }),
-    listSubjects(user.trackId),
+    listSubjects(user.trackId, user.preferredLanguage),
   ]);
 
   const entries: GradeEntry[] = grades.map((grade) => ({

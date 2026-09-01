@@ -1,11 +1,13 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
+import { TutorDock } from '@/components/chat/tutor-dock';
 import { SplitHero } from '@/components/dashboard/split-hero';
 import { streakFrom, type SubjectRing } from '@/components/dashboard/subject-rings';
 import { WelcomeHero } from '@/components/dashboard/welcome-hero';
 import { NextUpCard } from '@/components/progress/next-up-card';
 import { LinkButton } from '@/components/ui/button';
+import { bandForMastery } from '@/components/ui/band';
 import { ActivityColumns, BarRows, type BarDatum } from '@/components/ui/charts';
 import { Badge, EmptyState } from '@/components/ui/feedback';
 import { Meter } from '@/components/ui/progress';
@@ -15,7 +17,7 @@ import { cn } from '@/lib/cn';
 import { db } from '@/lib/db';
 import { getTranslations } from '@/lib/i18n';
 import { daysUntil, format, formatDate } from '@/lib/i18n/format';
-import { attemptsByDay } from '@/lib/queries/activity';
+import { attemptsByDay, weeklyEffort } from '@/lib/queries/activity';
 import { getNextUp } from '@/lib/queries/next-up';
 import { findWeakestChapter, getProgressForUser } from '@/lib/queries/progress';
 import { getStanding } from '@/lib/queries/standing';
@@ -44,57 +46,68 @@ export default async function DashboardPage() {
   const user = await requireUser();
   const { locale, t } = await getTranslations();
 
-  const [progress, flashcardsDue, announcements, upcomingExams, activity, standing, nextUp, todaySessions] =
-    await Promise.all([
-      getProgressForUser(user.id, user.trackId, user.preferredLanguage),
-      db.flashcardState.count({ where: { userId: user.id, dueDate: { lte: startOfToday() } } }),
-      db.announcement.findMany({
-        /*
-         * Both targeting dimensions are applied.
-         *
-         * A subject-targeted announcement is implicitly track-targeted — subjects
-         * belong to tracks — so it must not reach a student from another track
-         * just because its `target_track_id` happens to be null.
-         */
-        where: {
-          AND: [
-            { OR: [{ targetTrackId: null }, { targetTrackId: user.trackId }] },
-            {
-              OR: [
-                { targetSubjectId: null },
-                { targetSubject: { trackId: user.trackId ?? undefined } },
-              ],
-            },
-          ],
-        },
-        select: { id: true, title: true, body: true, createdAt: true },
-        orderBy: { createdAt: 'desc' },
-        take: 3,
-      }),
-      db.upcomingExam.findMany({
-        where: { userId: user.id, examDate: { gte: startOfToday() } },
-        select: { id: true, examDate: true, label: true, subject: { select: { name: true } } },
-        orderBy: { examDate: 'asc' },
-        take: 4,
-      }),
-      attemptsByDay(user.id, 14),
-      getStanding(user.id, user.trackId, user.preferredLanguage),
-      getNextUp(user.id, user.trackId, user.preferredLanguage),
-      // Today's plan. A plain read — the dashboard must never wait on a model.
-      db.studySession.findMany({
-        where: { userId: user.id, scheduledDate: startOfToday() },
-        select: {
-          id: true,
-          title: true,
-          durationMinutes: true,
-          taskType: true,
-          rationale: true,
-          status: true,
-          chapterId: true,
-        },
-        orderBy: { createdAt: 'asc' },
-      }),
-    ]);
+  const [
+    progress,
+    flashcardsDue,
+    announcements,
+    upcomingExams,
+    activity,
+    standing,
+    nextUp,
+    todaySessions,
+    week,
+  ] = await Promise.all([
+    getProgressForUser(user.id, user.trackId, user.preferredLanguage),
+    db.flashcardState.count({ where: { userId: user.id, dueDate: { lte: startOfToday() } } }),
+    db.announcement.findMany({
+      /*
+       * Both targeting dimensions are applied.
+       *
+       * A subject-targeted announcement is implicitly track-targeted — subjects
+       * belong to tracks — so it must not reach a student from another track
+       * just because its `target_track_id` happens to be null.
+       */
+      where: {
+        AND: [
+          { OR: [{ targetTrackId: null }, { targetTrackId: user.trackId }] },
+          {
+            OR: [
+              { targetSubjectId: null },
+              { targetSubject: { trackId: user.trackId ?? undefined } },
+            ],
+          },
+        ],
+      },
+      select: { id: true, title: true, body: true, createdAt: true },
+      orderBy: { createdAt: 'desc' },
+      take: 3,
+    }),
+    db.upcomingExam.findMany({
+      where: { userId: user.id, examDate: { gte: startOfToday() } },
+      select: { id: true, examDate: true, label: true, subject: { select: { name: true } } },
+      orderBy: { examDate: 'asc' },
+      take: 4,
+    }),
+    attemptsByDay(user.id, 14),
+    getStanding(user.id, user.trackId, user.preferredLanguage),
+    getNextUp(user.id, user.trackId, user.preferredLanguage),
+    // Today's plan. A plain read — the dashboard must never wait on a model.
+    db.studySession.findMany({
+      where: { userId: user.id, scheduledDate: startOfToday() },
+      select: {
+        id: true,
+        title: true,
+        durationMinutes: true,
+        taskType: true,
+        rationale: true,
+        status: true,
+        chapterId: true,
+      },
+      orderBy: { createdAt: 'asc' },
+    }),
+    // The last seven days, for the hero's three figures.
+    weeklyEffort(user.id),
+  ]);
 
   const weakest = findWeakestChapter(progress);
   const totalAttempts = progress.reduce(
@@ -143,6 +156,20 @@ export default async function DashboardPage() {
 
   const streak = streakFrom(activity);
 
+  // Chapters the product would actually call weak — the same threshold the
+  // planner and the focus line use, so the hero's count and the card below it
+  // can never disagree about what "weak" means.
+  const weakSpots = progress.reduce(
+    (count, subject) =>
+      count +
+      subject.chapters.filter(
+        (chapter) =>
+          chapter.attemptsCount >= MIN_ATTEMPTS_FOR_WEAKNESS &&
+          bandForMastery(chapter.masteryScore, chapter.attemptsCount) === 'weak',
+      ).length,
+    0,
+  );
+
   // The focus line only fires on a chapter with enough attempts behind it to
   // mean something — the same threshold the planner uses to call a chapter weak.
   const focus =
@@ -166,6 +193,10 @@ export default async function DashboardPage() {
           .reduce((sum, s) => sum + (s.durationMinutes ?? 0), 0)}
         doneCount={todaySessions.filter((s) => s.status === 'done').length}
         daysToExam={nextExam ? daysUntil(nextExam.examDate) : null}
+        streak={streak}
+        weekAccuracy={week.accuracy}
+        weekAnswered={week.answered}
+        weakSpots={weakSpots}
       />
 
       <SplitHero
@@ -243,7 +274,7 @@ export default async function DashboardPage() {
             actions={
               <Link
                 href="/progress"
-                className="text-[13px] text-primary underline-offset-2 hover:underline"
+                className="text-meta text-primary underline-offset-2 hover:underline"
               >
                 {t.standing.title}
               </Link>
@@ -261,13 +292,13 @@ export default async function DashboardPage() {
                   >
                     <span className="min-w-0 truncate text-sm text-ink">{subject.subjectName}</span>
                     {subject.mark === null ? (
-                      <span className="shrink-0 text-[12.5px] text-ink-faint">
+                      <span className="shrink-0 text-meta text-ink-faint">
                         {t.standing.notEnoughYet}
                       </span>
                     ) : (
                       <span
                         className={cn(
-                          'figure shrink-0 text-[15px]',
+                          'figure shrink-0 text-body',
                           subject.mark < PASS_MARK ? 'text-mark' : 'text-ink',
                         )}
                       >
@@ -289,7 +320,7 @@ export default async function DashboardPage() {
                 <p className="text-sm text-ink-muted">{t.schedule.noUpcomingExams}</p>
                 <Link
                   href="/schedule"
-                  className="mt-1 inline-block text-[13px] text-primary underline-offset-2 hover:underline"
+                  className="mt-1 inline-block text-meta text-primary underline-offset-2 hover:underline"
                 >
                   {t.schedule.addExam}
                 </Link>
@@ -304,7 +335,7 @@ export default async function DashboardPage() {
                         <p className="truncate text-sm text-ink">
                           {exam.subject?.name ?? exam.label ?? t.schedule.bacExam}
                         </p>
-                        <p className="text-[12px] text-ink-faint">
+                        <p className="text-caption text-ink-faint">
                           {formatDate(locale, exam.examDate)}
                         </p>
                       </div>
@@ -358,7 +389,7 @@ export default async function DashboardPage() {
                 <>
                   <div className="min-w-0">
                     <p className="text-sm font-medium text-ink">{weakest.chapterName}</p>
-                    <p className="text-[12.5px] text-ink-muted">
+                    <p className="text-meta text-ink-muted">
                       {weakest.subjectName}
                       {weakest.unitName ? ` · ${weakest.unitName}` : ''}
                     </p>
@@ -401,10 +432,10 @@ export default async function DashboardPage() {
                   {announcements.map((announcement) => (
                     <li key={announcement.id} className="px-5 py-3">
                       <p className="text-sm font-medium text-ink">{announcement.title}</p>
-                      <p className="mt-0.5 text-[13px] leading-snug text-ink-muted">
+                      <p className="mt-0.5 text-meta leading-snug text-ink-muted">
                         {announcement.body}
                       </p>
-                      <p className="mt-1 text-[11.5px] text-ink-faint">
+                      <p className="mt-1 text-caption text-ink-faint">
                         {formatDate(locale, announcement.createdAt)}
                       </p>
                     </li>
@@ -415,6 +446,12 @@ export default async function DashboardPage() {
           </Sheet>
         </div>
       </div>
+
+      {/* The tutor, anchored to the chapter this page is already pointing at.
+          No question id — the dashboard is about a chapter, not one question —
+          so the conversation opens on the topic rather than on a specific
+          correction key. */}
+      <TutorDock context={focus ? { label: focus.chapterName } : undefined} />
     </>
   );
 }

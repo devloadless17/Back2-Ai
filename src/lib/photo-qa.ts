@@ -70,6 +70,21 @@ const NOT_COVERED = {
   ar: 'هذا غير مشمول في منهج فرعك. أفضّل أن أقول لك ذلك بدلاً من أن أعطيك جواباً لا يفيدك في الامتحان.',
 } as const;
 
+/**
+ * A photograph of a comprehension question that did not catch the passage.
+ *
+ * The transcription usually does contain it — a student photographing a French
+ * paper gets the extract and the questions in one frame, and retrieval answers
+ * straight from what is on the page. When the frame caught only the questions,
+ * the honest reply is that the text is missing, not that the topic is off the
+ * programme.
+ */
+const NEEDS_PASSAGE = {
+  fr: "Cette question porte sur un texte que je ne vois pas sur la photo. Reprends-la en incluant le passage, et on la fait ensemble.",
+  en: 'This question is about a text that is not in the photo. Take it again with the passage included, and we will work through it.',
+  ar: 'هذا السؤال يتعلّق بنصّ لا أراه في الصورة. أعد التقاطها بحيث يظهر المقطع، ولنحلّها معاً.',
+} as const;
+
 const WITHDRAWN = {
   fr: "J'ai commencé une réponse que je n'ai pas pu vérifier dans le programme. Je la retire plutôt que de te laisser avec quelque chose d'incertain.",
   en: 'I started an answer I could not verify against the programme. I am withdrawing it rather than leaving you with something uncertain.',
@@ -125,7 +140,10 @@ export async function answerPhotoQuestion(input: PhotoQaInput): Promise<PhotoAns
       ...blank,
       transcription,
       covered: false,
-      answer: NOT_COVERED[input.locale],
+      answer:
+        grounding.classification.kind === 'comprehension'
+          ? NEEDS_PASSAGE[input.locale]
+          : NOT_COVERED[input.locale],
     };
   }
 

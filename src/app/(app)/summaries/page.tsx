@@ -5,6 +5,7 @@ import { Badge, EmptyState } from '@/components/ui/feedback';
 import { PageHeader } from '@/components/ui/sheet';
 import { requireUser } from '@/lib/auth/guards';
 import { db } from '@/lib/db';
+import { subjectLanguagesFor } from '@/lib/queries/taxonomy';
 import { getTranslations } from '@/lib/i18n';
 
 export const metadata: Metadata = { title: 'Summaries' };
@@ -37,7 +38,10 @@ export default async function SummariesPage() {
   const { t } = await getTranslations();
 
   const subjects = await db.subject.findMany({
-    where: { trackId: user.trackId ?? undefined },
+    where: {
+      trackId: user.trackId ?? undefined,
+      language: { in: subjectLanguagesFor(user.preferredLanguage) },
+    },
     select: {
       id: true,
       name: true,
@@ -99,12 +103,12 @@ export default async function SummariesPage() {
                       <span className="absolute inset-x-0 bottom-9 h-[3px] bg-white/15" aria-hidden />
 
                       <span
-                        className="mt-9 flex-1 text-[12.5px] font-medium leading-tight text-white/95"
+                        className="mt-9 flex-1 text-meta font-medium leading-tight text-white/95"
                         style={{ writingMode: 'vertical-rl', textOrientation: 'mixed' }}
                       >
                         {subject.name}
                       </span>
-                      <span className="text-center text-[11px] font-semibold text-white/70">
+                      <span className="text-center text-micro font-semibold text-white/70">
                         {subject.readable}
                       </span>
                     </span>
@@ -114,7 +118,7 @@ export default async function SummariesPage() {
             })}
           </ul>
 
-          <p className="mt-6 text-[12px] text-ink-faint">{t.summaries.shelfHint}</p>
+          <p className="mt-6 text-caption text-ink-faint">{t.summaries.shelfHint}</p>
         </div>
       )}
 

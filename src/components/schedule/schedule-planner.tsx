@@ -196,14 +196,14 @@ export function SchedulePlanner({
             description={`${proposal.examLabel} · ${formatDate(proposal.examDate)} · ${proposal.daysRemaining}`}
           />
           <SheetBody className="p-0">
-            <p className="px-5 py-3 text-[13px] text-ink-muted">{t.schedule.suggestedBody}</p>
+            <p className="px-5 py-3 text-meta text-ink-muted">{t.schedule.suggestedBody}</p>
             <ul className="ruled max-h-96 overflow-y-auto">
               {proposal.sessions.map((session, index) => (
                 <li key={`${session.scheduledDate}-${index}`} className="flex items-baseline gap-3 px-5 py-2.5">
-                  <span className="w-24 shrink-0 text-[12px] tabular-nums text-ink-faint">
+                  <span className="w-24 shrink-0 text-caption tabular-nums text-ink-faint">
                     {session.scheduledDate}
                   </span>
-                  <span className="min-w-0 flex-1 text-[13.5px] text-ink">{session.title}</span>
+                  <span className="min-w-0 flex-1 text-body text-ink">{session.title}</span>
                   <Badge tone={session.rationale === 'uncovered' ? 'mark' : session.rationale === 'weak' ? 'partial' : 'neutral'}>
                     {session.chapterName ?? t.flashcards.title}
                   </Badge>
@@ -215,7 +215,7 @@ export function SchedulePlanner({
                         sessions: proposal.sessions.filter((_, i) => i !== index),
                       })
                     }
-                    className="shrink-0 text-[12px] text-ink-faint hover:text-mark"
+                    className="shrink-0 text-caption text-ink-faint hover:text-mark"
                     aria-label={t.common.delete}
                   >
                     ×
@@ -253,7 +253,7 @@ export function SchedulePlanner({
                   <li key={day} className="px-5 py-3">
                     <p
                       className={cn(
-                        'mb-2 text-[12px] font-semibold uppercase tracking-wide',
+                        'mb-2 text-caption font-semibold uppercase tracking-wide',
                         day === today ? 'text-primary' : 'text-ink-faint',
                       )}
                     >
@@ -276,14 +276,14 @@ export function SchedulePlanner({
                           <div className="min-w-0 flex-1">
                             <p
                               className={cn(
-                                'truncate text-[13.5px] text-ink',
+                                'truncate text-body text-ink',
                                 session.status === 'done' && 'line-through decoration-correct/40',
                               )}
                             >
                               {session.title}
                             </p>
                             {session.chapterName && (
-                              <p className="truncate text-[11.5px] text-ink-faint">{session.chapterName}</p>
+                              <p className="truncate text-caption text-ink-faint">{session.chapterName}</p>
                             )}
                           </div>
 
@@ -296,14 +296,14 @@ export function SchedulePlanner({
                               <button
                                 type="button"
                                 onClick={() => setStatus(session.id, 'done')}
-                                className="rounded px-2 py-1 text-[12px] font-medium text-correct hover:bg-correct-soft"
+                                className="rounded px-2 py-1 text-caption font-medium text-correct hover:bg-correct-soft"
                               >
                                 {t.schedule.markDone}
                               </button>
                               <button
                                 type="button"
                                 onClick={() => setStatus(session.id, 'skipped')}
-                                className="rounded px-2 py-1 text-[12px] text-ink-faint hover:bg-paper-sunken"
+                                className="rounded px-2 py-1 text-caption text-ink-faint hover:bg-paper-sunken"
                               >
                                 {t.schedule.markSkipped}
                               </button>
@@ -312,7 +312,7 @@ export function SchedulePlanner({
                             <button
                               type="button"
                               onClick={() => remove(session.id)}
-                              className="shrink-0 rounded px-2 py-1 text-[12px] text-ink-faint hover:text-mark"
+                              className="shrink-0 rounded px-2 py-1 text-caption text-ink-faint hover:text-mark"
                             >
                               {t.common.delete}
                             </button>
@@ -406,7 +406,7 @@ export function SchedulePlanner({
             <SheetBody className="space-y-3">
               <ul className="space-y-1">
                 {exams.map((exam) => (
-                  <li key={exam.id} className="flex items-baseline justify-between gap-2 text-[13px]">
+                  <li key={exam.id} className="flex items-baseline justify-between gap-2 text-meta">
                     <span className="min-w-0 truncate text-ink">{exam.label}</span>
                     <span className="shrink-0 tabular-nums text-ink-faint">{exam.examDate}</span>
                   </li>

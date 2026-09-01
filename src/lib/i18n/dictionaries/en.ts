@@ -1,9 +1,19 @@
+import type { PluralForms } from '../format';
+
 /**
  * English dictionary — canonical source of truth for the key set.
  *
  * `fr.ts` and `ar.ts` are typed against this object, so adding a key here and
  * forgetting to translate it is a compile error, not a `undefined` on screen.
+ *
+ * A counted phrase is annotated `PluralForms` rather than left to inference.
+ * English needs two forms and Arabic needs six, so an inferred
+ * `{ one: string; other: string }` would make `ar.ts`'s dual and few-forms a
+ * type error — the language with the real plural problem locked out by the
+ * language without one.
  */
+const p = (forms: PluralForms): PluralForms => forms;
+
 export const en = {
   common: {
     appName: 'Bac II',
@@ -111,6 +121,8 @@ export const en = {
     wizardPermanentBody:
       'You cannot change this yourself later — it would invalidate every score we work out for you. An administrator can change it if you pick wrong.',
     wizardProgressLabel: 'Signup progress',
+    wizardLockConfirm: 'I understand this cannot be changed later.',
+    wizardLockRequired: 'Tick the box to confirm before you continue.',
   },
 
   standing: {
@@ -166,6 +178,9 @@ export const en = {
     planMonthlyHint: 'Billed every month. Cancel whenever you like.',
     planAnnual: 'Annual',
     planAnnualHint: 'Billed once for the school year.',
+    planComingSoon: 'Coming soon',
+    planComingSoonHint: 'Pricing is not published yet — there is nothing to choose here today.',
+    planLaunchNote: 'Everyone is on the free plan while we launch. No card, and nothing to cancel.',
     perMonth: '/month',
     perYear: '/year',
     priceFree: 'Free',
@@ -226,8 +241,18 @@ export const en = {
     topChaptersHint: 'Weakest first — the top of this list is where the marks are.',
     heroEyebrow: 'Welcome back',
     heroTitle: 'Ready for today’s session, {name}?',
-    heroSummary: '{count} sessions · {minutes} minutes · exam in {days} days',
-    heroSummaryNoExam: '{count} sessions · {minutes} minutes planned',
+    /*
+     * Composed from pieces rather than written as one sentence.
+     *
+     * The single template carried three counts — sessions, minutes and days —
+     * and pluralised none of them, so the dashboard hero read "1 sessions ·
+     * 30 minutes · exam in 1 days" on the morning of the exam. One template
+     * cannot pluralise three independent numbers; three can.
+     */
+    heroSessions: p({ one: '{count} session', other: '{count} sessions' }),
+    heroMinutes: p({ one: '{count} minute', other: '{count} minutes' }),
+    heroExamIn: p({ one: 'exam tomorrow', other: 'exam in {count} days' }),
+    heroPlanned: 'planned',
     heroCta: 'Start today’s plan',
     heroEmptyTitle: 'Nothing planned for today, {name}',
     heroEmptySummary: 'Build a plan and it will work backwards from your exam date.',
@@ -236,17 +261,23 @@ export const en = {
     heroDoneSummary: 'All {count} sessions complete. Anything else today is a bonus.',
     minutesShort: '{minutes} min',
     streakDays: '{count}-day streak — keep it going',
+    heroStreakBadge: p({ one: '{count} day in a row', other: '{count} days in a row' }),
+    heroStatAccuracy: 'right this week',
+    heroStatAnswered: 'answered this week',
+    heroStatWeakSpots: 'weak spots flagged',
+    heroStatPending: 'not enough yet',
     focusThisWeek: 'Focus this week: {chapter} — mastery {percent}%',
     yourSubjects: 'Your subjects',
     yourSubjectsHint: 'A ring per subject. Tap one for the chapter breakdown.',
     todayTitle: 'Today',
     todayNothing: 'Nothing scheduled',
     todaySummary: '{count} sessions · {minutes} min',
+    todaySessions: p({ one: '{count} session', other: '{count} sessions' }),
     todayAllDone: 'All {count} of today’s sessions are done. Nothing else is scheduled.',
     todayNoPlan: 'No plan for today yet. Build one and it will fill this in.',
     openPlanner: 'Open the planner',
     examToday: 'Exam today',
-    daysToExamLabel: '{days} days to {label}',
+    daysToExamLabel: p({ one: '1 day to {label}', other: '{count} days to {label}' }),
     yourExam: 'your exam',
     cardDueCountOne: '1 card due',
     cardsDueCount: '{count} cards due',
@@ -439,7 +470,23 @@ export const en = {
     sessionComplete: 'Review complete',
     sessionCompleteBody: 'You reviewed {count} cards. {again} will come back today.',
     emptyDeck: 'No cards yet',
-    emptyDeckHint: 'Cards are created from questions you practise. Answer a few to build your deck.',
+    emptyDeckHint:
+      'Cards are created from questions you practise — or written from a chapter of your textbook, below.',
+    seedTitle: 'Start a deck from your textbook',
+    seedHint:
+      'Pick a chapter and we will write ten cards from its own passages — you do not have to practise it first.',
+    seedCta: 'Generate 10 cards',
+    seedGenerating: 'Writing cards…',
+    seedAdded: '{count} cards added to your deck.',
+    seedNone:
+      'Nothing in this chapter read as a definition or a formula, so no card could be written from it.',
+    seedNoMaterial: 'No textbook passages have been loaded for this chapter yet.',
+    seedNotConfigured: 'Card writing is not configured on this deployment.',
+    seedTooMany: 'That is a lot of cards for one day. Try again later.',
+    seedTopUp: 'Add cards from the textbook',
+    fromTextbook: 'From your textbook',
+    fromTextbookHint:
+      'Written from a passage in your own chapter and checked against it — not a question set by an examiner.',
   },
 
   chat: {
@@ -467,6 +514,17 @@ export const en = {
     anchoredAttempt: 'Marking your own answer',
     anchoredAttemptHint:
       'This conversation can see what you wrote, the marks each criterion earned, and the official solution.',
+    dockOpen: 'Ask the tutor',
+    dockClose: 'Close the tutor',
+    dockTitle: 'Tutor',
+    dockSubtitle: 'On every screen except a paper you are sitting.',
+    dockIntro: 'Ask about what is on this screen, or anything else you are stuck on.',
+    dockContext: 'Looking at: {label}',
+    dockNoContext: 'Nothing anchored — this starts a fresh conversation.',
+    dockChipExplain: 'Explain this',
+    dockChipQuiz: 'Quiz me',
+    dockChipFlashcards: 'Flashcards',
+    dockChipPlan: 'Adjust my plan',
   },
 
   upload: {
@@ -645,6 +703,46 @@ export const en = {
     ingestionTrigger: 'Run ingestion',
     jobStatus: 'Status',
     auditEmpty: 'No audit events recorded.',
+    itemTypeGeneratedCard: 'Revision card',
+  },
+
+  marketing: {
+    navLogin: 'Sign in',
+    navSignup: 'Create a free account',
+    eyebrow: 'For Lebanese Baccalaureate candidates — GS · LS · SE · LH',
+    headline: 'Stop guessing what to study.',
+    headlineAccent: 'Start knowing.',
+    subhead:
+      'Every quiz, card and past paper you sit becomes a plan built from your own marks — drawn from the official programme, never invented.',
+    ctaStart: 'Start free',
+    ctaHaveAccount: 'I already have an account',
+    previewTitle: 'Try it before you sign up',
+    previewSubtitle: 'These are the product’s own components, running here with nothing saved.',
+    previewNothingSaved: 'Nothing you do here is recorded.',
+    flipTitle: 'Cards that turn',
+    flipHint: 'Tap the card',
+    flipQuestion: 'Derivative of x³?',
+    flipAnswer: '3x²',
+    flipFront: 'Question',
+    flipBack: 'Answer',
+    quizTitle: 'Answers marked as you go',
+    quizHint: 'Pick one',
+    quizQuestion: 'The derivative of sin(x) is:',
+    quizCorrect: 'Correct',
+    quizIncorrect: 'Not this one',
+    masteryTitle: 'See exactly where you stand',
+    masteryHint: 'Your mastery, subject by subject',
+    masterySubject: 'Physics',
+    trustLine:
+      'Built on the official CRDP programme and real past Baccalaureate papers. Nothing in the library was written by a model.',
+    pricingTitle: 'Simple pricing',
+    pricingBadge: 'Free while we launch',
+    pricingHeading: 'Full access, on us — for now',
+    pricingBody:
+      'Paid plans are coming. Everyone who signs up during the launch keeps free access through it.',
+    pricingCta: 'Create a free account',
+    loginQuote: 'Welcome back. Pick up where you left off.',
+    loginQuoteSub: 'Your plan, your marks and your streak are exactly as you left them.',
   },
 
   notifications: {

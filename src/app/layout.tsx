@@ -1,10 +1,34 @@
 import type { Metadata, Viewport } from 'next';
+import { Cairo, Inter } from 'next/font/google';
 
 import { I18nProvider } from '@/lib/i18n/client';
 import { dirFor, getDictionary, getLocale } from '@/lib/i18n';
 
 import './globals.css';
 import 'katex/dist/katex.min.css';
+
+/**
+ * Fonts are self-hosted by next/font rather than fetched from a CDN at runtime.
+ * A student on a slow Beirut connection should not wait on fonts.googleapis.com
+ * to see their own dashboard, and an exam runner must never depend on a third
+ * party being reachable.
+ *
+ * Cairo carries both scripts: it has a real Arabic cut, so an Arabic-track
+ * student gets the designed voice rather than a silent system substitution.
+ */
+const cairo = Cairo({
+  subsets: ['latin', 'arabic'],
+  weight: ['400', '600', '700', '800'],
+  variable: '--font-cairo',
+  display: 'swap',
+});
+
+const inter = Inter({
+  subsets: ['latin'],
+  weight: ['400', '500', '600'],
+  variable: '--font-inter',
+  display: 'swap',
+});
 
 export const metadata: Metadata = {
   title: {
@@ -17,7 +41,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: '#0f1729',
+  themeColor: '#5B4FE8',
   width: 'device-width',
   initialScale: 1,
 };
@@ -35,7 +59,12 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const dir = dirFor(locale);
 
   return (
-    <html lang={locale} dir={dir} suppressHydrationWarning>
+    <html
+      lang={locale}
+      dir={dir}
+      className={`${cairo.variable} ${inter.variable}`}
+      suppressHydrationWarning
+    >
       <body className="min-h-dvh bg-paper">
         <I18nProvider locale={locale} dictionary={dictionary}>
           {children}

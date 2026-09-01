@@ -33,7 +33,7 @@ export async function NextUpCard({ next }: { next: NextUp }) {
       <SheetBody className="flex flex-wrap items-center justify-between gap-4 py-3.5">
         <div className="min-w-[12rem] flex-1">
           <p className="label">{t.standing.nextUp}</p>
-          <p className="mt-0.5 text-[15px] font-medium leading-snug text-ink">{line}</p>
+          <p className="mt-0.5 text-body font-medium leading-snug text-ink">{line}</p>
         </div>
 
         <LinkButton href={next.href} variant="primary" size="sm">

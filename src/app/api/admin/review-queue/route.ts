@@ -48,8 +48,9 @@ export const GET = route(async (request) => {
   const generatedIds = items.filter((i) => i.itemType === 'generated_problem').map((i) => i.itemId);
   const questionIds = items.filter((i) => i.itemType === 'tagged_question').map((i) => i.itemId);
   const messageIds = items.filter((i) => i.itemType === 'flagged_content').map((i) => i.itemId);
+  const cardIds = items.filter((i) => i.itemType === 'generated_flashcard').map((i) => i.itemId);
 
-  const [problems, questions, messages] = await Promise.all([
+  const [problems, questions, messages, cards] = await Promise.all([
     generatedIds.length
       ? db.generatedProblem.findMany({
           where: { id: { in: generatedIds } },
@@ -87,11 +88,26 @@ export const GET = route(async (request) => {
           select: { id: true, content: true, groundingTier: true, createdAt: true },
         })
       : [],
+    cardIds.length
+      ? db.generatedCard.findMany({
+          where: { id: { in: cardIds } },
+          select: {
+            id: true,
+            front: true,
+            back: true,
+            modelUsed: true,
+            retiredAt: true,
+            chapter: { select: { name: true, subject: { select: { name: true } } } },
+            sourceChunk: { select: { title: true, contentText: true } },
+          },
+        })
+      : [],
   ]);
 
   const problemById = new Map(problems.map((p) => [p.id, p]));
   const questionById = new Map(questions.map((q) => [q.id, q]));
   const messageById = new Map(messages.map((m) => [m.id, m]));
+  const cardById = new Map(cards.map((c) => [c.id, c]));
 
   return ok({
     items: items.map((item) => ({
@@ -110,7 +126,9 @@ export const GET = route(async (request) => {
           ? serializeProblem(problemById.get(item.itemId))
           : item.itemType === 'tagged_question'
             ? (questionById.get(item.itemId) ?? null)
-            : (messageById.get(item.itemId) ?? null),
+            : item.itemType === 'generated_flashcard'
+              ? (cardById.get(item.itemId) ?? null)
+              : (messageById.get(item.itemId) ?? null),
     })),
   });
 });
@@ -181,6 +199,23 @@ export const POST = route(async (request) => {
         metadata: { reviewQueueItemId: item.id, notes: body.notes ?? null },
       });
     }
+  }
+
+  if (item.itemType === 'generated_flashcard') {
+    /*
+     * Inverted relative to a generated problem, because the card is already in
+     * a student's deck by the time anyone sees this screen.
+     *
+     * "Approve" therefore changes nothing — it records that a human looked and
+     * was content. "Reject" retires the card, which stops it being dealt from
+     * the next page load without deleting the row this queue entry points at.
+     */
+    await db.generatedCard
+      .update({
+        where: { id: item.itemId },
+        data: { retiredAt: approving ? null : now },
+      })
+      .catch(() => undefined);
   }
 
   if (item.itemType === 'tagged_question') {

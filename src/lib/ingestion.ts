@@ -4,6 +4,7 @@ import type { Prisma, QuestionType } from '@prisma/client';
 import { z } from 'zod';
 
 import { ai, embedMany } from '@/lib/ai';
+import { invalidateCurriculum } from '@/lib/cache';
 import { db } from '@/lib/db';
 import { isAiConfigured, isEmbeddingConfigured } from '@/lib/env';
 import { baremeSchema } from '@/lib/grading';
@@ -365,6 +366,11 @@ export async function runIngestion(jobId: string, source: IngestSource): Promise
         itemsFailed: result.itemsFailed,
       },
     });
+
+    // New questions change which chapters are practisable, which is the one
+    // curriculum figure that is cached. Ingestion is the only thing that moves
+    // it, so it is also the only thing that has to say so.
+    invalidateCurriculum();
 
     await log(
       jobId,

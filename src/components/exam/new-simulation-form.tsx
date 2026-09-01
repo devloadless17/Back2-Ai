@@ -123,7 +123,7 @@ export function NewSimulationForm({ options }: { options: SimulationOption[] }) 
 
           {mode === 'real_cycle' && canUseReal && (
             <div className="pt-1">
-              <label className="mb-1.5 block text-[13px] font-medium text-ink">
+              <label className="mb-1.5 block text-meta font-medium text-ink">
                 {t.examSim.chooseCycle}
               </label>
               <Select value={cycleId} onChange={(event) => setCycleId(event.target.value)}>
@@ -188,7 +188,7 @@ function ModeCard({
       )}
     >
       <p className="text-sm font-medium text-ink">{title}</p>
-      <p className="mt-0.5 text-[12.5px] leading-snug text-ink-muted">{hint}</p>
+      <p className="mt-0.5 text-meta leading-snug text-ink-muted">{hint}</p>
     </button>
   );
 }

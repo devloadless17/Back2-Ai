@@ -48,7 +48,7 @@ export default function AppError({
           </div>
 
           {error.digest && (
-            <p className="font-mono text-[11px] text-ink-faint">{error.digest}</p>
+            <p className="font-mono text-micro text-ink-faint">{error.digest}</p>
           )}
         </SheetBody>
       </Sheet>

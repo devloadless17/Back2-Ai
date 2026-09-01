@@ -1,0 +1,13 @@
+-- A fifth tier: answered from the model's own knowledge, said so plainly.
+--
+-- Until now a curriculum question that cleared no retrieval threshold was
+-- refused outright. That was the right default while the corpus was the only
+-- thing the product would stand behind, but it made the tutor useless on
+-- everything the corpus does not yet reach — which today is most of it.
+--
+-- The tier exists so that answering from general knowledge is *recorded* as a
+-- different kind of answer rather than blending into the grounded ones. Every
+-- message already stores its tier, so refusal rate, grounded rate and
+-- general-knowledge rate stay separately measurable, and a wrong answer can
+-- still be traced to which lane produced it.
+ALTER TYPE "grounding_tier" ADD VALUE IF NOT EXISTS 'general_knowledge';

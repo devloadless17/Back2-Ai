@@ -1,5 +1,7 @@
 import 'server-only';
 
+import type { Language } from '@prisma/client';
+
 import { db } from '@/lib/db';
 
 /**
@@ -28,11 +30,97 @@ export async function subjectIdsForTrack(trackId: string | null): Promise<string
   return subjects.map((s) => s.id);
 }
 
-export async function listSubjects(trackId: string | null): Promise<SubjectSummary[]> {
+/**
+ * The same scope, narrowed to the language the student is actually taught in.
+ *
+ * The track alone is not the scope, and treating it as one put every science
+ * subject into a student's search twice. A GS student was searching `Chimie`
+ * AND `Chemistry` — the same 393-page book in two languages, competing with
+ * itself on every query — so a French-medium student could be answered out of
+ * the English edition they have never opened.
+ *
+ * The pairing has to be written down, because the two editions do not share a
+ * name: they are `Chimie` and `Chemistry`, not one subject in two languages.
+ * Grouping by name was the first attempt and changed nothing at all.
+ *
+ * Only the sciences are paired. `Francais`, `English` and `Arabe` are subjects
+ * in their own right — a GS student sits all three as languages — and the
+ * humanities exist only in Arabic. Filtering those by the student's medium
+ * would delete their French paper from their own syllabus.
+ */
+const SAME_SUBJECT: string[][] = [
+  ['Mathematics', 'Mathematiques', 'Mathématiques'],
+  ['Physics', 'Physique'],
+  ['Chemistry', 'Chimie'],
+  ['Life Sciences', 'Sciences de la vie', 'Sciences de la Vie'],
+];
+
+export async function subjectIdsForStudent(
+  trackId: string | null,
+  language: Language,
+): Promise<string[]> {
+  if (!trackId) return [];
+  const subjects = await db.subject.findMany({
+    where: { trackId },
+    select: { id: true, name: true, language: true },
+  });
+
+  const groupOf = (name: string) =>
+    SAME_SUBJECT.findIndex((names) => names.includes(name));
+
+  const paired = new Map<number, typeof subjects>();
+  const scope: string[] = [];
+
+  for (const subject of subjects) {
+    const group = groupOf(subject.name);
+    if (group < 0) {
+      // Not a subject that comes in editions. Always in scope.
+      scope.push(subject.id);
+      continue;
+    }
+    paired.set(group, [...(paired.get(group) ?? []), subject]);
+  }
+
+  for (const editions of paired.values()) {
+    /*
+     * The student's medium, or all of them if this track does not offer it.
+     * Dropping a science entirely would have the tutor refuse questions the
+     * student's own syllabus covers, which is worse than one extra edition.
+     */
+    const mine = editions.filter((s) => s.language === language);
+    scope.push(...(mine.length > 0 ? mine : editions).map((s) => s.id));
+  }
+
+  return scope;
+}
+
+/**
+ * Which subjects a student actually sits.
+ *
+ * The corpus carries one subject row per *book*, and the sciences were
+ * published in both English and French — so Chemistry and Chimie are two rows
+ * describing the same course. A student sits one or the other: the language is
+ * locked at signup precisely because it is a property of their schooling, not a
+ * display preference.
+ *
+ * Arabic-taught subjects are the exception and are always included. Arabic
+ * literature, philosophy, history, geography and civics are examined in Arabic
+ * for every branch and every section — an English-track candidate still sits
+ * تاريخ. Filtering them out with the French science books would delete half
+ * their programme.
+ */
+export function subjectLanguagesFor(language: string): ('en' | 'fr' | 'ar')[] {
+  return language === 'ar' ? ['ar'] : [language as 'en' | 'fr', 'ar'];
+}
+
+export async function listSubjects(
+  trackId: string | null,
+  language: string,
+): Promise<SubjectSummary[]> {
   if (!trackId) return [];
 
   const subjects = await db.subject.findMany({
-    where: { trackId },
+    where: { trackId, language: { in: subjectLanguagesFor(language) } },
     select: {
       id: true,
       name: true,

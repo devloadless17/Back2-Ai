@@ -14,7 +14,15 @@ import { gradeToQuality, reviewFlashcard, type ReviewGrade } from '@/lib/scoring
  * on a card it has never seen.
  */
 const bodySchema = z.object({
-  questionId: z.string().uuid(),
+  /**
+   * Which deck the card came from.
+   *
+   * Sent rather than guessed. Both ids are uuids, so a server that tried to
+   * work out which table one belonged to would have to probe both — and would
+   * grade the wrong card the day the two ever collided.
+   */
+  source: z.enum(['question', 'generated']).default('question'),
+  cardId: z.string().uuid(),
   grade: z.enum(['again', 'hard', 'good', 'easy']),
 });
 
@@ -27,8 +35,19 @@ export const POST = route(async (request) => {
 
   const body = await parseBody(request, bodySchema);
 
+  /*
+   * Whichever unique constraint applies. Both survived the migration that made
+   * `question_id` nullable, so each kind of card is still a single indexed
+   * lookup scoped to this user — a client cannot reschedule someone else's
+   * card by knowing its id.
+   */
+  const where =
+    body.source === 'generated'
+      ? { userId_generatedCardId: { userId: user.id, generatedCardId: body.cardId } }
+      : { userId_questionId: { userId: user.id, questionId: body.cardId } };
+
   const card = await db.flashcardState.findUnique({
-    where: { userId_questionId: { userId: user.id, questionId: body.questionId } },
+    where,
     select: { easiness: true, intervalDays: true, repetitions: true },
   });
 
@@ -44,7 +63,7 @@ export const POST = route(async (request) => {
   );
 
   await db.flashcardState.update({
-    where: { userId_questionId: { userId: user.id, questionId: body.questionId } },
+    where,
     data: {
       easiness: next.easiness,
       intervalDays: next.intervalDays,

@@ -191,12 +191,17 @@ export function PlanBuilder({ hasExam }: { hasExam: boolean }) {
               </Select>
             )}
           </Field>
-          <Button onClick={() => void run(false)} disabled={busy}>
+          <Button className="w-full sm:w-auto" onClick={() => void run(false)} disabled={busy}>
             {plan ? t.schedule.rebuild : t.schedule.buildPlan}
           </Button>
           {plan && (plan.sessions?.length ?? 0) > 0 ? (
             <>
-              <Button variant="primary" onClick={() => void run(true)} disabled={busy}>
+              <Button
+                className="w-full sm:w-auto"
+                variant="primary"
+                onClick={() => void run(true)}
+                disabled={busy}
+              >
                 {format(t.schedule.addToCalendar, { count: plan.sessions?.length ?? 0 })}
               </Button>
               <Button variant="quiet" onClick={() => setPlan(null)} disabled={busy}>
@@ -240,7 +245,7 @@ export function PlanBuilder({ hasExam }: { hasExam: boolean }) {
             </div>
 
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[34rem] table-fixed border-separate border-spacing-1">
+              <table className="w-full min-w-[19rem] table-fixed border-separate border-spacing-1 sm:min-w-[30rem]">
                 <thead>
                   <tr>
                     {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((label) => (
@@ -271,7 +276,7 @@ export function PlanBuilder({ hasExam }: { hasExam: boolean }) {
                                 minutes,
                               })}
                               className={cn(
-                                'flex h-16 w-full flex-col items-center justify-center gap-1 rounded-xl border text-xs transition',
+                                'pressable flex h-12 w-full flex-col items-center justify-center gap-0.5 rounded-lg border text-micro transition sm:h-16 sm:gap-1 sm:rounded-xl sm:text-xs',
                                 sessions.length === 0
                                   ? 'border-transparent text-ink-faint'
                                   : 'border-rule hover:border-primary',

@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
+import { ChoiceList } from '@/components/practice/choice-list';
 import { Button, LinkButton } from '@/components/ui/button';
 import { WorkingArea } from '@/components/ui/field';
 import { Alert, Badge } from '@/components/ui/feedback';
@@ -183,10 +184,10 @@ export function QuizRunner({
                     {outcome.baremeResult.map((item, j) => (
                       <RuledRow key={j} className="flex-col items-stretch gap-1">
                         <div className="flex items-baseline justify-between gap-3">
-                          <p className="min-w-0 text-[13.5px] font-medium text-ink">{item.criterion}</p>
+                          <p className="min-w-0 text-body font-medium text-ink">{item.criterion}</p>
                           <p
                             className={cn(
-                              'shrink-0 text-[13px] font-semibold tabular-nums',
+                              'shrink-0 text-meta font-semibold tabular-nums',
                               item.points_awarded >= item.points_possible
                                 ? 'text-correct'
                                 : item.points_awarded > 0
@@ -197,7 +198,7 @@ export function QuizRunner({
                             {formatScore(item.points_awarded)} / {formatScore(item.points_possible)}
                           </p>
                         </div>
-                        <p className="text-[12.5px] leading-snug text-ink-muted">{item.justification}</p>
+                        <p className="text-meta leading-snug text-ink-muted">{item.justification}</p>
                       </RuledRow>
                     ))}
                   </div>
@@ -247,34 +248,16 @@ export function QuizRunner({
 
         <SheetBody className="border-t border-rule">
           {question.questionType === 'mcq' && question.options ? (
-            <fieldset className="space-y-2">
-              <legend className="mb-2 text-[13px] font-medium text-ink">{t.practice.yourAnswer}</legend>
-              {question.options.map((option) => (
-                <label
-                  key={option.id}
-                  className={cn(
-                    'flex cursor-pointer items-start gap-3 rounded border px-3 py-2.5 transition-colors duration-150',
-                    choices[question.id] === option.id
-                      ? 'border-primary bg-primary-soft'
-                      : 'border-rule-strong hover:bg-paper-sunken',
-                  )}
-                >
-                  <input
-                    type="radio"
-                    name={`q-${question.id}`}
-                    checked={choices[question.id] === option.id}
-                    onChange={() => setChoices((c) => ({ ...c, [question.id]: option.id }))}
-                    className="mt-1 h-4 w-4 shrink-0 accent-[hsl(var(--primary))]"
-                  />
-                  <MathText compact className="min-w-0 flex-1">
-                    {option.text}
-                  </MathText>
-                </label>
-              ))}
-            </fieldset>
+            <ChoiceList
+              name={`q-${question.id}`}
+              legend={t.practice.yourAnswer}
+              options={question.options}
+              value={choices[question.id]}
+              onChange={(optionId) => setChoices((c) => ({ ...c, [question.id]: optionId }))}
+            />
           ) : (
             <div className="space-y-2">
-              <label htmlFor="quiz-answer" className="block text-[13px] font-medium text-ink">
+              <label htmlFor="quiz-answer" className="block text-meta font-medium text-ink">
                 {t.practice.yourAnswer}
               </label>
               <WorkingArea
@@ -325,7 +308,7 @@ export function QuizRunner({
               onClick={() => setIndex(i)}
               aria-current={i === index ? 'step' : undefined}
               className={cn(
-                'h-8 w-8 rounded border text-[13px] font-medium tabular-nums transition-colors duration-150',
+                'h-8 w-8 rounded border text-meta font-medium tabular-nums transition-colors duration-150',
                 i === index
                   ? 'border-ink bg-ink text-paper'
                   : done

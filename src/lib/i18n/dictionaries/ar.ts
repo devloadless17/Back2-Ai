@@ -106,6 +106,8 @@ export const ar: Dictionary = {
     wizardPermanentBody:
       'لن تتمكّن من تغييره بنفسك لاحقًا — فذلك يُبطل كل نتيجة نحسبها لك. يمكن لمسؤول تصحيحه إذا اخترت خطأً.',
     wizardProgressLabel: 'تقدّم إنشاء الحساب',
+    wizardLockConfirm: 'أفهم أنّ هذا الاختيار لا يمكن تغييره لاحقًا.',
+    wizardLockRequired: 'أشّر على المربّع للتأكيد قبل المتابعة.',
   },
 
   standing: {
@@ -161,6 +163,9 @@ export const ar: Dictionary = {
     planMonthlyHint: 'يُحتسب كل شهر. يمكن الإلغاء متى شئت.',
     planAnnual: 'سنوي',
     planAnnualHint: 'يُحتسب مرة واحدة للعام الدراسي.',
+    planComingSoon: 'قريبًا',
+    planComingSoonHint: 'لم تُنشر الأسعار بعد — لا شيء تختاره هنا اليوم.',
+    planLaunchNote: 'الجميع على الخطة المجانية خلال الإطلاق. لا بطاقة، ولا شيء يُلغى.',
     perMonth: '/شهرياً',
     perYear: '/سنوياً',
     priceFree: 'مجاناً',
@@ -221,8 +226,26 @@ export const ar: Dictionary = {
     topChaptersHint: 'الأضعف أولاً — هنا تكمن العلامات.',
     heroEyebrow: 'أهلًا بعودتك',
     heroTitle: 'جاهز لجلسة اليوم يا {name}؟',
-    heroSummary: '{count} جلسة · {minutes} دقيقة · الامتحان بعد {days} يومًا',
-    heroSummaryNoExam: '{count} جلسة · {minutes} دقيقة مقرّرة',
+    /*
+     * Arabic counts in six categories, and the string that shipped used the
+     * form for 11-99 (`يومًا`) for every value. It was wrong for one through
+     * ten — the whole of the final revision week, on the number this product
+     * exists to show.
+     *
+     *   one  يوم واحد     two  يومين (dual)     few  أيام     many  يومًا
+     *
+     * The counted noun also changes case and number with the count, which is
+     * why these are whole phrases rather than a noun with a number glued on.
+     */
+    heroSessions: { one: 'جلسة واحدة', two: 'جلستان', few: '{count} جلسات', other: '{count} جلسة' },
+    heroMinutes: { one: 'دقيقة واحدة', two: 'دقيقتان', few: '{count} دقائق', other: '{count} دقيقة' },
+    heroExamIn: {
+      one: 'الامتحان غدًا',
+      two: 'الامتحان بعد يومين',
+      few: 'الامتحان بعد {count} أيام',
+      other: 'الامتحان بعد {count} يومًا',
+    },
+    heroPlanned: 'مقرّرة',
     heroCta: 'ابدأ خطة اليوم',
     heroEmptyTitle: 'لا شيء مقرّر اليوم يا {name}',
     heroEmptySummary: 'أنشئ خطة وستُبنى انطلاقًا من تاريخ امتحانك.',
@@ -231,17 +254,35 @@ export const ar: Dictionary = {
     heroDoneSummary: 'اكتملت الجلسات الـ{count}. ما بعدها مكسب إضافي.',
     minutesShort: '{minutes} د',
     streakDays: '{count} أيام متتالية — واصل',
+    heroStreakBadge: {
+      zero: 'لا أيام متتالية',
+      one: 'يوم متتالٍ',
+      two: 'يومان متتاليان',
+      few: '{count} أيام متتالية',
+      many: '{count} يومًا متتاليًا',
+      other: '{count} يوم متتالٍ',
+    },
+    heroStatAccuracy: 'صحيحة هذا الأسبوع',
+    heroStatAnswered: 'سؤالًا هذا الأسبوع',
+    heroStatWeakSpots: 'نقطة ضعف مرصودة',
+    heroStatPending: 'لا تكفي بعد',
     focusThisWeek: 'ركّز هذا الأسبوع على: {chapter} — الإتقان {percent}%',
     yourSubjects: 'موادّك',
     yourSubjectsHint: 'حلقة لكل مادة. اضغط واحدة لتفصيل الفصول.',
     todayTitle: 'اليوم',
     todayNothing: 'لا شيء مجدول',
     todaySummary: '{count} جلسة · {minutes} دقيقة',
+    todaySessions: { one: 'جلسة واحدة', two: 'جلستان', few: '{count} جلسات', other: '{count} جلسة' },
     todayAllDone: 'أنجزت جلسات اليوم كلّها ({count}). لا شيء آخر مجدول.',
     todayNoPlan: 'لا خطة لليوم بعد. أنشئ واحدة وستظهر هنا.',
     openPlanner: 'افتح المخطِّط',
     examToday: 'الامتحان اليوم',
-    daysToExamLabel: '{days} يومًا حتى {label}',
+    daysToExamLabel: {
+      one: 'يوم واحد حتى {label}',
+      two: 'يومان حتى {label}',
+      few: '{count} أيام حتى {label}',
+      other: '{count} يومًا حتى {label}',
+    },
     yourExam: 'امتحانك',
     cardDueCountOne: 'بطاقة واحدة مستحقّة',
     cardsDueCount: '{count} بطاقة مستحقّة',
@@ -430,6 +471,20 @@ export const ar: Dictionary = {
     sessionCompleteBody: 'راجعت {count} بطاقة. ستعود {again} منها اليوم.',
     emptyDeck: 'لا توجد بطاقات بعد',
     emptyDeckHint: 'تُنشأ البطاقات من الأسئلة التي تتمرّن عليها. أجب عن بعضها لبناء مجموعتك.',
+    seedTitle: 'ابدأ رزمة من كتابك',
+    seedHint:
+      'اختر فصلًا وسنكتب عشر بطاقات من مقاطعه نفسها — لا حاجة إلى أن تكون قد تدرّبت عليه أولًا.',
+    seedCta: 'أنشئ ١٠ بطاقات',
+    seedGenerating: 'جارٍ كتابة البطاقات…',
+    seedAdded: 'أُضيفت {count} بطاقات إلى رزمتك.',
+    seedNone: 'لم يُقرأ شيء في هذا الفصل كتعريف أو قانون، فلم تُكتب منه أي بطاقة.',
+    seedNoMaterial: 'لم تُحمَّل بعد أي مقاطع من الكتاب لهذا الفصل.',
+    seedNotConfigured: 'كتابة البطاقات غير مهيّأة في هذا النشر.',
+    seedTooMany: 'هذا عدد كبير من البطاقات ليوم واحد. حاول لاحقًا.',
+    seedTopUp: 'أضف بطاقات من الكتاب',
+    fromTextbook: 'من كتابك',
+    fromTextbookHint:
+      'كُتبت من مقطع في فصلك نفسه وقُوبلت به — وليست سؤالًا من واضع امتحان.',
   },
 
   chat: {
@@ -456,6 +511,17 @@ export const ar: Dictionary = {
     flagged: 'تم الإبلاغ. سيراجعه أحد المسؤولين.',
     anchoredAttempt: 'تصحيح إجابتك أنت',
     anchoredAttemptHint: 'ترى هذه المحادثة ما كتبته، والعلامات التي نالها كل معيار، والحل الرسمي.',
+    dockOpen: 'اسأل المعلّم',
+    dockClose: 'إغلاق المعلّم',
+    dockTitle: 'المعلّم',
+    dockSubtitle: 'متاح في كل الشاشات، إلا أثناء ورقة امتحان.',
+    dockIntro: 'اسأل عمّا في هذه الشاشة، أو عن أي شيء تعثّرت فيه.',
+    dockContext: 'أمامك: {label}',
+    dockNoContext: 'لا شيء مرتبط — ستبدأ محادثة جديدة.',
+    dockChipExplain: 'اشرح لي هذا',
+    dockChipQuiz: 'اختبرني',
+    dockChipFlashcards: 'البطاقات',
+    dockChipPlan: 'عدّل خطتي',
   },
 
   upload: {
@@ -634,6 +700,46 @@ export const ar: Dictionary = {
     ingestionTrigger: 'تشغيل الإدخال',
     jobStatus: 'الحالة',
     auditEmpty: 'لا توجد أحداث تدقيق مسجّلة.',
+    itemTypeGeneratedCard: 'بطاقة مراجعة',
+  },
+
+  marketing: {
+    navLogin: 'تسجيل الدخول',
+    navSignup: 'أنشئ حسابًا مجانيًا',
+    eyebrow: 'لطلاب البكالوريا اللبنانية — GS · LS · SE · LH',
+    headline: 'كفى تخمينًا لما يجب أن تدرسه.',
+    headlineAccent: 'اعرف تمامًا.',
+    subhead:
+      'كل اختبار وبطاقة وورقة امتحان سابقة تتحوّل إلى خطة مبنية على علاماتك أنت — من المنهج الرسمي، لا من التخمين.',
+    ctaStart: 'ابدأ مجانًا',
+    ctaHaveAccount: 'لديّ حساب بالفعل',
+    previewTitle: 'جرّبه قبل أن تسجّل',
+    previewSubtitle: 'هذه مكوّنات المنتج نفسه، تعمل هنا من دون حفظ أي شيء.',
+    previewNothingSaved: 'لا يُسجّل شيء ممّا تفعله هنا.',
+    flipTitle: 'بطاقات تنقلب',
+    flipHint: 'اضغط البطاقة',
+    flipQuestion: 'مشتقّة x³ ؟',
+    flipAnswer: '3x²',
+    flipFront: 'السؤال',
+    flipBack: 'الجواب',
+    quizTitle: 'إجابات تُصحّح فورًا',
+    quizHint: 'اختر إجابة',
+    quizQuestion: 'مشتقّة sin(x) هي:',
+    quizCorrect: 'صحيح',
+    quizIncorrect: 'ليست هذه',
+    masteryTitle: 'اعرف أين تقف بالضبط',
+    masteryHint: 'إتقانك، مادة بمادة',
+    masterySubject: 'الفيزياء',
+    trustLine:
+      'مبنيّ على منهج المركز التربوي الرسمي وعلى أوراق بكالوريا حقيقية. لا شيء في المكتبة كتبه نموذج.',
+    pricingTitle: 'تسعير بسيط',
+    pricingBadge: 'مجاني خلال الإطلاق',
+    pricingHeading: 'وصول كامل، على حسابنا — في الوقت الحالي',
+    pricingBody:
+      'الخطط المدفوعة قادمة. كل من يسجّل خلال الإطلاق يحتفظ بالوصول المجاني طوالها.',
+    pricingCta: 'أنشئ حسابًا مجانيًا',
+    loginQuote: 'أهلًا بعودتك. تابع من حيث توقّفت.',
+    loginQuoteSub: 'خطتك وعلاماتك وسلسلة أيامك كما تركتها تمامًا.',
   },
 
   notifications: {

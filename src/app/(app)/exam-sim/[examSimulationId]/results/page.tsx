@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { notFound, redirect } from 'next/navigation';
 
+import { TutorDock } from '@/components/chat/tutor-dock';
 import { TutorButton } from '@/components/chat/tutor-button';
 import { MarkExplanation } from '@/components/exam/mark-explanation';
 import { LinkButton } from '@/components/ui/button';
@@ -88,6 +89,25 @@ export default async function ExamResultsPage({
   const attemptByQuestionId = new Map(
     attempts.flatMap((attempt) => (attempt.questionId ? [[attempt.questionId, attempt.id]] : [])),
   );
+
+  /*
+   * What the docked tutor opens on.
+   *
+   * The first question that actually lost marks, rather than the first question
+   * on the paper: a student who taps "Explain this" straight after a result
+   * means the one they got wrong. Questions still awaiting a human marker are
+   * skipped — there is no verdict to explain yet — and if nothing lost marks the
+   * dock carries the paper as context and no anchor.
+   */
+  const firstLostMarks = simulation.questions.find((slot) => {
+    if (!slot.questionId || !attemptByQuestionId.has(slot.questionId)) return false;
+    const awarded = slot.answer?.totalScore;
+    const possible = slot.answer?.maxScore ?? slot.maxScore;
+    if (awarded === null || awarded === undefined || possible === null || possible === undefined) {
+      return false;
+    }
+    return Number(awarded) < Number(possible);
+  });
 
   return (
     <>
@@ -200,11 +220,11 @@ export default async function ExamResultsPage({
 
                 {/* Student's answer */}
                 <SheetBody className="border-t border-rule bg-paper-sunken/40">
-                  <p className="mb-1.5 text-[12px] font-semibold uppercase tracking-wide text-ink-faint">
+                  <p className="mb-1.5 text-caption font-semibold uppercase tracking-wide text-ink-faint">
                     {t.practice.yourAnswer}
                   </p>
                   {studentText.trim().length > 0 ? (
-                    <pre className="scroll-x whitespace-pre-wrap font-mono text-[13px] leading-relaxed text-ink">
+                    <pre className="scroll-x whitespace-pre-wrap font-mono text-meta leading-relaxed text-ink">
                       {studentText}
                     </pre>
                   ) : (
@@ -270,7 +290,7 @@ export default async function ExamResultsPage({
                     has just seen a mark they did not expect. */}
                 {slot.questionId && attemptByQuestionId.has(slot.questionId) && (
                   <SheetFooter className="justify-between gap-3">
-                    <p className="text-[12.5px] text-ink-muted">{t.examSim.tutorOnThisHint}</p>
+                    <p className="text-meta text-ink-muted">{t.examSim.tutorOnThisHint}</p>
                     <TutorButton
                       attemptId={attemptByQuestionId.get(slot.questionId)}
                       label={t.examSim.tutorOnThis}
@@ -283,6 +303,18 @@ export default async function ExamResultsPage({
           })}
         </div>
       )}
+
+      {/* Allowed here and deliberately not one route up: `/exam-sim/[id]` is a
+          paper under a running clock and stays assistant-free. */}
+      <TutorDock
+        context={{
+          label: simulation.subject.name,
+          attemptId:
+            firstLostMarks?.questionId
+              ? attemptByQuestionId.get(firstLostMarks.questionId)
+              : undefined,
+        }}
+      />
     </>
   );
 }

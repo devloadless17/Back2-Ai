@@ -38,7 +38,7 @@ export function Field({ label, hint, error, required, locked, children, classNam
 
   return (
     <div className={cn('space-y-1.5', className)}>
-      <label htmlFor={id} className="block text-[13px] font-medium text-ink">
+      <label htmlFor={id} className="block text-meta font-medium text-ink">
         {label}
         {required && (
           <span className="ms-1 text-mark" aria-hidden="true">
@@ -48,7 +48,7 @@ export function Field({ label, hint, error, required, locked, children, classNam
       </label>
 
       {hint && (
-        <p id={hintId} className="text-[12.5px] leading-snug text-ink-muted">
+        <p id={hintId} className="text-meta leading-snug text-ink-muted">
           {hint}
         </p>
       )}
@@ -62,7 +62,7 @@ export function Field({ label, hint, error, required, locked, children, classNam
       )}
 
       {error && (
-        <p id={errorId} role="alert" className="text-[12.5px] font-medium text-mark">
+        <p id={errorId} role="alert" className="text-meta font-medium text-mark">
           {error}
         </p>
       )}
@@ -106,7 +106,7 @@ export const WorkingArea = forwardRef<HTMLTextAreaElement, TextareaHTMLAttribute
         spellCheck={false}
         className={cn(
           CONTROL,
-          'min-h-[12rem] resize-y py-3 font-mono text-[13.5px] leading-[1.9]',
+          'min-h-[12rem] resize-y py-3 font-mono text-body leading-[1.9]',
           className,
         )}
         {...props}

@@ -7,7 +7,12 @@ import { db } from '@/lib/db';
 import type { Locale } from '@/lib/i18n/config';
 import { classifyChatIntent, type IntentClassification } from '@/lib/chat-intent';
 import { missingVisual, type QuestionClassification } from '@/lib/question-kind';
-import { retrieveGrounding, type GroundingResult, type RetrievalSource } from '@/lib/retrieval';
+import {
+  retrieveGrounding,
+  type GroundingResult,
+  type RetrievalSource,
+  type SyllabusScope,
+} from '@/lib/retrieval';
 import { startOfToday } from '@/lib/queries/flashcards';
 import type { QuestionKind } from '@/lib/question-kind';
 import { getNextUp } from '@/lib/queries/next-up';
@@ -920,7 +925,17 @@ function planningFallback(
   return lines.length ? lines.join("\n") : L.none;
 }
 
-function generalKnowledgePrompt(subjects: string[], locale: Locale): string {
+/**
+ * Exported for the same reason `ungroundedLane` is: this is the rule that
+ * decides what an unverified answer is allowed to be about, on the one path
+ * with no sources and no verification pass behind it. A prompt that thin a
+ * guarantee rests on should be assertable in a test, not only readable.
+ */
+export function generalKnowledgePrompt(
+  subjects: string[],
+  locale: Locale,
+  syllabus: SyllabusScope | null,
+): string {
   return [
     "You are a tutor inside a Lebanese Baccalaureate (Bac II) revision app.",
     // The student's own message picks the language; the setting is the
@@ -956,6 +971,51 @@ function generalKnowledgePrompt(subjects: string[], locale: Locale): string {
     "",
     subjects.length
       ? `This student takes: ${subjects.join(", ")}. If the question is plainly outside all of them, say so in one line and stop.`
+      : "",
+    /*
+     * The syllabus, where retrieval could name one.
+     *
+     * This is the difference between "answer from your knowledge" and "answer
+     * from your knowledge, about THIS curriculum". A subject name does not
+     * distinguish a Lebanese philosophy syllabus from a French one, and the
+     * model defaults to whichever it has seen most of — which is not the one
+     * the student is examined on.
+     *
+     * The chapter list bounds the scope, and the past questions show the depth.
+     * Neither may be quoted: a chapter title is not a claim and a past question
+     * is not an answer, which is exactly why they are safe to hand over on a
+     * path that has no verification behind it. Passages would not be — a
+     * sub-threshold passage quoted back would be material the pipeline refused,
+     * arriving in the answer as though it had been retrieved.
+     */
+    syllabus
+      ? [
+          "",
+          `THE SYLLABUS THIS BELONGS TO — ${syllabus.subject}. Its chapters, in order:`,
+          ...syllabus.chapters.map((c) => `  - ${c}`),
+          "",
+          "Answer WITHIN the scope of that list. Concretely:",
+          "- Teach the version of this topic that this syllabus teaches, not the one from",
+          "  another country's curriculum. Where they differ in notation, definition or",
+          "  method, follow what these chapter titles imply and say which you are using.",
+          "- Do not introduce material from beyond this list, however relevant it seems.",
+          "  A correct answer built on a chapter they will not be examined on is a wrong",
+          "  answer for this student.",
+          "- Name the chapter the question belongs to, so they know where to revise.",
+          "- If the question is not covered by any chapter above, say that plainly in one",
+          "  line and stop. That is a useful answer; guessing at scope is not.",
+          "- The list is the syllabus outline, not source material. Never quote it, cite it,",
+          "  or claim their book says something because a chapter is named that.",
+          ...(syllabus.examples.length
+            ? [
+                "",
+                "How this syllabus actually examines the topic — real past questions, for",
+                "calibrating depth and phrasing only. They are questions, not answers, and",
+                "must not be quoted or treated as material:",
+                ...syllabus.examples.map((q) => `  - ${q}`),
+              ]
+            : []),
+        ].join("\n")
       : "",
   ]
     .filter(Boolean)
@@ -995,11 +1055,19 @@ async function* generalKnowledgeTurn(
 
   try {
     const stream = ai().streamText({
-      system: generalKnowledgePrompt(subjects.map((s) => s.name), input.locale),
+      system: generalKnowledgePrompt(
+        subjects.map((s) => s.name),
+        input.locale,
+        grounding.syllabus ?? null,
+      ),
       messages: [...input.history.slice(-8), { role: "user", content: input.question }],
       // The same budget the grounded path gets. This lane has no retrieved
       // material to lean on, so if anything it needs the thinking more.
-      effort: "medium",
+      //
+      // It said this while passing `medium` against the grounded path's `high`,
+      // so the lane with no sources and no verification pass behind it was also
+      // the one thinking least. The comment had the argument right.
+      effort: "high",
     });
 
     let next = await stream.next();

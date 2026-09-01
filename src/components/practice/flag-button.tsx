@@ -29,7 +29,7 @@ export function FlagButton({
   const [state, setState] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
 
   if (state === 'sent') {
-    return <p className="text-[12.5px] text-ink-muted">{t.chat.flagged}</p>;
+    return <p className="text-meta text-ink-muted">{t.chat.flagged}</p>;
   }
 
   if (!open) {
@@ -37,7 +37,7 @@ export function FlagButton({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="text-[12.5px] text-ink-faint underline-offset-2 transition-colors hover:text-mark hover:underline"
+        className="text-meta text-ink-faint underline-offset-2 transition-colors hover:text-mark hover:underline"
       >
         {t.chat.flag}
       </button>
@@ -71,7 +71,7 @@ export function FlagButton({
         <Button size="sm" variant="quiet" onClick={() => setOpen(false)}>
           {t.common.cancel}
         </Button>
-        {state === 'error' && <span className="text-[12.5px] text-mark">{t.common.unknownError}</span>}
+        {state === 'error' && <span className="text-meta text-mark">{t.common.unknownError}</span>}
       </div>
     </div>
   );

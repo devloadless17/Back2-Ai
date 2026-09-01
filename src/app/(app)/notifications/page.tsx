@@ -51,7 +51,7 @@ export default async function NotificationsPage() {
                       <p className={cn('text-sm', notification.isRead ? 'text-ink-muted' : 'text-ink')}>
                         {notification.message}
                       </p>
-                      <p className="mt-0.5 text-[11.5px] text-ink-faint">
+                      <p className="mt-0.5 text-caption text-ink-faint">
                         {formatDate(locale, notification.createdAt)}
                       </p>
                     </div>

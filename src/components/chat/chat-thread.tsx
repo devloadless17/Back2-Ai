@@ -32,7 +32,9 @@ type GroundingTier =
   | 'concept_level'
   | 'personal_reference'
   | 'ungrounded_refused'
-  | 'conversational';
+  | 'conversational'
+  | 'general_knowledge'
+  | 'study_record';
 
 export type ChatMessageView = {
   id: string;
@@ -235,7 +237,7 @@ export function ChatThread({
           message.role === 'user' ? (
             <div key={message.id} className="flex justify-end">
               <div className="max-w-[85%] rounded-lg rounded-ee-sm bg-primary-soft px-4 py-2.5">
-                <p className="whitespace-pre-wrap text-[14.5px] leading-relaxed text-ink">
+                <p className="whitespace-pre-wrap text-body leading-relaxed text-ink">
                   {message.content}
                 </p>
               </div>
@@ -245,7 +247,7 @@ export function ChatThread({
               <div className="flex items-center justify-between gap-3 border-b border-rule px-5 py-2">
                 <GroundingLabel tier={message.tier} />
                 {message.sources.length > 0 && (
-                  <span className="truncate text-[11.5px] text-ink-faint">
+                  <span className="truncate text-caption text-ink-faint">
                     {t.chat.sources}: {message.sources.map((s) => s.label).join(' · ')}
                   </span>
                 )}
@@ -292,7 +294,7 @@ export function ChatThread({
                 />
                 <div className="min-w-0 flex-1 space-y-1.5">
                   <div className="flex items-center justify-between gap-2">
-                    <p className="text-[11.5px] font-semibold uppercase tracking-wide text-ink-faint">
+                    <p className="text-caption font-semibold uppercase tracking-wide text-ink-faint">
                       {attaching ? t.upload.reading : t.upload.checkTranscription}
                     </p>
                     <button
@@ -310,12 +312,12 @@ export function ChatThread({
                       value={transcription}
                       onChange={(event) => setTranscription(event.target.value)}
                       rows={3}
-                      className="text-[13px]"
+                      className="text-meta"
                     />
                   ) : null}
 
                   {illegible ? (
-                    <p className="text-[11.5px] text-partial">{t.upload.illegible}</p>
+                    <p className="text-caption text-partial">{t.upload.illegible}</p>
                   ) : null}
                 </div>
               </div>
@@ -380,7 +382,7 @@ export function ChatThread({
 function GroundingLabel({ tier }: { tier: GroundingTier | null }) {
   const { t } = useI18n();
 
-  if (!tier) return <span className="text-[11.5px] text-ink-faint">{t.chat.thinking}</span>;
+  if (!tier) return <span className="text-caption text-ink-faint">{t.chat.thinking}</span>;
 
   /*
    * A greeting gets no badge at all.
@@ -401,6 +403,25 @@ function GroundingLabel({ tier }: { tier: GroundingTier | null }) {
     concept_level: { tone: 'primary', label: t.chat.groundingConceptLevel },
     personal_reference: { tone: 'partial', label: t.chat.groundingPersonalReference },
     ungrounded_refused: { tone: 'mark', label: t.chat.groundingRefused },
+    /*
+     * Shares the refusal's tone on purpose.
+     *
+     * The tones here rank provenance, and this answer has none — it is closer to
+     * a refusal than to a citation, whatever its length. Giving it its own
+     * friendlier colour would let a student learn to read "has a badge" as "is
+     * safe to quote", which is the exact distinction the badge exists to draw.
+     *
+     * The badge is the redundant channel, not the primary one: the answer body
+     * already opens with the notice, so nothing is lost to a colour-vision
+     * difference or to a student who never looks up here.
+     */
+    general_knowledge: { tone: 'mark', label: t.chat.groundingGeneralKnowledge },
+    /*
+     * The one non-curriculum lane that earns a confident tone. These facts
+     * are not recalled or retrieved — they are the rows the rest of the app
+     * is rendering from on the same page load.
+     */
+    study_record: { tone: 'partial', label: t.chat.groundingStudyRecord },
   };
 
   const { tone, label } = config[tier];

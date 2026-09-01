@@ -7,22 +7,17 @@ import { getSession } from '@/lib/auth/session';
  *
  * An already-authenticated visitor is sent to the dashboard rather than being
  * shown a sign-in form for the account they are already using.
+ *
+ * Deliberately thin. It used to centre everything in a 28rem column under a
+ * shared header bar, which suited a single sheet and nothing else — the sign-in
+ * screen is now a two-column split running the full height of the window, and
+ * the signup wizard wants a wider single column with its own brand line. A
+ * layout cannot serve both by parameterising a max-width, so it serves neither
+ * and each page owns its own frame.
  */
 export default async function AuthLayout({ children }: { children: React.ReactNode }) {
   const session = await getSession();
   if (session) redirect('/dashboard');
 
-  return (
-    <div className="flex min-h-dvh flex-col">
-      <header className="border-b border-rule bg-paper-raised">
-        <div className="mx-auto flex w-full max-w-5xl items-center gap-2.5 px-6 py-4">
-          <span className="text-[15px] font-semibold">Bac II</span>
-        </div>
-      </header>
-
-      <main className="flex flex-1 items-center justify-center px-4 py-10 sm:py-16">
-        <div className="w-full max-w-md">{children}</div>
-      </main>
-    </div>
-  );
+  return <div className="min-h-dvh bg-paper">{children}</div>;
 }

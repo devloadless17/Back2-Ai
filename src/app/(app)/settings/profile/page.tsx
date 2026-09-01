@@ -70,10 +70,10 @@ export default async function ProfileSettingsPage() {
             <ul className="ruled">
               {sessions.map((session) => (
                 <li key={session.id} className="px-5 py-3">
-                  <p className="truncate text-[13px] text-ink">
+                  <p className="truncate text-meta text-ink">
                     {session.userAgent?.slice(0, 60) ?? '—'}
                   </p>
-                  <p className="text-[11.5px] text-ink-faint">
+                  <p className="text-caption text-ink-faint">
                     {session.ipAddress ?? '—'} · {formatDate(locale, session.lastSeenAt)}
                   </p>
                 </li>

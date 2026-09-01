@@ -31,12 +31,16 @@ export type NextUp =
   | { kind: 'examSim'; href: string }
   | { kind: 'anything'; href: string };
 
-export async function getNextUp(userId: string, trackId: string | null): Promise<NextUp> {
+export async function getNextUp(
+  userId: string,
+  trackId: string | null,
+  language: string,
+): Promise<NextUp> {
   const today = startOfToday();
 
   const [dueCount, progress, examCount] = await Promise.all([
     db.flashcardState.count({ where: { userId, dueDate: { lte: today } } }),
-    getProgressForUser(userId, trackId),
+    getProgressForUser(userId, trackId, language),
     db.examSimulation.count({ where: { userId, status: { in: ['submitted', 'graded'] } } }),
   ]);
 

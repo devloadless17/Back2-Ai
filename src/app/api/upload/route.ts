@@ -42,6 +42,10 @@ export const POST = route(async (request) => {
   const form = await request.formData().catch(() => null);
   const file = form?.get('file');
 
+  // Optional: the thread this photo is being clipped to.
+  const attachToRaw = form?.get('sessionId');
+  const attachTo = typeof attachToRaw === 'string' && attachToRaw.trim() ? attachToRaw.trim() : null;
+
   if (!(file instanceof File)) return fail(422, 'FILE_REQUIRED');
   if (file.size > MAX_UPLOAD_BYTES) return fail(413, 'FILE_TOO_LARGE');
   if (!(ALLOWED_IMAGE_TYPES as readonly string[]).includes(file.type)) {
@@ -74,14 +78,44 @@ export const POST = route(async (request) => {
     return fail(422, 'OCR_EMPTY');
   }
 
-  const session = await db.chatSession.create({
-    data: {
-      userId: user.id,
-      uploadedImageUrl: stored.key,
-      title: null,
-    },
-    select: { id: true },
-  });
+  /*
+   * Attaching inside an existing thread reuses it.
+   *
+   * The endpoint used to create a conversation unconditionally, which was right
+   * when the only way in was the dedicated upload page. Now a student can clip a
+   * photo to a thread they are already in, and minting a second session for it
+   * would split one question across two conversations — the tutor would answer
+   * about the photo somewhere the student is not looking, and the thread they
+   * *are* looking at would never see it.
+   */
+  const existing = attachTo
+    ? await db.chatSession.findFirst({
+        where: { id: attachTo, userId: user.id },
+        select: { id: true },
+      })
+    : null;
+
+  if (attachTo && !existing) return fail(404, 'SESSION_NOT_FOUND');
+
+  const session =
+    existing ??
+    (await db.chatSession.create({
+      data: {
+        userId: user.id,
+        uploadedImageUrl: stored.key,
+        title: null,
+      },
+      select: { id: true },
+    }));
+
+  // A thread can accumulate several photos; the column holds the latest, which
+  // is the one the next question is about.
+  if (existing) {
+    await db.chatSession.update({
+      where: { id: existing.id },
+      data: { uploadedImageUrl: stored.key },
+    });
+  }
 
   return created({
     sessionId: session.id,

@@ -111,7 +111,7 @@ export function UserAdmin({
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder={t.common.search}
-            className="h-8 w-48 text-[13px]"
+            className="h-8 w-48 text-meta"
             aria-label={t.common.search}
           />
         }
@@ -135,7 +135,7 @@ export function UserAdmin({
                     <p className="truncate text-sm font-medium text-ink">
                       {user.displayName ?? user.email}
                     </p>
-                    <p className="text-[12px] text-ink-faint">
+                    <p className="text-caption text-ink-faint">
                       {user.email}
                       {user.lastLoginAt ? ` · ${formatDate(user.lastLoginAt)}` : ''}
                     </p>
@@ -149,7 +149,7 @@ export function UserAdmin({
                     <button
                       type="button"
                       onClick={() => (isEditing ? setEditing(null) : startEdit(user))}
-                      className="rounded px-2 py-1 text-[12.5px] font-medium text-primary underline-offset-2 hover:underline"
+                      className="rounded px-2 py-1 text-meta font-medium text-primary underline-offset-2 hover:underline"
                     >
                       {isEditing ? t.common.cancel : t.common.edit}
                     </button>
@@ -166,7 +166,7 @@ export function UserAdmin({
 
                     <div className="grid gap-3 sm:grid-cols-2">
                       <label className="space-y-1">
-                        <span className="block text-[12.5px] font-medium text-ink">
+                        <span className="block text-meta font-medium text-ink">
                           {t.settings.track}
                         </span>
                         <Select
@@ -185,7 +185,7 @@ export function UserAdmin({
                       </label>
 
                       <label className="space-y-1">
-                        <span className="block text-[12.5px] font-medium text-ink">
+                        <span className="block text-meta font-medium text-ink">
                           {t.settings.language}
                         </span>
                         <Select
@@ -206,7 +206,7 @@ export function UserAdmin({
                       </label>
 
                       <label className="space-y-1">
-                        <span className="block text-[12.5px] font-medium text-ink">
+                        <span className="block text-meta font-medium text-ink">
                           {t.admin.itemType}
                         </span>
                         <Select
@@ -224,7 +224,7 @@ export function UserAdmin({
                       </label>
 
                       <label className="space-y-1">
-                        <span className="block text-[12.5px] font-medium text-ink">
+                        <span className="block text-meta font-medium text-ink">
                           {t.admin.jobStatus}
                         </span>
                         <Select
@@ -240,7 +240,7 @@ export function UserAdmin({
                     </div>
 
                     <label className="block space-y-1">
-                      <span className="block text-[12.5px] font-medium text-ink">
+                      <span className="block text-meta font-medium text-ink">
                         {t.admin.reviewNotes} <span className="text-mark">*</span>
                       </span>
                       <Input
@@ -266,7 +266,7 @@ export function UserAdmin({
       </SheetBody>
 
       <SheetFooter>
-        <p className="text-[12px] text-ink-faint">{t.auth.lockNotice}</p>
+        <p className="text-caption text-ink-faint">{t.auth.lockNotice}</p>
       </SheetFooter>
     </Sheet>
   );

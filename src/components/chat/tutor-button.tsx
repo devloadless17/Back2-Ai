@@ -1,10 +1,7 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
-import { useState } from 'react';
-
 import { Button, type ButtonProps } from '@/components/ui/button';
-import { sendJson } from '@/lib/client/request';
+import { useTutorSession } from '@/components/chat/use-tutor-session';
 import { useI18n } from '@/lib/i18n/client';
 
 /**
@@ -14,6 +11,8 @@ import { useI18n } from '@/lib/i18n/client';
  * answer, so the tutor works from what they wrote and the marks it lost rather
  * than re-reading the official solution at them. Without one it falls back to
  * explaining the question itself.
+ *
+ * The session call itself lives in `useTutorSession`, shared with the dock.
  */
 export function TutorButton({
   questionId,
@@ -29,31 +28,19 @@ export function TutorButton({
   size?: ButtonProps['size'];
 }) {
   const { t } = useI18n();
-  const router = useRouter();
-  const [opening, setOpening] = useState(false);
-  const [failed, setFailed] = useState(false);
-
-  async function open() {
-    setOpening(true);
-    setFailed(false);
-    try {
-      const session = await sendJson<{ id: string }>('/api/chat/sessions', 'POST', {
-        ...(attemptId ? { attemptId } : {}),
-        ...(questionId ? { questionId } : {}),
-      });
-      router.push(`/chat/${session.id}`);
-    } catch {
-      setFailed(true);
-      setOpening(false);
-    }
-  }
+  const { open, opening, failed } = useTutorSession();
 
   return (
     <span className="inline-flex flex-col items-start gap-1">
-      <Button variant={variant} size={size} loading={opening} onClick={open}>
+      <Button
+        variant={variant}
+        size={size}
+        loading={opening}
+        onClick={() => void open({ questionId, attemptId })}
+      >
         {label}
       </Button>
-      {failed && <span className="text-[12px] text-mark">{t.common.unknownError}</span>}
+      {failed && <span className="text-caption text-mark">{t.common.unknownError}</span>}
     </span>
   );
 }

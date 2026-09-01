@@ -69,8 +69,8 @@ export default async function AdminAuditPage({
               {events.map((event) => (
                 <li key={event.id} className="px-5 py-3">
                   <div className="flex flex-wrap items-baseline justify-between gap-2">
-                    <p className="font-mono text-[12.5px] font-medium text-ink">{event.action}</p>
-                    <p className="text-[11.5px] text-ink-faint">
+                    <p className="font-mono text-meta font-medium text-ink">{event.action}</p>
+                    <p className="text-caption text-ink-faint">
                       {formatDate(locale, event.createdAt, {
                         day: '2-digit',
                         month: '2-digit',
@@ -81,14 +81,14 @@ export default async function AdminAuditPage({
                     </p>
                   </div>
 
-                  <p className="mt-0.5 text-[12px] text-ink-muted">
+                  <p className="mt-0.5 text-caption text-ink-muted">
                     {event.actor?.displayName ?? event.actor?.email ?? t.admin.systemFlagged}
                     {event.targetType ? ` → ${event.targetType}` : ''}
                     {event.ipAddress ? ` · ${event.ipAddress}` : ''}
                   </p>
 
                   {event.metadata !== null && event.metadata !== undefined && (
-                    <pre className="scroll-x mt-1 whitespace-pre-wrap rounded bg-paper-sunken px-2 py-1 font-mono text-[11.5px] leading-relaxed text-ink-muted">
+                    <pre className="scroll-x mt-1 whitespace-pre-wrap rounded bg-paper-sunken px-2 py-1 font-mono text-caption leading-relaxed text-ink-muted">
                       {JSON.stringify(event.metadata)}
                     </pre>
                   )}
@@ -106,7 +106,7 @@ export default async function AdminAuditPage({
             <li>
               <a
                 href="/admin/audit"
-                className="flex items-center justify-between gap-2 px-4 py-2 text-[12.5px] transition-colors hover:bg-paper-sunken"
+                className="flex items-center justify-between gap-2 px-4 py-2 text-meta transition-colors hover:bg-paper-sunken"
               >
                 <span className="text-ink">{t.common.all}</span>
               </a>
@@ -117,7 +117,7 @@ export default async function AdminAuditPage({
                   href={`/admin/audit?action=${encodeURIComponent(row.action)}`}
                   className="flex items-center justify-between gap-2 px-4 py-2 transition-colors hover:bg-paper-sunken"
                 >
-                  <span className="min-w-0 truncate font-mono text-[11.5px] text-ink-muted">
+                  <span className="min-w-0 truncate font-mono text-caption text-ink-muted">
                     {row.action}
                   </span>
                   <Badge tone="neutral">{row._count.action}</Badge>

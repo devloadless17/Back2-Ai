@@ -29,6 +29,48 @@ export function format(template: string, values: Record<string, string | number>
   );
 }
 
+/**
+ * Picks the right wording for a count.
+ *
+ * Written because the exam countdown — the most-read number in this product —
+ * was ungrammatical in all three languages in the week that matters most. The
+ * hero said "exam in 1 days", "examen dans 1 jours", and in Arabic
+ * `الامتحان بعد 1 يومًا`.
+ *
+ * Arabic is why this uses `Intl.PluralRules` rather than an `n === 1` check.
+ * English and French need two forms; Arabic needs SIX, and the corpus of
+ * mistakes is not limited to 1:
+ *
+ *     1   يوم واحد      one
+ *     2   يومين         two   — a dual form, which English has no equivalent of
+ *     3   أيام          few
+ *     11  يومًا          many
+ *
+ * The string that shipped, `يومًا`, is the form for 11-99. It is wrong for
+ * every count from one to ten — which is the whole of the final revision week
+ * and then some, in a product whose entire purpose is that countdown.
+ *
+ * Falls back to `other` for any category a dictionary does not supply, so
+ * adding a language cannot produce an empty string; the worst case is the
+ * slightly-wrong plural we already had.
+ */
+export type PluralForms = Partial<Record<Intl.LDMLPluralRule, string>> & { other: string };
+
+export function plural(locale: Locale, count: number, forms: PluralForms): string {
+  const category = new Intl.PluralRules(intlLocale(locale)).select(count);
+  return forms[category] ?? forms.other;
+}
+
+/** `plural` and `format` together, with `{count}` always available. */
+export function formatPlural(
+  locale: Locale,
+  count: number,
+  forms: PluralForms,
+  values: Record<string, string | number> = {},
+): string {
+  return format(plural(locale, count, forms), { count, ...values });
+}
+
 export function formatNumber(locale: Locale, value: number, options?: Intl.NumberFormatOptions): string {
   return new Intl.NumberFormat(intlLocale(locale), options).format(value);
 }

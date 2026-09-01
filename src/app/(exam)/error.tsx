@@ -51,7 +51,7 @@ export default function ExamError({
           </div>
 
           {error.digest && (
-            <p className="text-center font-mono text-[11px] text-ink-faint">{error.digest}</p>
+            <p className="text-center font-mono text-micro text-ink-faint">{error.digest}</p>
           )}
         </SheetBody>
       </Sheet>

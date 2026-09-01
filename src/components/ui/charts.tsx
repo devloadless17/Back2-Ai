@@ -73,7 +73,7 @@ export function BandLegend({ labels, className }: { labels: BandLabels; classNam
   return (
     <ul className={cn('flex flex-wrap items-center gap-x-4 gap-y-1', className)}>
       {(['high', 'mid', 'low'] as const).map((band) => (
-        <li key={band} className="flex items-center gap-1.5 text-[11.5px] text-ink-muted">
+        <li key={band} className="flex items-center gap-1.5 text-caption text-ink-muted">
           <span className={cn('h-2 w-2 rounded-full', BAND_DOT[band])} aria-hidden="true" />
           {labels[band]}
         </li>
@@ -188,8 +188,8 @@ export function RingGauge({
       </div>
 
       <figcaption className="space-y-0.5 text-center">
-        <p className="text-[13px] font-semibold text-ink">{label}</p>
-        {caption && <p className="text-[12px] leading-snug text-ink-muted">{caption}</p>}
+        <p className="text-meta font-semibold text-ink">{label}</p>
+        {caption && <p className="text-caption leading-snug text-ink-muted">{caption}</p>}
       </figcaption>
     </figure>
   );
@@ -255,11 +255,11 @@ export function BarRows({
           const row = (
             <>
               <div className="flex items-baseline justify-between gap-3">
-                <span className="min-w-0 truncate text-[13px] font-medium text-ink">
+                <span className="min-w-0 truncate text-meta font-medium text-ink">
                   {datum.label}
                 </span>
                 <span
-                  className={cn('shrink-0 text-[12.5px] font-bold tabular-nums', BAND_TEXT[band])}
+                  className={cn('shrink-0 text-meta font-bold tabular-nums', BAND_TEXT[band])}
                 >
                   {formatPercent(value)}
                 </span>
@@ -279,7 +279,7 @@ export function BarRows({
               </div>
 
               {datum.detail && (
-                <p className="mt-1 text-[11.5px] text-ink-faint">{datum.detail}</p>
+                <p className="mt-1 text-caption text-ink-faint">{datum.detail}</p>
               )}
             </>
           );
@@ -365,7 +365,7 @@ export function ActivityColumns({
               aria-label={`${datum.label}: ${datum.value}`}
             >
               {active && (
-                <div className="pointer-events-none absolute -top-1 left-1/2 z-10 -translate-x-1/2 -translate-y-full whitespace-nowrap rounded bg-ink px-2 py-1 text-[11px] font-medium text-on-primary animate-fade-in">
+                <div className="pointer-events-none absolute -top-1 left-1/2 z-10 -translate-x-1/2 -translate-y-full whitespace-nowrap rounded bg-ink px-2 py-1 text-micro font-medium text-on-primary animate-fade-in">
                   {datum.caption ?? datum.label}
                   <span className="ms-1.5 tabular-nums opacity-80">{datum.value}</span>
                 </div>
@@ -388,7 +388,7 @@ export function ActivityColumns({
         })}
       </div>
 
-      <div className="flex justify-between text-[11px] text-ink-faint">
+      <div className="flex justify-between text-micro text-ink-faint">
         <span>{data[0]?.label}</span>
         <span>{data[data.length - 1]?.label}</span>
       </div>

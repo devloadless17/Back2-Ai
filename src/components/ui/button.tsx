@@ -47,9 +47,9 @@ const VARIANTS = {
 } as const;
 
 const SIZES = {
-  sm: 'h-8 px-3 text-[13px] gap-1.5',
-  md: 'h-10 px-4 text-sm gap-2',
-  lg: 'h-11 px-5 text-[15px] gap-2',
+  sm: 'h-8 px-3 text-caption gap-1.5',
+  md: 'h-10 px-4 text-meta gap-2',
+  lg: 'h-11 px-5 text-body gap-2',
 } as const;
 
 /*

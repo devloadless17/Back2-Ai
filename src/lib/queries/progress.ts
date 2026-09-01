@@ -1,6 +1,7 @@
 import 'server-only';
 
 import { db } from '@/lib/db';
+import { subjectLanguagesFor } from '@/lib/queries/taxonomy';
 import { computeMastery, weakestChapter, type ScorableAttempt } from '@/lib/scoring/mastery';
 import { computeReadiness, type ChapterMasterySnapshot, type ReadinessResult } from '@/lib/scoring/readiness';
 
@@ -45,10 +46,10 @@ export type ChapterProgress = ChapterMasterySnapshot & {
 };
 
 /** Subjects belonging to the student's locked track. */
-export async function getSubjectsForUser(trackId: string | null) {
+export async function getSubjectsForUser(trackId: string | null, language: string) {
   if (!trackId) return [];
   return db.subject.findMany({
-    where: { trackId },
+    where: { trackId, language: { in: subjectLanguagesFor(language) } },
     select: { id: true, name: true, language: true },
     orderBy: { name: 'asc' },
   });
@@ -61,8 +62,12 @@ export async function getSubjectsForUser(trackId: string | null) {
  * computed in memory — a per-chapter query would be dozens of round trips on a
  * page that loads on every visit.
  */
-export async function getProgressForUser(userId: string, trackId: string | null): Promise<SubjectProgress[]> {
-  const subjects = await getSubjectsForUser(trackId);
+export async function getProgressForUser(
+  userId: string,
+  trackId: string | null,
+  language: string,
+): Promise<SubjectProgress[]> {
+  const subjects = await getSubjectsForUser(trackId, language);
   if (subjects.length === 0) return [];
 
   const subjectIds = subjects.map((s) => s.id);
@@ -231,6 +236,18 @@ export async function recomputeChapterMastery(userId: string, chapterId: string)
   const attempts = await db.attempt.findMany({
     where: {
       userId,
+      /*
+       * Bounded by the same horizon the read path uses, and for the same reason
+       * spelled out above: at a 14-day half-life an attempt 120 days old carries
+       * exp(-120/14) ≈ 0.0002 of the weight of a fresh one.
+       *
+       * This runs on the write path of every single attempt, so leaving it
+       * unbounded meant the cost of answering one question grew with everything
+       * the student had ever answered in that chapter — a year of revision
+       * making each new answer slower than the last. The horizon changes the
+       * fourth decimal place and nothing a student could notice.
+       */
+      attemptedAt: { gte: new Date(Date.now() - RECENCY_HORIZON_DAYS * 86_400_000) },
       OR: [{ question: { chapterId } }, { generatedProblem: { chapterId } }],
     },
     select: {

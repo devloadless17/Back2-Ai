@@ -32,7 +32,7 @@ export default async function NewSimulationPage() {
     redirect(`/exam-sim/${existing.id}`);
   }
 
-  const subjects = await listSubjects(user.trackId);
+  const subjects = await listSubjects(user.trackId, user.preferredLanguage);
 
   const options: SimulationOption[] = await Promise.all(
     subjects.map(async (subject) => {

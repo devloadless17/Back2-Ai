@@ -1,31 +1,18 @@
-import type { Metadata } from 'next';
+import { redirect } from 'next/navigation';
 
-import { UploadPanel } from '@/components/chat/upload-panel';
-import { Alert } from '@/components/ui/feedback';
-import { PageHeader } from '@/components/ui/sheet';
-import { requireUser } from '@/lib/auth/guards';
-import { isAiConfigured, isEmbeddingConfigured } from '@/lib/env';
-import { getTranslations } from '@/lib/i18n';
-
-export const metadata: Metadata = { title: 'Upload a photo' };
-
-export default async function UploadPage() {
-  await requireUser();
-  const { t } = await getTranslations();
-
-  const configured = isAiConfigured() && isEmbeddingConfigured();
-
-  return (
-    <>
-      <PageHeader title={t.upload.title} description={t.upload.subtitle} />
-
-      {!configured ? (
-        <Alert tone="warning" title={t.chat.aiNotConfigured}>
-          {t.chat.aiNotConfiguredHint}
-        </Alert>
-      ) : (
-        <UploadPanel />
-      )}
-    </>
-  );
+/**
+ * Folded into the tutor.
+ *
+ * This was a page of its own: photograph a question, correct the transcription,
+ * and it created a conversation for you. The chat composer now takes the photo
+ * directly and keeps the same editable transcription step, so the separate page
+ * only offered a second door into one room — and made a student choose between
+ * two nav entries before they could know the two were the same thing.
+ *
+ * Kept as a redirect rather than deleted: the route has been linked from a
+ * dashboard card and may sit in a bookmark or a message to a classmate, and a
+ * 404 is a worse answer than the place they were trying to get to.
+ */
+export default function UploadPage() {
+  redirect('/chat');
 }

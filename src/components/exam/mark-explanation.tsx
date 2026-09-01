@@ -54,11 +54,11 @@ export function MarkExplanation({
         aria-expanded={open}
         className="flex w-full items-baseline justify-between gap-3 text-start"
       >
-        <span className="min-w-0 text-[13.5px] text-ink">{criterion}</span>
+        <span className="min-w-0 text-body text-ink">{criterion}</span>
 
         <span
           className={cn(
-            'figure shrink-0 text-[13px]',
+            'figure shrink-0 text-meta',
             full ? 'text-correct' : none ? 'text-mark' : 'text-partial',
           )}
         >
@@ -70,7 +70,7 @@ export function MarkExplanation({
           so the explanation is in the document rather than conjured on hover. */}
       <p
         className={cn(
-          'overflow-hidden text-[12.5px] leading-snug text-ink-muted transition-all duration-150',
+          'overflow-hidden text-meta leading-snug text-ink-muted transition-all duration-150',
           open ? 'mt-1.5 max-h-40 opacity-100' : 'max-h-0 opacity-0',
         )}
       >
@@ -79,7 +79,7 @@ export function MarkExplanation({
       </p>
 
       {!open && (
-        <p className="mt-0.5 text-[11.5px] text-ink-faint group-hover:hidden">
+        <p className="mt-0.5 text-caption text-ink-faint group-hover:hidden">
           {t.examSim.whyThisMark}
         </p>
       )}
