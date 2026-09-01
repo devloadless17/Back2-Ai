@@ -437,6 +437,10 @@ export const en = {
     notAnswered: 'No answer submitted',
     tutorOnThis: 'Go over this with the tutor',
     tutorOnThisHint: 'Opens a conversation with your answer and the correction key side by side.',
+    modeRealMixed: 'A mock paper from real questions',
+    modeRealMixedHint:
+      'Assembled from {count} real past-exam questions you have not met, spread across chapters. Marked on the official barème.',
+    modeRealMixedEmpty: 'Not enough marked past-exam questions in this subject yet.',
   },
 
   flashcards: {

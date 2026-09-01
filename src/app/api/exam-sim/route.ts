@@ -15,7 +15,7 @@ import { ExamError, remainingSeconds, startSimulation } from '@/lib/exam';
 const startSchema = z
   .object({
     subjectId: z.string().uuid(),
-    sourceMode: z.enum(['real_cycle', 'ai_generated']),
+    sourceMode: z.enum(['real_cycle', 'ai_generated', 'real_mixed']),
     examCycleId: z.string().uuid().optional(),
   })
   .refine((body) => body.sourceMode !== 'real_cycle' || Boolean(body.examCycleId), {

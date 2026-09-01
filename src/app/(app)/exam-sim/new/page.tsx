@@ -37,7 +37,7 @@ export default async function NewSimulationPage() {
 
   const options: SimulationOption[] = await Promise.all(
     subjects.map(async (subject) => {
-      const [cycles, generatedCount] = await Promise.all([
+      const [cycles, generatedCount, realPoolCount] = await Promise.all([
         /*
          * Only editions the student can read.
          *
@@ -70,11 +70,25 @@ export default async function NewSimulationPage() {
         db.generatedProblem.count({
           where: { chapter: { subjectId: subject.id }, ...PUBLISHED_FILTER },
         }),
+        /*
+         * How many real past-exam questions this subject could assemble a mock
+         * paper from. Counted rather than assumed, because the mode is only
+         * offered where there is a pool to draw on — and unlike the generated
+         * one, most subjects have thousands.
+         */
+        db.question.count({
+          where: {
+            chapter: { subjectId: subject.id },
+            sourceType: 'past_exam',
+            verifiedStatus: { not: 'rejected' },
+          },
+        }),
       ]);
 
       return {
         subjectId: subject.id,
         subjectName: subject.name,
+        realPoolCount,
         cycles: cycles.map((cycle) => ({
           id: cycle.id,
           /*

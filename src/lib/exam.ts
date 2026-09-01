@@ -16,6 +16,7 @@ import {
 } from '@/lib/grading';
 import type { Locale } from '@/lib/i18n/config';
 import { recomputeChapterMastery } from '@/lib/queries/progress';
+import { rescaleBaremes } from '@/lib/rescale-bareme';
 import { retrieveGrounding } from '@/lib/retrieval';
 
 /**
@@ -76,9 +77,194 @@ export async function startSimulation(input: StartInput): Promise<{ id: string }
     await submitSimulation({ simulationId: existing.id, userId: input.userId, auto: true });
   }
 
-  return input.sourceMode === 'real_cycle'
-    ? startFromRealCycle(input)
-    : startFromGeneratedPool(input);
+  if (input.sourceMode === 'real_cycle') return startFromRealCycle(input);
+  if (input.sourceMode === 'real_mixed') return startFromRealPool(input);
+  return startFromGeneratedPool(input);
+}
+
+/**
+ * How long a mock paper runs.
+ *
+ * A fixed two hours, because an assembled paper is always worth the same twenty
+ * marks and a real paper's duration is a property of the paper rather than of
+ * how many pieces it was cut into. This used to be twenty minutes a question,
+ * which made a four-question paper shorter than a five-question one of exactly
+ * the same weight.
+ *
+ * `TUNABLE` — `src/lib/exam.ts`.
+ */
+const ASSEMBLED_PAPER_MINUTES = 120;
+
+/**
+ * A mock paper built from real questions the student has not met.
+ *
+ * The mode that should have existed all along. `real_cycle` can only offer a
+ * paper once — after that the student has seen it — and `ai_generated` waits on
+ * a review queue that has approved one problem in the life of the database.
+ * Meanwhile the corpus holds thousands of real past-exam questions with real
+ * barèmes, every one of them already vetted by having been printed by the
+ * ministry. This arranges those into a paper.
+ *
+ * Three rules decide what goes in.
+ *
+ * Nothing they have already attempted, so a mock paper measures recall rather
+ * than memory of last week's practice. It is a preference and not a hard filter:
+ * a student who has worked through most of a subject should still be given a
+ * paper, and being asked a question a second time is a far smaller problem than
+ * being told there is nothing to sit.
+ *
+ * Only questions carrying a barème, because a paper that cannot be marked is
+ * not a paper. That drops the extracted rows whose marks the extractor could
+ * not read, which is the honest thing to do with them here.
+ *
+ * Then `chooseQuestions`, the same rule the generated papers use: spread across
+ * chapters, and never two large exercises from one chapter.
+ */
+async function startFromRealPool(input: StartInput): Promise<{ id: string }> {
+  const seen = await db.attempt.findMany({
+    where: { userId: input.userId, questionId: { not: null } },
+    select: { questionId: true },
+  });
+  const seenIds = new Set(seen.flatMap((a) => (a.questionId ? [a.questionId] : [])));
+
+  const pool = await db.question.findMany({
+    where: {
+      chapter: { subjectId: input.subjectId },
+      sourceType: 'past_exam',
+      verifiedStatus: { not: 'rejected' },
+    },
+    select: { id: true, chapterId: true, bareme: true, difficulty: true, contentText: true },
+    take: 400,
+  });
+
+  /*
+   * A paper that cannot be marked is not a paper.
+   *
+   * Filtered through `parseBareme` rather than by a `bareme IS NOT NULL` clause
+   * in the query, because a row can carry an empty array — a barème the
+   * extractor started and could not read marks for. That passes a null check
+   * and still totals zero, which would put an unmarkable question on a real
+   * sitting and score the student out of less than the paper is worth.
+   */
+  const markable = pool.filter((q) => (scoreOf(parseBareme(q.bareme)) ?? 0) > 0);
+
+  if (markable.length === 0) {
+    throw new ExamError(
+      'NO_CONTENT',
+      'This subject has no marked past-exam questions to assemble a paper from yet.',
+    );
+  }
+
+  // Unseen first, then the rest — `chooseQuestions` walks the pool in order, so
+  // ordering it is how the preference is expressed.
+  const unseen = markable.filter((q) => !seenIds.has(q.id));
+  const ordered = [...shuffle(unseen), ...shuffle(markable.filter((q) => seenIds.has(q.id)))];
+
+  /*
+   * Exact first, rescaled only if that fails.
+   *
+   * When the pool can make exactly 20 out of the marks the ministry printed,
+   * that is the better paper by a distance: every mark on it is the official
+   * one, and composing it costs nothing. Only when no subset reaches 20 —
+   * physics, whose exercises the extractor merges, so its marks are lumpy — is
+   * a paper assembled near the target and its marks redistributed.
+   */
+  let chosen = assemblePaper(ordered);
+  let rescaled = false;
+
+  if (chosen.length === 0) {
+    /*
+     * The same shape rule the exact search enforces.
+     *
+     * `chooseQuestions` fills slots and stops; it has no opinion about how few
+     * is too few. Without this floor a subject holding one question produced a
+     * "paper" of that one question, rescaled to be worth all twenty marks —
+     * which is not a Bac paper, and is a worse answer than saying there is none.
+     */
+    const near = chooseQuestions(ordered, AI_PAPER_QUESTION_COUNT);
+    if (near.length >= MIN_PAPER_QUESTIONS) {
+      chosen = near;
+      rescaled = true;
+    }
+  }
+
+  if (chosen.length === 0) {
+    throw new ExamError(
+      'NO_CONTENT',
+      `This subject does not have enough marked past-exam questions to build a paper — ` +
+        `at least ${MIN_PAPER_QUESTIONS} are needed.`,
+    );
+  }
+
+  /*
+   * The marks this paper is actually sat under.
+   *
+   * Written to `bareme_snapshot`, which is the copy marking reads and the only
+   * thing that changes — every question keeps the barème the ministry printed,
+   * so the corpus is untouched and a second paper drawn from the same questions
+   * starts from the official marks again.
+   */
+  const officialBaremes = chosen.map((q) => parseBareme(q.bareme) ?? []);
+  const baremes = rescaled
+    ? await rescaleBaremes(officialBaremes, PAPER_TOTAL_MARKS)
+    : officialBaremes;
+
+  const startedAt = new Date();
+  const duration = ASSEMBLED_PAPER_MINUTES;
+
+  const simulation = await db.examSimulation.create({
+    data: {
+      userId: input.userId,
+      subjectId: input.subjectId,
+      sourceMode: 'real_mixed',
+      durationMinutes: duration,
+      expiresAt: new Date(startedAt.getTime() + duration * 60_000),
+      maxScore: totalOf(baremes),
+      questions: {
+        create: chosen.map((question, index) => ({
+          questionId: question.id,
+          orderIndex: index,
+          baremeSnapshot: (baremes[index] as Prisma.InputJsonValue) ?? undefined,
+          maxScore: scoreOf(baremes[index] ?? null),
+        })),
+      },
+    },
+    select: { id: true },
+  });
+
+  await recordAudit({
+    actorUserId: input.userId,
+    action: AuditAction.EXAM_SIM_STARTED,
+    targetType: 'exam_simulation',
+    targetId: simulation.id,
+    metadata: {
+      mode: 'real_mixed',
+      questionCount: chosen.length,
+      unseenInPool: unseen.length,
+      durationMinutes: duration,
+      // Whether this paper carries the ministry's marks or redistributed ones.
+      // Worth recording: it is the difference between a mark a student can
+      // quote and one that is ours.
+      rescaled,
+    },
+  });
+
+  return simulation;
+}
+
+/**
+ * Fisher-Yates, so two students of the same subject on the same day do not sit
+ * the same paper. Without it the pool comes back in insertion order and the
+ * selection is deterministic — which would also mean a student who abandons a
+ * paper and starts another gets the identical one.
+ */
+function shuffle<T>(items: T[]): T[] {
+  const out = [...items];
+  for (let i = out.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [out[i], out[j]] = [out[j]!, out[i]!];
+  }
+  return out;
 }
 
 async function startFromRealCycle(input: StartInput): Promise<{ id: string }> {
@@ -258,6 +444,106 @@ export function chooseQuestions<T extends SelectableProblem>(pool: T[], count: n
   }
 
   return chosen;
+}
+
+/**
+ * What a Lebanese Baccalaureate paper is marked out of.
+ *
+ * Not a convention this product invented — 396 of the official papers in this
+ * corpus total exactly 20, more than any other value by a wide margin. Every
+ * figure in the product is expressed on this scale (`markOutOf20`, the
+ * predicted mark, readiness, the dashboard), so a paper that totals anything
+ * else feeds a number into all of them that does not mean the same thing. A
+ * student seeing `14 / 22` is not seeing a Bac mark.
+ */
+export const PAPER_TOTAL_MARKS = 20;
+
+/**
+ * How many exercises a paper of that size is made of.
+ *
+ * Twenty marks reached as twenty one-mark questions is arithmetically a paper
+ * and nothing like one. The real papers run to three to five exercises, so the
+ * search refuses a solution outside that band even when its marks are right.
+ */
+const MIN_PAPER_QUESTIONS = 3;
+const MAX_PAPER_QUESTIONS = 6;
+
+/**
+ * Bounds the search so an awkward pool cannot hang a request.
+ *
+ * Reaching exactly 20 from a pool of a hundred questions is normally found in
+ * the first few dozen steps; the cap exists for the pool where it cannot be
+ * reached at all, which would otherwise be explored exhaustively.
+ */
+const MAX_SEARCH_STEPS = 50_000;
+
+/**
+ * Assembles a paper that totals exactly `target` marks.
+ *
+ * This is a subset-sum with side conditions, not a top-N selection, and the
+ * difference is the whole point. Taking the best five questions and accepting
+ * whatever they add up to produced papers marked out of 22 — arithmetically
+ * fine, and not a Bac mark, which is the only scale anything in this product
+ * can be compared on.
+ *
+ * The side conditions are the ones a real paper satisfies:
+ *
+ *   Three to six exercises, so twenty marks are not reached as twenty
+ *   one-mark questions.
+ *
+ *   Never two large exercises from one chapter, the rule `chooseQuestions`
+ *   already applies — a candidate should not be able to lose half a paper to a
+ *   single topic they happened not to revise.
+ *
+ * Depth-first over the pool in the order given, so the caller expresses its
+ * preferences by ordering — unseen questions first, shuffled — and the first
+ * exact solution found inherits them. Returns an empty array when the pool
+ * cannot make the target, which the caller must treat as "no paper", never as
+ * "a shorter paper": a paper out of 17 is the bug this function exists to
+ * remove.
+ */
+export function assemblePaper<T extends SelectableProblem>(
+  pool: T[],
+  target: number = PAPER_TOTAL_MARKS,
+): T[] {
+  const weighted = pool
+    .map((problem) => ({ problem, marks: weightOf(problem) }))
+    .filter((entry) => entry.marks > 0 && entry.marks <= target);
+
+  let steps = 0;
+
+  function search(
+    from: number,
+    chosen: { problem: T; marks: number }[],
+    total: number,
+    chaptersWithLarge: Set<string>,
+  ): T[] | null {
+    if (total === target) {
+      return chosen.length >= MIN_PAPER_QUESTIONS ? chosen.map((c) => c.problem) : null;
+    }
+    if (total > target || chosen.length >= MAX_PAPER_QUESTIONS) return null;
+
+    for (let i = from; i < weighted.length; i += 1) {
+      if ((steps += 1) > MAX_SEARCH_STEPS) return null;
+
+      const entry = weighted[i]!;
+      if (total + entry.marks > target) continue;
+
+      const isLarge = entry.marks >= LARGE_QUESTION_MARKS;
+      if (isLarge && chaptersWithLarge.has(entry.problem.chapterId)) continue;
+
+      const nextLarge = isLarge
+        ? new Set(chaptersWithLarge).add(entry.problem.chapterId)
+        : chaptersWithLarge;
+
+      const found = search(i + 1, [...chosen, entry], total + entry.marks, nextLarge);
+      if (found) return found;
+    }
+
+    return null;
+  }
+
+  return search(0, [], 0, new Set()) ?? [];
 }
 
 export async function selectGeneratedQuestions(subjectId: string) {

@@ -438,6 +438,10 @@ export const ar: Dictionary = {
     notAnswered: 'لم تُسلَّم أي إجابة',
     tutorOnThis: 'راجعها مع المدرّس',
     tutorOnThisHint: 'يفتح محادثة تضع إجابتك ومفتاح التصحيح جنباً إلى جنب.',
+    modeRealMixed: 'ورقة تجريبية من أسئلة حقيقية',
+    modeRealMixedHint:
+      'مُركّبة من {count} سؤالًا حقيقيًا من امتحانات سابقة لم تصادفها، موزّعة على فصول عدة. تُصحَّح على السلّم الرسمي.',
+    modeRealMixedEmpty: 'لا توجد بعد أسئلة امتحانية كافية بسلّم في هذه المادة.',
   },
 
   flashcards: {

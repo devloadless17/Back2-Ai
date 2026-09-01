@@ -418,6 +418,10 @@ export const fr: Dictionary = {
     notAnswered: 'Aucune réponse rendue',
     tutorOnThis: 'Revoir avec le tuteur',
     tutorOnThisHint: 'Ouvre une conversation avec votre réponse et le corrigé côte à côte.',
+    modeRealMixed: 'Une épreuve blanche, à partir de vraies questions',
+    modeRealMixedHint:
+      'Composée à partir de {count} vraies questions d’examen que vous n’avez pas encore vues, réparties sur plusieurs chapitres. Corrigée sur le barème officiel.',
+    modeRealMixedEmpty: 'Pas encore assez de questions d’examen barémées dans cette matière.',
   },
 
   flashcards: {

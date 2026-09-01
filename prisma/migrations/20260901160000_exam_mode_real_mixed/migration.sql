@@ -1,0 +1,15 @@
+-- A third way to sit a paper: real questions, freshly arranged.
+--
+-- There were two modes and a gap between them. `real_cycle` sits one official
+-- paper exactly as printed, which a student can only do once before they have
+-- seen it. `ai_generated` composes from model-written problems, each of which
+-- must pass a solver and then a human reviewer — and that queue is why the
+-- whole database holds one approved problem against 1,102 chapters, so the mode
+-- cannot compose a single paper for any subject.
+--
+-- Meanwhile the corpus already holds thousands of real past-exam questions,
+-- with real barèmes, already verified by virtue of having been printed by the
+-- ministry. Assembling a mock paper out of those needs no model call, costs
+-- nothing, and cannot produce a question nobody approved, because every one of
+-- them was approved by being on a Bac paper in the first place.
+ALTER TYPE "exam_source_mode" ADD VALUE IF NOT EXISTS 'real_mixed';

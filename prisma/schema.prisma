@@ -78,8 +78,14 @@ enum VerificationStatus {
 }
 
 enum ExamSourceMode {
+  /// One official paper, sat as it was printed.
   real_cycle
+  /// Model-written problems, each approved through the review queue first.
   ai_generated
+  /// A mock paper assembled from real past-exam questions the student has not
+  /// met, drawn across chapters. No model writes anything and nothing needs
+  /// approving — every question already came off an official paper.
+  real_mixed
 
   @@map("exam_source_mode")
 }

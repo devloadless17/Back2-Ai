@@ -15,6 +15,8 @@ export type SimulationOption = {
   subjectId: string;
   subjectName: string;
   cycles: { id: string; label: string; questionCount: number; durationMinutes: number }[];
+  /** Real past-exam questions available to assemble a mock paper from. */
+  realPoolCount: number;
   generatedAvailable: number;
 };
 
@@ -30,13 +32,15 @@ export function NewSimulationForm({ options }: { options: SimulationOption[] }) 
   const router = useRouter();
 
   const [subjectId, setSubjectId] = useState(options[0]?.subjectId ?? '');
-  const [mode, setMode] = useState<'real_cycle' | 'ai_generated'>('real_cycle');
+  const [mode, setMode] = useState<'real_cycle' | 'ai_generated' | 'real_mixed'>('real_cycle');
   const [cycleId, setCycleId] = useState(options[0]?.cycles[0]?.id ?? '');
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const subject = options.find((option) => option.subjectId === subjectId);
   const canUseReal = (subject?.cycles.length ?? 0) > 0;
+  /* Five is the paper size; below that there is nothing to assemble. */
+  const canUseMixed = (subject?.realPoolCount ?? 0) >= 5;
   const canUseGenerated = (subject?.generatedAvailable ?? 0) > 0;
 
   async function begin() {
@@ -108,6 +112,25 @@ export function NewSimulationForm({ options }: { options: SimulationOption[] }) 
             onSelect={() => setMode('real_cycle')}
             title={t.examSim.modeRealCycle}
             hint={canUseReal ? t.examSim.modeRealCycleHint : t.oldCycles.noCycles}
+          />
+          {/*
+            A mock paper from real questions.
+
+            Listed second, above the generated mode, because it is the better
+            answer for most students most of the time: the questions are real
+            Bac questions with real barèmes, nothing waits on a review queue,
+            and unlike a past paper it can be sat more than once.
+          */}
+          <ModeCard
+            selected={mode === 'real_mixed'}
+            disabled={!canUseMixed}
+            onSelect={() => setMode('real_mixed')}
+            title={t.examSim.modeRealMixed}
+            hint={
+              canUseMixed
+                ? format(t.examSim.modeRealMixedHint, { count: subject?.realPoolCount ?? 0 })
+                : t.examSim.modeRealMixedEmpty
+            }
           />
           <ModeCard
             selected={mode === 'ai_generated'}
