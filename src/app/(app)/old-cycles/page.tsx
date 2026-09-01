@@ -86,8 +86,11 @@ export default async function OldCyclesPage({
       </Alert>
 
       {/* A filtered list that does not say it is filtered reads as a subject
-          with three past papers to its name. */}
-      {onlySubject && cycles.length > 0 && (
+          with three past papers to its name — and when the filter matches
+          nothing it reads as a product with no past papers at all, which is
+          exactly when the way out matters most. So it does not depend on
+          there being results. */}
+      {onlySubject && (
         <p className="mb-4">
           <Link
             href="/old-cycles"
