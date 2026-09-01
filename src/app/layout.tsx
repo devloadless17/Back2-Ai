@@ -59,9 +59,24 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const dir = dirFor(locale);
 
   return (
+    /*
+     * `data-theme="light"` is stamped, not left to the device.
+     *
+     * The palette supports dark and the tokens are all defined for it, but the
+     * dark rules are written as `:root:not([data-theme='light'])` inside a
+     * `prefers-color-scheme` query — so pinning the attribute here switches the
+     * whole product to light in one line and leaves that work intact for the
+     * day a toggle is wanted.
+     *
+     * The reason is practical rather than aesthetic. This is shown on other
+     * people's machines and projectors, where nobody controls the OS setting,
+     * and a product that renders dark for half its audience is a product whose
+     * screenshots and demo never match.
+     */
     <html
       lang={locale}
       dir={dir}
+      data-theme="light"
       className={`${cairo.variable} ${inter.variable}`}
       suppressHydrationWarning
     >

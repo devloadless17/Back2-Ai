@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { useEffect, useState, type ComponentType } from 'react';
 
 import { cn } from '@/lib/cn';
+import { LanguageSwitcher } from '@/components/shell/language-switcher';
 import { useI18n } from '@/lib/i18n/client';
 
 import {
@@ -108,6 +109,14 @@ export function Sidebar({
       items: [
         { href: '/exam-sim', label: t.nav.examSim, icon: IconExam },
         { href: '/performance', label: t.nav.performance, icon: IconChart },
+        /*
+         * School marks. The page has existed at `/settings/grades` since it
+         * was written and was reachable only by typing the URL — filed under
+         * settings, where it reads as configuration rather than as something
+         * a student does. It belongs beside the other things that tell them
+         * how they are doing.
+         */
+        { href: '/settings/grades', label: t.nav.grades, icon: IconTrophy },
         { href: '/progress', label: t.standing.title, icon: IconTrophy },
       ],
     },
@@ -263,6 +272,10 @@ export function Sidebar({
         <div className="border-t border-rule px-4 py-3">
           <p className="truncate text-meta font-medium text-ink">{user.displayName ?? user.email}</p>
           <p className="truncate text-caption text-ink-faint">{user.email}</p>
+          <div className="mt-2.5">
+            <LanguageSwitcher />
+          </div>
+
           <form action="/api/auth/logout" method="post" className="mt-2">
             <button
               type="submit"

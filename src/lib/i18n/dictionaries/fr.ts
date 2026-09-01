@@ -44,6 +44,7 @@ export const fr: Dictionary = {
     settings: 'Paramètres',
     admin: 'Administration',
     logout: 'Se déconnecter',
+    grades: 'Mes notes de l’école',
     sections: {
       study: 'Étudier',
       assess: 'Évaluer',
@@ -359,6 +360,8 @@ export const fr: Dictionary = {
     hoverToReveal: 'Survolez ou touchez pour afficher la solution',
     questionCount: '{count} questions',
     duration: '{count} minutes',
+    askWhy: 'Pourquoi cette réponse ?',
+    paperNotice: 'Affiché comme une épreuve continue, dans l’ordre imprimé.',
   },
 
   examSim: {
@@ -540,6 +543,20 @@ export const fr: Dictionary = {
     noData: 'Pas encore assez de tentatives pour estimer votre préparation.',
     noDataHint: 'Travaillez quelques chapitres et cette page se remplira.',
     practiseThis: 'Travailler ce point',
+    schoolTitle: 'Notes de l’école vs notre prévision',
+    schoolHint: 'Le seul chiffre ici qui vienne de l’extérieur de l’application.',
+    schoolColumn: 'À l’école',
+    predictedColumn: 'Prévision',
+    verdictColumn: 'Accord',
+    fromMarks: 'moyenne de {count} note(s)',
+    verdictAligned: 'Concordant',
+    verdictSchoolLower: 'École plus bas',
+    verdictSchoolHigher: 'École plus haut',
+    schoolNone: 'Aucune note d’école enregistrée',
+    schoolNoneHint:
+      'Ajoutez les notes obtenues à l’école et nous les comparerons à ce que votre travail ici laisse prévoir.',
+    schoolLowerAdvice:
+      'Quand la note de l’école est la plus basse, l’écart tient généralement au temps ou à la méthode d’examen plutôt qu’aux connaissances — ici, vous maîtrisez la matière. Passer une épreuve complète chronométrée le vérifie directement.',
   },
 
   schedule: {
@@ -598,6 +615,8 @@ export const fr: Dictionary = {
     taskFlashcards: 'Fiches',
     taskExamDrill: 'Épreuve blanche',
     taskReview: 'Révision',
+    dropHint: 'Tapez-le, ou faites glisser un chapitre depuis la liste ci-dessous.',
+    chapterSearch: 'Rechercher un chapitre',
   },
 
   todos: {

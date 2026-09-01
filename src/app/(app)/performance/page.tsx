@@ -9,6 +9,9 @@ import { PageHeader, Sheet, SheetBody, SheetHeader } from '@/components/ui/sheet
 import { requireUser } from '@/lib/auth/guards';
 import { getTranslations } from '@/lib/i18n';
 import { getProgressForUser, rankChapters, rankStrongest } from '@/lib/queries/progress';
+import { compareMarks, schoolMarksBySubject } from '@/lib/queries/grades';
+import { getStanding } from '@/lib/queries/standing';
+import { SchoolVsPredicted } from '@/components/progress/school-vs-predicted';
 
 export const metadata: Metadata = { title: 'Performance' };
 
@@ -34,7 +37,15 @@ export default async function PerformancePage() {
     needs_review: t.dashboard.bandNeedsReview,
   };
 
-  const progress = await getProgressForUser(user.id, user.trackId, user.preferredLanguage);
+  const [progress, standing, schoolMarks] = await Promise.all([
+    getProgressForUser(user.id, user.trackId, user.preferredLanguage),
+    getStanding(user.id, user.trackId, user.preferredLanguage),
+    schoolMarksBySubject(user.id),
+  ]);
+
+  // The product's own prediction beside the only measure that did not come
+  // from inside it.
+  const marks = compareMarks(standing.subjects, schoolMarks);
   const weakest = rankChapters(progress, 8);
   const strongest = rankStrongest(progress, 5);
 
@@ -43,6 +54,10 @@ export default async function PerformancePage() {
   return (
     <>
       <PageHeader title={t.performance.title} description={t.performance.subtitle} />
+
+      <div className="mb-5">
+        <SchoolVsPredicted rows={marks} />
+      </div>
 
       {progress.length === 0 ? (
         <EmptyState

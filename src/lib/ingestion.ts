@@ -1,6 +1,6 @@
 import 'server-only';
 
-import type { Prisma, QuestionType } from '@prisma/client';
+import type { Language, Prisma, QuestionType } from '@prisma/client';
 import { z } from 'zod';
 
 import { ai, embedMany } from '@/lib/ai';
@@ -399,7 +399,8 @@ export async function runIngestion(jobId: string, source: IngestSource): Promise
 async function ingestExamPaper(ctx: {
   jobId: string;
   source: IngestSource;
-  subject: { id: string; name: string };
+  /** `language` stamps the exam cycle — see the note at the upsert below. */
+  subject: { id: string; name: string; language: Language };
   text: string;
   chapterList: { id: string; name: string; unitName: string | null }[];
   result: IngestResult;
@@ -427,10 +428,17 @@ async function ingestExamPaper(ctx: {
   if (source.year) {
     const cycle = await db.examCycle.upsert({
       where: {
-        subjectId_year_session: {
+        /*
+         * The subject's own language. These surfaces upload or seed one paper
+         * for one subject, so the edition and the medium are always the same
+         * thing here — unlike the corpus loader, where a French philosophy
+         * paper is filed under an Arabic subject.
+         */
+        subjectId_year_session_language: {
           subjectId: subject.id,
           year: source.year,
           session: source.session ?? 'session1',
+          language: subject.language,
         },
       },
       update: { title: source.label },

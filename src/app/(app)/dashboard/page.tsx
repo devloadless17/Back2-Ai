@@ -1,7 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
-import { TutorDock } from '@/components/chat/tutor-dock';
 import { SplitHero } from '@/components/dashboard/split-hero';
 import { streakFrom, type SubjectRing } from '@/components/dashboard/subject-rings';
 import { WelcomeHero } from '@/components/dashboard/welcome-hero';
@@ -446,12 +445,6 @@ export default async function DashboardPage() {
           </Sheet>
         </div>
       </div>
-
-      {/* The tutor, anchored to the chapter this page is already pointing at.
-          No question id — the dashboard is about a chapter, not one question —
-          so the conversation opens on the topic rather than on a specific
-          correction key. */}
-      <TutorDock context={focus ? { label: focus.chapterName } : undefined} />
     </>
   );
 }

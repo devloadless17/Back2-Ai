@@ -5,6 +5,8 @@ import { Alert, Badge, EmptyAction, EmptyState } from '@/components/ui/feedback'
 import { PageHeader, Sheet, SheetBody, SheetHeader } from '@/components/ui/sheet';
 import { requireUser } from '@/lib/auth/guards';
 import { db } from '@/lib/db';
+import { subjectLanguagesFor } from '@/lib/queries/taxonomy';
+import { LOCALE_LABELS } from '@/lib/i18n/config';
 import { getTranslations } from '@/lib/i18n';
 import { format } from '@/lib/i18n/format';
 
@@ -22,13 +24,32 @@ export default async function OldCyclesPage() {
   const user = await requireUser();
   const { t } = await getTranslations();
 
+  /*
+   * The edition the student can read.
+   *
+   * The humanities are taught in Arabic and have one subject, which a
+   * French-track student is shown — `subjectLanguagesFor('fr')` returns
+   * `['fr', 'ar']`. The CRDP still prints those papers in three languages, and
+   * until `exam_cycles.language` existed all three collapsed into one cycle, so
+   * opening a philosophy paper showed the Arabic, French and English editions
+   * stacked together.
+   *
+   * Now they are separate rows and the student is offered their own language
+   * plus Arabic — the same pair `subjectLanguagesFor` already uses for
+   * subjects, for the same reason. An English-track student is not shown the
+   * French printing of a paper they cannot read.
+   */
   const cycles = await db.examCycle.findMany({
-    where: { subject: { trackId: user.trackId ?? undefined } },
+    where: {
+      subject: { trackId: user.trackId ?? undefined },
+      language: { in: subjectLanguagesFor(user.preferredLanguage) },
+    },
     select: {
       id: true,
       year: true,
       session: true,
       title: true,
+      language: true,
       durationMinutes: true,
       subject: { select: { id: true, name: true } },
       _count: { select: { questions: true } },
@@ -77,10 +98,17 @@ export default async function OldCyclesPage() {
                             {format(t.oldCycles.duration, { count: cycle.durationMinutes })}
                           </p>
                         </div>
-                        <Badge tone="neutral">
-                          {cycle.year}
-                          {cycle.session ? ` · ${cycle.session}` : ''}
-                        </Badge>
+                        <div className="flex shrink-0 items-center gap-1.5">
+                          {/* Which printing. A French-track student is offered
+                              their own edition and the Arabic one, and the two
+                              carry the same title — without this they are two
+                              identical rows. */}
+                          <Badge tone="primary">{LOCALE_LABELS[cycle.language]}</Badge>
+                          <Badge tone="neutral">
+                            {cycle.year}
+                            {cycle.session ? ` · ${cycle.session}` : ''}
+                          </Badge>
+                        </div>
                       </Link>
                     </li>
                   ))}

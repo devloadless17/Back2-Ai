@@ -510,11 +510,28 @@ model AuditEvent {
 // Content: real questions
 // ===========================================================================
 
+/// One printed paper.
+///
+/// `language` is the edition, and it is not the same thing as the subject's
+/// language. The sciences are taught in French or English and have a subject
+/// per language, so for them the two always agree. The humanities are taught in
+/// Arabic — there is one `فلسفة عامة` and a French-track student is shown it,
+/// because `subjectLanguagesFor` returns `['fr', 'ar']` — but the CRDP prints
+/// the philosophy paper in all three languages.
+///
+/// Without this column those three editions collided on
+/// `(subjectId, year, session)` and became one cycle. Measured before it
+/// existed: 254 of 1,088 cycles held more than one language, and a student
+/// opening "Philosophie LH 2018" was shown the Arabic, French and English
+/// papers stacked together as if they were one 58-question exam.
 model ExamCycle {
   id              String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   subjectId       String  @map("subject_id") @db.Uuid
   year            Int
   session         String?
+  /// Which printed edition. Defaults to the subject's own language, which is
+  /// correct for every subject that only ever had one.
+  language        Language @default(ar)
   title           String
   /// ADDITION — the exam-sim timer needs an authoritative duration, and a real
   /// cycle's duration is a property of the paper, not of the student's run.
@@ -524,7 +541,7 @@ model ExamCycle {
   questions       Question[]
   examSimulations ExamSimulation[]
 
-  @@unique([subjectId, year, session])
+  @@unique([subjectId, year, session, language])
   @@index([subjectId, year])
   @@map("exam_cycles")
 }

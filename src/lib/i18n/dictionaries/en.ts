@@ -58,6 +58,7 @@ export const en = {
     settings: 'Settings',
     admin: 'Administration',
     logout: 'Sign out',
+    grades: 'My school marks',
     sections: {
       study: 'Study',
       assess: 'Assess',
@@ -378,6 +379,8 @@ export const en = {
     hoverToReveal: 'Hover or tap to reveal the solution',
     questionCount: '{count} questions',
     duration: '{count} minutes',
+    askWhy: 'Why this answer?',
+    paperNotice: 'Shown as one continuous paper, in printed order.',
   },
 
   examSim: {
@@ -557,6 +560,20 @@ export const en = {
     noData: 'Not enough attempts yet to predict readiness.',
     noDataHint: 'Practise a few chapters and this page will fill in.',
     practiseThis: 'Practise this',
+    schoolTitle: 'School marks vs our prediction',
+    schoolHint: 'The only figure here that comes from outside this app.',
+    schoolColumn: 'At school',
+    predictedColumn: 'We predict',
+    verdictColumn: 'Agreement',
+    fromMarks: 'average of {count} logged',
+    verdictAligned: 'Match',
+    verdictSchoolLower: 'School lower',
+    verdictSchoolHigher: 'School higher',
+    schoolNone: 'No school marks logged yet',
+    schoolNoneHint:
+      'Add the marks you get at school and we will compare them with what your practice here predicts.',
+    schoolLowerAdvice:
+      'Where your school mark is the lower one, the gap is usually timing or exam technique rather than knowledge — you know the material well enough here. Sitting a full timed paper tests that directly.',
   },
 
   schedule: {
@@ -613,6 +630,8 @@ export const en = {
     taskFlashcards: 'Flashcards',
     taskExamDrill: 'Exam drill',
     taskReview: 'Review',
+    dropHint: 'Type it, or drag a chapter from the list below.',
+    chapterSearch: 'Search chapters',
   },
 
   todos: {

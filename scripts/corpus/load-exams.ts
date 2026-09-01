@@ -168,12 +168,70 @@ function baremeKey(value: unknown): string {
   );
 }
 
-function languageOf(file: string, available: string[], detected?: string): Language | null {
-  if (/(?:^|[\s_-])(?:en|eng|english)(?:[\s_-]|$)/i.test(file) && available.includes('en')) return 'en';
-  if (/(?:^|[\s_-])(?:fr|french|francais)(?:[\s_-]|$)/i.test(file) && available.includes('fr')) return 'fr';
-  if (/(?:^|[\s_-])(?:ar|arabe|arabic)(?:[\s_-]|$)/i.test(file) && available.includes('ar')) return 'ar';
-  if (detected && available.includes(detected)) return detected as Language;
-  return available.length === 1 ? (available[0] as Language) : null;
+/**
+ * What the paper says it is, before anything about what we can store.
+ *
+ * The filename first, because when it says, it is authoritative. Then the
+ * paper's own text, which `extract_exams.py` reads — Arabic by script, French
+ * and English by function words — and which recovers the eighty-odd papers
+ * whose names carry no marker at all ("phy_dr.pdf" says nothing).
+ *
+ * Deliberately knows nothing about which subjects exist. That separation is
+ * the whole point of splitting this out: the question "what language is this
+ * paper in?" has an answer that does not depend on whether we have somewhere
+ * to put it.
+ */
+function statedLanguage(file: string, detected?: string): Language | null {
+  if (/(?:^|[\s_-])(?:en|eng|english)(?:[\s_-]|$)/i.test(file)) return 'en';
+  if (/(?:^|[\s_-])(?:fr|french|francais)(?:[\s_-]|$)/i.test(file)) return 'fr';
+  if (/(?:^|[\s_-])(?:ar|arabe|arabic)(?:[\s_-]|$)/i.test(file)) return 'ar';
+  if (detected === 'en' || detected === 'fr' || detected === 'ar') return detected;
+  return null;
+}
+
+export type LanguagePick =
+  | { ok: true; subjectLanguage: Language; paperLanguage: Language }
+  /** The paper never said, and the subject exists in more than one language. */
+  | { ok: false; reason: 'unstated' };
+
+/**
+ * Two languages, because a paper has two and they are not always the same one.
+ *
+ * `paperLanguage` is the edition in front of you: `SVSG_Philo_2021_1_Fr` is the
+ * French printing, whatever else is true. `subjectLanguage` is which subject
+ * row it is filed under — the medium the subject is *taught* in.
+ *
+ * For the sciences they always agree: Chemistry and Chimie are separate
+ * subjects, so the French chemistry paper goes into the French subject. For the
+ * humanities they do not. Philosophy is taught in Arabic and there is one
+ * `فلسفة عامة`; `subjectLanguagesFor('fr')` returns `['fr', 'ar']` precisely so
+ * a French-track student is shown it. The CRDP still prints that paper in three
+ * languages.
+ *
+ * Conflating the two is what caused the damage. The old single answer let a
+ * `available.length === 1` fallback overrule the filename and the extractor,
+ * and every French and English philosophy paper was filed as Arabic — 254 of
+ * 1,088 cycles ended up holding more than one language. Splitting them lets the
+ * fallback do its real job (choose the only subject that exists) without it
+ * having any opinion about what language the paper is written in, which is the
+ * one thing it was never entitled to decide.
+ */
+function languageOf(file: string, available: string[], detected?: string): LanguagePick {
+  const stated = statedLanguage(file, detected);
+
+  // The subject side keeps the fallback, which is now safe: it only picks where
+  // to file the paper, and can no longer misdescribe what the paper is.
+  const subjectLanguage =
+    stated && available.includes(stated)
+      ? stated
+      : available.length === 1
+        ? (available[0] as Language)
+        : null;
+
+  if (!subjectLanguage) return { ok: false, reason: 'unstated' };
+
+  // If nothing stated a language, the paper is whatever its subject is.
+  return { ok: true, subjectLanguage, paperLanguage: stated ?? subjectLanguage };
 }
 
 type Part = { label: string; text: string; answer?: string; marks?: number };
@@ -373,11 +431,18 @@ async function main() {
       note('subject not in the table (history, Arabic literature, …)');
       continue;
     }
-    const language = languageOf(exam.file, Object.keys(subject.name), exam.language);
-    if (!language) {
+    const picked = languageOf(exam.file, Object.keys(subject.name), exam.language);
+    if (!picked.ok) {
       note('language not stated in the filename');
       continue;
     }
+    /*
+     * `language` selects the subject; `paperLanguage` stamps the cycle. They
+     * differ for every French or English humanities paper, which is the whole
+     * point of the split.
+     */
+    const language = picked.subjectLanguage;
+    const paperLanguage = picked.paperLanguage;
     const candidates = [subject.name[language] ?? []].flat();
     if (!candidates.length) {
       note(`no ${language} variant of this subject`);
@@ -425,7 +490,12 @@ async function main() {
     if (!dry) {
       const cycle = await db.examCycle.upsert({
         where: {
-          subjectId_year_session: { subjectId: subjectRow.id, year, session: sessionOf(exam.session) },
+          subjectId_year_session_language: {
+            subjectId: subjectRow.id,
+            year,
+            session: sessionOf(exam.session),
+            language: paperLanguage,
+          },
         },
         update: {},
         create: {

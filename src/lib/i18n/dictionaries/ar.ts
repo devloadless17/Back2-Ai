@@ -44,6 +44,7 @@ export const ar: Dictionary = {
     settings: 'الإعدادات',
     admin: 'الإدارة',
     logout: 'تسجيل الخروج',
+    grades: 'علاماتي المدرسية',
     sections: {
       study: 'الدراسة',
       assess: 'التقييم',
@@ -381,6 +382,8 @@ export const ar: Dictionary = {
     hoverToReveal: 'مرّر المؤشر أو المس لإظهار الحل',
     questionCount: '{count} أسئلة',
     duration: '{count} دقيقة',
+    askWhy: 'لماذا هذا الجواب؟',
+    paperNotice: 'يُعرض كورقة متصلة، بالترتيب المطبوع.',
   },
 
   examSim: {
@@ -554,6 +557,19 @@ export const ar: Dictionary = {
     noData: 'المحاولات غير كافية بعد لتقدير الجاهزية.',
     noDataHint: 'تمرّن على بضعة فصول وستمتلئ هذه الصفحة.',
     practiseThis: 'تمرّن على هذا',
+    schoolTitle: 'علامات المدرسة مقابل توقّعنا',
+    schoolHint: 'الرقم الوحيد هنا الآتي من خارج هذا التطبيق.',
+    schoolColumn: 'في المدرسة',
+    predictedColumn: 'توقّعنا',
+    verdictColumn: 'التطابق',
+    fromMarks: 'معدّل {count} علامة',
+    verdictAligned: 'متطابق',
+    verdictSchoolLower: 'المدرسة أدنى',
+    verdictSchoolHigher: 'المدرسة أعلى',
+    schoolNone: 'لم تُسجَّل علامات مدرسية بعد',
+    schoolNoneHint: 'أضف علاماتك المدرسية وسنقارنها بما يتوقّعه تمرينك هنا.',
+    schoolLowerAdvice:
+      'حين تكون علامة المدرسة هي الأدنى، يعود الفارق عادةً إلى الوقت أو أسلوب الامتحان لا إلى المعرفة — فأنت تتقن المادة هنا. الجلوس لورقة كاملة موقّتة يختبر ذلك مباشرة.',
   },
 
   schedule: {
@@ -610,6 +626,8 @@ export const ar: Dictionary = {
     taskFlashcards: 'بطاقات',
     taskExamDrill: 'تمرين امتحان',
     taskReview: 'مراجعة',
+    dropHint: 'اكتبه، أو اسحب فصلًا من القائمة أدناه.',
+    chapterSearch: 'ابحث عن فصل',
   },
 
   todos: {

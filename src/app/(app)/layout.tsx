@@ -1,3 +1,4 @@
+import { TutorDock } from '@/components/chat/tutor-dock';
 import { Sidebar, type SidebarCounts, type SidebarStanding } from '@/components/shell/sidebar';
 import { requireSession } from '@/lib/auth/guards';
 import { db } from '@/lib/db';
@@ -55,6 +56,24 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         counts={counts}
         standing={sidebarStanding}
       />
+
+      {/*
+        The tutor, on every page under this layout.
+
+        It used to be mounted per page, on four of them, with a comment arguing
+        that a dock in the layout would have to know which route it was on and
+        hide itself inside an exam. That argument was wrong about this codebase:
+        the exam runner lives in the `(exam)` route group, which has its own
+        layout and never renders this one. So the exclusion is structural rather
+        than a condition someone has to remember — a paper under a running clock
+        cannot acquire an assistant by accident, whatever is added here later.
+
+        What is lost is the per-page anchor: the dashboard used to open the
+        tutor already pointed at the student's weakest chapter. Following them
+        everywhere is worth more than that, and the anchored path still exists
+        where it matters most — beside a marked answer, and on a past paper.
+      */}
+      <TutorDock />
 
       <main className="min-w-0 flex-1">
         {/* No centred column. Reading measure is held where it belongs — by

@@ -194,7 +194,18 @@ async function main() {
     // updated in place rather than inserted again.
     const row = await db.examCycle.upsert({
       where: {
-        subjectId_year_session: { subjectId, year: cycle.year, session: cycle.session },
+        /*
+         * The subject's own language. These surfaces upload or seed one paper
+         * for one subject, so the edition and the medium are always the same
+         * thing here — unlike the corpus loader, where a French philosophy
+         * paper is filed under an Arabic subject.
+         */
+        subjectId_year_session_language: {
+          subjectId,
+          year: cycle.year,
+          session: cycle.session,
+          language: DEMO_LANGUAGE,
+        },
       },
       update: { title: cycle.title, durationMinutes: cycle.durationMinutes },
       create: {

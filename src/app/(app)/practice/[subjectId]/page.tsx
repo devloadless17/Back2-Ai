@@ -2,7 +2,6 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
-import { TutorDock } from '@/components/chat/tutor-dock';
 import { Badge, EmptyAction, EmptyState } from '@/components/ui/feedback';
 import { BandChip, bandForMastery, type Band } from '@/components/ui/band';
 import { Meter } from '@/components/ui/progress';
@@ -169,8 +168,6 @@ export default async function SubjectChaptersPage({
           ))}
         </div>
       )}
-
-      <TutorDock context={{ label: subject.name }} />
     </>
   );
 }

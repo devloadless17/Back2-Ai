@@ -60,6 +60,8 @@ async function main() {
   }
 
   const subjectIdByKey = new Map<string, string>();
+  /** Keyed the same way, so a cycle can be stamped with its subject's language. */
+  const subjectLanguageByKey = new Map<string, Language>();
   const chapterIdByKey = new Map<string, string>();
   const trackIdByCode = new Map<string, string>();
 
@@ -86,6 +88,7 @@ async function main() {
         }));
 
       subjectIdByKey.set(`${track.code}::${subject.name}`, subjectRow.id);
+      subjectLanguageByKey.set(`${track.code}::${subject.name}`, subject.language as Language);
 
       const unitIdByName = new Map<string, string>();
       for (const [index, unitName] of subject.units.entries()) {
@@ -124,6 +127,7 @@ async function main() {
 
   for (const cycle of EXAM_CYCLES) {
     const subjectId = subjectIdByKey.get(`${cycle.trackCode}::${cycle.subject}`);
+    const subjectLanguage = subjectLanguageByKey.get(`${cycle.trackCode}::${cycle.subject}`) ?? 'ar';
     if (!subjectId) {
       console.warn(`  ! skipping cycle for unknown subject ${cycle.trackCode}/${cycle.subject}`);
       continue;
@@ -131,7 +135,18 @@ async function main() {
 
     const row = await db.examCycle.upsert({
       where: {
-        subjectId_year_session: { subjectId, year: cycle.year, session: cycle.session },
+        /*
+         * The subject's own language. These surfaces upload or seed one paper
+         * for one subject, so the edition and the medium are always the same
+         * thing here — unlike the corpus loader, where a French philosophy
+         * paper is filed under an Arabic subject.
+         */
+        subjectId_year_session_language: {
+          subjectId,
+          year: cycle.year,
+          session: cycle.session,
+          language: subjectLanguage,
+        },
       },
       update: { title: cycle.title, durationMinutes: cycle.durationMinutes },
       create: {

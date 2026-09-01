@@ -1,6 +1,5 @@
 import type { Metadata } from 'next';
 
-import { TutorDock } from '@/components/chat/tutor-dock';
 import { ReviewSession } from '@/components/flashcards/review-session';
 import { LinkButton } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/feedback';
@@ -85,12 +84,6 @@ export default async function FlashcardReviewPage({
         description={isWeakScope ? t.flashcards.scopeWeakHint : t.flashcards.subtitle}
       />
       <ReviewSession cards={cards} />
-
-      {/* Not inside the card itself: a panel over a card being graded would
-          cover the four grade buttons the whole screen exists for. */}
-      <TutorDock
-        context={{ label: isWeakScope ? t.flashcards.scopeWeak : t.flashcards.title }}
-      />
     </>
   );
 }

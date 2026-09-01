@@ -77,6 +77,29 @@ export function SchedulePlanner({
   const [title, setTitle] = useState('');
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [chapterId, setChapterId] = useState('');
+  /** Highlights the title field while a chapter is being dragged over it. */
+  const [dropActive, setDropActive] = useState(false);
+  const [chapterQuery, setChapterQuery] = useState('');
+
+  /*
+   * Filling the session from a chapter, however the student got here.
+   *
+   * One function behind three gestures — drop, click, Enter — because drag is
+   * the nicest of the three and the only one that does not work on a phone or
+   * from a keyboard. Building this as drag-only would have made the feature
+   * unavailable to most of the people using the product.
+   */
+  function useChapter(chapter: { id: string; name: string }) {
+    setTitle(chapter.name);
+    setChapterId(chapter.id);
+    setDropActive(false);
+  }
+
+  // Cheap on a few hundred chapters, and it keeps the list usable — dragging
+  // from a list you have to scroll for a minute is worse than typing.
+  const chapterMatches = chapterQuery.trim()
+    ? chapters.filter((c) => c.name.toLowerCase().includes(chapterQuery.trim().toLowerCase())).slice(0, 8)
+    : chapters.slice(0, 8);
 
   // --- Exam add -----------------------------------------------------------
   const [examDate, setExamDate] = useState('');
@@ -332,11 +355,84 @@ export function SchedulePlanner({
           <Sheet>
             <SheetHeader title={t.schedule.addSession} />
             <SheetBody className="space-y-3">
-              <Field label={t.schedule.sessionTitle}>
+              {/*
+                The title field doubles as a drop target.
+
+                Typing still works and is untouched — this only adds a second
+                way in. `onDragOver` has to call `preventDefault` or the browser
+                refuses the drop, which is the usual reason a drop target looks
+                right and does nothing.
+              */}
+              <Field label={t.schedule.sessionTitle} hint={t.schedule.dropHint}>
                 {({ id }) => (
-                  <Input id={id} value={title} onChange={(event) => setTitle(event.target.value)} />
+                  <Input
+                    id={id}
+                    value={title}
+                    onChange={(event) => setTitle(event.target.value)}
+                    onDragOver={(event) => {
+                      event.preventDefault();
+                      setDropActive(true);
+                    }}
+                    onDragLeave={() => setDropActive(false)}
+                    onDrop={(event) => {
+                      event.preventDefault();
+                      const id = event.dataTransfer.getData('text/chapter-id');
+                      const name = event.dataTransfer.getData('text/plain');
+                      if (id && name) useChapter({ id, name });
+                    }}
+                    className={cn(dropActive && 'border-primary bg-primary-soft')}
+                  />
                 )}
               </Field>
+
+              {/*
+                The chapters, draggable.
+
+                They were already reachable through the select below, which
+                answers "link this to a chapter" but not "what should I study?".
+                This list answers the second question: it is the same data, put
+                where the decision is actually made, and picking one fills the
+                title and the link together.
+              */}
+              <div className="rounded-lg border border-rule bg-paper-sunken/50 p-2.5">
+                <Input
+                  value={chapterQuery}
+                  onChange={(event) => setChapterQuery(event.target.value)}
+                  placeholder={t.schedule.chapterSearch}
+                  aria-label={t.schedule.chapterSearch}
+                  className="mb-2 h-8 text-caption"
+                />
+                <ul className="max-h-44 space-y-1 overflow-y-auto">
+                  {chapterMatches.map((chapter) => (
+                    <li key={chapter.id}>
+                      <button
+                        type="button"
+                        draggable
+                        onDragStart={(event) => {
+                          event.dataTransfer.setData('text/chapter-id', chapter.id);
+                          event.dataTransfer.setData('text/plain', chapter.name);
+                          event.dataTransfer.effectAllowed = 'copy';
+                        }}
+                        onDragEnd={() => setDropActive(false)}
+                        onClick={() => useChapter(chapter)}
+                        className={cn(
+                          'w-full cursor-grab rounded px-2.5 py-1.5 text-start text-caption',
+                          'text-ink-muted transition-colors duration-150',
+                          'hover:bg-primary-soft hover:text-ink active:cursor-grabbing',
+                          chapterId === chapter.id && 'bg-primary-soft font-semibold text-ink',
+                        )}
+                      >
+                        {chapter.name}
+                      </button>
+                    </li>
+                  ))}
+                  {chapterMatches.length === 0 && (
+                    <li className="px-2.5 py-1.5 text-caption text-ink-faint">
+                      {t.performance.noDataHint}
+                    </li>
+                  )}
+                </ul>
+              </div>
               <Field label={t.schedule.date}>
                 {({ id }) => (
                   <Input

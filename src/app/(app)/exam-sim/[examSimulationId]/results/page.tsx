@@ -303,18 +303,6 @@ export default async function ExamResultsPage({
           })}
         </div>
       )}
-
-      {/* Allowed here and deliberately not one route up: `/exam-sim/[id]` is a
-          paper under a running clock and stays assistant-free. */}
-      <TutorDock
-        context={{
-          label: simulation.subject.name,
-          attemptId:
-            firstLostMarks?.questionId
-              ? attemptByQuestionId.get(firstLostMarks.questionId)
-              : undefined,
-        }}
-      />
     </>
   );
 }
