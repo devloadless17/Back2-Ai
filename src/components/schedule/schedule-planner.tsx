@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Field, Input, Select } from '@/components/ui/field';
@@ -10,6 +10,7 @@ import { Sheet, SheetBody, SheetFooter, SheetHeader } from '@/components/ui/shee
 import { cn } from '@/lib/cn';
 import { sendJson } from '@/lib/client/request';
 import { useI18n } from '@/lib/i18n/client';
+import { WeekGrid } from '@/components/schedule/week-grid';
 
 /**
  * Manual planner plus the suggestion flow.
@@ -20,6 +21,9 @@ import { useI18n } from '@/lib/i18n/client';
  * tool that proposes and a tool that helps itself to your calendar is one the
  * student notices immediately and does not forgive.
  */
+
+/** Where the chosen view is remembered. Per device, like a zoom level. */
+const VIEW_KEY = 'bac2_schedule_view';
 
 export type PlannerSession = {
   id: string;
@@ -72,6 +76,40 @@ export function SchedulePlanner({
   const [error, setError] = useState<string | null>(null);
   const [proposal, setProposal] = useState<SuggestResponse | null>(null);
   const [suggestingFor, setSuggestingFor] = useState(exams[0]?.id ?? '');
+
+  /*
+   * Which way the plan is shown.
+   *
+   * Two views because there are two questions. The list answers "what do I do
+   * next" — only days with something on them, each with its actions to hand.
+   * The week answers "what does my week look like" — where the gaps are, which
+   * day is already full, how long until the paper on Thursday. A student trying
+   * to feel on top of their revision is asking the second, and a list of three
+   * dated headings cannot answer it.
+   *
+   * Remembered per device, because it is a preference about how somebody reads
+   * a calendar and not something to re-choose on every visit. Wrapped because
+   * storage throws outright in a private window rather than returning null.
+   */
+  const [view, setView] = useState<'list' | 'week'>('week');
+
+  useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem(VIEW_KEY);
+      if (saved === 'list' || saved === 'week') setView(saved);
+    } catch {
+      // A browser that refuses storage still gets the default.
+    }
+  }, []);
+
+  function chooseView(next: 'list' | 'week') {
+    setView(next);
+    try {
+      window.localStorage.setItem(VIEW_KEY, next);
+    } catch {
+      // Nothing to do — the choice still holds for this visit.
+    }
+  }
 
   // --- Manual add ---------------------------------------------------------
   const [title, setTitle] = useState('');
@@ -261,8 +299,28 @@ export function SchedulePlanner({
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
         {/* --- The calendar --- */}
         <Sheet>
-          <SheetHeader title={t.schedule.title} />
-          <SheetBody className="p-0">
+          <SheetHeader
+            title={t.schedule.title}
+            actions={
+              <div className="flex gap-1" role="group" aria-label={t.schedule.viewLabel}>
+                <ViewButton
+                  active={view === 'week'}
+                  onClick={() => chooseView('week')}
+                  label={t.schedule.viewWeek}
+                />
+                <ViewButton
+                  active={view === 'list'}
+                  onClick={() => chooseView('list')}
+                  label={t.schedule.viewList}
+                />
+              </div>
+            }
+          />
+          <SheetBody className={view === 'week' ? 'p-4' : 'p-0'}>
+            {view === 'week' ? (
+              <WeekGrid sessions={sessions} exams={exams} onSetStatus={setStatus} />
+            ) : (
+          <>
             {sessions.length === 0 ? (
               <EmptyState
                 tone="neutral"
@@ -346,6 +404,8 @@ export function SchedulePlanner({
                   </li>
                 ))}
               </ul>
+            )}
+          </>
             )}
           </SheetBody>
         </Sheet>
@@ -537,5 +597,30 @@ export function SchedulePlanner({
         </div>
       </div>
     </div>
+  );
+}
+
+/** One of the two ways to read a plan. */
+function ViewButton({
+  active,
+  onClick,
+  label,
+}: {
+  active: boolean;
+  onClick: () => void;
+  label: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={cn(
+        'rounded px-2.5 py-1 text-caption font-semibold transition-colors duration-150',
+        active ? 'bg-primary-soft text-primary' : 'text-ink-faint hover:bg-paper-sunken hover:text-ink',
+      )}
+    >
+      {label}
+    </button>
   );
 }

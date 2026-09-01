@@ -5,11 +5,12 @@ import { notFound } from 'next/navigation';
 import { Badge, EmptyAction, EmptyState } from '@/components/ui/feedback';
 import { BandChip, bandForMastery, type Band } from '@/components/ui/band';
 import { Meter } from '@/components/ui/progress';
-import { PageHeader, Sheet, SheetBody } from '@/components/ui/sheet';
+import { Sheet, SheetBody } from '@/components/ui/sheet';
+import { SubjectHub } from '@/components/practice/subject-hub';
+import { getSubjectHub } from '@/lib/queries/subject-hub';
 import { requireUser } from '@/lib/auth/guards';
 import { cn } from '@/lib/cn';
 import { getTranslations } from '@/lib/i18n';
-import { format } from '@/lib/i18n/format';
 import { getSubjectForTrack, listChapters } from '@/lib/queries/taxonomy';
 
 export const metadata: Metadata = { title: 'Practice' };
@@ -42,7 +43,10 @@ export default async function SubjectChaptersPage({
   const subject = await getSubjectForTrack(subjectId, user.trackId);
   if (!subject) notFound();
 
-  const chapters = await listChapters(subject.id, user.id);
+  const [chapters, hub] = await Promise.all([
+    listChapters(subject.id, user.id),
+    getSubjectHub(subject.id, user.id, user.preferredLanguage),
+  ]);
 
   const byUnit = new Map<string, typeof chapters>();
   for (const chapter of chapters) {
@@ -52,10 +56,17 @@ export default async function SubjectChaptersPage({
 
   return (
     <>
-      <PageHeader
-        title={subject.name}
-        description={format(t.practice.chaptersIn, { subject: subject.name })}
-      />
+      {/*
+        What a student can do in this subject, before the list of what is in it.
+
+        The chapter list is still here and unchanged — it is the index, and an
+        index belongs under the things it indexes rather than in place of them.
+      */}
+      <SubjectHub subjectId={subject.id} subjectName={subject.name} counts={hub} />
+
+      <h2 id="chapters" className="label mb-2 px-1 pt-1">
+        {t.hub.index}
+      </h2>
 
       {chapters.length === 0 ? (
         <EmptyState
