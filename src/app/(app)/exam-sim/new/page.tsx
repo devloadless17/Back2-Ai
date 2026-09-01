@@ -7,7 +7,8 @@ import { requireUser } from '@/lib/auth/guards';
 import { db } from '@/lib/db';
 import { PUBLISHED_FILTER } from '@/lib/generation';
 import { getTranslations } from '@/lib/i18n';
-import { listSubjects } from '@/lib/queries/taxonomy';
+import { listSubjects, subjectLanguagesFor } from '@/lib/queries/taxonomy';
+import { LOCALE_LABELS } from '@/lib/i18n/config';
 
 export const metadata: Metadata = { title: 'New simulation' };
 
@@ -37,13 +38,30 @@ export default async function NewSimulationPage() {
   const options: SimulationOption[] = await Promise.all(
     subjects.map(async (subject) => {
       const [cycles, generatedCount] = await Promise.all([
+        /*
+         * Only editions the student can read.
+         *
+         * The same filter the past-paper list uses, and it matters more here:
+         * that page offers a paper to read, this one starts a timed sitting.
+         * The humanities have one Arabic subject that a French-track student is
+         * shown — `subjectLanguagesFor('fr')` returns ['fr','ar'] — and the
+         * CRDP prints those papers in three languages. Without this the picker
+         * offers all three editions of "Philosophie LH 2018" under the same
+         * title, and a French candidate can start a two-hour Arabic paper by
+         * choosing the wrong identical row.
+         */
         db.examCycle.findMany({
-          where: { subjectId: subject.id, questions: { some: {} } },
+          where: {
+            subjectId: subject.id,
+            questions: { some: {} },
+            language: { in: subjectLanguagesFor(user.preferredLanguage) },
+          },
           select: {
             id: true,
             title: true,
             year: true,
             session: true,
+            language: true,
             durationMinutes: true,
             _count: { select: { questions: true } },
           },
@@ -59,7 +77,17 @@ export default async function NewSimulationPage() {
         subjectName: subject.name,
         cycles: cycles.map((cycle) => ({
           id: cycle.id,
-          label: `${cycle.title} · ${cycle.year}${cycle.session ? ` · ${cycle.session}` : ''}`,
+          /*
+           * The edition is part of the label, not decoration. A French-track
+           * student is offered their own printing and the Arabic one, and the
+           * two carry the same title and year — without the language they are
+           * two identical rows in a dropdown, and picking the wrong one starts
+           * a timed paper in a language the candidate cannot sit.
+           */
+          label:
+            `${cycle.title} · ${cycle.year}` +
+            `${cycle.session ? ` · ${cycle.session}` : ''}` +
+            ` · ${LOCALE_LABELS[cycle.language]}`,
           questionCount: cycle._count.questions,
           durationMinutes: cycle.durationMinutes,
         })),

@@ -153,10 +153,117 @@ async function startFromRealCycle(input: StartInput): Promise<{ id: string }> {
  * Exported because the exec plan exposes composition as its own endpoint
  * (`/exam-sim/[id]/generate`) as well as folding it into paper creation.
  */
+/**
+ * What a problem is worth, from its own barème.
+ *
+ * The marks rather than the character count, because the marks are the paper's
+ * own statement of weight and the length is a proxy for it. They agree in this
+ * corpus — the three-mark integrals run to about 110 characters and the
+ * twelve-mark pharmacology exercises to about 2,300 — but a terse question
+ * carrying half the paper is exactly the case the proxy would get wrong.
+ *
+ * Falls back to length only where no barème was written, since a problem with
+ * no scheme still has to be placed somewhere.
+ */
+function weightOf(problem: { bareme: unknown; contentText?: string }): number {
+  if (Array.isArray(problem.bareme)) {
+    const total = problem.bareme.reduce(
+      (sum, criterion) => sum + Number((criterion as { points?: unknown })?.points ?? 0),
+      0,
+    );
+    if (total > 0) return total;
+  }
+  // ~1 mark per 250 characters, calibrated against the pairs above.
+  return Math.round((problem.contentText?.length ?? 0) / 250);
+}
+
+/**
+ * The mark from which an exercise is a major one.
+ *
+ * A Lebanese paper is out of 20 across four or five exercises, so anything
+ * carrying five marks or more is a quarter of the sitting. Two of those drawn
+ * from one chapter is the failure this guards against: a candidate can lose
+ * half the paper to a single topic they happened not to revise, which measures
+ * their luck rather than their preparation.
+ *
+ * `TUNABLE` — `src/lib/exam.ts`.
+ */
+const LARGE_QUESTION_MARKS = 5;
+
+/**
+ * Picks the problems for a generated paper.
+ *
+ * Three passes, and the order matters.
+ *
+ * The first takes at most one problem per chapter, which is the spread a real
+ * paper has. The second tops up when the subject has fewer chapters with
+ * approved problems than the paper needs slots — and it is the one that used to
+ * undo the first, because it accepted anything left in the pool. A subject with
+ * two well-covered chapters could produce a five-question paper in which three
+ * questions, and most of the marks, came from one of them.
+ *
+ * So the top-up now keeps one rule: **never a second large exercise from a
+ * chapter that has already contributed one.** Small questions may double up —
+ * two three-mark integrals from the same chapter cost a candidate very little —
+ * but two twelve-mark exercises decide the paper between them.
+ *
+ * The rule is absolute rather than best-effort. If it cannot be satisfied the
+ * paper comes back short, because a four-question paper that samples four
+ * chapters is a better measurement than a five-question paper that samples
+ * three and weights one of them double.
+ */
+/** The shape the selection rule needs. Anything else on a problem is irrelevant to it. */
+export type SelectableProblem = {
+  id: string;
+  chapterId: string;
+  bareme: unknown;
+  difficulty: unknown;
+  contentText?: string;
+};
+
+/**
+ * The selection rule, separated from the query so it can be tested.
+ *
+ * It is the part with the judgement in it — which chapters a paper samples and
+ * how its marks are spread — and it needs no database to decide any of that.
+ */
+export function chooseQuestions<T extends SelectableProblem>(pool: T[], count: number): T[] {
+  const chosen: T[] = [];
+  const usedChapters = new Set<string>();
+  /** Chapters that have already supplied a major exercise. */
+  const chaptersWithLarge = new Set<string>();
+
+  const take = (problem: T) => {
+    chosen.push(problem);
+    usedChapters.add(problem.chapterId);
+    if (weightOf(problem) >= LARGE_QUESTION_MARKS) chaptersWithLarge.add(problem.chapterId);
+  };
+
+  // One per chapter — the spread a real paper has.
+  for (const problem of pool) {
+    if (chosen.length >= count) break;
+    if (usedChapters.has(problem.chapterId)) continue;
+    take(problem);
+  }
+
+  // Top up from the remainder, but never a second large exercise from a chapter
+  // that already carries one.
+  for (const problem of pool) {
+    if (chosen.length >= count) break;
+    if (chosen.some((c) => c.id === problem.id)) continue;
+    if (weightOf(problem) >= LARGE_QUESTION_MARKS && chaptersWithLarge.has(problem.chapterId)) {
+      continue;
+    }
+    take(problem);
+  }
+
+  return chosen;
+}
+
 export async function selectGeneratedQuestions(subjectId: string) {
   const pool = await db.generatedProblem.findMany({
     where: { chapter: { subjectId }, ...PUBLISHED_FILTER },
-    select: { id: true, chapterId: true, bareme: true, difficulty: true },
+    select: { id: true, chapterId: true, bareme: true, difficulty: true, contentText: true },
     orderBy: { publishedAt: 'desc' },
     take: 60,
   });
@@ -168,22 +275,7 @@ export async function selectGeneratedQuestions(subjectId: string) {
     );
   }
 
-  const chosen: typeof pool = [];
-  const usedChapters = new Set<string>();
-
-  for (const problem of pool) {
-    if (chosen.length >= AI_PAPER_QUESTION_COUNT) break;
-    if (usedChapters.has(problem.chapterId)) continue;
-    chosen.push(problem);
-    usedChapters.add(problem.chapterId);
-  }
-  // Top up from the remainder if the subject does not have enough distinct
-  // chapters with approved problems yet.
-  for (const problem of pool) {
-    if (chosen.length >= AI_PAPER_QUESTION_COUNT) break;
-    if (chosen.some((c) => c.id === problem.id)) continue;
-    chosen.push(problem);
-  }
+  const chosen = chooseQuestions(pool, AI_PAPER_QUESTION_COUNT);
 
   // Easiest first, the way a real paper is ordered.
   chosen.sort((a, b) => Number(a.difficulty ?? 0.5) - Number(b.difficulty ?? 0.5));
