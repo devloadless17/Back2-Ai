@@ -64,7 +64,7 @@ Part 5 Organic Chemistry II ..... 193
 9 Alcohols
 10 Aldehydes and Ketones
 11 Carboxylic acids and their derivatives
-12 Amines and $\alpha$-amino acids
+12 Amines and α-amino acids
 
 Part 6 Polymers ..... 301
 13 Polymers
