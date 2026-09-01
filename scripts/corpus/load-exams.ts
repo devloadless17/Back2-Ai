@@ -502,6 +502,15 @@ async function main() {
           subjectId: subjectRow.id,
           year,
           session: sessionOf(exam.session),
+          /*
+           * Must match the `where` above.
+           *
+           * Without it the column falls back to its schema default of `ar`, so
+           * a lookup for the French cycle finds nothing, the create inserts an
+           * Arabic one, and it collides with the Arabic cycle that already
+           * exists — which is exactly how this failed the first time it ran.
+           */
+          language: paperLanguage,
           title: `${subjectName} ${exam.track} ${year} — ${sessionOf(exam.session) === 'session2' ? 'session 2' : 'session 1'}`,
         },
         select: { id: true },

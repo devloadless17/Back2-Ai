@@ -61,7 +61,28 @@ let cached: Env | null = null;
 export function env(): Env {
   if (cached) return cached;
 
-  const parsed = schema.safeParse(process.env);
+  /*
+   * An empty variable means an unset one.
+   *
+   * A hosting dashboard has no way to express "absent" — you either delete the
+   * row or leave the box blank, and most people leave it blank. Zod treats that
+   * blank as a value, so `OCR_PROVIDER=""` fails an enum that would have been
+   * perfectly happy with the variable missing, and its `.default()` never runs.
+   *
+   * That is not hypothetical: it failed a production build with
+   * `OCR_PROVIDER: expected 'vision', received ''` and the same for
+   * DEFAULT_LOCALE, both of which have defaults. Twenty-three variables here
+   * carry a default and every one of them was one blank box away from the same
+   * failure.
+   *
+   * Whitespace counts as empty too — a value that is one accidental space is
+   * not a configuration choice anybody made.
+   */
+  const provided = Object.fromEntries(
+    Object.entries(process.env).filter(([, value]) => (value ?? '').trim() !== ''),
+  );
+
+  const parsed = schema.safeParse(provided);
   if (!parsed.success) {
     const issues = parsed.error.issues.map((i) => `  - ${i.path.join('.')}: ${i.message}`).join('\n');
     throw new Error(`Invalid environment configuration:\n${issues}\n\nCopy .env.example to .env and fill it in.`);
