@@ -106,6 +106,18 @@ export async function SubjectHub({
           disabled={counts.questions === 0}
           emptyHint={t.hub.bankEmpty}
         />
+      </Section>
+
+      {/*
+        Sitting a paper is its own section, not a card filed under "Practise".
+        It was called "Mock paper" there and went unrecognised — the rest of the
+        product, the sidebar included, calls this an exam simulation, and a
+        student looking for the exam simulator inside a subject had no reason to
+        read "Mock paper" as the thing they wanted. Two cards, because sitting a
+        past paper and sitting an assembled one are the same act to a student
+        and were two sections apart.
+      */}
+      <Section title={t.hub.sit}>
         <HubCard
           href={`/exam-sim/new?subject=${subjectId}`}
           icon={IconExam}
@@ -123,6 +135,46 @@ export async function SubjectHub({
           count={format(t.hub.paperCount, { count: counts.papers })}
           disabled={counts.papers === 0}
           emptyHint={t.hub.papersEmpty}
+        />
+      </Section>
+
+      <Section title={t.hub.review}>
+        <HubCard
+          href={`/flashcards/review?scope=subject&id=${subjectId}`}
+          icon={IconCards}
+          title={t.hub.cards}
+          hint={t.hub.cardsHint}
+          count={
+            counts.cardsDue > 0
+              ? format(t.hub.cardsDue, { count: counts.cardsDue })
+              : format(t.hub.cardCount, { count: counts.cardsTotal })
+          }
+          disabled={counts.cardsTotal === 0}
+          emptyHint={t.hub.cardsEmpty}
+          fallbackHref={`/practice/${subjectId}#chapters`}
+          fallbackLabel={t.hub.startHere}
+        />
+        <HubCard
+          href={`/flashcards/review?scope=weak&id=${subjectId}`}
+          icon={IconShield}
+          title={t.hub.mistakes}
+          hint={t.hub.mistakesHint}
+          count={
+            counts.weakChapters > 0
+              ? format(t.hub.weakCount, { count: counts.weakChapters })
+              : t.hub.mistakesNone
+          }
+          tone={counts.weakChapters > 0 ? 'mark' : 'plain'}
+          disabled={counts.weakChapters === 0}
+          emptyHint={counts.attempts === 0 ? t.hub.mistakesUnknown : t.hub.mistakesNone}
+          /*
+           * Only the never-practised case gets a way forward. "Nothing flagged
+           * — good" is not a problem to solve, and sending a student to the
+           * question bank to fix it would be telling them their good result was
+           * a fault.
+           */
+          fallbackHref={counts.attempts === 0 ? `/practice/${subjectId}#chapters` : undefined}
+          fallbackLabel={counts.attempts === 0 ? t.hub.startHere : undefined}
         />
       </Section>
 
@@ -147,36 +199,6 @@ export async function SubjectHub({
           title={t.hub.ask}
           hint={t.hub.askHint}
           count={t.hub.askCount}
-        />
-      </Section>
-
-      <Section title={t.hub.review}>
-        <HubCard
-          href={`/flashcards/review?scope=subject&id=${subjectId}`}
-          icon={IconCards}
-          title={t.hub.cards}
-          hint={t.hub.cardsHint}
-          count={
-            counts.cardsDue > 0
-              ? format(t.hub.cardsDue, { count: counts.cardsDue })
-              : format(t.hub.cardCount, { count: counts.cardsTotal })
-          }
-          disabled={counts.cardsTotal === 0}
-          emptyHint={t.hub.cardsEmpty}
-        />
-        <HubCard
-          href={`/flashcards/review?scope=weak&id=${subjectId}`}
-          icon={IconShield}
-          title={t.hub.mistakes}
-          hint={t.hub.mistakesHint}
-          count={
-            counts.weakChapters > 0
-              ? format(t.hub.weakCount, { count: counts.weakChapters })
-              : t.hub.mistakesNone
-          }
-          tone={counts.weakChapters > 0 ? 'mark' : 'plain'}
-          disabled={counts.weakChapters === 0}
-          emptyHint={counts.attempts === 0 ? t.hub.mistakesUnknown : t.hub.mistakesNone}
         />
       </Section>
     </>
@@ -209,6 +231,8 @@ function HubCard({
   disabled,
   emptyHint,
   tone = 'plain',
+  fallbackHref,
+  fallbackLabel,
 }: {
   href: string;
   icon: typeof IconBook;
@@ -218,6 +242,16 @@ function HubCard({
   disabled?: boolean;
   emptyHint?: string;
   tone?: 'plain' | 'mark';
+  /**
+   * Where to go when the card is empty but the student can fill it.
+   *
+   * An empty deck and an empty question bank look identical on this page and
+   * are not the same thing at all: one is waiting on the student, the other is
+   * waiting on the corpus. Cards in the first group stay clickable and point at
+   * the thing that fills them; only the second group is genuinely dead.
+   */
+  fallbackHref?: string;
+  fallbackLabel?: string;
 }) {
   const body = (
     <>
@@ -235,20 +269,46 @@ function HubCard({
         <span className="mt-0.5 block text-caption leading-snug text-ink-muted">
           {disabled ? (emptyHint ?? hint) : hint}
         </span>
-        {!disabled && (
+        {!disabled ? (
           <span className="mt-1.5 inline-block">
             <Badge tone={tone === 'mark' ? 'mark' : 'neutral'}>{count}</Badge>
           </span>
-        )}
+        ) : fallbackHref && fallbackLabel ? (
+          <span className="mt-1.5 inline-block">
+            <Badge tone="neutral">{fallbackLabel}</Badge>
+          </span>
+        ) : null}
       </span>
     </>
   );
 
+  /*
+   * Empty, but the student can do something about it.
+   *
+   * Still a link, and readable. The dead version was `opacity-60` over a pale
+   * card, which on the review section of a fresh subject meant two greyed
+   * rectangles telling a student what they did not have and offering no way to
+   * get it — the state every new account starts in.
+   */
+  if (disabled && fallbackHref) {
+    return (
+      <Link
+        href={fallbackHref}
+        className="sheet sheet-interactive pressable flex items-start gap-3 p-4"
+      >
+        {body}
+      </Link>
+    );
+  }
+
+  // Genuinely nothing behind it — no papers ingested, no course material. Shown
+  // rather than hidden: a student who cannot find the past papers concludes the
+  // app is broken, not that there are none.
   if (disabled) {
     return (
       <div
         aria-disabled="true"
-        className="sheet flex cursor-not-allowed items-start gap-3 p-4 opacity-60"
+        className="sheet flex cursor-not-allowed items-start gap-3 p-4 opacity-75"
       >
         {body}
       </div>

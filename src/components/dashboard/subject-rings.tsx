@@ -112,9 +112,19 @@ export async function SubjectRings({
           <li key={subject.subjectId}>
             <Link
               href={`/practice/${subject.subjectId}`}
-              className="sheet sheet-tinted sheet-interactive pressable flex h-full flex-col items-center px-3 py-4 text-center"
+              className="sheet sheet-interactive pressable flex h-full flex-col overflow-hidden text-center"
               style={{ '--tint': tintFor(subject.subjectId) } as CSSProperties}
             >
+              {/*
+                The cap carries the subject's colour and the plate below carries
+                every word, which is what lets the colour be saturated at all.
+                `overflow-hidden` is safe here and needed: the cap runs the full
+                width and would otherwise square off the card's corners.
+              */}
+              <span className="subject-cap flex items-center justify-center px-3 pb-3 pt-4">
+                {/* A white disc under the ring, so the band colour still reads
+                    against something known rather than against six colours. */}
+                <span className="rounded-full bg-paper-raised p-1.5 shadow-sheet">
               <MasteryRing
                 value={filled}
                 size={s.box}
@@ -134,21 +144,25 @@ export async function SubjectRings({
                       : '—'}
                 </span>
               </MasteryRing>
-
-              <span className="font-bold leading-tight" style={{ fontSize: s.name }}>
-                {subject.subjectName}
-              </span>
-
-              <span className={`mt-1 inline-flex items-center gap-1 text-micro font-semibold ${style.ink}`}>
-                <BandIcon band={band} width={11} height={11} />
-                {bandLabels[band]}
-              </span>
-
-              {subject.chapterCount !== undefined ? (
-                <span className="numeric mt-1.5 text-micro text-ink-faint">
-                  {subject.chapterCount} · {subject.questionCount}
                 </span>
-              ) : null}
+              </span>
+
+              <span className="flex flex-1 flex-col items-center bg-paper-raised px-3 pb-3 pt-2.5">
+                <span className="font-bold leading-tight text-ink" style={{ fontSize: s.name }}>
+                  {subject.subjectName}
+                </span>
+
+                <span className={`mt-1 inline-flex items-center gap-1 text-micro font-semibold ${style.ink}`}>
+                  <BandIcon band={band} width={11} height={11} />
+                  {bandLabels[band]}
+                </span>
+
+                {subject.chapterCount !== undefined ? (
+                  <span className="numeric mt-1.5 text-micro text-ink-faint">
+                    {subject.chapterCount} · {subject.questionCount}
+                  </span>
+                ) : null}
+              </span>
             </Link>
           </li>
         );

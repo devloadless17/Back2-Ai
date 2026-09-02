@@ -122,15 +122,22 @@
    * "a different subject from the one above it", which is the only thing they
    * are asked to say. Reds and ambers are left out of the set on purpose.
    *
-   * Every one measured against --ink-muted on its own ground: the lowest is
-   * indigo at 4.55, above the 4.5 floor for normal text.
+   * These are saturated, and nothing is ever printed on them. The first version
+   * was pale — 92 to 96% lightness — because the subject card prints five
+   * different band colours and a faint count on its own face, so a ground all
+   * six had to clear could only be very nearly white. Six shades of almost
+   * nothing, which is what they looked like.
+   *
+   * So the card stopped printing on the colour: a coloured cap, a white plate,
+   * every word on the plate. The colour is then free to be a colour. See
+   * `.subject-cap`.
    */
-  --subject-1: 245 80% 96%;
-  --subject-2: 278 70% 95%;
-  --subject-3: 182 55% 92%;
-  --subject-4: 205 80% 93%;
-  --subject-5: 148 50% 92%;
-  --subject-6: 315 55% 94%;
+  --subject-1: 245 72% 63%;
+  --subject-2: 278 60% 62%;
+  --subject-3: 187 68% 42%;
+  --subject-4: 205 78% 52%;
+  --subject-5: 152 48% 44%;
+  --subject-6: 322 52% 58%;
 
   --radius-sm: 8px;
   --radius: 14px;
@@ -264,13 +271,14 @@
      * gradient, it is a rounding error with a comment attached. The lift here is
      * the card being lighter than the page behind it, which is how every other
      * dark surface in this file works. */
-    /* The same six, as grounds rather than tints. Lowest --ink-muted is 5.54. */
-    --subject-1: 245 30% 17%;
-    --subject-2: 278 26% 17%;
-    --subject-3: 182 30% 15%;
-    --subject-4: 205 34% 16%;
-    --subject-5: 148 26% 15%;
-    --subject-6: 315 24% 17%;
+    /* The same six a shade deeper, so a saturated cap does not glare on a dark
+     page. Still nothing prints on them. */
+    --subject-1: 245 55% 52%;
+    --subject-2: 278 45% 52%;
+    --subject-3: 187 60% 35%;
+    --subject-4: 205 65% 43%;
+    --subject-5: 152 42% 36%;
+    --subject-6: 322 42% 48%;
     --bubble-face: hsl(var(--paper-raised));
     --bubble-shadow: 0 2px 6px hsl(250 40% 3% / 0.5), 0 18px 40px hsl(250 40% 3% / 0.45);
     /* Deeper black, not a brighter indigo — on a dark ground the light theme's
@@ -340,13 +348,14 @@
    * gradient, it is a rounding error with a comment attached. The lift here is
    * the card being lighter than the page behind it, which is how every other
    * dark surface in this file works. */
-  /* The same six, as grounds rather than tints. Lowest --ink-muted is 5.54. */
-  --subject-1: 245 30% 17%;
-  --subject-2: 278 26% 17%;
-  --subject-3: 182 30% 15%;
-  --subject-4: 205 34% 16%;
-  --subject-5: 148 26% 15%;
-  --subject-6: 315 24% 17%;
+  /* The same six a shade deeper, so a saturated cap does not glare on a dark
+     page. Still nothing prints on them. */
+  --subject-1: 245 55% 52%;
+  --subject-2: 278 45% 52%;
+  --subject-3: 187 60% 35%;
+  --subject-4: 205 65% 43%;
+  --subject-5: 152 42% 36%;
+  --subject-6: 322 42% 48%;
   --bubble-face: hsl(var(--paper-raised));
   --bubble-shadow: 0 2px 6px hsl(250 40% 3% / 0.5), 0 18px 40px hsl(250 40% 3% / 0.45);
   /* Deeper black, not a brighter indigo — on a dark ground the light theme's
@@ -444,23 +453,22 @@
   }
 
   /*
-   * A sheet in a subject's colour.
+   * A subject's colour, as a cap on the card rather than a wash under it.
    *
-   * It has to be a background-image, not a background-colour utility: `.sheet`
-   * sets `background` as a shorthand, so its gradient paints over any
-   * `bg-*` class a caller adds and the tint disappears with no error. The same
-   * face as `--bubble-face`, rolled out of the subject's hue instead of white,
-   * so a tinted card and a white one still read as the same object.
+   * Everything the card says lives on the white plate below this, so the cap
+   * has no contrast question to answer and can be properly saturated. That is
+   * the entire reason it exists as a separate surface: tinting the whole face
+   * meant the colour had to clear five band colours and a faint count, which
+   * meant it could not really be a colour.
    *
-   * `--tint` is set inline by the caller, which is also how six colours survive
-   * Tailwind: a class name built from a template compiles to nothing, an
-   * inline custom property does not go through Tailwind at all.
+   * `--tint` is set inline, because Tailwind reads class names out of the
+   * source and one assembled from a template compiles to nothing.
    */
-  .sheet-tinted {
+  .subject-cap {
     background-image: linear-gradient(
-      180deg,
-      hsl(var(--tint) / 0.45) 0%,
-      hsl(var(--tint)) 100%
+      165deg,
+      hsl(var(--tint)) 0%,
+      hsl(var(--tint) / 0.82) 100%
     );
   }
 
