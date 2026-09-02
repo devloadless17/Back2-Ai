@@ -2,6 +2,7 @@
 
 import ReactMarkdown from 'react-markdown';
 import rehypeKatex from 'rehype-katex';
+import remarkBreaks from 'remark-breaks';
 import remarkMath from 'remark-math';
 
 import { cn } from '@/lib/cn';
@@ -18,7 +19,28 @@ import { cn } from '@/lib/cn';
  * a trustworthy source of markup.
  */
 
-const REMARK = [remarkMath];
+/*
+ * A newline in a question is a line the examiner printed.
+ *
+ * Markdown does not agree: a single newline is a soft break and collapses to a
+ * space, so only a blank line starts anything new. Exam papers are not written
+ * that way. A chemistry question arrives with its parts on their own lines —
+ *
+ *   The measured pH of solution (S') is 2.53.
+ *   1- Calculate the concentration C' of chloroacetic acid.
+ *   2- Deduce the effect of dilution on the degree of dissociation.
+ *   3- A new titration is carried out...
+ *
+ * — and rendered as Markdown that becomes one run-on paragraph with "1-",
+ * "2-" and "3-" buried mid-sentence. The newlines were never lost; that
+ * question has 44 of them in the database. They were being discarded at the
+ * last step, which is why re-extracting never fixed it.
+ *
+ * `remarkBreaks` turns each soft break into a hard one. It runs after
+ * `remarkMath`, so display math has already been parsed into its own nodes and
+ * a break can never be inserted inside a formula.
+ */
+const REMARK = [remarkMath, remarkBreaks];
 const REHYPE = [rehypeKatex];
 
 export function MathText({
