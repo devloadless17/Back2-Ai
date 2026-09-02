@@ -20,9 +20,14 @@ import { db } from '../../src/lib/db';
  *
  * `pdftotext -layout` reads the same page in reading order and keeps columns
  * apart, so the diagram's labels stay beside the diagram instead of landing in
- * the sentence. It recovers ordering, not notation — a fraction is still two
- * lines and α is still missing, because in the PDF those are positioned glyphs
- * and there is no markup to recover. This is the free half of the problem.
+ * the sentence. With `-enc UTF-8` it also returns the symbols: 1,068 of the
+ * repaired questions carry Greek letters and 1,055 carry a real −, × or °.
+ *
+ * What it does not recover is structure. A fraction is still two lines, because
+ * in the PDF a fraction is a numerator placed above a denominator with a rule
+ * drawn between them — there is no markup saying "this is a fraction", and no
+ * extractor can infer one without reading the page. That half needs a reading
+ * rather than an extraction. This is the free half, and it is the larger one.
  *
  * Only born-digital papers qualify: ~70% carry a real text layer, and on the
  * other 30% pdftotext returns nothing at all, which is why the result is
