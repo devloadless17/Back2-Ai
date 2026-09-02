@@ -34,8 +34,23 @@ import { db } from '../../src/lib/db';
  */
 const CORPUS_ROOT = 'corpus/exams';
 const OUT_DIR = 'public/figures';
-/** Legible enough to read a circuit diagram, small enough to ship hundreds of. */
-const DPI = 110;
+/**
+ * 1-bit PNG at 150dpi, not JPEG.
+ *
+ * These pages are black line art on white — circuit diagrams, axes, gridlines —
+ * which is the worst case for JPEG: every sharp edge becomes ringing, and the
+ * file stays large because the noise it invents is expensive to encode. The
+ * same page is 185kB as JPEG at 100dpi and 64kB as a 1-bit PNG at 150dpi:
+ * sharper and a quarter of the size. Across ~700 pages that is 42MB rather than
+ * 123MB, and every one of these is committed and shipped on every deploy.
+ *
+ * `--tone grey` exists for the exception. Geography and sociology papers carry
+ * photographs and shaded maps, and one bit per pixel destroys those — a
+ * photograph thresholded to black and white is not a smaller photograph, it is
+ * a different image.
+ */
+const DPI = 150;
+const GREY_DPI = 110;
 /** Shorter than this and the opening of a question can match the wrong exercise. */
 const MIN_ANCHOR = 25;
 
@@ -92,6 +107,7 @@ async function main() {
   const subject = typeof args.subject === 'string' ? args.subject : null;
   const limit = Number(args.limit ?? 0) || 500;
   const dry = Boolean(args.dry);
+  const grey = args.tone === 'grey';
 
   const rows = subject
     ? await db.$queryRaw<Row[]>`
@@ -165,17 +181,17 @@ async function main() {
       if (page < 0) continue;
 
       const stem = createHash('sha1').update(pdf).digest('hex').slice(0, 12);
-      const rel = `/figures/${stem}-p${page + 1}.jpg`;
-      const abs = path.join(OUT_DIR, `${stem}-p${page + 1}.jpg`);
+      const rel = `/figures/${stem}-p${page + 1}.png`;
+      const abs = path.join(OUT_DIR, `${stem}-p${page + 1}.png`);
 
       if (!existsSync(abs) && !dry) {
         const prefix = path.join(OUT_DIR, `${stem}-p${page + 1}`);
         execFileSync('pdftoppm', [
-          '-jpeg', '-r', String(DPI),
+          ...(grey ? ['-png', '-gray', '-r', String(GREY_DPI)] : ['-png', '-mono', '-r', String(DPI)]),
           '-f', String(page + 1), '-l', String(page + 1),
           '-singlefile', pdf, prefix,
         ]);
-        const produced = `${prefix}.jpg`;
+        const produced = `${prefix}.png`;
         if (existsSync(produced) && produced !== abs) renameSync(produced, abs);
       }
 
