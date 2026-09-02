@@ -35,6 +35,7 @@
     "corpus:exams": "node --conditions=react-server --env-file=.env --import tsx scripts/corpus/load-exams.ts",
     "corpus:extract-exams": "python scripts/corpus/extract_exams.py",
     "corpus:chunks": "node --conditions=react-server --env-file=.env --import tsx scripts/corpus/load-chunks.ts",
+    "corpus:reextract": "node --conditions=react-server --env-file=.env --import tsx scripts/corpus/reextract-questions.ts",
     "corpus:figures": "node --conditions=react-server --env-file=.env --import tsx scripts/corpus/attach-figures.ts",
     "corpus:latex": "node --conditions=react-server --env-file=.env --import tsx scripts/corpus/set-question-latex.ts",
     "corpus:katex": "node scripts/corpus/katex-check.mjs",
