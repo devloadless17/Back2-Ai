@@ -151,8 +151,18 @@ export async function SubjectHub({
           }
           disabled={counts.cardsTotal === 0}
           emptyHint={t.hub.cardsEmpty}
-          fallbackHref={`/practice/${subjectId}#chapters`}
-          fallbackLabel={t.hub.startHere}
+          /*
+           * An empty deck sends the student to the generator, not to practice.
+           *
+           * Cards are written from the chapter's own textbook passages — see
+           * `/api/flashcards/generate`, which exists precisely because a deck
+           * that could only be filled by practising was emptiest for the
+           * student who had done least. Pointing this card at the question bank
+           * put that back: it made flashcards a reward for having already
+           * revised, when they are meant to be a way to start.
+           */
+          fallbackHref={`/flashcards?subject=${subjectId}`}
+          fallbackLabel={t.hub.makeCards}
         />
         <HubCard
           href={`/flashcards/review?scope=weak&id=${subjectId}`}

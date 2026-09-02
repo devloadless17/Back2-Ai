@@ -29,7 +29,12 @@ export async function generateMetadata(): Promise<Metadata> {
  * choice, with the due count shown at every level: "revise one chapter" is only
  * a useful option if you can see which chapter has cards waiting.
  */
-export default async function FlashcardsPage() {
+export default async function FlashcardsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ subject?: string }>;
+}) {
+  const { subject: fromSubject } = await searchParams;
   const user = await requireUser();
   const { locale, t } = await getTranslations();
 
@@ -145,7 +150,7 @@ export default async function FlashcardsPage() {
           {/* The empty state used to be the whole screen, and its only advice
               was to go and practise. That is still the better deck; it is no
               longer the only way to get one. */}
-          <DeckSeeder subjects={seedSubjects} />
+          <DeckSeeder subjects={seedSubjects} initialSubjectId={fromSubject} />
         </div>
       ) : (
         <div className="grid gap-5 lg:grid-cols-3">
@@ -182,7 +187,7 @@ export default async function FlashcardsPage() {
           <ScopeSelector subjects={scopeSubjects} totalDue={summary.due} weak={weak} />
 
           <div className="lg:col-span-2">
-            <DeckSeeder subjects={seedSubjects} />
+            <DeckSeeder subjects={seedSubjects} initialSubjectId={fromSubject} />
           </div>
         </div>
       )}

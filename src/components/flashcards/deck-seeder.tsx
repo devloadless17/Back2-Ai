@@ -28,11 +28,24 @@ import { useI18n } from '@/lib/i18n/client';
 export type SeedChapter = { id: string; name: string };
 export type SeedSubject = { id: string; name: string; chapters: SeedChapter[] };
 
-export function DeckSeeder({ subjects }: { subjects: SeedSubject[] }) {
+export function DeckSeeder({
+  subjects,
+  initialSubjectId,
+}: {
+  subjects: SeedSubject[];
+  /**
+   * The subject the student arrived from, when they came here from a subject
+   * whose deck was empty. Ignored if it names a subject they cannot study, so a
+   * hand-edited URL falls back to the first rather than selecting nothing.
+   */
+  initialSubjectId?: string;
+}) {
   const { t } = useI18n();
 
-  const [subjectId, setSubjectId] = useState(subjects[0]?.id ?? '');
-  const [chapterId, setChapterId] = useState(subjects[0]?.chapters[0]?.id ?? '');
+  const start = subjects.find((s) => s.id === initialSubjectId) ?? subjects[0];
+
+  const [subjectId, setSubjectId] = useState(start?.id ?? '');
+  const [chapterId, setChapterId] = useState(start?.chapters[0]?.id ?? '');
 
   const subject = subjects.find((s) => s.id === subjectId) ?? subjects[0];
 
