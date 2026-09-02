@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
 import { TutorAnchor } from '@/components/chat/tutor-context';
@@ -79,6 +80,27 @@ export default async function ExamCyclePage({
   return (
     <>
       <TutorAnchor label={cycle.title} />
+
+      {/*
+        The way out.
+        
+        A paper is a page a student reads for twenty minutes and then wants to
+        leave, and this one had no exit: the only link back to the list lived
+        inside the empty state, so it appeared exactly when there was no paper
+        to read and never when there was. The browser's own back button is not
+        an answer — a student who arrived here from a subject hub, a search or a
+        bookmark has no shared history to go back through.
+
+        It carries the subject, so leaving a chemistry paper returns to
+        chemistry's papers rather than to all 231 of them.
+      */}
+      <Link
+        href={`/old-cycles?subject=${cycle.subject.id}`}
+        className="mb-3 inline-flex items-center gap-1 text-meta font-semibold text-primary underline-offset-2 hover:underline"
+      >
+        <span aria-hidden="true">&larr;</span>
+        {t.oldCycles.title}
+      </Link>
 
       <PageHeader
         title={cycle.title}
