@@ -100,6 +100,39 @@ const tier = THRESHOLDS[env().EMBEDDING_PROVIDER] ?? THRESHOLDS.openai!;
 
 export const EXACT_MATCH_THRESHOLD = tier.exact;
 export const CONCEPT_LEVEL_THRESHOLD = tier.concept;
+
+/**
+ * The concept gate, per script.
+ *
+ * `npm run check:refusal` asks the questions a student would actually type and
+ * measures where the two populations sit. They do not sit in the same place:
+ *
+ *   Latin script   off-syllabus 0.139 … 0.484   on-syllabus 0.528 … 0.744
+ *   Arabic script  off-syllabus 0.202 … 0.563   on-syllabus 0.452 … 0.686
+ *
+ * In Latin script there is a clean gap and 0.45 sits below it, which is why the
+ * assistant answers "Quelle est la meilleure série sur Netflix ?" as though it
+ * were bookwork. 0.50 lands inside the gap and refuses both of the Latin-script
+ * failures without touching a real question.
+ *
+ * In Arabic the two populations overlap by 0.111, so no threshold separates
+ * them and raising it only trades wrong answers for wrong refusals. Arabic keeps
+ * the lower gate deliberately: an Arabic-medium student asking a real syllabus
+ * question is the common case, and refusing them is the worse error. The fix
+ * there is a better multilingual embedding or moving the reranker ahead of the
+ * gate, not a number.
+ *
+ * Only calibrated for `openai`. Other providers keep their single measured
+ * value, because a threshold belongs to the model that produced the similarity.
+ */
+const ARABIC_SCRIPT = /[؀-ۿ]/g;
+const LATIN_CONCEPT_THRESHOLD = 0.5;
+
+export function conceptThresholdFor(query: string): number {
+  if (env().EMBEDDING_PROVIDER !== 'openai') return tier.concept;
+  const arabic = query.match(ARABIC_SCRIPT)?.length ?? 0;
+  return arabic > 3 ? tier.concept : LATIN_CONCEPT_THRESHOLD;
+}
 export const PERSONAL_REFERENCE_THRESHOLD = tier.concept;
 
 /**
@@ -696,6 +729,14 @@ export async function retrieveGrounding(input: RetrievalInput): Promise<Groundin
   const classification = classifyQuestionKind(input.query);
   const kind: QuestionKind = classification.kind;
 
+  /*
+   * The concept gate for this query's script. Computed once, here, so every
+   * tier below is judged against the same number — a pipeline that gated one
+   * tier at 0.50 and the next at 0.45 would refuse and admit the same question
+   * depending only on which tier happened to fire.
+   */
+  const conceptGate = conceptThresholdFor(input.query);
+
   if (input.anchorQuestion) {
     const anchor = input.anchorQuestion;
     return {
@@ -840,7 +881,7 @@ export async function retrieveGrounding(input: RetrievalInput): Promise<Groundin
    * say in any of them.
    */
   const standaloneSchemes = schemes.filter(
-    (s) => s.similarity >= CONCEPT_LEVEL_THRESHOLD && (s.officialSolution?.trim().length ?? 0) > 80,
+    (s) => s.similarity >= conceptGate && (s.officialSolution?.trim().length ?? 0) > 80,
   );
 
   // --- Tier 2: chapter-level course material ------------------------------
@@ -906,7 +947,7 @@ export async function retrieveGrounding(input: RetrievalInput): Promise<Groundin
        */
       const conceptTop = byConcept[0]?.similarity ?? 0;
       const conceptLead = relevanceLead(byConcept.map((c) => c.similarity));
-      if (conceptTop >= CONCEPT_LEVEL_THRESHOLD && conceptLead >= EXPANSION_LEAD) {
+      if (conceptTop >= conceptGate && conceptLead >= EXPANSION_LEAD) {
         chunkHits = mergeHits(chunkHits, byConcept);
       }
     }
@@ -919,7 +960,7 @@ export async function retrieveGrounding(input: RetrievalInput): Promise<Groundin
   let passingChunks =
     chunkLead >= RELEVANCE_LEAD
       ? preferExplanations(
-          chunkHits.filter((c) => c.similarity >= CONCEPT_LEVEL_THRESHOLD),
+          chunkHits.filter((c) => c.similarity >= conceptGate),
           input.query,
         )
       : [];

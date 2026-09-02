@@ -232,14 +232,31 @@ async function main() {
     const full = normalise(row.content_text);
     let doc: { pdf: string; pages: string[] } | null = null;
     let start = -1;
-    for (const width of [60, 45, MIN_ANCHOR]) {
-      const anchor = full.slice(0, width);
-      if (anchor.length < MIN_ANCHOR) break;
-      for (const candidate of docs) {
-        const at = candidate.pages.findIndex((text) => normalise(text).includes(anchor));
-        if (at >= 0) { doc = candidate; start = at; break; }
+
+    /*
+     * Anchors are tried from further into the question as well as shorter.
+     *
+     * The opening is not always printed text. The loader prefixes some
+     * questions with the exercise title it derived, and where the original
+     * reader mangled the first line the debris is in the anchor but not on the
+     * page. Offsets of 0, 80 and 160 characters step past that into prose the
+     * examiner definitely printed; widths of 60, 45 and 32 tolerate a word lost
+     * inside the window.
+     *
+     * It stops at 32 characters because below that, openings like "the aim of
+     * this exercise is to study" appear on several papers, and the anchor stops
+     * identifying a question and starts guessing at one.
+     */
+    outer: for (const offset of [0, 80, 160]) {
+      if (offset > 0 && full.length < offset + MIN_ANCHOR) break;
+      for (const width of [60, 45, MIN_ANCHOR]) {
+        const anchor = full.slice(offset, offset + width);
+        if (anchor.length < MIN_ANCHOR) continue;
+        for (const candidate of docs) {
+          const at = candidate.pages.findIndex((text) => normalise(text).includes(anchor));
+          if (at >= 0) { doc = candidate; start = at; break outer; }
+        }
       }
-      if (doc) break;
     }
     if (!doc || start < 0) { noPage += 1; continue; }
 
