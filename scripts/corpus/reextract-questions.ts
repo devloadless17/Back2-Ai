@@ -36,7 +36,7 @@ import { db } from '../../src/lib/db';
  */
 const CORPUS_ROOT = 'corpus/exams';
 /** Shorter than this and a question's opening can match the wrong exercise. */
-const MIN_ANCHOR = 30;
+const MIN_ANCHOR = 32;
 /** Below this the extraction is a scanned page returning nothing useful. */
 const MIN_EXTRACT = 200;
 
@@ -84,7 +84,14 @@ function layoutText(pdf: string, from: number, to: number): string {
   try {
     return execFileSync(
       'pdftotext',
-      ['-layout', '-f', String(from), '-l', String(to), pdf, '-'],
+      /*
+       * UTF-8 explicitly. Without it poppler falls back to Latin-1 and every
+       * character outside it is dropped rather than substituted — α vanishes to
+       * nothing and U+2212 MINUS becomes a hyphen. "α = 10⁻ᵖᴴ/C" then reads
+       * " = 10- pH/C", which is not a damaged formula but a different one, and
+       * nothing in the output says a character was lost.
+       */
+      ['-layout', '-enc', 'UTF-8', '-f', String(from), '-l', String(to), pdf, '-'],
       { encoding: 'utf8', maxBuffer: 20_000_000 },
     );
   } catch {
@@ -152,8 +159,18 @@ async function main() {
       JOIN subjects s ON s.id = c.subject_id
      WHERE q.content_latex IS NULL
        AND s.name = ${subject ?? ''}
+       /*
+        * Any stranded line at all, not five.
+        *
+        * Five was picked to find the worst and duly found them, but it also
+        * skipped 1,715 questions with one to four — including the chemistry
+        * question this whole thread started from, which has three: "C", "pH?"
+        * and "= 10?", the wreckage of one fraction. A question needs only one
+        * destroyed formula to be unanswerable, so the count says how ugly the
+        * damage is, not whether it matters.
+        */
        AND (SELECT count(*) FROM unnest(string_to_array(q.content_text, chr(10))) l
-             WHERE length(trim(l)) BETWEEN 1 AND 3 AND trim(l) <> '') >= 5
+             WHERE length(trim(l)) BETWEEN 1 AND 3 AND trim(l) <> '') >= 1
      ORDER BY ec.year DESC, q.order_index ASC
      LIMIT ${limit}`;
 
@@ -202,14 +219,27 @@ async function main() {
     const docs = cache.get(cacheKey) ?? [];
     if (docs.length === 0) { noPaper += 1; continue; }
 
-    const anchor = normalise(row.content_text).slice(0, 60);
-    if (anchor.length < MIN_ANCHOR) { noPage += 1; continue; }
-
+    /*
+     * The anchor shortens until it matches, then stops.
+     *
+     * A damaged opening may carry debris the page does not — a stray label, a
+     * fragment of the previous exercise — and a fixed 60-character window then
+     * matches nothing even though the question is plainly on the page. Falling
+     * back to 45 and 32 recovers those. It stops at 32 because below that an
+     * opening like "the aim of this exercise is to study" is printed on several
+     * papers, and a shorter anchor stops identifying and starts guessing.
+     */
+    const full = normalise(row.content_text);
     let doc: { pdf: string; pages: string[] } | null = null;
     let start = -1;
-    for (const candidate of docs) {
-      const at = candidate.pages.findIndex((text) => normalise(text).includes(anchor));
-      if (at >= 0) { doc = candidate; start = at; break; }
+    for (const width of [60, 45, MIN_ANCHOR]) {
+      const anchor = full.slice(0, width);
+      if (anchor.length < MIN_ANCHOR) break;
+      for (const candidate of docs) {
+        const at = candidate.pages.findIndex((text) => normalise(text).includes(anchor));
+        if (at >= 0) { doc = candidate; start = at; break; }
+      }
+      if (doc) break;
     }
     if (!doc || start < 0) { noPage += 1; continue; }
 
