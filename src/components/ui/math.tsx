@@ -93,7 +93,18 @@ export function QuestionBody({
             // eslint-disable-next-line @next/next/no-img-element
             <img
               key={key}
-              src={key.startsWith('http') ? key : `/api/files/${key}`}
+              /*
+               * Three kinds of key, and the distinction is about ownership.
+               *
+               * `/api/files/...` is the default because most images here are a
+               * student's own photographed work, and that route checks who owns
+               * the key before streaming a byte. A leading slash means a file
+               * served straight from `public/` — exam-paper figures, which are
+               * published documents with nothing private in them and no owner
+               * to check. Putting those behind the ownership route would mean
+               * inventing an owner for a page of a national exam.
+               */
+              src={key.startsWith('http') || key.startsWith('/') ? key : `/api/files/${key}`}
               alt=""
               className="max-h-72 w-auto max-w-full rounded border border-rule bg-paper-raised"
               loading="lazy"
