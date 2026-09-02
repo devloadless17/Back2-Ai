@@ -1,0 +1,21 @@
+# What the deploy does not need to upload.
+#
+# The CLI refused a deploy at 47,413 files against a 15,000 limit. Almost all of
+# it is `corpus/` — 46,956 scanned pages, extracted text and taxonomy JSON, which
+# is the input to the ingestion scripts and is never read by the running app. Its
+# contents reach production as rows in Postgres, not as files beside the server.
+#
+# Git already ignores these; `.vercelignore` is separate and the CLI does not
+# read `.gitignore`, so an untracked directory is still uploaded without this.
+
+# The corpus. Ingested offline, served from the database.
+corpus/
+uploads/
+
+# Rebuilt on Vercel from package-lock.json and the source.
+node_modules/
+.next/
+
+# Local only.
+.git/
+*.log

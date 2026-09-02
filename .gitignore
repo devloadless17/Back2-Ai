@@ -29,3 +29,5 @@ tsconfig.tsbuildinfo
 scripts/corpus/corpus/
 __pycache__/
 *.pyc
+.vercel
+.env*
