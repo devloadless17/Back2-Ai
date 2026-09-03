@@ -26,8 +26,8 @@ import { db } from '../../src/lib/db';
  * Fractions come back too, which is not poppler's doing. A fraction here is a
  * numerator drawn above a denominator with a rule between them and no markup
  * saying so, which is why every text extractor flattens it. But the rule is
- * still in the file: `fractions.py` finds it with pdfplumber, reads the operands
- * off its geometry and writes $\frac{a}{b}$ back into poppler's own output. It
+ * still in the file: `fraction-bars.py` finds it with pdfplumber, reads the
+ * operands off its geometry and writes $\frac{a}{b}$ back into poppler's own output. It
  * refuses anything ambiguous — a bordered table puts a rule under every cell,
  * and turning "Answers" over "b" into a fraction would replace a sentence with
  * a formula, which is worse than the flattening being fixed.
@@ -47,8 +47,18 @@ const CORPUS_ROOT = 'corpus/exams';
 const MIN_ANCHOR = 32;
 /** Below this the extraction is a scanned page returning nothing useful. */
 const MIN_EXTRACT = 200;
-/** Reads the page's fractions back out of its geometry. See fractions.py. */
-const FRACTIONS_SCRIPT = 'scripts/corpus/fractions.py';
+/*
+ * Reads the page's fractions back out of its geometry.
+ *
+ * Named `fraction-bars.py`, not `fractions.py`.
+ *
+ * `scripts/corpus` is put on sys.path by the taxonomy tests, and a file called
+ * fractions.py there shadows Python's own `fractions` module. `statistics` does
+ * `from fractions import Fraction`, so importing anything in this directory
+ * started failing with an ImportError pointing at a file that looks unrelated.
+ * The test suite caught it; the name is the fix.
+ */
+const FRACTIONS_SCRIPT = 'scripts/corpus/fraction-bars.py';
 
 type Row = {
   id: string;
@@ -95,8 +105,8 @@ function normalise(text: string): string {
  *
  * `pdftotext` flattens a fraction into two lines because a fraction in these
  * PDFs is not markup — it is a numerator drawn above a denominator with a rule
- * between them. The rule is still in the file, so `fractions.py` finds it with
- * pdfplumber, reads the operands off it and writes $\frac{a}{b}$ back into
+ * between them. The rule is still in the file, so `fraction-bars.py` finds it
+ * with pdfplumber, reads the operands off it and writes $\frac{a}{b}$ back into
  * poppler's own output. Same text, one fault fewer.
  *
  * It falls back to plain poppler whenever that fails — Python missing,

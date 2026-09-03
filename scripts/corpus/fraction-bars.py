@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """Reads the fractions off a PDF page and writes them back as LaTeX.
 
-    python scripts/corpus/fractions.py "<pdf>" <page>
+    python scripts/corpus/fraction-bars.py "<pdf>" <page>
 
 Prints the page's text with every fraction it finds replaced by $\\frac{a}{b}$,
 and nothing else, so the caller can use it exactly where it used
