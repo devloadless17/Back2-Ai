@@ -23,11 +23,14 @@ import { db } from '../../src/lib/db';
  * the sentence. With `-enc UTF-8` it also returns the symbols: 1,068 of the
  * repaired questions carry Greek letters and 1,055 carry a real −, × or °.
  *
- * What it does not recover is structure. A fraction is still two lines, because
- * in the PDF a fraction is a numerator placed above a denominator with a rule
- * drawn between them — there is no markup saying "this is a fraction", and no
- * extractor can infer one without reading the page. That half needs a reading
- * rather than an extraction. This is the free half, and it is the larger one.
+ * Fractions come back too, which is not poppler's doing. A fraction here is a
+ * numerator drawn above a denominator with a rule between them and no markup
+ * saying so, which is why every text extractor flattens it. But the rule is
+ * still in the file: `fractions.py` finds it with pdfplumber, reads the operands
+ * off its geometry and writes $\frac{a}{b}$ back into poppler's own output. It
+ * refuses anything ambiguous — a bordered table puts a rule under every cell,
+ * and turning "Answers" over "b" into a fraction would replace a sentence with
+ * a formula, which is worse than the flattening being fixed.
  *
  * Only born-digital papers qualify: ~70% carry a real text layer, and on the
  * other 30% pdftotext returns nothing at all, which is why the result is
@@ -44,6 +47,8 @@ const CORPUS_ROOT = 'corpus/exams';
 const MIN_ANCHOR = 32;
 /** Below this the extraction is a scanned page returning nothing useful. */
 const MIN_EXTRACT = 200;
+/** Reads the page's fractions back out of its geometry. See fractions.py. */
+const FRACTIONS_SCRIPT = 'scripts/corpus/fractions.py';
 
 type Row = {
   id: string;
@@ -83,6 +88,34 @@ function matchesLanguage(file: string, lang: 'en' | 'fr'): boolean {
 
 function normalise(text: string): string {
   return text.toLowerCase().replace(/\s+/g, ' ').replace(/[^a-z0-9 ]/g, '').trim();
+}
+
+/**
+ * The page, with its fractions put back.
+ *
+ * `pdftotext` flattens a fraction into two lines because a fraction in these
+ * PDFs is not markup — it is a numerator drawn above a denominator with a rule
+ * between them. The rule is still in the file, so `fractions.py` finds it with
+ * pdfplumber, reads the operands off it and writes $\frac{a}{b}$ back into
+ * poppler's own output. Same text, one fault fewer.
+ *
+ * It falls back to plain poppler whenever that fails — Python missing,
+ * pdfplumber missing, an unreadable page. The fallback is the previous
+ * behaviour exactly, so a machine without the Python side gets flattened
+ * fractions rather than an error, which is what it had before this existed.
+ */
+function layoutTextWithFractions(pdf: string, page: number): string {
+  try {
+    const out = execFileSync('python', [FRACTIONS_SCRIPT, pdf, String(page)], {
+      encoding: 'buffer',
+      maxBuffer: 20_000_000,
+    });
+    const text = out.toString('utf8');
+    if (text.trim().length > 0) return text;
+  } catch {
+    // fall through to poppler
+  }
+  return layoutText(pdf, page, page);
 }
 
 function layoutText(pdf: string, from: number, to: number): string {
@@ -203,7 +236,7 @@ async function main() {
           if (!matchesLanguage(file, lang)) continue;
           const pdf = path.join(dir, file);
           const total = pageCount(pdf);
-          const pages = Array.from({ length: total }, (_, i) => layoutText(pdf, i + 1, i + 1));
+          const pages = Array.from({ length: total }, (_, i) => layoutTextWithFractions(pdf, i + 1));
           if (pages.join('').trim().length > MIN_EXTRACT) docs.push({ pdf, pages });
         }
       }
