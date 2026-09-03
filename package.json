@@ -57,6 +57,7 @@
     "refile:questions": "node --conditions=react-server --env-file=.env --import tsx scripts/refile-questions.ts",
     "detect:schemes": "node --conditions=react-server --env-file=.env --import tsx scripts/detect-schemes.ts",
     "measure:concept-expansion": "node --conditions=react-server --env-file=.env --import tsx scripts/measure-concept-expansion.ts",
+    "compare:arabic": "node --conditions=react-server --env-file=.env --import tsx scripts/compare-arabic-embedding.ts",
     "compare:embeddings": "node --conditions=react-server --env-file=.env --import tsx scripts/compare-embedding-models.ts",
     "compare:rerank": "node --conditions=react-server --env-file=.env --import tsx scripts/compare-rerank-models.ts",
     "judge:passages": "node --conditions=react-server --env-file=.env --import tsx scripts/judge-passages.ts",
