@@ -13,6 +13,7 @@ import {
 } from '@/lib/api';
 import { apiUser } from '@/lib/auth/guards';
 import { db } from '@/lib/db';
+import { resolveCreditChapter } from '@/lib/queries/progress';
 import { gradeAgainstBareme, gradeWithoutBareme, parseBareme, statedMarksOf } from '@/lib/grading';
 import { retrieveGrounding } from '@/lib/retrieval';
 import { ensureCard } from '@/lib/queries/flashcards';
@@ -38,6 +39,19 @@ import { recomputeChapterMastery } from '@/lib/queries/progress';
 const bodySchema = z
   .object({
     questionId: z.string().uuid().optional(),
+    /**
+     * The chapter the student is practising, which is not always the chapter the
+     * question is filed under.
+     *
+     * GS and LS sit the same chemistry from the same book, so a GS student
+     * practising Alcohols is offered LS exercises on alcohols too. The mark has
+     * to land on the chapter they are working through, not on the other track's
+     * copy of it, or their progress page never moves.
+     *
+     * Validated, never trusted: it must belong to this student's track, and the
+     * question must actually be offered in it.
+     */
+    chapterId: z.string().uuid().optional(),
     generatedProblemId: z.string().uuid().optional(),
     context: z.enum(['practice', 'quiz']),
     /** MCQ only — the option the student chose. */
@@ -80,7 +94,20 @@ export const POST = route(async (request) => {
   // --- Resolve the question, scoped to the student's track -----------------
   const source = body.questionId
     ? await db.question.findFirst({
-        where: { id: body.questionId, chapter: { subject: { trackId: user.trackId ?? undefined } } },
+        where: {
+          id: body.questionId,
+          /*
+           * Offered by some chapter of this student's track — not filed under
+           * one. The old rule read the question's own `chapter.subject.trackId`,
+           * and it rejected every shared exercise with a 404 the moment the
+           * student pressed submit.
+           *
+           * The guarantee is unchanged: a student can still only answer what a
+           * chapter of their own track actually offers, so a forged body buys
+           * nothing.
+           */
+          alsoInChapters: { some: { chapter: { subject: { trackId: user.trackId ?? undefined } } } },
+        },
         select: {
           id: true,
           chapterId: true,
@@ -111,6 +138,29 @@ export const POST = route(async (request) => {
       });
 
   if (!source) return fail(404, 'QUESTION_NOT_FOUND');
+
+  /*
+   * Which chapter this mark belongs to.
+   *
+   * Not `source.chapterId`. A GS student practising Alcohols may be answering an
+   * LS exercise on alcohols — the two tracks sit the same chemistry from the same
+   * book — and crediting the question's own chapter would post the mark to the
+   * other track's copy, where this student's progress page will never look for
+   * it. They would answer twenty questions and watch nothing move.
+   *
+   * The client says which chapter the student is sitting in, and it is checked
+   * rather than believed: it must be in this student's track and must actually
+   * offer this question. Anything else falls back to resolving it server-side,
+   * which also covers the quiz path, where there is no chapter on screen to name.
+   */
+  const creditChapterId = await resolveCreditChapter({
+    userTrackId: user.trackId,
+    questionId: source.id,
+    questionChapterId: source.chapterId,
+    claimed: body.chapterId,
+    isGenerated: !('questionType' in source),
+  });
+  if (!creditChapterId) return fail(404, 'QUESTION_NOT_FOUND');
 
   const isQuestion = 'questionType' in source;
   const language = source.chapter.subject.language;
@@ -190,6 +240,7 @@ export const POST = route(async (request) => {
 
   const attempt = await db.attempt.create({
     data: {
+      chapterId: creditChapterId,
       userId: user.id,
       questionId: body.questionId ?? null,
       generatedProblemId: body.generatedProblemId ?? null,
@@ -208,10 +259,10 @@ export const POST = route(async (request) => {
   // rejected at review has no place in a student's long-term deck.
   if (body.questionId) await ensureCard(user.id, body.questionId);
 
-  await recomputeChapterMastery(user.id, source.chapterId);
+  await recomputeChapterMastery(user.id, creditChapterId);
 
   const mastery = await db.chapterMastery.findUnique({
-    where: { userId_chapterId: { userId: user.id, chapterId: source.chapterId } },
+    where: { userId_chapterId: { userId: user.id, chapterId: creditChapterId } },
     select: { masteryScore: true, attemptsCount: true },
   });
 
@@ -224,7 +275,7 @@ export const POST = route(async (request) => {
     needsHumanReview,
     solution: isQuestion ? source.officialSolution : source.generatedSolution,
     mastery: {
-      chapterId: source.chapterId,
+      chapterId: creditChapterId,
       masteryScore: Number(mastery?.masteryScore ?? 0),
       attemptsCount: mastery?.attemptsCount ?? 0,
     },

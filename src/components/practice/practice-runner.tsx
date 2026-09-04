@@ -116,6 +116,10 @@ export function PracticeRunner({
           ? { generatedProblemId: question.id }
           : { questionId: question.id }),
         context: 'practice',
+        // The chapter on screen, which is not always the one the exercise is
+        // filed under — a GS student practises LS chemistry questions inside
+        // their own GS chapter, and the mark belongs there.
+        chapterId,
         ...(question.questionType === 'mcq'
           ? { selectedOptionId: selectedOption ?? '' }
           : { answerText: answer }),

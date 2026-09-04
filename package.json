@@ -36,6 +36,7 @@
     "corpus:extract-exams": "python scripts/corpus/extract_exams.py",
     "corpus:chunks": "node --conditions=react-server --env-file=.env --import tsx scripts/corpus/load-chunks.ts",
     "corpus:link-chapters": "node --conditions=react-server --env-file=.env --import tsx scripts/corpus/link-chapters.ts",
+    "corpus:share-tracks": "node --conditions=react-server --env-file=.env --import tsx scripts/corpus/share-chapters-across-tracks.ts",
     "corpus:dedupe": "node --conditions=react-server --env-file=.env --import tsx scripts/corpus/dedupe-questions.ts",
     "corpus:verify-latex": "node --conditions=react-server --env-file=.env --import tsx scripts/corpus/verify-latex.ts",
     "corpus:reextract": "node --conditions=react-server --env-file=.env --import tsx scripts/corpus/reextract-questions.ts",

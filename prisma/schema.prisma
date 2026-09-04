@@ -382,10 +382,12 @@ model Chapter {
   studySessions     StudySession[]
   todos             Todo[]
 
+  attempts         Attempt[]
+  alsoHasQuestions QuestionChapter[]
+
   @@unique([subjectId, orderIndex])
   @@index([unitId])
   @@map("chapters")
-  alsoHasQuestions QuestionChapter[]
 }
 
 // ===========================================================================
@@ -426,27 +428,27 @@ model User {
 
   track Track? @relation(fields: [trackId], references: [id], onDelete: SetNull)
 
-  sessions        Session[]
-  attempts        Attempt[]
-  chapterMastery  ChapterMastery[]
-  flashcardState  FlashcardState[]
-  readinessScores ReadinessScore[]
-  chatSessions    ChatSession[]
-  userReferences  UserReference[]
-  userGrades      UserGrade[]
-  studySessions   StudySession[]
-  upcomingExams   UpcomingExam[]
-  todos           Todo[]
-  examSimulations ExamSimulation[]
-  notifications   Notification[]
-  announcements   Announcement[]    @relation("AnnouncementAuthor")
-  flaggedItems    ReviewQueueItem[] @relation("ReviewFlagger")
-  reviewedItems   ReviewQueueItem[] @relation("ReviewResolver")
-  auditEvents     AuditEvent[]
-  ingestionJobs   IngestionJob[]
-  subscription    Subscription?
-  generatedCards  GeneratedCard[]
-  authTokens      AuthToken[]
+  sessions          Session[]
+  attempts          Attempt[]
+  chapterMastery    ChapterMastery[]
+  flashcardState    FlashcardState[]
+  readinessScores   ReadinessScore[]
+  chatSessions      ChatSession[]
+  userReferences    UserReference[]
+  userGrades        UserGrade[]
+  studySessions     StudySession[]
+  upcomingExams     UpcomingExam[]
+  todos             Todo[]
+  examSimulations   ExamSimulation[]
+  notifications     Notification[]
+  announcements     Announcement[]     @relation("AnnouncementAuthor")
+  flaggedItems      ReviewQueueItem[]  @relation("ReviewFlagger")
+  reviewedItems     ReviewQueueItem[]  @relation("ReviewResolver")
+  auditEvents       AuditEvent[]
+  ingestionJobs     IngestionJob[]
+  subscription      Subscription?
+  generatedCards    GeneratedCard[]
+  authTokens        AuthToken[]
   pushSubscriptions PushSubscription[]
 
   @@index([trackId])
@@ -493,15 +495,15 @@ model QuestionChapter {
 }
 
 model AuthToken {
-  id        String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  userId    String          @map("user_id") @db.Uuid
+  id        String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String           @map("user_id") @db.Uuid
   purpose   AuthTokenPurpose
   /// SHA-256 of the token that was emailed. The token itself is never stored.
-  tokenHash String          @unique @map("token_hash")
-  expiresAt DateTime        @map("expires_at") @db.Timestamptz(6)
+  tokenHash String           @unique @map("token_hash")
+  expiresAt DateTime         @map("expires_at") @db.Timestamptz(6)
   /// Set the moment it is redeemed, so a link in a forwarded email is inert.
-  usedAt    DateTime?       @map("used_at") @db.Timestamptz(6)
-  createdAt DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  usedAt    DateTime?        @map("used_at") @db.Timestamptz(6)
+  createdAt DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -525,12 +527,12 @@ enum AuthTokenPurpose {
 /// answers 404 or 410, which is how it says a subscription is dead; keeping them
 /// means every future send retries a browser that has been uninstalled.
 model PushSubscription {
-  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  userId    String   @map("user_id") @db.Uuid
-  endpoint  String   @unique
-  p256dh    String
-  auth      String
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  endpoint   String   @unique
+  p256dh     String
+  auth       String
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   lastSeenAt DateTime @default(now()) @map("last_seen_at") @db.Timestamptz(6)
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -634,8 +636,8 @@ model AuditEvent {
 /// opening "Philosophie LH 2018" was shown the Arabic, French and English
 /// papers stacked together as if they were one 58-question exam.
 model ExamCycle {
-  id              String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  subjectId       String  @map("subject_id") @db.Uuid
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  subjectId       String   @map("subject_id") @db.Uuid
   year            Int
   session         String?
   /// Which printed edition. Defaults to the subject's own language, which is
@@ -644,7 +646,7 @@ model ExamCycle {
   title           String
   /// ADDITION — the exam-sim timer needs an authoritative duration, and a real
   /// cycle's duration is a property of the paper, not of the student's run.
-  durationMinutes Int     @default(180) @map("duration_minutes")
+  durationMinutes Int      @default(180) @map("duration_minutes")
 
   subject         Subject          @relation(fields: [subjectId], references: [id], onDelete: Cascade)
   questions       Question[]
@@ -710,12 +712,12 @@ model Question {
   flashcardState   FlashcardState[]
   chatSessions     ChatSession[]
   examSimQuestions ExamSimulationQuestion[]
+  alsoInChapters   QuestionChapter[]
 
   @@index([chapterId, difficulty])
   @@index([sourceExamId, orderIndex])
   @@index([verifiedStatus])
   @@map("questions")
-  alsoInChapters QuestionChapter[]
 }
 
 /// ADDITION — tier 2 of the retrieval pipeline ("chapter-level textbook
@@ -889,6 +891,9 @@ model ExamAnswer {
 model Attempt {
   id                 String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   userId             String         @map("user_id") @db.Uuid
+  /// The chapter the student was practising, which is not always where the
+  /// question is filed. Null means the question's own chapter.
+  chapterId          String?        @map("chapter_id") @db.Uuid
   questionId         String?        @map("question_id") @db.Uuid
   generatedProblemId String?        @map("generated_problem_id") @db.Uuid
   isCorrect          Boolean?       @map("is_correct")
@@ -906,6 +911,7 @@ model Attempt {
   question         Question?         @relation(fields: [questionId], references: [id], onDelete: Cascade)
   generatedProblem GeneratedProblem? @relation(fields: [generatedProblemId], references: [id], onDelete: Cascade)
   chatSessions     ChatSession[]
+  chapter          Chapter?          @relation(fields: [chapterId], references: [id])
 
   @@index([userId, attemptedAt])
   @@index([questionId])

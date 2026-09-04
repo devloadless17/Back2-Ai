@@ -248,7 +248,21 @@ export async function recomputeChapterMastery(userId: string, chapterId: string)
        * fourth decimal place and nothing a student could notice.
        */
       attemptedAt: { gte: new Date(Date.now() - RECENCY_HORIZON_DAYS * 86_400_000) },
-      OR: [{ question: { chapterId } }, { generatedProblem: { chapterId } }],
+      /*
+       * The chapter the student was practising in, not the one the exercise is
+       * filed under. Those are the same thing until a chapter starts offering
+       * exercises from another track — GS and LS sit the same chemistry — and
+       * then counting by the filing posts a GS student's marks to the LS copy of
+       * their chapter, where nothing will ever show them.
+       *
+       * The null branch is the old rule, kept for attempts recorded before the
+       * column existed and for any whose chapter has since been deleted.
+       */
+      OR: [
+        { chapterId },
+        { chapterId: null, question: { chapterId } },
+        { chapterId: null, generatedProblem: { chapterId } },
+      ],
     },
     select: {
       attemptedAt: true,
@@ -279,4 +293,37 @@ export async function recomputeChapterMastery(userId: string, chapterId: string)
     update: { masteryScore, attemptsCount, lastUpdated: new Date() },
     create: { userId, chapterId, masteryScore, attemptsCount },
   });
+}
+
+/**
+ * The chapter a mark should be posted to.
+ *
+ * In order: the chapter the student says they are in, if it is theirs and offers
+ * this question; then the question's own chapter, if that is in their track; then
+ * any chapter of their track that offers it, taken in a fixed order so two
+ * students answering the same shared exercise credit the same chapter.
+ */
+export async function resolveCreditChapter(input: {
+  userTrackId: string | null;
+  questionId: string;
+  questionChapterId: string;
+  claimed?: string;
+  isGenerated: boolean;
+}): Promise<string | null> {
+  const trackId = input.userTrackId ?? undefined;
+
+  // A generated problem belongs to one chapter and is never shared across
+  // tracks, so there is nothing to resolve and nothing to get wrong.
+  if (input.isGenerated) return input.questionChapterId;
+
+  const inTrack = await db.questionChapter.findMany({
+    where: { questionId: input.questionId, chapter: { subject: { trackId } } },
+    select: { chapterId: true },
+    orderBy: { chapterId: 'asc' },
+  });
+
+  const offered = new Set(inTrack.map((row) => row.chapterId));
+  if (input.claimed && offered.has(input.claimed)) return input.claimed;
+  if (offered.has(input.questionChapterId)) return input.questionChapterId;
+  return inTrack[0]?.chapterId ?? null;
 }
