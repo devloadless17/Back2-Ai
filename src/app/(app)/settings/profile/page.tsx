@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 
 import { PasswordForm } from '@/components/settings/password-form';
+import { PushToggle } from '@/components/settings/push-toggle';
 import { ReminderToggle } from '@/components/settings/reminder-toggle';
 import { RevokeSessionsButton } from '@/components/settings/revoke-sessions-button';
 import { Field } from '@/components/ui/field';
@@ -9,6 +10,7 @@ import { Sheet, SheetBody, SheetFooter, SheetHeader } from '@/components/ui/shee
 import { requireUser } from '@/lib/auth/guards';
 import { countryName } from '@/lib/countries';
 import { db } from '@/lib/db';
+import { env } from '@/lib/env';
 import { getTranslations } from '@/lib/i18n';
 import { LOCALE_LABELS } from '@/lib/i18n/config';
 import { formatDate } from '@/lib/i18n/format';
@@ -66,6 +68,9 @@ export default async function ProfileSettingsPage() {
           <SheetHeader title={t.settings.notifications} />
           <SheetBody className="space-y-3">
             <ReminderToggle initial={prefs?.emailReminders ?? true} />
+            {/* Safe to ship to the browser: the public half of the pair is what
+                every subscription request has to carry. */}
+            <PushToggle publicKey={env().VAPID_PUBLIC_KEY} />
             {/*
               An unconfirmed address gets no mail, so the switch alone would be a
               promise the product does not keep. Say why, next to the control.

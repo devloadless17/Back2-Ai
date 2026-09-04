@@ -7,6 +7,7 @@ import { recalibrateDifficulty } from '@/lib/ingestion';
 import { startOfToday } from '@/lib/queries/flashcards';
 import { getProgressForUser } from '@/lib/queries/progress';
 import { appLink, sendEmail } from '@/lib/email';
+import { sendPush } from '@/lib/push';
 
 /**
  * Scheduled maintenance, as plain functions.
@@ -93,9 +94,28 @@ async function deliver(userId: string, subject: string, body: string, href: stri
   try {
     const user = await db.user.findUnique({
       where: { id: userId },
-      select: { email: true, emailVerifiedAt: true, emailReminders: true, isActive: true },
+      select: {
+        email: true,
+        emailVerifiedAt: true,
+        emailReminders: true,
+        pushReminders: true,
+        isActive: true,
+      },
     });
-    if (!user?.isActive || !user.emailReminders || !user.emailVerifiedAt) return;
+    if (!user?.isActive) return;
+
+    /*
+     * Push first, and on its own switch.
+     *
+     * It needs no confirmed address — the browser already proved the student
+     * has the device by handing over a subscription — so a student who never
+     * clicked the confirmation link still gets reminded on their phone.
+     */
+    if (user.pushReminders) {
+      await sendPush(userId, { title: subject, body, href });
+    }
+
+    if (!user.emailReminders || !user.emailVerifiedAt) return;
 
     await sendEmail({
       to: user.email,
