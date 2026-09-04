@@ -32,7 +32,7 @@ export const POST = route(async (request) => {
 
   const user = await db.user.findFirst({
     where: { email: { equals: normalizedEmail, mode: 'insensitive' } },
-    select: { id: true, email: true, passwordHash: true, isActive: true },
+    select: { id: true, email: true, passwordHash: true, isActive: true, emailVerifiedAt: true },
   });
 
   if (!user) {
@@ -67,6 +67,34 @@ export const POST = route(async (request) => {
       metadata: { reason: 'inactive' },
     });
     return fail(403, 'ACCOUNT_DISABLED');
+  }
+
+  /*
+   * An unconfirmed address cannot sign in.
+   *
+   * This is the strict reading, chosen deliberately: an account is only useful
+   * once we can reach the person, and a reset link sent to an address nobody
+   * proved they own is a way into someone else's account.
+   *
+   * It is safe to apply to everyone because the migration that added the column
+   * backfilled every existing account as verified. Nobody who could sign in
+   * yesterday is locked out today; the gate only ever applies to accounts
+   * created after it shipped.
+   *
+   * The response says which failure this is, unlike the credential path above.
+   * The person has already proved they hold the password, so nothing is
+   * disclosed by telling them the address is unconfirmed — and without it they
+   * are turned away from an account that works, with no idea why.
+   */
+  if (!user.emailVerifiedAt) {
+    await recordAudit({
+      actorUserId: user.id,
+      action: AuditAction.LOGIN_FAILED,
+      targetType: 'user',
+      targetId: user.id,
+      metadata: { reason: 'email_unverified' },
+    });
+    return fail(403, 'EMAIL_UNVERIFIED');
   }
 
   // Transparently upgrade a hash produced under weaker parameters.

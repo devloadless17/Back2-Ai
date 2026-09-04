@@ -47,6 +47,25 @@ const schema = z.object({
   S3_FORCE_PATH_STYLE: booleanish.default(true),
 
   APP_URL: z.string().default('http://localhost:3000'),
+
+  /*
+   * Mail. Both optional on purpose: with no key, `sendEmail` logs the message
+   * and reports success, so confirming an address or resetting a password works
+   * end to end on a laptop with no mail account. A deployment that never sets
+   * these still runs; it just never delivers.
+   */
+  RESEND_API_KEY: z.string().default(''),
+  EMAIL_FROM: z.string().default('Bac II <onboarding@resend.dev>'),
+
+  /*
+   * Web push. Generated with `npx web-push generate-vapid-keys`. The public key
+   * reaches the browser, the private one never leaves the server. Absent, the
+   * push endpoints refuse and the UI does not offer it — email reminders still
+   * work, which is why this is not required.
+   */
+  VAPID_PUBLIC_KEY: z.string().default(''),
+  VAPID_PRIVATE_KEY: z.string().default(''),
+  VAPID_SUBJECT: z.string().default('mailto:support@bac2.local'),
   // Only reached for signed-out pages whose visitor has no locale cookie and no
   // usable Accept-Language. Signed-in students always see their own locked
   // language, so changing this does not move anybody's account.

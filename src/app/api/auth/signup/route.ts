@@ -13,6 +13,8 @@ import {
 import { AuditAction, recordAudit } from '@/lib/audit';
 import { hashPassword } from '@/lib/auth/password';
 import { createSession } from '@/lib/auth/session';
+import { issueToken } from '@/lib/auth/tokens';
+import { appLink, sendEmail } from '@/lib/email';
 import { CARD_BRANDS, PLAN_IDS, PLANS } from '@/lib/billing';
 import { AVAILABLE_COUNTRIES, DEFAULT_COUNTRY } from '@/lib/countries';
 import { db } from '@/lib/db';
@@ -145,6 +147,31 @@ export const POST = route(async (request) => {
       label: 'Baccalauréat',
       isBacExam: true,
     },
+  });
+
+  /*
+   * The confirmation, sent before the session is issued.
+   *
+   * `sendEmail` never throws and returns false rather than failing the request:
+   * an account that exists with an unsent confirmation can ask for another one,
+   * whereas a signup that 500s because mail was down loses the account and the
+   * student's answers to the whole form.
+   */
+  const verifyToken = await issueToken(user.id, 'email_verify');
+  await sendEmail({
+    // `email`, not `user.email`: the create above selects only the id, and the
+    // normalised address is already in hand from validation.
+    to: email,
+    subject: 'Confirm your Bac II account',
+    text: [
+      body.displayName ? `Hello ${body.displayName.split(' ')[0]},` : 'Hello,',
+      '',
+      'Confirm your email address to start studying:',
+      '',
+      appLink(`/verify-email?token=${encodeURIComponent(verifyToken)}`),
+      '',
+      'The link works for 24 hours.',
+    ].join('\n'),
   });
 
   await createSession(user.id);

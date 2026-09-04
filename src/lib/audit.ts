@@ -26,6 +26,14 @@ export const AuditAction = {
   SIGNUP: 'auth.signup',
   PASSWORD_CHANGED: 'auth.password.changed',
   SESSIONS_REVOKED: 'auth.sessions.revoked',
+  EMAIL_VERIFIED: 'auth.email.verified',
+  /*
+   * A reset that was completed, not one that was asked for. Requests are not
+   * logged: the endpoint answers identically whether or not the address exists,
+   * and an audit row per request would record exactly the difference the
+   * response is careful to hide.
+   */
+  PASSWORD_RESET: 'auth.password.reset',
 
   // Admin actions on students
   USER_TRACK_CHANGED: 'admin.user.track_changed',
