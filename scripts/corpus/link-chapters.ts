@@ -27,6 +27,15 @@ import { db } from '../../src/lib/db';
  * Only chapters of the question's own subject are considered, and the primary
  * chapter is never removed. Nothing here can take an exercise away from a
  * chapter that already offers it; it can only widen.
+ *
+ * The ranking is ordered by similarity and then by chapter id, and the second
+ * key is not decoration. Chapters that tie are otherwise returned in whatever
+ * order Postgres finds convenient, and both LIMIT 6 and MAX_LINKS cut at a
+ * fixed position — so a tie at either boundary decides which chapter gets the
+ * link by accident. Run against two copies of the same corpus this produced
+ * different links on each: same counts, different chapters. That is the same
+ * fault the deduplicator had, and it is invisible until two databases are
+ * compared.
  */
 const MARGIN = 0.03;
 const FLOOR = 0.65;
@@ -81,7 +90,7 @@ async function main() {
         JOIN content_chunks cc ON cc.id = j.chunk_id
        WHERE q.id = ${question.id}::uuid AND cc.embedding IS NOT NULL
        GROUP BY c.id
-       ORDER BY similarity DESC
+       ORDER BY similarity DESC, c.id
        LIMIT 6`;
 
     if (ranked.length < 2) continue;
