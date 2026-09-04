@@ -55,7 +55,15 @@ export default async function ChapterQuizPage({
 
   const unseen = await db.question.findMany({
     where: {
-      chapterId: chapter.id,
+      /*
+       * Every chapter this exercise belongs to, not only the one it is filed
+       * under. A Lebanese exercise crosses consecutive chapters by design —
+       * an alcohol, its oxidation, the aldehyde that results — and
+       * `chapter_id` can hold one of them, so the others never offered it.
+       * `chapter_id` still decides where mastery is credited; this decides
+       * what a chapter is allowed to ask.
+       */
+      alsoInChapters: { some: { chapterId: chapter.id } },
       verifiedStatus: { not: 'rejected' },
       attempts: { none: { userId: user.id } },
     },

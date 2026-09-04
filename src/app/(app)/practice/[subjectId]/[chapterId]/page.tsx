@@ -36,7 +36,18 @@ export default async function ChapterPracticePage({
 
   const [questions, generated, mastery] = await Promise.all([
     db.question.findMany({
-      where: { chapterId: chapter.id, verifiedStatus: { not: 'rejected' } },
+      where: {
+        /*
+         * Every chapter this exercise belongs to, not only the one it is filed
+         * under. A Lebanese exercise crosses consecutive chapters by design —
+         * an alcohol, its oxidation, the aldehyde that results — and
+         * `chapter_id` can hold one of them, so the others never offered it.
+         * `chapter_id` still decides where mastery is credited; this decides
+         * what a chapter is allowed to show.
+         */
+        alsoInChapters: { some: { chapterId: chapter.id } },
+        verifiedStatus: { not: 'rejected' },
+      },
       select: {
         id: true,
         questionType: true,

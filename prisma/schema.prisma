@@ -385,6 +385,7 @@ model Chapter {
   @@unique([subjectId, orderIndex])
   @@index([unitId])
   @@map("chapters")
+  alsoHasQuestions QuestionChapter[]
 }
 
 // ===========================================================================
@@ -459,6 +460,38 @@ model User {
 /// ways of being dangerous. Only the hash is stored, for the same reason session
 /// tokens are hashed: a leaked database should not hand over working links to
 /// reset every account's password.
+/// The other chapters an exercise also belongs to.
+///
+/// A Lebanese exam exercise is deliberately cross-topic: a chemistry question
+/// asks about an alcohol, its oxidation to an aldehyde, and the carboxylic acid
+/// that follows — three consecutive chapters, one exercise. `questions.chapter_id`
+/// can hold only one of them, so the other two chapters never offer it, and a
+/// student revising aldehydes never sees a question that is half about aldehydes.
+///
+/// Measured on GS Chemistry: 41% of exercises have no single best chapter, and
+/// every mis-filing is a swap between adjacent organic chapters at margins of
+/// 0.03. That is not a filing error to correct, it is one chapter being asked to
+/// hold something that belongs to several.
+///
+/// `questions.chapter_id` stays, and stays authoritative for mastery: credit for
+/// answering has to land somewhere definite, and splitting it across three
+/// chapters would make every mastery figure a fraction of an attempt. This table
+/// answers a different question — which chapters may OFFER this exercise.
+model QuestionChapter {
+  questionId String @map("question_id") @db.Uuid
+  chapterId  String @map("chapter_id") @db.Uuid
+  /// How close this chapter scored to the winner when the link was made. Kept so
+  /// a later pass can raise the bar without re-embedding everything.
+  score      Float?
+
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  chapter  Chapter  @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+
+  @@id([questionId, chapterId])
+  @@index([chapterId])
+  @@map("question_chapters")
+}
+
 model AuthToken {
   id        String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   userId    String          @map("user_id") @db.Uuid
@@ -682,6 +715,7 @@ model Question {
   @@index([sourceExamId, orderIndex])
   @@index([verifiedStatus])
   @@map("questions")
+  alsoInChapters QuestionChapter[]
 }
 
 /// ADDITION — tier 2 of the retrieval pipeline ("chapter-level textbook

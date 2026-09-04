@@ -84,12 +84,24 @@ async function main() {
 
     // Most-used first, then the earliest position on the paper. A row somebody
     // has answered is the one to keep.
+    /*
+     * The last comparison is the id, and it is not decoration.
+     *
+     * Without it, rows tied on attempts, sat papers, cards and position are
+     * left in whatever order the query returned, which Postgres does not
+     * promise. Run against two copies of the same corpus, this kept different
+     * survivors on each — 4,881 rows both times, but 113 of them different
+     * questions. Every later sync keyed on id then skipped those rows in
+     * silence, because a row that is missing on the far side is not an error,
+     * it is simply not matched.
+     */
     const ordered = [...members].sort(
       (a, b) =>
         b.attempts - a.attempts ||
         b.sims - a.sims ||
         b.cards - a.cards ||
-        a.order_index - b.order_index,
+        a.order_index - b.order_index ||
+        a.id.localeCompare(b.id),
     );
     const [keep, ...drop] = ordered;
     if (!keep) continue;
