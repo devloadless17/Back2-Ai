@@ -5,6 +5,8 @@ import { AuditAction, recordAudit } from '@/lib/audit';
 import { apiAdmin } from '@/lib/auth/guards';
 import { revokeAllSessionsForUser } from '@/lib/auth/session';
 import { db } from '@/lib/db';
+import { appLink, sendEmail } from '@/lib/email';
+import { issueToken } from '@/lib/auth/tokens';
 import { LOCALES } from '@/lib/i18n/config';
 
 /**
@@ -47,6 +49,7 @@ export const GET = route(async (request) => {
       role: true,
       preferredLanguage: true,
       isActive: true,
+      emailVerifiedAt: true,
       lastLoginAt: true,
       createdAt: true,
       track: { select: { id: true, code: true, name: true } },
@@ -60,6 +63,7 @@ export const GET = route(async (request) => {
     users: users.map((user) => ({
       ...user,
       lastLoginAt: user.lastLoginAt?.toISOString() ?? null,
+      emailVerifiedAt: user.emailVerifiedAt?.toISOString() ?? null,
       createdAt: user.createdAt.toISOString(),
       attemptCount: user._count.attempts,
     })),
@@ -180,4 +184,64 @@ export const PATCH = route(async (request) => {
   }
 
   return ok({ id: target.id, changed: events.map((e) => e.action), sessionsRevoked: revoked });
+});
+
+/**
+ * Sending a student's confirmation email again.
+ *
+ * The common support call: someone signed up, never got the message, and cannot
+ * log in. Self-service resend exists on the login screen, but it is no help to a
+ * student who mistyped nothing and simply lost the mail to a spam folder while
+ * on the phone to a teacher.
+ *
+ * This does not confirm the address on the student's behalf. An administrator
+ * asserting that someone owns a mailbox they have not demonstrably read defeats
+ * the point of confirming it, and the address is what password resets go to.
+ * Issuing a fresh link is help; skipping the proof is not.
+ */
+const resendSchema = z.object({
+  id: z.string().uuid(),
+  reason: z.string().trim().min(3).max(500),
+});
+
+export const POST = route(async (request) => {
+  assertSameOrigin(request);
+
+  const auth = await apiAdmin();
+  if (!auth.ok) return unauthorized(auth);
+
+  const body = await parseBody(request, resendSchema);
+
+  const target = await db.user.findUnique({
+    where: { id: body.id },
+    select: { id: true, email: true, displayName: true, emailVerifiedAt: true, isActive: true },
+  });
+  if (!target) return fail(404, 'NOT_FOUND');
+  if (target.emailVerifiedAt) return fail(409, 'ALREADY_VERIFIED');
+  if (!target.isActive) return fail(409, 'ACCOUNT_DISABLED');
+
+  const token = await issueToken(target.id, 'email_verify');
+  const sent = await sendEmail({
+    to: target.email,
+    subject: 'Confirm your Bac II account',
+    text: [
+      target.displayName ? `Hello ${target.displayName.split(' ')[0]},` : 'Hello,',
+      '',
+      'Confirm your email address to start studying:',
+      '',
+      appLink(`/verify-email?token=${encodeURIComponent(token)}`),
+      '',
+      'The link works for 24 hours.',
+    ].join('\n'),
+  });
+
+  await recordAudit({
+    actorUserId: auth.user.id,
+    action: AuditAction.USER_VERIFICATION_RESENT,
+    targetType: 'user',
+    targetId: target.id,
+    metadata: { reason: body.reason, sent },
+  });
+
+  return ok({ sent });
 });

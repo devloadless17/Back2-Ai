@@ -23,6 +23,7 @@ export type AdminUserRow = {
   trackCode: string | null;
   attemptCount: number;
   lastLoginAt: string | null;
+  emailVerifiedAt: string | null;
 };
 
 /**
@@ -50,6 +51,7 @@ export function UserAdmin({
   const [draft, setDraft] = useState<Partial<AdminUserRow> & { reason?: string }>({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [query, setQuery] = useState('');
 
   const visible = users.filter(
@@ -69,6 +71,33 @@ export function UserAdmin({
       reason: '',
     });
     setError(null);
+  }
+
+  /**
+   * Sends the confirmation email again.
+   *
+   * Deliberately does not close the editor or refresh the list: nothing about
+   * the account changed, and an administrator who sees the row collapse will
+   * reasonably believe the address is now confirmed. Only the notice moves.
+   */
+  async function resend(user: AdminUserRow) {
+    if (!draft.reason || draft.reason.trim().length < 3) {
+      setError(t.admin.reviewNotes);
+      return;
+    }
+
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+
+    try {
+      await sendJson('/api/admin/users', 'POST', { id: user.id, reason: draft.reason.trim() });
+      setNotice(t.admin.confirmationSent);
+    } catch (err) {
+      setError(err instanceof ApiRequestError ? err.message : t.common.unknownError);
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function save(user: AdminUserRow) {
@@ -124,6 +153,12 @@ export function UserAdmin({
           </div>
         )}
 
+        {notice && (
+          <div className="px-5 pt-4">
+            <Alert tone="success">{notice}</Alert>
+          </div>
+        )}
+
         <ul className="ruled">
           {visible.map((user) => {
             const isEditing = editing === user.id;
@@ -144,6 +179,7 @@ export function UserAdmin({
                   <div className="flex flex-wrap items-center gap-1.5">
                     {user.role === 'admin' && <Badge tone="primary">{t.admin.title}</Badge>}
                     {!user.isActive && <Badge tone="mark">{t.auth.accountDisabled}</Badge>}
+                    {!user.emailVerifiedAt && <Badge tone="partial">{t.admin.unconfirmed}</Badge>}
                     <Badge tone="neutral">{user.trackCode ?? '—'}</Badge>
                     <Badge tone="neutral">{LOCALE_LABELS[user.preferredLanguage]}</Badge>
                     <button
@@ -252,7 +288,17 @@ export function UserAdmin({
                       />
                     </label>
 
-                    <div className="flex justify-end">
+                    <div className="flex flex-wrap justify-end gap-2">
+                      {!user.emailVerifiedAt && (
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => resend(user)}
+                          loading={busy}
+                        >
+                          {t.admin.resendConfirmation}
+                        </Button>
+                      )}
                       <Button variant="primary" size="sm" onClick={() => save(user)} loading={busy}>
                         {t.common.save}
                       </Button>

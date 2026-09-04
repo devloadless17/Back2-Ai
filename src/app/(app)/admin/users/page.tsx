@@ -22,6 +22,7 @@ export default async function AdminUsersPage() {
         role: true,
         preferredLanguage: true,
         isActive: true,
+        emailVerifiedAt: true,
         lastLoginAt: true,
         track: { select: { id: true, code: true } },
         _count: { select: { attempts: true } },
@@ -43,6 +44,7 @@ export default async function AdminUsersPage() {
     trackCode: user.track?.code ?? null,
     attemptCount: user._count.attempts,
     lastLoginAt: user.lastLoginAt?.toISOString() ?? null,
+    emailVerifiedAt: user.emailVerifiedAt?.toISOString() ?? null,
   }));
 
   return (

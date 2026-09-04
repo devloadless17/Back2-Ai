@@ -41,6 +41,7 @@ export const AuditAction = {
   USER_ROLE_CHANGED: 'admin.user.role_changed',
   USER_DEACTIVATED: 'admin.user.deactivated',
   USER_REACTIVATED: 'admin.user.reactivated',
+  USER_VERIFICATION_RESENT: 'admin.user.verification_resent',
 
   // Content lifecycle
   REVIEW_ITEM_APPROVED: 'review.item.approved',

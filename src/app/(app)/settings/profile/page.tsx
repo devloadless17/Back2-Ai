@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 
 import { PasswordForm } from '@/components/settings/password-form';
+import { ReminderToggle } from '@/components/settings/reminder-toggle';
 import { RevokeSessionsButton } from '@/components/settings/revoke-sessions-button';
 import { Field } from '@/components/ui/field';
 import { Alert } from '@/components/ui/feedback';
@@ -27,7 +28,7 @@ export default async function ProfileSettingsPage() {
   const user = await requireUser();
   const { locale, t } = await getTranslations();
 
-  const [track, sessions] = await Promise.all([
+  const [track, sessions, prefs] = await Promise.all([
     user.trackId
       ? db.track.findUnique({ where: { id: user.trackId }, select: { code: true, name: true } })
       : null,
@@ -36,6 +37,10 @@ export default async function ProfileSettingsPage() {
       select: { id: true, ipAddress: true, userAgent: true, lastSeenAt: true, createdAt: true },
       orderBy: { lastSeenAt: 'desc' },
       take: 10,
+    }),
+    db.user.findUnique({
+      where: { id: user.id },
+      select: { emailReminders: true, emailVerifiedAt: true },
     }),
   ]);
 
@@ -57,6 +62,18 @@ export default async function ProfileSettingsPage() {
       </Sheet>
 
       <div className="space-y-5">
+        <Sheet>
+          <SheetHeader title={t.settings.notifications} />
+          <SheetBody className="space-y-3">
+            <ReminderToggle initial={prefs?.emailReminders ?? true} />
+            {/*
+              An unconfirmed address gets no mail, so the switch alone would be a
+              promise the product does not keep. Say why, next to the control.
+            */}
+            {!prefs?.emailVerifiedAt && <Alert tone="warning">{t.settings.verifyFirst}</Alert>}
+          </SheetBody>
+        </Sheet>
+
         <Sheet>
           <SheetHeader title={t.settings.changePassword} />
           <SheetBody>

@@ -6,6 +6,7 @@ import { autoSubmitExpired, markSubmitted } from '@/lib/exam';
 import { recalibrateDifficulty } from '@/lib/ingestion';
 import { startOfToday } from '@/lib/queries/flashcards';
 import { getProgressForUser } from '@/lib/queries/progress';
+import { appLink, sendEmail } from '@/lib/email';
 
 /**
  * Scheduled maintenance, as plain functions.
@@ -74,10 +75,44 @@ export async function refreshReadinessCache(): Promise<number> {
 }
 
 /**
+ * Delivers one reminder outside the app, if the student asked for it.
+ *
+ * The in-app notification is always written; this is the part that reaches
+ * someone who is not looking at the site, which is the whole point of a
+ * reminder. A student who has not opened the app in three days is exactly the
+ * one it is for.
+ *
+ * Never sent to an unconfirmed address. Nobody has proved they read that
+ * mailbox, and a nightly message to a mistyped one is both useless and the
+ * quickest way to have the sending domain treated as a spammer.
+ *
+ * Never throws. This runs inside a loop over every user with something due, and
+ * one undeliverable reminder must not stop the forty behind it.
+ */
+async function deliver(userId: string, subject: string, body: string, href: string) {
+  try {
+    const user = await db.user.findUnique({
+      where: { id: userId },
+      select: { email: true, emailVerifiedAt: true, emailReminders: true, isActive: true },
+    });
+    if (!user?.isActive || !user.emailReminders || !user.emailVerifiedAt) return;
+
+    await sendEmail({
+      to: user.email,
+      subject,
+      text: [body, '', appLink(href), '', 'You can turn these off in your settings.'].join('\n'),
+    });
+  } catch {
+    // A reminder is not worth failing a nightly run over.
+  }
+}
+
+/**
  * Due-card and session reminders.
  *
  * One notification per user per day per kind — a student who opens the app
- * twice should not find six reminders about the same twelve cards.
+ * twice should not find six reminders about the same twelve cards. That guard
+ * covers the email too, since delivery happens beside the row that records it.
  */
 export async function sendReminders(): Promise<number> {
   const today = startOfToday();
@@ -96,14 +131,16 @@ export async function sendReminders(): Promise<number> {
     });
     if (already) continue;
 
+    const message = `${row._count.questionId} flashcard(s) are due today.`;
     await db.notification.create({
       data: {
         userId: row.userId,
         type: 'flashcards_due',
-        message: `${row._count.questionId} flashcard(s) are due today.`,
+        message,
         href: '/flashcards/review',
       },
     });
+    await deliver(row.userId, 'Your flashcards are due', message, '/flashcards/review');
     created += 1;
   }
 
@@ -126,17 +163,14 @@ export async function sendReminders(): Promise<number> {
     });
     if (already) continue;
 
+    const message =
+      titles.length === 1
+        ? `Today's session: ${titles[0]}`
+        : `You have ${titles.length} study sessions planned today.`;
     await db.notification.create({
-      data: {
-        userId,
-        type: 'schedule_reminder',
-        message:
-          titles.length === 1
-            ? `Today's session: ${titles[0]}`
-            : `You have ${titles.length} study sessions planned today.`,
-        href: '/schedule',
-      },
+      data: { userId, type: 'schedule_reminder', message, href: '/schedule' },
     });
+    await deliver(userId, 'Your study plan for today', message, '/schedule');
     created += 1;
   }
 
