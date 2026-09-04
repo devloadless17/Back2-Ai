@@ -635,6 +635,16 @@ export type RetrievalInput = {
     /** The extract printed on the paper, for a question that examines one. */
     sourcePassage?: string | null;
   } | null;
+  /**
+   * What has already been said in this session, oldest first.
+   *
+   * Only read to recover a passage the student pasted on an earlier turn. A
+   * Lebanese comprehension exercise is one text followed by numbered parts, and
+   * the parts are short: "2. Relevez deux figures de style." arrives at thirty
+   * characters, long after the text it is about. Without this the second part of
+   * every exercise is refused for want of a passage sitting three messages up.
+   */
+  history?: { role: 'user' | 'assistant'; content: string }[];
 };
 
 /**
@@ -673,6 +683,52 @@ const SOLUTION_SHOWN = 1200;
  * in this corpus and shorter than any question with a passage attached.
  */
 const PASSAGE_SUPPLIED = 400;
+
+/**
+ * How far back a pasted passage stays in force.
+ *
+ * A Lebanese comprehension exercise rarely runs past six parts, and each part is
+ * one exchange. Beyond that the student has almost certainly moved on to another
+ * text, and carrying the old one forward would answer the new question against
+ * the wrong passage — a worse failure than refusing, because it looks right.
+ */
+const PASSAGE_MEMORY_TURNS = 12;
+
+/**
+ * The passage this question is about, from this message or an earlier one.
+ *
+ * Returns the query itself when it carries the text, so the caller can tell the
+ * two cases apart and label the grounding for what it is.
+ */
+/**
+ * A passage supplied on an earlier turn, when this message is too short to carry
+ * one itself. Null when the message carries its own — that case needs no help.
+ */
+function carriedPassage(input: RetrievalInput): string | null {
+  if (input.query.trim().length >= PASSAGE_SUPPLIED) return null;
+  return suppliedPassage(input);
+}
+
+export function suppliedPassage(input: RetrievalInput): string | null {
+  if (input.query.trim().length >= PASSAGE_SUPPLIED) return input.query;
+
+  const recent = (input.history ?? []).slice(-PASSAGE_MEMORY_TURNS);
+  for (let i = recent.length - 1; i >= 0; i -= 1) {
+    const message = recent[i];
+    /*
+     * Only what the student typed.
+     *
+     * An assistant turn long enough to pass for a passage is the tutor's own
+     * previous answer, and grounding a reply on that is how a wrong answer gets
+     * confirmed by being repeated back to itself.
+     */
+    if (message?.role === 'user' && message.content.trim().length >= PASSAGE_SUPPLIED) {
+      return message.content;
+    }
+  }
+
+  return null;
+}
 
 /** The barème and the official answer's shape, as material to write against. */
 function formatMarkingSchemes(hits: MarkingSchemeHit[]): string {
@@ -727,7 +783,29 @@ export async function retrieveGrounding(input: RetrievalInput): Promise<Groundin
    * was. See `question-kind.ts` for what separates them.
    */
   const classification = classifyQuestionKind(input.query);
-  const kind: QuestionKind = classification.kind;
+
+  /*
+   * The classifier reads the message. This reads the session.
+   *
+   * "2. Relevez deux figures de style." carries no marker — no "dans le texte",
+   * no "ci-dessus" — so on its own words it is indistinguishable from a concept
+   * question, and `classifyQuestionKind` is right to call it one. It then goes
+   * down the chapter path and comes back with eight biographies of Voltaire,
+   * which is the precise failure the comprehension routing exists to prevent.
+   *
+   * A passage the student pasted a few messages ago settles it. An exercise is
+   * one text followed by numbered parts, and the parts arrive short and bare.
+   * Session state knows what thirty characters cannot.
+   *
+   * The cost is a concept question asked in the middle of working through a text
+   * — "au fait, c'est quoi une métaphore ?" — which is then grounded on the
+   * passage rather than on a chapter. That answer is verified against the
+   * passage before it is shown, so the failure is the tutor saying it cannot
+   * answer from this material. A refusal is recoverable. Eight paragraphs about
+   * Voltaire, delivered confidently, are not.
+   */
+  const carried = carriedPassage(input);
+  const kind: QuestionKind = carried ? 'comprehension' : classification.kind;
 
   /*
    * The concept gate for this query's script. Computed once, here, so every
@@ -822,7 +900,19 @@ export async function retrieveGrounding(input: RetrievalInput): Promise<Groundin
    * thing to say is "show me the text".
    */
   if (kind === 'comprehension') {
-    if (input.query.trim().length >= PASSAGE_SUPPLIED) {
+    /*
+     * The passage, whether it came with this message or an earlier one.
+     *
+     * An exercise is one text followed by numbered parts, and only the first
+     * message carries the text. "2. Relevez deux figures de style." is thirty
+     * characters; judged alone it looks exactly like a question asked about
+     * nothing, and every part after the first was refused on that basis while
+     * the passage sat unread three messages up. The student had supplied it.
+     * Nothing had to go and find it.
+     */
+    const supplied = suppliedPassage(input);
+
+    if (supplied) {
       return {
         tier: 'personal_reference',
         topSimilarity: null,
@@ -834,10 +924,13 @@ export async function retrieveGrounding(input: RetrievalInput): Promise<Groundin
             kind: 'user_reference',
             label: 'The passage on your exam paper',
             similarity: 1,
-            text: input.query.slice(0, 500),
+            text: supplied.slice(0, 500),
           },
         ],
-        context: `## The passage and question you supplied\n${input.query}`,
+        context:
+          supplied === input.query
+            ? `## The passage and question you supplied\n${input.query}`
+            : `## The passage you supplied\n${supplied}\n\n## What you are asking about it\n${input.query}`,
       };
     }
 

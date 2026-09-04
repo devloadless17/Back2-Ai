@@ -453,6 +453,10 @@ export async function* runChatTurn(input: ChatTurnInput): AsyncGenerator<ChatEve
       subjectIds: input.subjectIds,
       userId: input.userId,
       anchorQuestion: input.anchorQuestion ?? null,
+      // So a comprehension part can be answered against the passage the student
+      // pasted several messages ago, rather than refused for want of a text that
+      // is already in the conversation.
+      history: input.history,
     });
   } catch (err) {
     console.error('[chat] retrieval failed', err);
