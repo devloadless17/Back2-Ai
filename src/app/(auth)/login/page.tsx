@@ -57,6 +57,18 @@ export default async function LoginPage() {
 
           <LoginForm />
 
+          {/* Below the form, not beside the password field: a student who has
+              not tried yet does not need it, and one who has just failed is
+              looking at the error, which is directly above this. */}
+          <p className="text-center text-meta">
+            <Link
+              href="/forgot-password"
+              className="font-medium text-primary underline-offset-2 hover:underline"
+            >
+              {t.auth.forgotLink}
+            </Link>
+          </p>
+
           <p className="border-t border-rule pt-4 text-center text-meta text-ink-muted">
             {t.auth.noAccount}{' '}
             <Link

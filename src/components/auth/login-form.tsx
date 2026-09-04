@@ -102,6 +102,14 @@ function messageFor(code: string | undefined, status: number, t: Dictionary): st
       return t.auth.invalidCredentials;
     case 'ACCOUNT_DISABLED':
       return t.auth.accountDisabled;
+    /*
+     * Named, unlike the credential failures above. The person has already
+     * proved they hold the password, so saying the address is unconfirmed
+     * discloses nothing — and without it they are turned away from an account
+     * that works, with no idea why or what to do about it.
+     */
+    case 'EMAIL_UNVERIFIED':
+      return `${t.auth.unverifiedTitle} ${t.auth.unverifiedBody}`;
     default:
       return status === 429 ? t.auth.tooManyAttempts : t.common.unknownError;
   }
