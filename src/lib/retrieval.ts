@@ -258,9 +258,41 @@ const FIELD = 20;
  *   en     51%    88%    88%    90%    90%    96%
  *   fr     54%    91%    91%    96%    96%    99%
  *
- * Eight rather than six because that is where the curve stops paying: it lifts
- * Arabic from 85% to 91% and French from 91% to 96%, and ten buys nothing on
- * top. Two extra passages is roughly 3,000 more characters in the prompt.
+ * Twelve rather than eight, re-measured 2026-09-04, because "ten buys nothing on
+ * top" was read off an average that hid where the gain is. Aggregated by
+ * language the step from 8 to 12 looks worthless — en 93->95, fr 90->91,
+ * ar 86->89 — but that average is dominated by subjects already at 100%, and it
+ * conceals this:
+ *
+ *   SE فلسفة عامة     52% -> 72%
+ *   GS Chemistry      80% -> 92%
+ *   LH فلسفة عامة     28% -> 40%
+ *   LH Life Sciences  80% -> 88%
+ *   LS فلسفة عامة     88% -> 96%
+ *   SE English        92% -> 100%
+ *
+ * measured as "was the passage material of the question's own chapter among the
+ * ones handed over". These are the subjects whose chapters overlap — GS
+ * Chemistry examines one reaction chain the book splits across three chapters,
+ * and a philosophy chapter shares its vocabulary with every other one — so the
+ * nearest passages crowd into a neighbour and the chapter that was actually
+ * asked about sits ninth.
+ *
+ * The price is real and larger than the old note claimed: 12,500 characters of
+ * retrieved context becomes 18,500, a 48% increase, on every query in every
+ * subject. It is charged everywhere and collected in six places. It is worth it
+ * because the places it is collected are the weak ones — a subject at 52% is
+ * where a student is actually being failed, and a subject at 100% cannot be
+ * improved by any of this.
+ *
+ * Do not tune this from the by-language table again. It cannot see the subjects
+ * that need help.
+ *
+ * `check:refusal` moved 3/60 wrong to 2/60 across this change, which is one
+ * decision on an LLM-scored check and is not evidence of anything. The table
+ * above is, being vector arithmetic and reproducible. `check:retrieval` is
+ * unchanged, correctly — it measures the ORDER passages come back in, and this
+ * changes how many are kept, not how they rank.
  *
  * The same table is the reason not to replace the embedding model over Arabic's
  * poor top-1. The right passage is retrieved every time — it is in the top
@@ -269,7 +301,7 @@ const FIELD = 20;
  * free; reranking, applied to Arabic only, then fixes the ordering itself. See
  * the rerank call below for what each buys.
  */
-const HANDED_OVER = 8;
+const HANDED_OVER = 12;
 
 /**
  * How far the best hit stands above the rest of the field.
