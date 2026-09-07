@@ -1,3 +1,4 @@
+import { setMeterUser } from '@/lib/ai/meter-context';
 import 'server-only';
 
 import { redirect } from 'next/navigation';
@@ -41,6 +42,9 @@ export type ApiAuthResult =
 export async function apiUser(): Promise<ApiAuthResult> {
   const session = await getSession();
   if (!session) return { ok: false, status: 401, error: 'Authentication required.' };
+  // Name the student on the request's meter, so a model call made anywhere
+  // beneath this is charged to them without the call site knowing.
+  setMeterUser(session.user.id);
   return { ok: true, session, user: session.user };
 }
 

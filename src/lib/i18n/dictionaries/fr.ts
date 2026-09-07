@@ -547,6 +547,7 @@ export const fr: Dictionary = {
     checkTranscription: 'Vérifiez notre lecture',
     illegible: 'Une partie de l’écriture était difficile à lire — corrigez-la ci-dessus avant de demander.',
     failed: 'Cette photo n’a pas pu être lue. Essayez une image plus nette.',
+    budgetExhausted: "Vous avez utilisé votre quota d’IA pour ce mois. Il se renouvelle au début du mois prochain.",
     wrongType: "Ce type d'image ne peut pas être lu. Utilisez un JPEG, un PNG ou un WEBP.",
     tooBig: "Cette image est trop lourde. La limite est de 15 Mo.",
     serviceDown: "La lecture des photos est indisponible pour le moment. Réessayez bientôt.",

@@ -451,6 +451,8 @@ model User {
   authTokens        AuthToken[]
   pushSubscriptions PushSubscription[]
 
+  aiUsage AiUsage[]
+
   @@index([trackId])
   @@map("users")
 }
@@ -1257,4 +1259,26 @@ model IngestionJob {
 
   @@index([status, createdAt])
   @@map("ingestion_jobs")
+}
+
+/// One AI call, and what it cost. Written by the provider layer so no call site
+/// can forget; read by the budget check before an expensive request runs.
+model AiUsage {
+  id                String   @id @default(uuid()) @db.Uuid
+  userId            String?  @map("user_id") @db.Uuid
+  /// Which feature spent it: chat, verify, marking, ocr, generation.
+  kind              String
+  model             String
+  inputTokens       Int      @default(0) @map("input_tokens")
+  cachedInputTokens Int      @default(0) @map("cached_input_tokens")
+  outputTokens      Int      @default(0) @map("output_tokens")
+  /// Micro-dollars. Integer, because a month's bill is summed from these.
+  costMicros        BigInt   @default(0) @map("cost_micros")
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([createdAt(sort: Desc)])
+  @@map("ai_usage")
 }

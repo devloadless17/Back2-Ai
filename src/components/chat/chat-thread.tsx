@@ -61,6 +61,7 @@ type StreamEvent =
  */
 function uploadError(err: unknown, t: ReturnType<typeof useI18n>['t']): string {
   if (!(err instanceof ApiRequestError)) return t.common.unknownError;
+  if (err.status === 402) return t.upload.budgetExhausted;
   if (err.status === 415) return t.upload.wrongType;
   if (err.status === 413) return t.upload.tooBig;
   if (err.status === 503) return t.upload.serviceDown;

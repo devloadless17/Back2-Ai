@@ -13,6 +13,7 @@ import {
   unauthorized,
 } from '@/lib/api';
 import { apiUser } from '@/lib/auth/guards';
+import { budgetState } from '@/lib/ai';
 import { db } from '@/lib/db';
 import { isAiConfigured, isEmbeddingConfigured } from '@/lib/env';
 import { PUBLISHED_FILTER, generateProblem } from '@/lib/generation';
@@ -117,6 +118,19 @@ export const POST = route(async (request) => {
 
   const limit = rateLimit(clientKey(request, `generate:${user.id}`), 5, 60 * 60_000);
   if (!limit.allowed) return tooManyRequests(limit.retryAfter);
+
+
+  /*
+
+   * The month's ceiling, checked before the spend rather than after it, so
+
+   * the request that would cross the line is the one refused.
+
+   */
+
+  const budget = await budgetState(user.id);
+
+  if (budget.exhausted) return fail(402, 'AI_BUDGET_EXHAUSTED');
 
   const outcome = await generateProblem({ chapterId: chapter.id, requestedBy: user.id });
 

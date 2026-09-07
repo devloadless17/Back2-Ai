@@ -38,6 +38,15 @@ export type AiRequest = {
   effort?: AiEffort;
   /** Overrides the provider's default model — used to route grading to the verify model. */
   model?: string;
+  /**
+   * Who is spending, and on what.
+   *
+   * Carried on the request rather than recorded at each call site, because a
+   * call site that forgets leaves a hole in the meter that nothing reveals
+   * until the invoice. Null for work that belongs to no student — a corpus
+   * script, a cron job — which is metered but not charged to anyone.
+   */
+  meter?: { userId: string | null; kind: string };
 };
 
 export type AiResponse = {

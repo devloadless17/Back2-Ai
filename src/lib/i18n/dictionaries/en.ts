@@ -568,6 +568,7 @@ export const en = {
     checkTranscription: 'Check what we read',
     illegible: 'Some of the writing was hard to read — correct it above before asking.',
     failed: 'That photo could not be read. Try a sharper one.',
+    budgetExhausted: 'You have used this month’s AI allowance. It resets at the start of next month.',
     wrongType: 'That kind of image cannot be read. Use a JPEG, PNG or WEBP.',
     tooBig: 'That image is too large. The limit is 15 MB.',
     serviceDown: 'Reading photos is unavailable right now. Try again shortly.',

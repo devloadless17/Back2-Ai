@@ -12,6 +12,7 @@ import {
 } from '@/lib/api';
 import { apiUser } from '@/lib/auth/guards';
 import { encodeEvent, runChatTurn, titleFromQuestion, type AnchorAttempt } from '@/lib/chat';
+import { budgetState } from '@/lib/ai';
 import { db } from '@/lib/db';
 import { isAiConfigured, isEmbeddingConfigured } from '@/lib/env';
 import { parseBareme } from '@/lib/grading';
@@ -59,6 +60,13 @@ export const POST = route(async (request) => {
   // Model calls cost money and latency; a runaway client should hit a wall.
   const limit = rateLimit(clientKey(request, `chat:${user.id}`), 30, 10 * 60_000);
   if (!limit.allowed) return tooManyRequests(limit.retryAfter);
+
+  /*
+   * The month's ceiling, checked before the spend rather than after it, so
+   * the request that would cross the line is the one refused.
+   */
+  const budget = await budgetState(user.id);
+  if (budget.exhausted) return fail(402, 'AI_BUDGET_EXHAUSTED');
 
   const body = await parseBody(request, bodySchema);
 

@@ -1,3 +1,4 @@
+import { withMeter } from '@/lib/ai/meter-context';
 import 'server-only';
 
 import { NextResponse } from 'next/server';
@@ -73,12 +74,34 @@ export function parseQuery<T>(request: Request, schema: ZodSchema<T>): T {
  * Wraps a handler so no unexpected throw escapes as an opaque 500 with a stack
  * trace in the response. Internal error text is logged, never returned.
  */
+
+/**
+ * What this request is spending on, from its path.
+ *
+ * Coarse on purpose: the point is to tell chat from marking from OCR when
+ * reading a bill, not to label every endpoint.
+ */
+function meterKindFor(request: Request): string {
+  const path = new URL(request.url).pathname;
+  if (path.startsWith('/api/chat')) return 'chat';
+  if (path.startsWith('/api/upload') || path.startsWith('/api/photo-qa')) return 'ocr';
+  if (path.startsWith('/api/attempts') || path.startsWith('/api/exam-sim')) return 'marking';
+  if (path.startsWith('/api/generation') || path.startsWith('/api/flashcards')) return 'generation';
+  return path.replace('/api/', '').split('/')[0] || 'other';
+}
+
 export function route<Args extends unknown[]>(
   handler: (request: Request, ...args: Args) => Promise<Response>,
 ): (request: Request, ...args: Args) => Promise<Response> {
   return async (request, ...args) => {
     try {
-      return await handler(request, ...args);
+      /*
+       * Every API request runs inside a meter store, so a model call made
+       * anywhere beneath it is charged to the right student without the call
+       * site having to know one exists. `apiUser` fills in who; the path names
+       * what for.
+       */
+      return await withMeter(meterKindFor(request), () => handler(request, ...args));
     } catch (err) {
       if (err instanceof HttpError) {
         return fail(err.status, err.message, err.details);
