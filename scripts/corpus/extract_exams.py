@@ -127,6 +127,17 @@ def word_marks(text: str) -> float:
 # its marks printed against each lettered sub-part rather than in the header.
 AR_NUM_HEAD = re.compile(r"(?:^|\n)[ \t]*(\d{1,2})\s*[-–]\s*(?=\S)")
 
+# The same question, numbered with a full stop instead of a dash.
+#
+# "۱ .حدِّد طبيعة كلٍّ من المستندات" is how a geography or civics paper writes
+# it, and the dash-only rule sees none of them: on gs/2005 2/geo.pdf it finds
+# zero where there are seven. Kept separate from AR_NUM_HEAD rather than folded
+# into it, because a full stop after a number is also how a decimal and an
+# ordinary list are written, and the dash is unambiguous. This looser form is
+# reached only by the assignment rule at the very end of the cascade, where the
+# alternative is dropping the paper whole.
+AR_NUM_HEAD_DOT = re.compile(r"(?:^|\n)[ \t]*([\d٠-٩]{1,2})\s*[-–.]\s*(?=\S)")
+
 # "(2/1 نقطة)" is half a point. The fraction is printed right to left, so the
 # characters arrive as 2, /, 1 and the value is the second over the first —
 # reading it left to right would score it as two.
@@ -692,7 +703,16 @@ def find_headers(text: str, allow_subject_split: bool = True, profile: str | Non
     # that. The marks are recovered from the scheme where it parses, and left at
     # zero where it does not — an exercise with no barème is still practice.
     if len(ASSIGNMENT.findall(text)) >= 2:
+        # The dash form first, then the full-stop form. The same question written
+        # two ways, and this is the last rule before the paper is given up on.
         found = list(AR_NUM_HEAD.finditer(text))
+        if len(found) < 2 and len(SUBJECT_HEAD.findall(text)) < 2:
+            # Not for a paper the subject fallback below would take. A philosophy
+            # paper offering three alternatives, each worth the whole twenty,
+            # also numbers the parts within them — read here it collapses to one
+            # exercise worth nothing, which is what happened to eight of them
+            # before this guard: "3 exercises, 20 marks" became "1 exercise, 0".
+            found = list(AR_NUM_HEAD_DOT.finditer(text))
         if len(found) >= 2:
             # One exercise, not thirteen. These papers set a single piece of
             # work — read this source, then answer about it — and the numbers
