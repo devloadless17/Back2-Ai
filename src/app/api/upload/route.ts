@@ -54,13 +54,30 @@ export const POST = route(async (request) => {
 
   const bytes = Buffer.from(await file.arrayBuffer());
 
-  const stored = await putObject({
-    scope: 'uploads',
-    ownerId: user.id,
-    filename: file.name || 'photo.jpg',
-    contentType: file.type,
-    bytes,
-  });
+  /*
+   * Keeping the photo is secondary to reading it.
+   *
+   * On a serverless deployment without object storage configured, the local
+   * driver tries to mkdir under the read-only function root and throws ENOENT.
+   * That was aborting the whole request, so a student photographing a question
+   * got a 500 and the tutor never saw an image it could read perfectly well —
+   * the transcription below does not need the file to have been saved anywhere.
+   *
+   * So the save is best-effort. What is lost when it fails is the ability to
+   * show the photo back in the thread later, and the reply is unaffected.
+   */
+  let stored: Awaited<ReturnType<typeof putObject>> | null = null;
+  try {
+    stored = await putObject({
+      scope: 'uploads',
+      ownerId: user.id,
+      filename: file.name || 'photo.jpg',
+      contentType: file.type,
+      bytes,
+    });
+  } catch (err) {
+    console.error('[upload] could not store the photo; transcribing anyway', err);
+  }
 
   let extractedText: string;
   let hasIllegibleRegions: boolean;
@@ -102,7 +119,7 @@ export const POST = route(async (request) => {
     (await db.chatSession.create({
       data: {
         userId: user.id,
-        uploadedImageUrl: stored.key,
+        uploadedImageUrl: stored?.key ?? null,
         title: null,
       },
       select: { id: true },
@@ -113,13 +130,13 @@ export const POST = route(async (request) => {
   if (existing) {
     await db.chatSession.update({
       where: { id: existing.id },
-      data: { uploadedImageUrl: stored.key },
+      data: { uploadedImageUrl: stored?.key ?? null },
     });
   }
 
   return created({
     sessionId: session.id,
-    imageKey: stored.key,
+    imageKey: stored?.key ?? null,
     extractedText,
     hasIllegibleRegions,
   });
