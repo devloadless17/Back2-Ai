@@ -176,12 +176,34 @@ async function signedFetch(
   });
 }
 
+/**
+ * Why object storage is not in use, named without printing any value.
+ *
+ * The local driver cannot work on a serverless deployment — the function root is
+ * read-only, so it fails on mkdir — and it is reached by falling through this
+ * check rather than by being chosen. When all three conditions are set correctly
+ * the fall-through is impossible, so the useful thing to log is which one is not.
+ */
+function s3Gap(): string | null {
+  if (!env().S3_ACCESS_KEY_ID) return 'S3_ACCESS_KEY_ID is empty';
+  if (!env().S3_ENDPOINT.startsWith('http')) return 'S3_ENDPOINT does not start with http';
+  if (process.env.STORAGE_DRIVER !== 's3') return 'STORAGE_DRIVER is not exactly "s3"';
+  return null;
+}
+
+let gapLogged = false;
+
 function driver(): StorageDriver {
   // Production must set real S3 credentials; the local driver is dev-only and
   // will not survive a multi-instance deployment.
-  return env().S3_ACCESS_KEY_ID && env().S3_ENDPOINT.startsWith('http') && process.env.STORAGE_DRIVER === 's3'
-    ? s3Driver
-    : localDriver;
+  const gap = s3Gap();
+  if (!gap) return s3Driver;
+
+  if (!gapLogged) {
+    gapLogged = true;
+    console.warn(`[storage] object storage is off: ${gap}. Uploads will not persist.`);
+  }
+  return localDriver;
 }
 
 export async function putObject(input: UploadInput): Promise<StoredObject> {
