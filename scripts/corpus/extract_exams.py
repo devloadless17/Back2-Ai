@@ -84,13 +84,24 @@ AR_WORD_MARKS = {
     "ثلاث": 3, "أربع": 4, "اربع": 4, "خمس": 5, "ست": 6, "سبع": 7,
     "ثماني": 8, "ثمان": 8, "تسع": 9, "عشر": 10,
 }
+# And the fractions, which are how a literature paper splits a mark between the
+# parts of one answer: "نصف علامة لتحديد المحور، ربع علامة لكلّ دليل" — half a
+# mark for naming the theme, a quarter for each piece of evidence. The integers
+# above cover an exercise header; these cover the criteria beneath it, and a
+# paper that uses only fractions read as carrying no marks at all.
+AR_FRACTION_MARKS = {
+    "نصف": 0.5, "نصفا": 0.5, "ربع": 0.25, "ربعا": 0.25,
+    "ثلث": 1 / 3, "ثلثا": 2 / 3, "ثلثي": 2 / 3, "واحدة": 1.0,
+}
 # The brackets are not required. RTL extraction reorders them — "(أربع علامات)"
 # comes out as "()أربع علامات(" — so anchoring on them loses the note entirely.
 # The phrase itself is distinctive enough.
 AR_WORD_MARK = re.compile(
     r"(?:(علامتان|علامتين)|("
     + "|".join(AR_WORD_MARKS)
-    + r")\s*علامات?)"
+    + r")\s*علامات?|("
+    + "|".join(AR_FRACTION_MARKS)
+    + r")\s*(?:ال)?علامة)"
 )
 
 # "أولاً :" / "ثانياً :" — how these papers label their questions. There is no
@@ -103,11 +114,13 @@ AR_ORDINAL_HEAD = re.compile(
 def word_marks(text: str) -> float:
     """Marks written as Arabic words, summed over one block."""
     total = 0.0
-    for dual, count in AR_WORD_MARK.findall(text):
+    for dual, count, fraction in AR_WORD_MARK.findall(text):
         if dual:
             total += 1 if dual == "علامة" else 2
-        else:
+        elif count:
             total += AR_WORD_MARKS.get(count.strip(), 0)
+        else:
+            total += AR_FRACTION_MARKS.get(fraction.strip(), 0)
     return total
 
 # A numbered Arabic question — "1- بالعودة الى المستند رقم(1) استخرج:" — with
@@ -639,6 +652,15 @@ def find_headers(text: str, allow_subject_split: bool = True, profile: str | Non
     if len(found) >= 2:
         return found, "arabic-ordinal"
     # Document-based papers: numbered questions, marks against the sub-parts.
+    #
+    # Spelled marks deliberately do NOT open this gate. Counting them was tried
+    # and measured: it let the numbered rule fire on the paragraph numbers of a
+    # reading passage, so 97 papers that parsed correctly were split into
+    # nonsense and rejected, and 135 more changed. The gate is not asking "does
+    # this paper award marks" — `word_marks` answers that, for totals. It is
+    # asking "are the numbers in this text question numbers rather than
+    # paragraph numbers", and a digit beside a mark is the only evidence of that
+    # which does not also appear inside a passage.
     if len(AR_DIGIT_MARK.findall(text)) + len(AR_BARE_POINT.findall(text)) >= 2:
         found = list(AR_NUM_HEAD.finditer(text))
         if len(found) >= 2:
