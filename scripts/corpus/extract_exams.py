@@ -209,6 +209,16 @@ SUBJECT_HEAD = re.compile(
 
 # Language papers split into parts and score them out of twenty:
 # "Part One : Reading (Score: 11/20)".
+# A section's score, which is a plain number and never a fraction.
+#
+# MARK's first alternative reads "a number then a fraction", for a paper that
+# awards two and a half marks as "2 1/2". Pointed at "(Score: 11/20)" it takes
+# "11/2" as that fraction and leaves the "0)" behind — and the body of the
+# exercise begins after the match, so 163 of 195 English questions began with a
+# stray digit that a student would see. Out of twenty is a score, not a
+# fraction, so this alternative simply is not offered here.
+PART_MARK = r"(\d{1,2}(?:[.,]\d{1,2})?|[٠-٩۰-۹]{1,2})"
+
 # Language papers split into scored sections. Two shapes, and the second is why
 # every French paper failed: the English ones write "Part One : Reading (Score:
 # 11/20)", the French ones write "Questions (13 pts)" or "Production écrite
@@ -264,7 +274,7 @@ PART_SCORE = re.compile(
     rf"[^\n]{{0,50}}?|"
     rf"(?P<named>Questions?|Compr[ée]hension|Production|Expression|R[ée]daction|Essai)"
     rf"[^\n]{{0,40}}?"
-    rf")[(（]\s*(?:Score|Note|Points?)?\s*[:：]?\s*{MARK}\s*"
+    rf")[(（]\s*(?:Score|Note|Points?)?\s*[:：]?\s*{PART_MARK}\s*"
     rf"(?:/\s*\d{{1,2}})?\s*(?:pts?|points?)?",
     re.I,
 )
