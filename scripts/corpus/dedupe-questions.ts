@@ -1,4 +1,4 @@
-import { db } from '../../src/lib/db';
+import { db } from "../../src/lib/db";
 
 /**
  * Removes exercises that were ingested more than once into the same chapter.
@@ -23,6 +23,23 @@ import { db } from '../../src/lib/db';
  *
  * So the key is (paper, chapter, opening), not (paper, opening).
  *
+ * `--exact` is the second pass, and it exists because that reasoning expired.
+ * A copy per chapter was the only way to give credit in both chapters when
+ * `questions.chapter_id` was all there was. `question_chapters` now offers one
+ * exercise in as many chapters as teach it, so a copy per chapter is no longer
+ * the mechanism — it is just a copy, and 25 chapter lists were showing a student
+ * the identical exercise twice.
+ *
+ * That pass keys on the paper and the exact statement, normalised for whitespace
+ * and nothing else. Not a 120-character opening: several exercises on one paper
+ * share a boilerplate preamble longer than that, and grouping on a prefix reads
+ * them as duplicates when they are different questions — at 80 characters it
+ * claimed 111 duplicate groups where the true number is 26.
+ *
+ * A loser's chapter is linked to the survivor before the delete, so the exercise
+ * stays reachable from every chapter that offered it. That is what the old key
+ * was protecting, kept without the duplication.
+ *
  * The survivor is chosen by attempts, not by id. A duplicate that a student has
  * already answered carries their mark, their timing and their mastery
  * contribution; deleting it and keeping its twin would erase work someone did.
@@ -35,6 +52,8 @@ type Row = {
   source_exam_id: string;
   chapter_id: string;
   head: string;
+  /** The whole statement, whitespace-normalised, for the `--exact` pass. */
+  exact: string;
   attempts: number;
   cards: number;
   /**
@@ -52,7 +71,8 @@ type Row = {
 
 function parseArgs(argv: string[]): Record<string, boolean> {
   const out: Record<string, boolean> = {};
-  for (const token of argv) if (token.startsWith('--')) out[token.slice(2)] = true;
+  for (const token of argv)
+    if (token.startsWith("--")) out[token.slice(2)] = true;
   return out;
 }
 
@@ -62,6 +82,7 @@ async function main() {
   const rows = await db.$queryRaw<Row[]>`
     SELECT q.id, q.source_exam_id::text AS source_exam_id, q.chapter_id::text AS chapter_id,
            left(q.content_text, 120) AS head, q.order_index,
+           md5(regexp_replace(q.content_text, '\\s+', ' ', 'g')) AS exact,
            (SELECT count(*)::int FROM attempts a WHERE a.question_id = q.id) AS attempts,
            (SELECT count(*)::int FROM flashcard_state f WHERE f.question_id = q.id) AS cards,
            (SELECT count(*)::int FROM exam_simulation_questions e WHERE e.question_id = q.id) AS sims
@@ -70,7 +91,9 @@ async function main() {
 
   const groups = new Map<string, Row[]>();
   for (const row of rows) {
-    const key = `${row.source_exam_id}|${row.chapter_id}|${row.head}`;
+    const key = args.exact
+      ? `${row.source_exam_id}|${row.exact}`
+      : `${row.source_exam_id}|${row.chapter_id}|${row.head}`;
     groups.set(key, [...(groups.get(key) ?? []), row]);
   }
 
@@ -133,6 +156,17 @@ async function main() {
             UPDATE exam_simulation_questions SET question_id = ${keep.id}::uuid
              WHERE question_id = ${loser.id}::uuid`;
         }
+        /*
+         * The chapter that offered the loser now offers the survivor. Done
+         * before the delete, because `question_chapters` cascades on delete and
+         * the row would already be gone. `ON CONFLICT DO NOTHING` because the
+         * survivor is usually linked there already.
+         */
+        await db.$executeRaw`
+          INSERT INTO question_chapters (question_id, chapter_id)
+          SELECT ${keep.id}::uuid, qc.chapter_id
+            FROM question_chapters qc WHERE qc.question_id = ${loser.id}::uuid
+          ON CONFLICT DO NOTHING`;
         await db.$executeRaw`DELETE FROM questions WHERE id = ${loser.id}::uuid`;
       }
       moved += loser.attempts + loser.cards + loser.sims;
@@ -143,7 +177,7 @@ async function main() {
   console.log(`  duplicate groups     ${groupsFixed}`);
   console.log(`  rows removed         ${removed}`);
   console.log(`  attempts/cards moved ${moved}`);
-  if (args.dry) console.log('\n  --dry: nothing written.');
+  if (args.dry) console.log("\n  --dry: nothing written.");
 
   await db.$disconnect();
 }

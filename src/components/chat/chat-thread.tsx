@@ -51,6 +51,22 @@ type StreamEvent =
   | { type: 'retracted'; messageId: string; reason: string }
   | { type: 'error'; message: string };
 
+/**
+ * What to tell a student whose photo did not go through.
+ *
+ * One message for every failure was worse than useless: an iPhone shooting HEIC
+ * is refused for its type, and "try a sharper one" sends the student back to
+ * retake a photo that will be refused again for exactly the same reason. The
+ * status code already knows which of these it is.
+ */
+function uploadError(err: unknown, t: ReturnType<typeof useI18n>['t']): string {
+  if (!(err instanceof ApiRequestError)) return t.common.unknownError;
+  if (err.status === 415) return t.upload.wrongType;
+  if (err.status === 413) return t.upload.tooBig;
+  if (err.status === 503) return t.upload.serviceDown;
+  return t.upload.failed;
+}
+
 export function ChatThread({
   sessionId,
   initialMessages,
@@ -106,7 +122,10 @@ export function ChatThread({
       setTranscription(response.extractedText);
       setIllegible(response.hasIllegibleRegions);
     } catch (err) {
-      setError(err instanceof ApiRequestError ? t.upload.failed : t.common.unknownError);
+      // Say which thing went wrong. "Try a sharper one" cannot help a file
+        // refused for its type or its size, and it sends the student round a
+        // loop with no exit.
+        setError(uploadError(err, t));
       clearAttachment();
     } finally {
       setAttaching(false);
@@ -343,7 +362,16 @@ export function ChatThread({
               <input
                 ref={fileRef}
                 type="file"
-                accept="image/*"
+                /*
+                 * The formats the server actually takes, not image/*.
+                 *
+                 * An iPhone photographs in HEIC. With image/* the picker hands that
+                 * straight over, the server refuses it as an unsupported type, and the
+                 * student is told to try a sharper photo — which can never work, so
+                 * they retake it and fail again. Naming the formats makes iOS
+                 * transcode to JPEG as the picture is chosen, which is the whole fix.
+                 */
+                accept="image/png,image/jpeg,image/webp"
                 capture="environment"
                 className="sr-only"
                 onChange={(event) => {
