@@ -200,6 +200,51 @@ SUBJECT_HEAD = re.compile(
 # every French paper failed: the English ones write "Part One : Reading (Score:
 # 11/20)", the French ones write "Questions (13 pts)" or "Production écrite
 # (7 pts)" — a section named by what it asks for rather than numbered.
+# --- Per-subject extraction profiles -----------------------------------------
+#
+# One set of splitting rules for fifteen subjects does not work, and the corpus
+# says so plainly: of the papers on disk, physics loses none and chemistry loses
+# one, while English loses 76 of 112 and Arabic literature 83 of 186. The rules
+# were built around the papers that dominate the corpus — maths, physics,
+# chemistry, French — which all print "Exercise I (5 points)". The subjects that
+# print something else are the subjects that fail.
+#
+# A profile only chooses which header rules are tried and in what order. A paper
+# whose subject is not listed gets `None`, which is the cascade every paper got
+# before profiles existed — so a subject that already works cannot be changed by
+# adding a profile for one that does not.
+SUBJECT_PROFILE = [
+    # Matched against the filename only, and the ORDER is the whole of what makes
+    # it correct: every subject examined IN a language must be claimed by its own
+    # entry before the language patterns are reached. "chem_eng.pdf" is
+    # chemistry, "ektesad_fr.pdf" is economics; both end in a language and
+    # neither is a language paper. Leaving economics out of this list sent one
+    # economics paper down the language profile, which is how this comment came
+    # to be written.
+    ("maths", re.compile(r"(?:^|[\s_-])(?:math|riyad)", re.I)),
+    ("physics", re.compile(r"(?:^|[\s_-])(?:phys?|fizi)", re.I)),
+    ("chemistry", re.compile(r"(?:^|[\s_-])(?:chem|chim|kimi)", re.I)),
+    ("biology", re.compile(r"(?:^|[\s_-])(?:bio|svt|ahya)", re.I)),
+    ("philosophy", re.compile(r"(?:^|[\s_-])(?:falsafe?|philo)", re.I)),
+    ("civics", re.compile(r"(?:^|[\s_-])(?:tarbeya|tarbia)", re.I)),
+    ("history", re.compile(r"(?:^|[\s_-])(?:tarekh|terekh|tarikh|history)", re.I)),
+    ("geography", re.compile(r"(?:^|[\s_-])(?:geo|greo)", re.I)),
+    ("economics", re.compile(r"(?:^|[\s_-])(?:ektesad|eqtesad|eco(?:no)?)", re.I)),
+    ("sociology", re.compile(r"(?:^|[\s_-])(?:ejteme|ejtema|socio)", re.I)),
+    ("arabic", re.compile(r"(?:^|[\s_-])(?:arabe|arabic|arabeye|ar)(?:[\s_.-]|$)", re.I)),
+    ("language", re.compile(r"(?:^|[\s_-])(?:eng|english|emg|fr|french|francais)(?:[\s_.-]|$)", re.I)),
+]
+
+
+def profile_for(path: str) -> str | None:
+    """Which extraction profile a paper's filename asks for, or None."""
+    name = path.replace("\\", "/").split("/")[-1]
+    for label, pattern in SUBJECT_PROFILE:
+        if pattern.search(name):
+            return label
+    return None
+
+
 PART_SCORE = re.compile(
     rf"(?:^|\n)[ \t]*(?:"
     rf"(?P<num>Part|Partie)\s+(?:One|Two|Three|Four|Une|Deux|Trois|[IVX]{{1,3}}|\d)"
@@ -210,6 +255,21 @@ PART_SCORE = re.compile(
     rf"(?:/\s*\d{{1,2}})?\s*(?:pts?|points?)?",
     re.I,
 )
+
+# The same header, for a paper that pads its label out to the right margin.
+#
+# gs/2007 2/english.pdf prints "Part One: Reading" and then 143 characters of
+# spaces before "(Score: 11/20)". PART_SCORE allows fifty, so it missed, the
+# cascade fell through every other rule, and an ordinary paper was dropped as
+# having no exercise headers. The padding is typography and varies by paper, so
+# any fixed budget is arbitrary; this one is wide enough for the widest in the
+# corpus and still cannot cross a line break.
+#
+# Derived from PART_SCORE's own pattern rather than retyped, so the two cannot
+# drift apart. Only the language profile reaches it, and only once PART_SCORE
+# itself has failed, so no paper that parses today can be re-read by it.
+PART_SCORE_PADDED = re.compile(PART_SCORE.pattern.replace('{0,50}', '{0,200}')
+                               .replace('{0,40}', '{0,200}'), re.I)
 
 # "(9 pts)" printed against a part, which is where these papers put the barème.
 INLINE_MARK = re.compile(
@@ -531,7 +591,7 @@ ASSIGNMENT = re.compile(
 )
 
 
-def find_headers(text: str, allow_subject_split: bool = True) -> tuple:
+def find_headers(text: str, allow_subject_split: bool = True, profile: str | None = None) -> tuple:
     """The exercise headers, whichever of the three forms this paper uses.
 
     Tried in order of how much they assert. A header naming itself an exercise
@@ -550,6 +610,11 @@ def find_headers(text: str, allow_subject_split: bool = True) -> tuple:
     found = list(PART_SCORE.finditer(text))
     if found:
         return found, "part"
+    # A language paper only, and only once every rule above has found nothing.
+    if profile == "language":
+        found = list(PART_SCORE_PADDED.finditer(text))
+        if found:
+            return found, "part"
     # A paper that SAYS it offers a choice of subjects is split on them.
     #
     # Philosophy and literature papers print "First Subject: / Second Subject: /
@@ -813,13 +878,13 @@ def paper_passage(preamble: str) -> str:
     return body if letters >= PASSAGE_MIN else ""
 
 
-def parse_exercises(text: str, allow_subject_split: bool = True) -> list:
+def parse_exercises(text: str, allow_subject_split: bool = True, profile: str | None = None) -> list:
     """Each exercise's number, marks, title and statement, in order.
 
     `allow_subject_split=False` forbids the choice-of-subjects reading, so the
     same paper can be parsed both ways and the two compared. See `read`.
     """
-    found, kind = find_headers(text, allow_subject_split)
+    found, kind = find_headers(text, allow_subject_split, profile)
     out = []
     for n, m in enumerate(found):
         body = text[m.end():found[n + 1].start() if n + 1 < len(found) else len(text)]
@@ -1152,7 +1217,11 @@ def read(pdf: Path) -> dict | None:
     paper_pages, scheme_pages = split_paper_and_scheme(pages)
     paper, scheme_text = "\n".join(paper_pages), "\n".join(scheme_pages)
 
-    exercises = parse_exercises(paper)
+    # Which subject's rules this paper is read with, decided from its filename
+    # and used nowhere else. A subject without a profile gets exactly the
+    # cascade it got before profiles existed.
+    profile = profile_for(str(pdf))
+    exercises = parse_exercises(paper, profile=profile)
 
     # Splitting a choice paper must not cost it its questions.
     #
@@ -1168,9 +1237,9 @@ def read(pdf: Path) -> dict | None:
     # recovered. More sub-questions wins, and marks break the tie. A split that
     # cannot beat leaving the paper whole is not a split worth having, and this
     # needs no rule about which papers are the awkward ones.
-    split_into_subjects = bool(exercises) and find_headers(paper)[1] == "subject"
+    split_into_subjects = bool(exercises) and find_headers(paper, profile=profile)[1] == "subject"
     if split_into_subjects:
-        whole = parse_exercises(paper, allow_subject_split=False)
+        whole = parse_exercises(paper, allow_subject_split=False, profile=profile)
 
         def yield_of(rows):
             return (sum(len(e["parts"]) for e in rows),
@@ -1190,7 +1259,7 @@ def read(pdf: Path) -> dict | None:
     # Everything before the first exercise header. On a science paper this is
     # the letterhead and nothing else; on a comprehension paper it is the text
     # the whole exam is about. `paper_passage` tells them apart by length.
-    headers, _kind = find_headers(paper)
+    headers, _kind = find_headers(paper, profile=profile)
     passage = paper_passage(paper[: headers[0].start()]) if headers else ""
 
     # A Lebanese paper is marked out of twenty. One offering a choice prints more
