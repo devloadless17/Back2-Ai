@@ -138,6 +138,22 @@ AR_NUM_HEAD = re.compile(r"(?:^|\n)[ \t]*(\d{1,2})\s*[-–]\s*(?=\S)")
 # alternative is dropping the paper whole.
 AR_NUM_HEAD_DOT = re.compile(r"(?:^|\n)[ \t]*([\d٠-٩]{1,2})\s*[-–.]\s*(?=\S)")
 
+# An exercise headed by a numeral and a mark spelled in Arabic.
+#
+# A maths paper sat in Arabic writes "IV – (ثلاث علامات" — four, three marks.
+# EXERCISE_BARE reads the same shape but wants digits inside the bracket, so
+# every Arabic maths paper in the corpus produced no headers at all. Kept
+# separate and tried after it, so nothing EXERCISE_BARE already matches can
+# change; the alternative can only fire on text containing Arabic mark words,
+# which a French or English paper does not have.
+#
+# The space before the mark is optional because RTL extraction drops it:
+# gs/2019 1 emits "ثلاثعلامات" as one word.
+AR_EXERCISE_BARE = re.compile(
+    r"(?:^|\n)[ \t]*(?P<num>[IVX]{1,4}|[\d٠-٩]{1,2})\s*[-–—]\s*[(（]?\s*"
+    r"(?:علامتان|علامتين|ثلاث|أربع|اربع|خمس|ست|سبع|ثماني|ثمان|تسع|عشر)\s*علامات?"
+)
+
 # "(2/1 نقطة)" is half a point. The fraction is printed right to left, so the
 # characters arrive as 2, /, 1 and the value is the second over the first —
 # reading it left to right would score it as two.
@@ -641,6 +657,12 @@ def find_headers(text: str, allow_subject_split: bool = True, profile: str | Non
     found = list(EXERCISE_BARE.finditer(text))
     if found:
         return found, "bare"
+    # The same shape with its marks spelled in Arabic, which is how a maths
+    # paper sat in Arabic heads its exercises. Tried only after the digit form
+    # has found nothing.
+    found = list(AR_EXERCISE_BARE.finditer(text))
+    if len(found) >= 2:
+        return found, "ar-bare"
     found = list(PART_SCORE.finditer(text))
     if found:
         return found, "part"
@@ -742,7 +764,7 @@ def header_index(m: re.Match, kind: str, fallback: int) -> int:
     if kind == "part" and not m.group("num"):
         # A section named rather than numbered ("Questions", "Production").
         return fallback
-    if kind in ("bare", "part"):
+    if kind in ("bare", "ar-bare", "part"):
         raw = m.group("num")
         return (ROMAN.get(raw.lower(), 0) or ORD_EN.get(raw.lower(), 0)
                 or {"une": 1, "deux": 2, "trois": 3}.get(raw.lower(), 0)
@@ -964,6 +986,11 @@ def parse_exercises(text: str, allow_subject_split: bool = True, profile: str | 
             # The marks are inside the block, beside each part, in any of the
             # several forms these papers use.
             marks = arabic_marks(statement)
+        elif kind == "ar-bare":
+            # The mark is in the header and spelled out, so the numeric capture
+            # a "bare" header would use holds the numeral instead — reading it
+            # that way turned a paper worth 13 into one worth 0.
+            marks = word_marks(m.group(0))
         elif kind == "subject":
             # No marks in the header; the paper's total is its parts added up.
             marks = sum(p.get("marks", 0) for p in parts)
