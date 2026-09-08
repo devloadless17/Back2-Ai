@@ -96,12 +96,26 @@ AR_FRACTION_MARKS = {
 # The brackets are not required. RTL extraction reorders them — "(أربع علامات)"
 # comes out as "()أربع علامات(" — so anchoring on them loses the note entirely.
 # The phrase itself is distinctive enough.
+# One mark, written the other way round.
+#
+# Every form above puts the number before the noun — "ثلاث علامات", three
+# marks. One does not: a single mark is "علامة واحدة", the noun first, and the
+# civics papers use it constantly. Sixteen of them award nothing but single
+# marks, so the whole paper read as carrying none.
+#
+# The optional tatweel is not decoration either: these PDFs stretch words to
+# justify a line, and "واحـدة" with a kashida inside it is the same word to a
+# reader and a different string to a regex.
+AR_ONE_MARK = r"علامة\s*واحـ?دة"
+
 AR_WORD_MARK = re.compile(
     r"(?:(علامتان|علامتين)|("
     + "|".join(AR_WORD_MARKS)
     + r")\s*علامات?|("
     + "|".join(AR_FRACTION_MARKS)
-    + r")\s*(?:ال)?علامة)"
+    + r")\s*(?:ال)?علامة|(?P<one>"
+    + AR_ONE_MARK
+    + r"))"
 )
 
 # "أولاً :" / "ثانياً :" — how these papers label their questions. There is no
@@ -114,13 +128,15 @@ AR_ORDINAL_HEAD = re.compile(
 def word_marks(text: str) -> float:
     """Marks written as Arabic words, summed over one block."""
     total = 0.0
-    for dual, count, fraction in AR_WORD_MARK.findall(text):
+    for dual, count, fraction, one in AR_WORD_MARK.findall(text):
         if dual:
             total += 1 if dual == "علامة" else 2
         elif count:
             total += AR_WORD_MARKS.get(count.strip(), 0)
-        else:
+        elif fraction:
             total += AR_FRACTION_MARKS.get(fraction.strip(), 0)
+        elif one:
+            total += 1
     return total
 
 # A numbered Arabic question — "1- بالعودة الى المستند رقم(1) استخرج:" — with
