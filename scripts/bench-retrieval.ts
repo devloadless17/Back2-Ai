@@ -132,8 +132,25 @@ function band(value: number): string {
 }
 
 /** The per-subject lift table, as this benchmark has always printed it. */
-function chapterTable(cells: Map<string, Cell>): void {
-  console.log('  section  subject               ch   n   top1   chance   LIFT');
+/**
+ * How much of a subject this table is entitled to judge.
+ *
+ * A cell's score says how often chapter retrieval found the filed chapter. That
+ * is a fair question for a subject made of concept questions and a meaningless
+ * one for a subject made of comprehension: جغرافيا is 8% concept — its
+ * questions hand you a map and ask you to read it — so a chapter score for it
+ * is computed from one question in twelve and reads as failure.
+ *
+ * The column is not decoration. GS Chemistry was called broken on a 52% that
+ * measured half its questions, and أدب عربي — 23% concept, three quarters essay
+ * — looked like the next thing to fix. Printing the denominator next to the
+ * number is the cheapest way to stop reading a score the corpus never offered.
+ */
+function chapterTable(cells: Map<string, Cell>, share?: Map<string, number>): void {
+  console.log(
+    '  section  subject               ch   n   top1   chance   LIFT' +
+      (share ? '          of subject' : ''),
+  );
   const ranked = [...cells.values()]
     .filter((c) => c.n >= MIN_CELL)
     .map((c) => ({ c, l: lift(c.top1 / c.n, baseline(c.chapters, 1)) }))
@@ -146,10 +163,15 @@ function chapterTable(cells: Map<string, Cell>): void {
 
   for (const { c, l } of ranked) {
     const chance = baseline(c.chapters, 1);
+    const of = share?.get(`${c.track}/${c.subject}`);
+    // A cell judging under a third of its subject is flagged rather than
+    // ranked: whatever its score says, it is not saying it about the subject.
+    const note =
+      of === undefined ? '' : `   ${(of * 100).toFixed(0).padStart(3)}%${of < 0.34 ? '  <- not measurable here' : ''}`;
     console.log(
       `  ${c.track.padEnd(8)}${c.subject.slice(0, 20).padEnd(22)}${String(c.chapters).padStart(3)}` +
       `${String(c.n).padStart(4)}${((c.top1 / c.n) * 100).toFixed(0).padStart(6)}%` +
-      `${(chance * 100).toFixed(0).padStart(8)}%${l.toFixed(2).padStart(7)}   ${band(l)}`,
+      `${(chance * 100).toFixed(0).padStart(8)}%${l.toFixed(2).padStart(7)}   ${band(l)}${note}`,
     );
   }
 }
@@ -273,7 +295,29 @@ async function main() {
   console.log('\n\n=== CONCEPT ===================================================');
   console.log('The chapter path, unchanged, and the only kind chapter retrieval');
   console.log('can honestly be scored on. 0 is guessing, 1 is perfect.\n');
-  chapterTable(tally(concept, (p) => `${p.track}/${p.subject}`));
+  /*
+   * What fraction of each subject is concept, and therefore how much of it the
+   * table below is entitled to speak for. Counted over every past-exam probe in
+   * the subject, not only those that reached the concept set.
+   */
+  const conceptShare = new Map<string, number>();
+  {
+    const total = new Map<string, number>();
+    for (const probe of exam) {
+      const id = `${probe.track}/${probe.subject}`;
+      total.set(id, (total.get(id) ?? 0) + 1);
+      if (kindOf.get(probe) === 'concept') conceptShare.set(id, (conceptShare.get(id) ?? 0) + 1);
+    }
+    for (const [id, n] of total) conceptShare.set(id, (conceptShare.get(id) ?? 0) / n);
+  }
+
+  console.log('');
+  console.log('The last column is how much of that subject is concept at all. A');
+  console.log('subject that is mostly comprehension or essay has no chapter to be');
+  console.log('scored against, and its number here is about the sliver that is —');
+  console.log('not about the subject.');
+  console.log('');
+  chapterTable(tally(concept, (p) => `${p.track}/${p.subject}`), conceptShare);
   printWeighted('BY LANGUAGE (weighted, concept only)', concept, (p) => p.lang);
   printWeighted('BY SECTION (weighted, concept only)', concept, (p) => p.track);
 
