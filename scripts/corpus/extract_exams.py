@@ -1405,10 +1405,34 @@ def read(pdf: Path) -> dict | None:
     else:
         total_marks = sum(e["marks"] for e in exercises)
     if len(exercises) > 10 or total_marks > 70:
-        return {
-            "path": str(pdf.relative_to(EXAMS)).replace(chr(92), "/"),
-            "error": f"implausible parse ({len(exercises)} exercises, {total_marks:g} marks)",
-        }
+        # Before giving up: a paper that sets ONE piece of work and numbers its
+        # questions underneath.
+        #
+        # A sociology or economics paper prints a source and asks twenty numbered
+        # questions about it, each with its own marks. The numbered rule reads
+        # every one as a separate exercise — "36 exercises, 76 marks" on a paper
+        # marked out of twenty — and this gate rejects the paper whole, which is
+        # the gate doing its job on a bad reading. The assignment rule already
+        # knows the right reading and returns a single exercise; it simply sits
+        # further down the cascade than the branch that got here first.
+        #
+        # So the paper is re-read that way rather than dropped. Gated on the
+        # paper saying what it is: two instruction verbs and a plausible total
+        # once it is read as one exercise. If that reading is no better, the
+        # rejection stands.
+        if not split_into_subjects and len(ASSIGNMENT.findall(paper)) >= 2:
+            whole = parse_exercises(paper, allow_subject_split=False, profile=profile)
+            if whole:
+                single = whole[:1]
+                single_marks = sum(e["marks"] for e in single)
+                if single_marks <= 70:
+                    exercises = single
+                    total_marks = single_marks
+        if len(exercises) > 10 or total_marks > 70:
+            return {
+                "path": str(pdf.relative_to(EXAMS)).replace(chr(92), "/"),
+                "error": f"implausible parse ({len(exercises)} exercises, {total_marks:g} marks)",
+            }
 
     scheme = parse_scheme(scheme_text) if scheme_text else {}
     mark_columns = scheme_mark_column(scheme_text) if scheme_text else {}
