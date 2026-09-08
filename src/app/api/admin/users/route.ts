@@ -7,7 +7,7 @@ import { revokeAllSessionsForUser } from '@/lib/auth/session';
 import { db } from '@/lib/db';
 import { appLink, sendEmail } from '@/lib/email';
 import { issueToken } from '@/lib/auth/tokens';
-import { LOCALES } from '@/lib/i18n/config';
+import { STUDY_LANGUAGES } from '@/lib/i18n/config';
 
 /**
  * The "contact us to change it" path.
@@ -74,7 +74,10 @@ const patchSchema = z
   .object({
     id: z.string().uuid(),
     trackId: z.string().uuid().nullish(),
-    preferredLanguage: z.enum(LOCALES).optional(),
+    // Same two as signup. An administrator setting a student to Arabic would
+    // give them the Arabic humanities and no sciences, which is not a state
+    // anyone wants to be able to create by hand either.
+    preferredLanguage: z.enum(STUDY_LANGUAGES).optional(),
     role: z.enum(['student', 'admin']).optional(),
     isActive: z.boolean().optional(),
     /** Required free-text justification — this is a support action on someone's record. */

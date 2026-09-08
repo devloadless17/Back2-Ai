@@ -18,7 +18,7 @@ import { appLink, sendEmail } from '@/lib/email';
 import { CARD_BRANDS, PLAN_IDS, PLANS } from '@/lib/billing';
 import { AVAILABLE_COUNTRIES, DEFAULT_COUNTRY } from '@/lib/countries';
 import { db } from '@/lib/db';
-import { LOCALES } from '@/lib/i18n/config';
+import { STUDY_LANGUAGES } from '@/lib/i18n/config';
 
 /**
  * Minimum password length.
@@ -52,7 +52,10 @@ const bodySchema = z.object({
   password: z.string().min(MIN_PASSWORD_LENGTH).max(400),
   displayName: z.string().trim().min(1).max(120),
   trackId: z.string().uuid(),
-  preferredLanguage: z.enum(LOCALES),
+  // The exam is sat in French or English. Arabic is an interface language,
+  // not a programme: choosing it here gave a student the Arabic humanities
+  // and no sciences, locked for good. See STUDY_LANGUAGES.
+  preferredLanguage: z.enum(STUDY_LANGUAGES),
   // Optional-with-a-fallback rather than a zod default: `parseBody` is typed so
   // that a schema's input and output match, and a default would make the parsed
   // field optional at the type level while claiming otherwise.

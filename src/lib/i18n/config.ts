@@ -19,6 +19,28 @@
  * three as equals.
  */
 export const LOCALES = ['en', 'fr', 'ar'] as const;
+
+/**
+ * The languages a student can sit the Baccalaureate in.
+ *
+ * Not the same list as LOCALES, and the difference is the whole point. The
+ * interface speaks three languages; the exam is sat in two. A Lebanese
+ * candidate takes their sciences in French or in English and their humanities
+ * in Arabic either way — there is no all-Arabic programme, which is exactly what
+ * `subjectLanguagesFor` says: 'en' and 'fr' each return themselves plus 'ar',
+ * while 'ar' returns only itself. So a student who chose Arabic here was given
+ * the Arabic humanities and no mathematics, physics, chemistry or biology at
+ * all, and the choice is locked at signup, so nothing would have corrected it.
+ *
+ * Arabic remains a full interface language. A student reading their French
+ * chemistry through Arabic menus loses nothing.
+ */
+export const STUDY_LANGUAGES = ['en', 'fr'] as const;
+export type StudyLanguage = (typeof STUDY_LANGUAGES)[number];
+
+export function isStudyLanguage(value: unknown): value is StudyLanguage {
+  return typeof value === 'string' && (STUDY_LANGUAGES as readonly string[]).includes(value);
+}
 export type Locale = (typeof LOCALES)[number];
 
 export const LOCALE_COOKIE = 'bac2_locale';

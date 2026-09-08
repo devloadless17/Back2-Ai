@@ -8,7 +8,7 @@ import { Alert } from '@/components/ui/feedback';
 import { cn } from '@/lib/cn';
 import { countryOptions } from '@/lib/countries';
 import { useI18n } from '@/lib/i18n/client';
-import { LOCALE_LABELS, LOCALES } from '@/lib/i18n/config';
+import { LOCALE_LABELS, STUDY_LANGUAGES } from '@/lib/i18n/config';
 
 /**
  * Onboarding, one question per screen.
@@ -193,10 +193,10 @@ function buildScreens(t: Dict, format: Fmt, locale: string): Screen[] {
       <ChoiceCards
         legend={t.auth.language}
         name="preferredLanguage"
-        columns={LOCALES.length > 2 ? 2 : 1}
+        columns={STUDY_LANGUAGES.length > 2 ? 2 : 1}
         value={details.preferredLanguage}
         onChange={(code) => set({ preferredLanguage: code })}
-        options={LOCALES.map((code) => ({ value: code, label: LOCALE_LABELS[code] }))}
+        options={STUDY_LANGUAGES.map((code) => ({ value: code, label: LOCALE_LABELS[code] }))}
       />
     ),
   },

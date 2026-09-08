@@ -9,7 +9,7 @@ import { Alert, Badge } from '@/components/ui/feedback';
 import { Sheet, SheetBody, SheetFooter, SheetHeader } from '@/components/ui/sheet';
 import { cn } from '@/lib/cn';
 import { ApiRequestError, sendJson } from '@/lib/client/request';
-import { LOCALE_LABELS, LOCALES } from '@/lib/i18n/config';
+import { LOCALE_LABELS, STUDY_LANGUAGES } from '@/lib/i18n/config';
 import { useI18n } from '@/lib/i18n/client';
 
 export type AdminUserRow = {
@@ -233,7 +233,7 @@ export function UserAdmin({
                             }))
                           }
                         >
-                          {LOCALES.map((locale) => (
+                          {STUDY_LANGUAGES.map((locale) => (
                             <option key={locale} value={locale}>
                               {LOCALE_LABELS[locale]}
                             </option>
