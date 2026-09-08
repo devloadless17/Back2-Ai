@@ -1265,12 +1265,50 @@ def table_marks(pdf: Path, exercises: list) -> dict:
     }
 
 
+OCR_TEXT = ROOT / "corpus" / "text"
+
+
+def ocr_pages(pdf: Path) -> list | None:
+    """Pages transcribed by `ocr_pdf.py`, if this paper has been read that way.
+
+    A PDF whose font maps ث to ا extracts "الوديرية العاهة" for
+    "المديرية العامة" — text that is worse than none, because it embeds without
+    complaint and retrieves nonsense. 127 papers in this corpus are like that
+    and no parsing rule can reach them.
+
+    The transcription is keyed by the paper's own sha256, not its name, so a
+    paper that is renamed or filed under a second track still finds its pages
+    and a paper that is *replaced* silently stops finding them, which is the
+    safe direction.
+    """
+    if not OCR_TEXT.exists():
+        return None
+    digest = hashlib.sha256(pdf.read_bytes()).hexdigest()
+    folder = next(OCR_TEXT.glob(f"*__{digest[:8]}"), None)
+    if folder is None:
+        return None
+    pages = sorted(folder.glob("page-*.md"))
+    if not pages:
+        return None
+    return [page.read_text(encoding="utf-8") for page in pages]
+
+
 def read(pdf: Path) -> dict | None:
     try:
         reader = PdfReader(pdf)
         pages = [(p.extract_text() or "") for p in reader.pages]
     except Exception as exc:
         return {"path": str(pdf.relative_to(EXAMS)), "error": type(exc).__name__}
+
+    # A transcription replaces the text layer only where the text layer has
+    # already failed. A paper that extracts properly is never re-read from an
+    # image: the PDF's own text is exact where it works, and OCR is a
+    # reconstruction, so preferring it everywhere would trade certainty for
+    # plausibility across the whole corpus to fix one eighth of it.
+    if sum(len(page) for page in pages) / max(1, len(pages)) < 400:
+        transcribed = ocr_pages(pdf)
+        if transcribed:
+            pages = transcribed
 
     # Normalised before anything is matched against it.
     #
