@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
+import { FirstSteps } from '@/components/dashboard/first-steps';
 import { SplitHero } from '@/components/dashboard/split-hero';
 import { streakFrom, type SubjectRing } from '@/components/dashboard/subject-rings';
 import { WelcomeHero } from '@/components/dashboard/welcome-hero';
@@ -17,6 +18,7 @@ import { db } from '@/lib/db';
 import { getTranslations } from '@/lib/i18n';
 import { daysUntil, format, formatDate } from '@/lib/i18n/format';
 import { attemptsByDay, weeklyEffort } from '@/lib/queries/activity';
+import { getFirstSteps } from '@/lib/queries/first-steps';
 import { getNextUp } from '@/lib/queries/next-up';
 import { findWeakestChapter, getProgressForUser } from '@/lib/queries/progress';
 import { getStanding } from '@/lib/queries/standing';
@@ -55,6 +57,7 @@ export default async function DashboardPage() {
     nextUp,
     todaySessions,
     week,
+    firstSteps,
   ] = await Promise.all([
     getProgressForUser(user.id, user.trackId, user.preferredLanguage),
     db.flashcardState.count({ where: { userId: user.id, dueDate: { lte: startOfToday() } } }),
@@ -106,6 +109,7 @@ export default async function DashboardPage() {
     }),
     // The last seven days, for the hero's three figures.
     weeklyEffort(user.id),
+    getFirstSteps(user.id),
   ]);
 
   const weakest = findWeakestChapter(progress);
@@ -184,6 +188,13 @@ export default async function DashboardPage() {
 
   return (
     <>
+      {/*
+        Above the hero, not below it. Every number on this page is zero for a
+        student who has just signed up, and a card explaining what to do sits
+        badly underneath the empty rings it is there to fill.
+      */}
+      <FirstSteps steps={firstSteps} />
+
       <WelcomeHero
         firstName={user.displayName?.split(' ')[0] ?? ''}
         sessionCount={todaySessions.filter((s) => s.status === 'planned').length}
