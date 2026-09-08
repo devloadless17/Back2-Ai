@@ -37,7 +37,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 TEXT = ROOT / "corpus" / "text"
 
-API = "https://api.openai.com/v1/chat/completions"
+OPENAI_API = "https://api.openai.com/v1/chat/completions"
+ANTHROPIC_API = "https://api.anthropic.com/v1/messages"
+ANTHROPIC_VERSION = "2023-06-01"
 SCALE = 2  # ~150 dpi; enough for printed Arabic without inflating the image bill
 
 SYSTEM = (
@@ -50,11 +52,19 @@ SYSTEM = (
 ARABIC = re.compile(r"[؀-ۿ]")
 
 
-def api_key() -> str:
+def is_claude(model: str) -> bool:
+    return model.startswith("claude")
+
+
+def api_key(model: str) -> str:
+    """The key for whichever provider the model belongs to."""
+    name = "ANTHROPIC_API_KEY" if is_claude(model) else "OPENAI_API_KEY"
     for line in (ROOT / ".env").read_text(encoding="utf-8").splitlines():
-        if line.startswith("OPENAI_API_KEY"):
-            return line.split("=", 1)[1].strip().strip('"')
-    raise SystemExit("OPENAI_API_KEY not found in .env")
+        if line.startswith(name):
+            value = line.split("=", 1)[1].strip().strip('"')
+            if value:
+                return value
+    raise SystemExit(f"{name} not found in .env")
 
 
 def render(pdf, index: int) -> bytes:
@@ -65,35 +75,80 @@ def render(pdf, index: int) -> bytes:
 
 
 def read_page(key: str, model: str, jpeg: bytes) -> tuple:
-    body = {
-        "model": model,
-        "messages": [
-            {"role": "system", "content": SYSTEM},
-            {
-                "role": "user",
-                "content": [
-                    {"type": "text", "text": "Transcribe this page."},
-                    {
-                        "type": "image_url",
-                        "image_url": {
-                            "url": "data:image/jpeg;base64," + base64.b64encode(jpeg).decode(),
-                            "detail": "high",
+    """One page, from whichever provider the model names.
+
+    Claude is three times cheaper than GPT for this at the same page rates
+    (in $2/M vs $5/M, out $10/M vs $30/M on the Sonnet tier), and this is 576
+    pages of scanned Arabic, so the difference is the difference between a
+    decision and a formality. The two APIs disagree about where the system
+    prompt goes, how an image is attached and what the response is called;
+    nothing else here changes.
+    """
+    encoded = base64.b64encode(jpeg).decode()
+
+    if is_claude(model):
+        url = ANTHROPIC_API
+        body = {
+            "model": model,
+            "max_tokens": 4000,
+            "system": SYSTEM,
+            "messages": [
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "image",
+                            "source": {"type": "base64", "media_type": "image/jpeg", "data": encoded},
                         },
-                    },
-                ],
-            },
-        ],
-        "max_completion_tokens": 4000,
-    }
-    request = urllib.request.Request(
-        API,
-        data=json.dumps(body).encode(),
-        headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
-    )
+                        {"type": "text", "text": "Transcribe this page."},
+                    ],
+                }
+            ],
+        }
+        headers = {
+            "x-api-key": key,
+            "anthropic-version": ANTHROPIC_VERSION,
+            "Content-Type": "application/json",
+        }
+    else:
+        url = OPENAI_API
+        body = {
+            "model": model,
+            "messages": [
+                {"role": "system", "content": SYSTEM},
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": "Transcribe this page."},
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": "data:image/jpeg;base64," + encoded,
+                                "detail": "high",
+                            },
+                        },
+                    ],
+                },
+            ],
+            "max_completion_tokens": 4000,
+        }
+        headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
+
+    request = urllib.request.Request(url, data=json.dumps(body).encode(), headers=headers)
     for attempt in range(4):
         try:
             with urllib.request.urlopen(request, timeout=300) as response:
                 payload = json.load(response)
+            if is_claude(model):
+                usage = payload.get("usage", {})
+                text = "".join(
+                    block.get("text", "") for block in payload.get("content", [])
+                    if block.get("type") == "text"
+                )
+                return text, {
+                    "prompt_tokens": usage.get("input_tokens", 0),
+                    "completion_tokens": usage.get("output_tokens", 0),
+                }
             usage = payload.get("usage", {})
             return payload["choices"][0]["message"]["content"] or "", usage
         except urllib.error.HTTPError as e:
@@ -150,7 +205,7 @@ def main() -> None:
         return
 
     folder.mkdir(parents=True, exist_ok=True)
-    key = api_key()
+    key = api_key(args.model)
     total_in = total_out = 0
     thin = []
 
