@@ -178,6 +178,14 @@ def arabic_marks(text: str) -> float:
 EXERCISE = re.compile(
     rf"(?:^|\n)[ \t]*(?:"
     rf"(?P<en_ord>First|Second|Third|Fourth|Fifth|Sixth|1st|2nd|3rd|4th|5th)\s+Exercise|"
+    # The same heading, calling itself a Set.
+    #
+    # "First Obligatory Set: Utilization of concepts and techniques (8 pts)"
+    # is how the English-language sociology and economics papers head their
+    # sections — 26 of them, in the two subjects with the fewest questions in
+    # the corpus. An optional word between the ordinal and "Set" carries
+    # "Obligatory" and "Optional", which is the only thing that varies.
+    rf"(?P<en_set>First|Second|Third|Fourth|Fifth|Sixth)[\s-]+(?:\w+[\s-]+)?Set[^\n(（]{{0,60}}|"
     rf"Exercise\s+(?P<en_num>\d{{1,2}}|[IVX]{{1,4}})|"
     rf"(?P<fr_ord>Premier|Première|Deuxi[èe]me|Troisi[èe]me|Quatri[èe]me|Cinqui[èe]me)\s+exercice|"
     rf"Exercice\s+(?P<fr_num>\d{{1,2}}|[IVX]{{1,4}})|"
@@ -535,7 +543,9 @@ def to_number(raw: str) -> float:
 
 
 def exercise_index(m: re.Match) -> int:
-    for group, table in (("en_ord", ORD_EN), ("fr_ord", ORD_FR), ("ar_ord", ORD_AR)):
+    # `en_set` is numbered from the same table as `en_ord` — "First Set" is the
+    # first exercise exactly as "First Exercise" is.
+    for group, table in (("en_ord", ORD_EN), ("en_set", ORD_EN), ("fr_ord", ORD_FR), ("ar_ord", ORD_AR)):
         value = m.group(group)
         if value:
             return table.get(value.lower() if group != "ar_ord" else value, 0)
@@ -1425,9 +1435,19 @@ def read(pdf: Path) -> dict | None:
             if whole:
                 single = whole[:1]
                 single_marks = sum(e["marks"] for e in single)
-                if single_marks <= 70:
-                    exercises = single
-                    total_marks = single_marks
+                # An impossible total does not un-make a correct structure. One
+                # assignment read as one exercise is the right shape whatever its
+                # marks add up to, and se/2008 2/ejteme3_ar.pdf sums 25 misread
+                # part-marks to 287 on a paper worth 20. The same trade is made
+                # for a choice-of-subjects paper above: keep the exercise, drop
+                # the number to unknown, and let it have no barème rather than
+                # lose the paper over one bad figure.
+                if single_marks > 70:
+                    for exercise in single:
+                        exercise["marks"] = 0
+                    single_marks = 0
+                exercises = single
+                total_marks = single_marks
         if len(exercises) > 10 or total_marks > 70:
             return {
                 "path": str(pdf.relative_to(EXAMS)).replace(chr(92), "/"),
