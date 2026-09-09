@@ -174,7 +174,23 @@ AR_EXERCISE_BARE = re.compile(
 # characters arrive as 2, /, 1 and the value is the second over the first —
 # reading it left to right would score it as two.
 AR_FRACTION_MARK = re.compile(r"(\d)\s*/\s*(\d)\s*(?:نقطة|نقاط|علامة|علامات)")
-AR_DIGIT_MARK = re.compile(r"(\d{1,2}(?:[.,]\d)?)\s*(?:نقطة|نقاط|علامة|علامات)")
+# Two decimal places, and never starting inside a longer number.
+#
+# A sociology paper writes a half mark as "(0.50 علامة)". Allowing one decimal
+# digit, the pattern cannot match "0.50" — so rather than failing, the engine
+# slid forward and matched "50". Thirteen of those on se/2009 1/ejteme3_ar.pdf
+# totalled 50 marks for a paper worth 19, and "(0.25 علامة)" read as 25.
+#
+# The wrong total was not the whole of the damage. An implausible total sends
+# the paper back through the assignment fallback, which deliberately reads it
+# as ONE exercise — so eleven of the twelve Arabic sociology papers held a
+# single blob question covering the entire paper. The unreadable barème and
+# the unsplit paper were one bug wearing two faces.
+#
+# This is the same shape as PART_MARK, which read "(Score: 11/20)" as the
+# fraction 11/2 and already carries the corrected form. The lookbehind is what
+# stops a match beginning mid-number, which is how "50" was reached at all.
+AR_DIGIT_MARK = re.compile(r"(?<![\d.,])(\d{1,2}(?:[.,]\d{1,2})?)\s*(?:نقطة|نقاط|علامة|علامات)")
 AR_BARE_POINT = re.compile(r"[(（]\s*(?:نقطة|علامة)\s*[)）]")
 
 
