@@ -9,6 +9,7 @@ import { RevealableSolution } from '@/components/practice/revealable-solution';
 import { Alert, EmptyAction, EmptyState } from '@/components/ui/feedback';
 import { QuestionBody } from '@/components/ui/math';
 import { PageHeader, Sheet } from '@/components/ui/sheet';
+import { BackLink } from '@/components/ui/back-link';
 import { requireUser } from '@/lib/auth/guards';
 import { db } from '@/lib/db';
 import { getTranslations } from '@/lib/i18n';
@@ -80,6 +81,7 @@ export default async function ExamCyclePage({
   return (
     <>
       <TutorAnchor label={cycle.title} />
+      <BackLink href="/old-cycles" label={t.nav.oldCycles} />
 
       {/*
         The way out.

@@ -5,6 +5,7 @@ import { ChatThread, type ChatMessageView } from '@/components/chat/chat-thread'
 import { Alert } from '@/components/ui/feedback';
 import { QuestionBody } from '@/components/ui/math';
 import { PageHeader, Sheet, SheetBody, SheetHeader } from '@/components/ui/sheet';
+import { BackLink } from '@/components/ui/back-link';
 import { requireUser } from '@/lib/auth/guards';
 import { db } from '@/lib/db';
 import { isAiConfigured, isEmbeddingConfigured } from '@/lib/env';
@@ -66,6 +67,7 @@ export default async function ChatSessionPage({
 
   return (
     <>
+      <BackLink href="/dashboard" label={t.nav.dashboard} />
       <PageHeader title={session.title ?? t.chat.title} description={t.chat.subtitle} />
 
       {!configured && (

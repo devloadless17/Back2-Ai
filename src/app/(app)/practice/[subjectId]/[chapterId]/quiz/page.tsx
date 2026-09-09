@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 import { QuizRunner, type QuizQuestion } from '@/components/practice/quiz-runner';
 import { ChapterDeadEnd } from '@/components/practice/chapter-dead-end';
 import { PageHeader } from '@/components/ui/sheet';
+import { BackLink } from '@/components/ui/back-link';
 import { requireUser } from '@/lib/auth/guards';
 import { db } from '@/lib/db';
 import { getTranslations } from '@/lib/i18n';
@@ -100,6 +101,7 @@ export default async function ChapterQuizPage({
 
   return (
     <>
+      <BackLink href={`/practice/${chapter.subject.id}/${chapter.id}`} label={chapter.name} />
       <PageHeader
         title={`${t.todos.actionQuiz} · ${chapter.name}`}
         description={chapter.subject.name}

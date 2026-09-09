@@ -5,6 +5,7 @@ import { notFound } from 'next/navigation';
 import { TutorAnchor } from '@/components/chat/tutor-context';
 import { Alert, Badge, EmptyState } from '@/components/ui/feedback';
 import { PageHeader, Sheet, SheetBody, SheetHeader } from '@/components/ui/sheet';
+import { BackLink } from '@/components/ui/back-link';
 import { requireUser } from '@/lib/auth/guards';
 import { db } from '@/lib/db';
 import { getTranslations } from '@/lib/i18n';
@@ -48,6 +49,8 @@ export default async function ChapterSummaryPage({
   return (
     <>
       <TutorAnchor label={chapter.name} />
+
+      <BackLink href={`/summaries/${chapter.subject.id}`} label={chapter.subject.name} />
 
       <PageHeader title={chapter.name} description={chapter.subject.name} />
 

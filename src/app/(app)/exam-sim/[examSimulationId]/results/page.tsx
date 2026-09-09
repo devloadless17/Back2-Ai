@@ -10,6 +10,7 @@ import { MathText, QuestionBody } from '@/components/ui/math';
 import { BandChip } from '@/components/ui/band';
 import { Meter } from '@/components/ui/progress';
 import { PageHeader, Sheet, SheetBody, SheetFooter, SheetHeader } from '@/components/ui/sheet';
+import { BackLink } from '@/components/ui/back-link';
 import { requireUser } from '@/lib/auth/guards';
 import { db } from '@/lib/db';
 import { loadSimulation, slotContent } from '@/lib/exam';
@@ -112,6 +113,8 @@ export default async function ExamResultsPage({
   return (
     <>
       <TutorAnchor label={simulation.subject.name} />
+
+      <BackLink href="/exam-sim" label={t.nav.examSim} />
 
       <PageHeader
         title={t.examSim.resultsTitle}

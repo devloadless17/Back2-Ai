@@ -8,6 +8,7 @@ import { Meter } from '@/components/ui/progress';
 import { Sheet, SheetBody } from '@/components/ui/sheet';
 import { TutorAnchor } from '@/components/chat/tutor-context';
 import { SubjectHub } from '@/components/practice/subject-hub';
+import { BackLink } from '@/components/ui/back-link';
 import { getSubjectHub } from '@/lib/queries/subject-hub';
 import { requireUser } from '@/lib/auth/guards';
 import { cn } from '@/lib/cn';
@@ -65,6 +66,7 @@ export default async function SubjectChaptersPage({
       */}
       {/* So the tutor knows which subject the student is standing in. */}
       <TutorAnchor label={subject.name} />
+      <BackLink href="/practice" label={t.nav.practice} />
 
       <SubjectHub subjectId={subject.id} subjectName={subject.name} counts={hub} />
 

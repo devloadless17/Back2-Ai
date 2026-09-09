@@ -5,6 +5,7 @@ import { TutorAnchor } from '@/components/chat/tutor-context';
 import { PracticeRunner, type PracticeQuestion } from '@/components/practice/practice-runner';
 import { ChapterDeadEnd } from '@/components/practice/chapter-dead-end';
 import { PageHeader } from '@/components/ui/sheet';
+import { BackLink } from '@/components/ui/back-link';
 import { requireUser } from '@/lib/auth/guards';
 import { db } from '@/lib/db';
 import { PUBLISHED_FILTER } from '@/lib/generation';
@@ -119,6 +120,7 @@ export default async function ChapterPracticePage({
   return (
     <>
       <TutorAnchor label={chapter.name} />
+      <BackLink href={`/practice/${chapter.subject.id}`} label={chapter.subject.name} />
 
       <PageHeader
         title={chapter.name}

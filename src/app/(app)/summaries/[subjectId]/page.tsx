@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 
 import { Badge, EmptyState } from '@/components/ui/feedback';
 import { PageHeader, Sheet, SheetBody, SheetHeader } from '@/components/ui/sheet';
+import { BackLink } from '@/components/ui/back-link';
 import { requireUser } from '@/lib/auth/guards';
 import { db } from '@/lib/db';
 import { getTranslations } from '@/lib/i18n';
@@ -78,6 +79,7 @@ export default async function SubjectSummaryPage({
 
   return (
     <>
+      <BackLink href="/summaries" label={t.nav.summaries} />
       <PageHeader title={subject.name} description={t.summaries.subtitle} />
 
       {overview?.status === 'ok' && overview.overview ? (
