@@ -69,7 +69,8 @@
     "judge:export": "node --conditions=react-server --env-file=.env --import tsx scripts/judge-passages-xlsx.ts",
     "judge:import": "node --conditions=react-server --env-file=.env --import tsx scripts/judge-passages-xlsx.ts --import",
     "prune:misfiled": "node --conditions=react-server --env-file=.env --import tsx scripts/corpus/prune-misfiled-exams.ts",
-    "refile:languages": "node --conditions=react-server --env-file=.env --import tsx scripts/corpus/refile-exam-languages.ts"
+    "refile:languages": "node --conditions=react-server --env-file=.env --import tsx scripts/corpus/refile-exam-languages.ts",
+    "merge:chapters": "node --conditions=react-server --env-file=.env --import tsx scripts/merge-duplicate-chapters.ts"
   },
   "overrides": {
     "postcss": "$postcss",

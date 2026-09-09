@@ -73,6 +73,14 @@ export type TaxonomyResult = {
   subjects: number;
   units: number;
   chapters: number;
+  /**
+   * Chapters a later book named that an earlier book in the same subject had
+   * already created, so no second row was made. Almost all of these are a
+   * workbook repeating its textbook's chapters. Reported rather than counted
+   * silently: if this number is large in a subject with one book, the dedup is
+   * fusing chapters that are not the same and the corpus is worse for it.
+   */
+  sharedChapters: number;
   /** Books the catalog names but whose chapter list could not be read. */
   skipped: string[];
 };
@@ -241,7 +249,7 @@ export async function loadCorpusTaxonomy(
     catalogText = await readFile(CATALOG, 'utf8');
   } catch {
     // No corpus checked out. Callers fall back to the placeholder taxonomy.
-    return { corpusPresent: false, subjects: 0, units: 0, chapters: 0, skipped: [] };
+    return { corpusPresent: false, subjects: 0, units: 0, chapters: 0, sharedChapters: 0, skipped: [] };
   }
 
   const catalog = parseCsv(catalogText);
@@ -250,6 +258,7 @@ export async function loadCorpusTaxonomy(
     subjects: 0,
     units: 0,
     chapters: 0,
+    sharedChapters: 0,
     skipped: [],
   };
 
@@ -270,6 +279,46 @@ export async function loadCorpusTaxonomy(
   const nextChapterIndex = new Map<string, number>();
   const nextUnitIndex = new Map<string, number>();
   const chaptersPerSubject = new Map<string, number>();
+
+  /*
+   * Chapter names already claimed in each subject, so two books teaching the
+   * same chapter share one row.
+   *
+   * A textbook and its workbook cover the SAME chapters — "Learning from Our
+   * Past" is chapter one of both `themes-lh-en` and `themes-workbook-lh-en` —
+   * and giving each book its own contiguous range (above) meant each of those
+   * chapters was created twice. The student's index then listed every chapter
+   * twice, once holding the textbook's passages and once the workbook's, with
+   * the second copy reading "No practice questions for this chapter yet". That
+   * is what the duplicate-chapter complaint was: English SE carried 18 chapters
+   * for 11 distinct names, GS and LS 6 for 3.
+   *
+   * Keyed on the title plus HOW MANY TIMES that title has already appeared in
+   * the same book. `looksUnparsed` above records why a bare name will not do:
+   * the English Themes readers repeat "The World Within Us", "The World Around
+   * Us" and "New Worlds" inside each of their three thematic units, by design,
+   * and a name-only key would fuse those three real chapters into one. Counting
+   * occurrences keeps them apart (#0, #1, #2 within the book) while still
+   * matching a workbook's first "Learning from Our Past" to its textbook's.
+   *
+   * Keying on the UNIT instead was tried and matched too little: the textbook
+   * heads its unit "History: The World in the Making" and the workbook heads
+   * the same unit "History - The World in the Making", so 13 of the 24
+   * duplicates in the database survived on a colon.
+   *
+   * Matched on the exact folded name, not on similarity. Two SE readers print
+   * "Socio-economic Issues: Employment, Immigration, Living Standards" and
+   * "Socio-economic Issues: Emigration, Employment, Production, Living
+   * Standards" — a human can see those are one chapter, and no rule here can,
+   * so they stay separate. Merging on a guess would fuse two real chapters and
+   * take a student's mastery with it; leaving a near-duplicate is recoverable.
+   *
+   * `load-chunks` already resolves chapters BY NAME, so the second book's
+   * passages land on the shared row with no further change.
+   */
+  const namesPerSubject = new Map<string, Map<string, number>>();
+  const foldName = (s: string) => s.normalize('NFKC').replace(/\s+/g, ' ').trim().toLowerCase();
+  let sharedChapters = 0;
 
   for (const row of catalog) {
     if (!row.book_name || !row.folder) continue;
@@ -390,15 +439,38 @@ export async function loadCorpusTaxonomy(
       // Chapters keyed on (subject, orderIndex) so a re-run updates in place
       // rather than duplicating — anything already filed under a chapter keeps
       // pointing at the same row.
-      const chapterBase = subject ? nextChapterIndex.get(subject.id) ?? 0 : 0;
-      if (subject) {
-        nextChapterIndex.set(subject.id, chapterBase + list.length);
-        chaptersPerSubject.set(subject.id, chapterBase + list.length);
+      //
+      // An index is allocated only for a name this subject has not seen, so a
+      // workbook repeating its textbook's chapters consumes none. See
+      // `namesPerSubject`.
+      const subjectKey = subject ? subject.id : `dry:${row.subject}:${language}:${code}`;
+      let nextIndex = nextChapterIndex.get(subjectKey) ?? 0;
+      let claimed = namesPerSubject.get(subjectKey);
+      if (!claimed) {
+        claimed = new Map<string, number>();
+        namesPerSubject.set(subjectKey, claimed);
       }
 
-      for (const [offset, chapter] of list.entries()) {
-        const i = chapterBase + offset;
+      const seenInThisBook = new Map<string, number>();
+      for (const chapter of list) {
+        const bare = foldName(chapter.title);
+        const nth = seenInThisBook.get(bare) ?? 0;
+        seenInThisBook.set(bare, nth + 1);
+        const key = `${bare}#${nth}`;
+        if (claimed.has(key)) {
+          // Already a row in this subject, from an earlier book. Its passages
+          // will find it by name; creating a second is what produced the
+          // duplicated index.
+          sharedChapters += 1;
+          continue;
+        }
+
+        const i = nextIndex;
+        nextIndex += 1;
+        claimed.set(key, i);
         result.chapters += 1;
+        nextChapterIndex.set(subjectKey, nextIndex);
+        if (subject) chaptersPerSubject.set(subject.id, nextIndex);
         if (dry || !subject) continue;
 
         await db.chapter.upsert({
@@ -457,5 +529,6 @@ export async function loadCorpusTaxonomy(
       await db.chapter.delete({ where: { id: stale.id } });
     }
   }
+  result.sharedChapters = sharedChapters;
   return result;
 }

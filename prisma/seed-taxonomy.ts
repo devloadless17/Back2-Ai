@@ -31,6 +31,12 @@ async function main() {
   console.log(`  subjects  ${result.subjects}`);
   console.log(`  units     ${result.units}`);
   console.log(`  chapters  ${result.chapters}`);
+  if (result.sharedChapters) {
+    // A workbook repeating its textbook's chapters. Printed because the same
+    // number would mean something very different in a one-book subject: there
+    // it would be the dedup fusing chapters that are not the same.
+    console.log(`  shared    ${result.sharedChapters}  (named by a later book, already created by an earlier one)`);
+  }
 
   if (result.skipped.length) {
     // The same list carries two different things: books that could not be
