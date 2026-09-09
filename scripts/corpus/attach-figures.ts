@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, readdirSync, renameSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync } from 'node:fs';
 import path from 'node:path';
 
 import { db } from '../../src/lib/db';
@@ -82,21 +82,60 @@ function normalise(text: string): string {
   return text.toLowerCase().replace(/\s+/g, ' ').replace(/[^a-z0-9 ]/g, '').trim();
 }
 
-function pageText(pdf: string, page: number): string {
+/**
+ * Where `ocr_pdf.py` left the transcription of a paper whose text layer is dead.
+ *
+ * 129 of these papers extract nothing at all — `pdftotext` on
+ * ls/2006 1/bio_en.pdf returns an empty string for every page — and those are
+ * precisely the papers most likely to need this tool, because a paper that was
+ * scanned rather than typeset is a paper whose diagrams were never text. Read
+ * from the pdf's sha256 exactly as `extract_exams.py` finds it, so the two
+ * agree on which transcription belongs to which paper.
+ */
+function ocrPage(pdf: string, page: number): string {
   try {
-    return execFileSync('pdftotext', ['-f', String(page), '-l', String(page), pdf, '-'], {
-      encoding: 'utf8',
-      maxBuffer: 20_000_000,
-    });
+    const sha = createHash('sha256').update(readFileSync(pdf)).digest('hex').slice(0, 8);
+    const root = path.join('corpus', 'text');
+    if (!existsSync(root)) return '';
+    const folder = readdirSync(root).find((name) => name.endsWith(`__${sha}`));
+    if (!folder) return '';
+    const file = path.join(root, folder, `page-${String(page).padStart(3, '0')}.md`);
+    return existsSync(file) ? readFileSync(file, 'utf8') : '';
   } catch {
     return '';
   }
 }
 
+function pageText(pdf: string, page: number): string {
+  let text = '';
+  try {
+    text = execFileSync('pdftotext', ['-f', String(page), '-l', String(page), pdf, '-'], {
+      encoding: 'utf8',
+      maxBuffer: 20_000_000,
+    });
+  } catch {
+    text = '';
+  }
+  // A dead text layer reads as a handful of stray characters rather than as an
+  // error, so the fallback is on emptiness of CONTENT, not on the call failing.
+  return text.trim().length > 20 ? text : ocrPage(pdf, page);
+}
+
 function pageCount(pdf: string): number {
   try {
     const info = execFileSync('pdfinfo', [pdf], { encoding: 'utf8' });
-    return Number(/Pages:\s+(\d+)/.exec(info)?.[1] ?? 0);
+    const n = Number(/Pages:\s+(\d+)/.exec(info)?.[1] ?? 0);
+    if (n > 0) return n;
+  } catch {
+    // fall through to the transcription
+  }
+  try {
+    const sha = createHash('sha256').update(readFileSync(pdf)).digest('hex').slice(0, 8);
+    const root = path.join('corpus', 'text');
+    if (!existsSync(root)) return 0;
+    const folder = readdirSync(root).find((name) => name.endsWith(`__${sha}`));
+    if (!folder) return 0;
+    return readdirSync(path.join(root, folder)).filter((f) => /^page-\d+\.md$/.test(f)).length;
   } catch {
     return 0;
   }
@@ -160,11 +199,31 @@ async function main() {
       continue;
     }
 
-    const anchor = normalise(row.content_text).slice(0, 60);
-    if (anchor.length < MIN_ANCHOR) {
+    /*
+     * Several anchors from across the question, not one from its opening.
+     *
+     * The stored statement is a RECONSTRUCTION: `load-exams` strips the
+     * exercise header and reassembles what is left, so a question stored as
+     * "Parkinson Disease Document 1 1- Pick out from document 1" sits on a page
+     * reading "Exercise 4 (6.5 points) Parkinson disease is a neurodegenerative
+     * ...". Its first sixty characters appear nowhere on the paper, and
+     * anchoring there identified the page for none of fifteen Life Sciences
+     * questions while the text was sitting in front of it.
+     *
+     * A reassembled statement still contains long runs copied verbatim — they
+     * are just not at the start. Four samples spread through it, and a page
+     * matching ANY of them is the page. Forty characters is far past
+     * coincidence in a four-page paper, so a hit is a hit.
+     */
+    const whole = normalise(row.content_text);
+    if (whole.length < MIN_ANCHOR) {
       noPage += 1;
       continue;
     }
+    const anchors = [0, 0.25, 0.5, 0.75]
+      .map((at) => whole.slice(Math.floor(whole.length * at), Math.floor(whole.length * at) + 40))
+      .filter((a) => a.length === 40);
+    if (anchors.length === 0) anchors.push(whole.slice(0, MIN_ANCHOR));
 
     let placed = false;
     for (const file of pdfs) {
@@ -177,7 +236,7 @@ async function main() {
         );
       }
 
-      const page = (pageCache.get(pdf) ?? []).findIndex((text) => text.includes(anchor));
+      const page = (pageCache.get(pdf) ?? []).findIndex((text) => anchors.some((a) => text.includes(a)));
       if (page < 0) continue;
 
       const stem = createHash('sha1').update(pdf).digest('hex').slice(0, 12);
