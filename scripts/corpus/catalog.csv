@@ -1,4 +1,4 @@
-﻿book_name,folder,sha8,subject,language,tracks,pages,duplicate_folders,note
+book_name,folder,sha8,subject,language,tracks,pages,duplicate_folders,note
 chimie-gsls-en,chemistry-en__852933a0,852933a0,Chemistry,en,GS;LS,393,,Cover: Sections General Sciences - Life Sciences.
 chimie-lhse-en,chemistry-lh-en__f24cb630,f24cb630,Chemistry,en,LH;SE,193,,Cover: Sections Literature and Humanities. Shared with SE.
 chimie-gsls-fr,chimie-fr__0ddf683b,0ddf683b,Chimie,fr,GS;LS,394,,Cover: Sciences Generales - Sciences de la Vie.
@@ -43,3 +43,4 @@ arabe-lh,arabic-lit-lh__3c72187a,3c72187a,أدب عربي,ar,LH,205,,Cover: ال
 kawa3ed-lh,arabic-grammar-lh__27a53b20,27a53b20,أدب عربي,ar,LH,144,,Cover: قواعد اللغة العربية والبلاغة والعروض، فرع الآداب والإنسانيات. Imported from .docx; page numbers are synthetic.
 tarikh-all,history-all__edff34c6,edff34c6,تاريخ,ar,GS;LS;SE;LH,40,,"NOT a CRDP textbook. Cover: التاريخ المعاصر للبنان والدول العربية، السنة الثانوية الثالثة جميع الفروع، ثانوية عمقا المختلطة، إعداد المعلّمة فادية مصطفى عبّاس، معدّلة لسنة 2025-2026 — a teacher's revision summary, not the national edition. Read by gpt-5.5 vision because the PDF's own text layer is corrupt (maps ث to ا and ش to a space). Cite accordingly."
 ektesad-se,economics-se__7979fbf6,7979fbf6,اقتصاد,ar,SE,315,,"Cover: التنمية والسياسات الاقتصادية، التعليم الثانوي السنة الثالثة، فرع الاجتماع والاقتصاد — CRDP national textbook. Image-only scan with no text layer at all; read by gpt-5.4-mini vision, which on test pages matched the stronger model on prose and kept percent signs the stronger model dropped."
+tarikh-lubnan-arab,tarikh-lubnan-arab__f2a0ce7d,f2a0ce7d,تاريخ,ar,GS;LS;SE;LH,89,,"Assembled from six scanned parts in corpus/history (no text layer, read by ocr_pdf.py) and renumbered onto the page numbers the book prints. Cover: المنهج الجديد في التاريخ - لبنان والعالم العربي, حسين عبيد / نادية حمزة, دار بركات. Printed 29-30 are missing from the scan."
