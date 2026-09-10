@@ -19,17 +19,21 @@ are out of order: page 9 carries محاور 1 and 2, page 8 carries محاور 4
 `find_contents_pages` took one of them. That is the same shape as the sociology
 book, whose فهرس listed only half of itself.
 
-THE FIRST TWELVE TITLES ARE THE DATABASE'S, character for character, and two of
-them are WRONG as Arabic:
+THE FIRST TWELVE TITLES ARE THE DATABASE'S, character for character, except two
+that were WRONG as Arabic and are now corrected (2026-09-10):
 
-    stored  سياسة النهضة الاقتصادي        the book prints  سياسة النهوض الاقتصادي
-    stored  دالة الإنتاج ومروبة الإنتاج    the book prints  دالة الانتاج ومرونة الانتاج
+    was  سياسة النهضة الاقتصادي        now  سياسة النهوض الاقتصادي
+    was  دالة الإنتاج ومروبة الإنتاج    now  دالة الإنتاج ومرونة الإنتاج
 
-"مروبة" is not a word; it is an OCR error for "مرونة" (elasticity). They are kept
-exactly as stored anyway, because `load-chunks` resolves a chapter BY NAME and a
-corrected spelling creates a NEW chapter, leaving the old one holding the
-questions and the student's mastery. Correcting them is a rename in the database
-plus a re-file, not an edit here.
+"مروبة" is not a word; it was an OCR error for "مرونة" (elasticity), and a
+student browsing the syllabus was shown it.
+
+Correcting a title HERE is safe, which is not obvious: the seeder upserts a
+chapter on (subject, orderIndex) and renames it in place, and questions,
+passages and mastery all reference a chapter by ID — so nothing is orphaned.
+What it does require is re-running `corpus:chunks` afterwards, because THAT
+resolves a chapter by name and would otherwise find nothing under the new
+titles and empty them.
 
 Page numbers are pages OF THE SCAN, read off the الفصل heading the book prints at
 the top of each chapter's opening page, so no offset arithmetic is involved.
@@ -65,7 +69,7 @@ CHAPTERS = [
     ("أزمة 1929 الاقتصادية العالمية", 109),
     ("أزمة 1973 الاقتصادية العالمية", 120),
     # ---- محور 4: السياسات الاقتصادية — already in the database ----
-    ("سياسة النهضة الاقتصادي", 127),          # book: النهوض. Stored spelling kept.
+    ("سياسة النهوض الاقتصادي", 127),          # was stored "النهضة"
     ("سياسة مكافحة التضخم المالي", 134),
     ("سياسة مكافحة البطالة", 142),
     ("السياسة الزراعية", 150),
@@ -73,7 +77,7 @@ CHAPTERS = [
     # ---- محور 5: الحسابات الاقتصادية والمالية — already in the database ----
     ("الكلفة الثابتة والكلفة المتغيرة", 174),
     ("دالة الاستهلاك", 189),
-    ("دالة الإنتاج ومروبة الإنتاج", 201),      # book: مرونة. Stored OCR error kept.
+    ("دالة الإنتاج ومرونة الإنتاج", 201),      # was stored "مروبة"
     ("الاستثمار", 214),
     ("الفائدة البسيطة والفائدة المركبة", 224),
     ("الجدوى الاقتصادية", 230),
