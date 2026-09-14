@@ -66,7 +66,19 @@ more code:
 Three sessions have started a labelling run and recorded zero, because Enter is
 "skip" and the runs were abandoned at the prompt.
 
-### 4. Money settings still at demo values
+### 4. The production admin password is in the repository
+
+`prisma/seed.ts` hardcodes `admin@bac2.local` / `ChangeMeImmediately!2026`, and
+that is still the live password on Neon — verified against the stored hash on
+2026-09-14. Anyone who can read github.com/assilolleik/BAC2AI can sign in to
+production as an administrator: change roles, disable accounts, set spending
+ceilings. Raised and deliberately deferred by the account owner.
+
+Fix is three steps: rotate that password, create a real admin under a person's
+address, then stop the seed creating a fixed-password admin against a non-empty
+database.
+
+### 5. Money settings still at demo values
 
 `AI_BUDGET_FREE_USD` and `AI_BUDGET_MONTHLY_USD` are set to $25/$50 against a
 measured cost of ~$3.50 for a month of real revision. Code defaults are $1 and

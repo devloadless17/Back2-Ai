@@ -126,7 +126,18 @@ export async function listSubjects(
       name: true,
       language: true,
       _count: { select: { chapters: true } },
-      chapters: { select: { _count: { select: { questions: true } } } },
+      // Counted the same way as listChapters, so a subject's total is the sum
+      // of the numbers shown against its chapters rather than a smaller figure
+      // arrived at differently.
+      chapters: {
+        select: {
+          _count: {
+            select: {
+              alsoHasQuestions: { where: { question: { verifiedStatus: { not: 'rejected' } } } },
+            },
+          },
+        },
+      },
     },
     orderBy: { name: 'asc' },
   });
@@ -136,7 +147,7 @@ export async function listSubjects(
     name: subject.name,
     language: subject.language,
     chapterCount: subject._count.chapters,
-    questionCount: subject.chapters.reduce((sum, c) => sum + c._count.questions, 0),
+    questionCount: subject.chapters.reduce((sum, c) => sum + c._count.alsoHasQuestions, 0),
   }));
 }
 
@@ -168,7 +179,26 @@ export async function listChapters(subjectId: string, userId: string): Promise<C
       name: true,
       orderIndex: true,
       unit: { select: { name: true } },
-      _count: { select: { questions: true } },
+      /*
+       * Every question this chapter may ASK, not only those filed under it.
+       *
+       * `questions.chapter_id` says where an exercise was filed and where its
+       * mastery is credited; `alsoHasQuestions` says which chapters are allowed
+       * to offer it, and a Lebanese exercise belongs to several by design. The
+       * quiz page has always used the second. This list used the first, so the
+       * index a student reads understated what practice would actually serve
+       * them — GS Chemistry showed 69 questions against 352 available, and
+       * Mathématiques 170 against 592. A student could reasonably conclude the
+       * subject was empty and stop.
+       *
+       * Rejected questions are excluded here and by the quiz, which the plain
+       * `_count` did not do either.
+       */
+      _count: {
+        select: {
+          alsoHasQuestions: { where: { question: { verifiedStatus: { not: 'rejected' } } } },
+        },
+      },
       chapterMastery: { where: { userId }, select: { masteryScore: true, attemptsCount: true } },
     },
     orderBy: { orderIndex: 'asc' },
@@ -179,7 +209,7 @@ export async function listChapters(subjectId: string, userId: string): Promise<C
     name: chapter.name,
     unitName: chapter.unit?.name ?? null,
     orderIndex: chapter.orderIndex,
-    questionCount: chapter._count.questions,
+    questionCount: chapter._count.alsoHasQuestions,
     masteryScore: Number(chapter.chapterMastery[0]?.masteryScore ?? 0),
     attemptsCount: chapter.chapterMastery[0]?.attemptsCount ?? 0,
   }));
