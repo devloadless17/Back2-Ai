@@ -555,6 +555,12 @@ model Subscription {
   id                     String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   userId                 String             @unique @map("user_id") @db.Uuid
   plan                   SubscriptionPlan   @default(free)
+  /// An administrator's ceiling for THIS student, in micro-dollars.
+  ///
+  /// Null means the plan's ceiling applies, which is what every account gets
+  /// until somebody decides otherwise. Clearing it restores the plan default
+  /// rather than setting zero — a zero would silently stop the student working.
+  aiBudgetMicros         BigInt?            @map("ai_budget_micros")
   status                 SubscriptionStatus @default(pending)
   /// Which processor issued the ids below. Null until one is connected.
   provider               String?

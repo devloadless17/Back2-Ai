@@ -744,6 +744,9 @@ export const ar: Dictionary = {
   },
 
   admin: {
+    aiBudgetLabel: "ميزانية الذكاء الاصطناعي (دولار / شهر)",
+    aiBudgetPlaceholder: "الافتراضي للخطة: {n}$",
+    aiBudgetHint: "اتركه فارغاً لاستخدام سقف الخطة.",
     title: 'الإدارة',
     announcements: 'الإعلانات',
     reviewQueue: 'قائمة المراجعة',

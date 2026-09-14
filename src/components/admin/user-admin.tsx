@@ -24,6 +24,10 @@ export type AdminUserRow = {
   attemptCount: number;
   lastLoginAt: string | null;
   emailVerifiedAt: string | null;
+  /** This student's own monthly AI ceiling in dollars, or null if the plan's applies. */
+  aiBudgetUsd: number | null;
+  /** What the plan would give them, shown as the placeholder when there is no override. */
+  planBudgetUsd: number;
 };
 
 /**
@@ -66,6 +70,7 @@ export function UserAdmin({
     setDraft({
       trackId: user.trackId,
       preferredLanguage: user.preferredLanguage,
+      aiBudgetUsd: user.aiBudgetUsd,
       role: user.role,
       isActive: user.isActive,
       reason: '',
@@ -114,6 +119,7 @@ export function UserAdmin({
         id: user.id,
         trackId: draft.trackId ?? null,
         preferredLanguage: draft.preferredLanguage,
+        aiBudgetUsd: draft.aiBudgetUsd ?? null,
         role: draft.role,
         isActive: draft.isActive,
         reason: draft.reason.trim(),
@@ -218,6 +224,43 @@ export function UserAdmin({
                             </option>
                           ))}
                         </Select>
+                      </label>
+
+                      {/*
+                        A number box, not a slider or a plan picker: the person
+                        using this is deciding "how many dollars should this one
+                        student get", and the honest control for that is the
+                        number. Empty means the plan's ceiling, which the
+                        placeholder states, so an untouched field is visibly
+                        "unchanged" rather than "zero".
+                      */}
+                      <label className="space-y-1">
+                        <span className="block text-meta font-medium text-ink">
+                          {t.admin.aiBudgetLabel}
+                        </span>
+                        <input
+                          type="number"
+                          min={0}
+                          max={500}
+                          step={0.5}
+                          inputMode="decimal"
+                          className="h-9 w-full rounded-lg border border-border bg-surface px-3 text-sm"
+                          placeholder={t.admin.aiBudgetPlaceholder.replace(
+                            '{n}',
+                            user.planBudgetUsd.toFixed(2),
+                          )}
+                          value={draft.aiBudgetUsd ?? ''}
+                          onChange={(event) =>
+                            setDraft((current) => ({
+                              ...current,
+                              aiBudgetUsd:
+                                event.target.value === '' ? null : Number(event.target.value),
+                            }))
+                          }
+                        />
+                        <span className="block text-caption text-ink-faint">
+                          {t.admin.aiBudgetHint}
+                        </span>
                       </label>
 
                       <label className="space-y-1">

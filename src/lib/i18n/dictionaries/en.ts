@@ -751,6 +751,9 @@ export const en = {
   },
 
   admin: {
+    aiBudgetLabel: "AI budget (USD / month)",
+    aiBudgetPlaceholder: "Plan default: ${n}",
+    aiBudgetHint: "Leave empty to use the plan's ceiling.",
     title: 'Administration',
     announcements: 'Announcements',
     reviewQueue: 'Review queue',

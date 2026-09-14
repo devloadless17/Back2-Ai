@@ -1,0 +1,18 @@
+-- A per-student AI spending ceiling, set by an administrator.
+--
+-- Until now the ceiling came only from `AI_BUDGET_<PLAN>_USD` in the
+-- environment: one number per plan, changeable only by a redeploy, and applying
+-- to everyone on that plan at once. That is the right default and the wrong
+-- only option. A student on a scholarship, a teacher trialling the product, or
+-- one account that has run into its limit mid-revision all need a number of
+-- their own, and none of them should require a deployment.
+--
+-- NULL means "use the plan's ceiling", which is what every existing row gets.
+-- So this column changes nothing until somebody sets it, and clearing it
+-- returns the student to the plan default rather than to zero — an important
+-- difference, because a zero ceiling silently stops a student working.
+--
+-- Micro-dollars, as an integer, matching `costMicros` and `spentThisMonthMicros`
+-- in src/lib/ai/budget.ts. Storing dollars as a float here would introduce
+-- rounding into the one number that decides whether a student is cut off.
+ALTER TABLE "subscriptions" ADD COLUMN "ai_budget_micros" BIGINT;

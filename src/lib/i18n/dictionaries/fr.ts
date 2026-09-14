@@ -735,6 +735,9 @@ export const fr: Dictionary = {
   },
 
   admin: {
+    aiBudgetLabel: "Budget IA (USD / mois)",
+    aiBudgetPlaceholder: "Par défaut du forfait : {n} $",
+    aiBudgetHint: "Laisser vide pour utiliser le plafond du forfait.",
     title: 'Administration',
     announcements: 'Annonces',
     reviewQueue: 'File de relecture',

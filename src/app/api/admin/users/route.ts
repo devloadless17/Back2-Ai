@@ -80,6 +80,18 @@ const patchSchema = z
     preferredLanguage: z.enum(STUDY_LANGUAGES).optional(),
     role: z.enum(['student', 'admin']).optional(),
     isActive: z.boolean().optional(),
+    /*
+     * This student's own monthly AI ceiling, in DOLLARS, or null to hand them
+     * back the plan's.
+     *
+     * Dollars at the edge because that is what an administrator is thinking in;
+     * micro-dollars in the column because that is what the meter counts in, and
+     * the conversion happens once, here. Capped at 500 so a slipped decimal
+     * cannot authorise a four-figure month, and floored at 0 because a deliberate
+     * zero is a legitimate way to stop an account spending while leaving it able
+     * to sign in and read.
+     */
+    aiBudgetUsd: z.number().min(0).max(500).nullish(),
     /** Required free-text justification — this is a support action on someone's record. */
     reason: z.string().trim().min(3).max(500),
   })
@@ -133,6 +145,21 @@ export const PATCH = route(async (request) => {
       ...(body.isActive !== undefined ? { isActive: body.isActive } : {}),
     },
   });
+
+  /*
+   * The ceiling lives on the subscription, and a student may not have one yet:
+   * an account with no subscription row is on the free plan by convention, so
+   * setting a ceiling has to create that row rather than fail. `upsert` keeps
+   * the two cases one statement.
+   */
+  if (body.aiBudgetUsd !== undefined) {
+    const micros = body.aiBudgetUsd === null ? null : BigInt(Math.round(body.aiBudgetUsd * 1_000_000));
+    await db.subscription.upsert({
+      where: { userId: target.id },
+      update: { aiBudgetMicros: micros },
+      create: { userId: target.id, aiBudgetMicros: micros },
+    });
+  }
 
   // One audit event per field changed, so the log answers "who changed this
   // student's track, when, and why" without anyone parsing a diff.

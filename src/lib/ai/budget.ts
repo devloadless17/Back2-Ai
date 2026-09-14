@@ -132,12 +132,25 @@ export type BudgetState = {
  */
 export async function budgetState(userId: string): Promise<BudgetState> {
   const [subscription, spentMicros] = await Promise.all([
-    db.subscription.findUnique({ where: { userId }, select: { plan: true } }),
+    db.subscription.findUnique({ where: { userId }, select: { plan: true, aiBudgetMicros: true } }),
     spentThisMonthMicros(userId),
   ]);
 
+  /*
+   * A per-student ceiling wins over the plan's, and null is not zero.
+   *
+   * An administrator can give one account its own number — a scholarship, a
+   * teacher trialling the product, a student who hit the limit mid-revision —
+   * without a deployment and without moving everyone on that plan. Clearing it
+   * is a return to the plan default, which is why the test is `!= null` rather
+   * than truthiness: `0n` is a real ceiling an administrator may deliberately
+   * set to stop an account spending, and `?? ` would keep it while `||` would
+   * silently discard it back to the plan.
+   */
   // No subscription row is the free plan, which is the state a new account is in.
-  const budgetMicros = budgetMicrosFor(String(subscription?.plan ?? 'free'));
+  const override = subscription?.aiBudgetMicros;
+  const budgetMicros =
+    override != null ? BigInt(override) : budgetMicrosFor(String(subscription?.plan ?? 'free'));
   const remainingMicros = budgetMicros - spentMicros;
 
   return { spentMicros, budgetMicros, remainingMicros, exhausted: remainingMicros <= 0n };
