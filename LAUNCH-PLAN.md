@@ -159,6 +159,41 @@ what stopped me wasting a night on `themes-gsls-en`.
   physically before printed 29 — so no single page offset describes it. It needs
   re-scanning.
 
+### F. The model-call path — investigated, two defects fixed, the rest already right
+
+Asked to optimise where the money and the seconds go. Findings, in order of
+what they cost:
+
+- **FIXED — cached tokens were billed at the fresh rate.** The price table, the
+  `cached_input_tokens` column and `costMicros` all supported a cache discount;
+  no adapter ever read the provider's cache figures, so it was always zero.
+  OpenAI caches automatically on any prompt over 1024 tokens whose prefix it has
+  seen recently, and discounts those tenfold. Every one of them was charged in
+  full against the per-user AI budget. See `20ce528`.
+- **FIXED — the plumbing was pointed at the marking model.** Query translation,
+  topic keywords and reranking all read `verifyModel`. `MODEL_FAST` now names
+  that job separately and defaults to what they already ran on, so the live
+  config is unchanged.
+- **Already correct, left alone:** the two query-expansion calls only fire when
+  the first search found nothing convincing, so a well-retrieved question pays
+  for neither. Verification runs *after* the answer has finished streaming, and
+  the client renders text as it arrives — the student is reading while it runs.
+  Tier 1 skips verification entirely. Effort levels are already tiered per call
+  site: `low` for plumbing, `high` for anything that judges student work.
+
+**NOT DONE, deliberately: reordering the prompt so the retrieved material can be
+cached across turns.** The saving is real in principle — the 16k-token context
+is the dominant cost and it sits after the conversation history, where a growing
+prefix can never cache it. It only pays on *follow-up* turns in a session, and
+the sessions we have average **1.2 user messages each** (13 sessions, 16
+messages). On that evidence it buys close to nothing, and it changes the
+structure of the prompt on the answer path. Worth revisiting once there is real
+usage: if students hold conversations rather than asking one-off questions, this
+becomes the single biggest cost lever in the product.
+
+Not a database problem: chapter list 13ms, subject-scoped vector search 7-9ms
+warm. The 528ms first reading was a cold cache.
+
 ---
 
 ## Rules I have had to learn the hard way today
