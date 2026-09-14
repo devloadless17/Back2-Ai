@@ -177,7 +177,31 @@ async function storeChapterSummary(chapterId: string, summary: ChapterSummary): 
   }
 }
 
-export async function summariseChapter(chapterId: string): Promise<ChapterSummary> {
+/**
+ * Which model writes the summary, and whether a stored one may be used.
+ *
+ * Exists so the choice can be MEASURED rather than assumed — the same reason
+ * `RerankOptions` exists. The default is the flagship at high effort, and that
+ * default deserves a question: the batched path below already hands these exact
+ * passages to the cheap model to take notes from, so the codebase already
+ * trusts it to READ this material; only the final write-up runs on the
+ * expensive one. Roughly seven times the price per uncached view.
+ *
+ * `skipCache` is for the comparison only. Nothing in the app should set it: a
+ * stored summary is the entire reason a second view is free.
+ *
+ * See `scripts/compare-summary-models.ts`.
+ */
+export type SummaryOptions = {
+  model?: string;
+  effort?: 'low' | 'medium' | 'high';
+  skipCache?: boolean;
+};
+
+export async function summariseChapter(
+  chapterId: string,
+  opts: SummaryOptions = {},
+): Promise<ChapterSummary> {
   const blank = {
     chapterId,
     chapterName: '',
@@ -200,7 +224,14 @@ export async function summariseChapter(chapterId: string): Promise<ChapterSummar
       name: true,
       unit: { select: { name: true } },
       subject: { select: { name: true, language: true } },
-      _count: { select: { questions: true } },
+      // What this chapter may ASK, not where an exercise was filed — the same
+      // distinction as 6be57e6. 178 chapters serve questions with nothing filed
+      // under them, and this number is shown to the student as "past questions".
+      _count: {
+        select: {
+          alsoHasQuestions: { where: { question: { verifiedStatus: { not: 'rejected' } } } },
+        },
+      },
     },
   });
   if (!chapter) return { ...blank, status: 'no_material' };
@@ -227,7 +258,9 @@ export async function summariseChapter(chapterId: string): Promise<ChapterSummar
    * lookup against a model call over the whole chapter, which for a chapter
    * summarised in eight batches is eight model calls.
    */
-  const cached = await cachedChapterSummary(chapterId, passages.map((p) => p.id));
+  const cached = opts.skipCache
+    ? null
+    : await cachedChapterSummary(chapterId, passages.map((p) => p.id));
   if (cached) {
     return {
       chapterId: chapter.id,
@@ -236,7 +269,7 @@ export async function summariseChapter(chapterId: string): Promise<ChapterSummar
       overview: cached.overview,
       keyPoints: cached.key_points,
       watchOut: cached.watch_out,
-      pastQuestions: chapter._count.questions,
+      pastQuestions: chapter._count.alsoHasQuestions,
       sourceChunkIds: cached.source_chunk_ids,
       batched: cached.batched,
       source: 'generated',
@@ -331,7 +364,8 @@ export async function summariseChapter(chapterId: string): Promise<ChapterSummar
     ],
     schema: CHAPTER_SCHEMA as unknown as Record<string, unknown>,
     schemaName: 'chapter_summary',
-    effort: 'high',
+    effort: opts.effort ?? 'high',
+    ...(opts.model ? { model: opts.model } : {}),
     parse: (value) => chapterSchema.parse(value),
   });
 
@@ -342,14 +376,20 @@ export async function summariseChapter(chapterId: string): Promise<ChapterSummar
     overview: response.data.overview,
     keyPoints: response.data.key_points,
     watchOut: response.data.watch_out,
-    pastQuestions: chapter._count.questions,
+    pastQuestions: chapter._count.alsoHasQuestions,
     sourceChunkIds: covered.map((p) => p.id),
     batched,
     source: 'generated',
     status: 'ok',
   };
 
-  await storeChapterSummary(chapter.id, summary);
+  /*
+   * A comparison run must not leave its output behind. `skipCache` means "do
+   * not read the cache" AND "do not write to it": a measurement of the cheap
+   * model that stored its result would silently become what students read,
+   * which is the opposite of measuring a choice before making it.
+   */
+  if (!opts.skipCache) await storeChapterSummary(chapter.id, summary);
   return summary;
 }
 

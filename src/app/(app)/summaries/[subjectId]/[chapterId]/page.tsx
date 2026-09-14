@@ -17,11 +17,21 @@ export const metadata: Metadata = { title: 'Summary' };
 /**
  * One chapter's summary.
  *
- * Written on request and not cached, which is the honest state of this page
- * rather than a design choice: there is nowhere to store it yet. Every view
- * costs a model call, so a `chapter_summaries` row keyed on the chapter — with
- * the passage ids it was written from, so it can be invalidated when the chapter
- * is re-chunked — is the next thing this needs.
+ * Written once and then stored, in `chapter_summaries`, keyed on the chapter
+ * AND on the exact set of passage ids it was written from — so a chapter that
+ * has been re-chunked since gets a fresh summary rather than a stale one served
+ * confidently. The first view of a chapter pays for a model call; every view
+ * after it is free.
+ *
+ * THAT FIRST VIEW IS EXPENSIVE, and worth knowing the size of: measured at
+ * $0.10-0.17 for a nineteen-passage chapter, which is the most costly thing a
+ * student can set off with one click. It is the flagship model at high effort,
+ * and that IS the right setting — `scripts/compare-summary-models.ts` compared
+ * it against two cheaper ones on the same chapter and both were visibly
+ * thinner, 10 and 5 key points against 16, not merely cheaper to produce.
+ *
+ * So the lever here is cache coverage, not price per summary, and coverage is
+ * currently four chapters out of 1,157 that have material to summarise.
  *
  * The provenance notice is not decoration. A summary reads as authoritative and
  * gets revised from without being questioned, so a student has to be able to see
