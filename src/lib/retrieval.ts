@@ -11,7 +11,6 @@ import {
   type QuestionClassification,
   type QuestionKind,
 } from '@/lib/question-kind';
-import { rerankByRelevance } from '@/lib/rerank';
 import {
   searchContentChunks,
   searchMarkingSchemes,
@@ -1091,28 +1090,47 @@ export async function retrieveGrounding(input: RetrievalInput): Promise<Groundin
       : [];
 
   /*
-   * Arabic questions get their passages reordered by a model; the others do not.
+   * NOTHING IS RERANKED. The passages are handed over in the embedding's order.
    *
-   * Measured on cached student-style questions, at the eight passages actually
-   * handed over:
+   * Arabic used to be reranked here, on this measurement:
    *
    *              top-1            covers the answer
    *   ar     28% -> 48%              91% -> 93%
    *   en     48% -> 46%              89% -> 91%
    *   fr     52% -> 39%              97% -> 97%
    *
-   * Arabic is where the embedding orders badly and where reranking nearly
-   * doubles the chance the right passage comes first. French is already well
-   * ordered and reranking makes it worse without changing what is covered, so
-   * paying a model call to damage it would be perverse.
+   * Re-measured on 2026-09-14 against every Arabic probe in the set rather than
+   * a sample — `npm run compare:rerank -- --lang ar --limit 0 --arms 0,1` — the
+   * same configuration now does the OPPOSITE of what that table claims:
    *
-   * Applied after the gate, never before: it reorders what already cleared the
-   * threshold and can neither admit material nor change a similarity score.
-   * Costs one call on the cheap model, so it is spent only where it pays.
+   *   ar     53% -> 37%     (31/59 -> 22/59, no rerank -> as shipped)
+   *
+   * Sixteen points of top-1, on the full probe set, in the subject group this
+   * product is weakest in. Whether the old figure was measured differently or
+   * the corpus simply moved under it — six books restructured, 63 chapters
+   * recovered, 1,687 question links added — the number in a comment stopped
+   * describing the code, and the code was still charging a model call per
+   * Arabic question to make Arabic worse.
+   *
+   * RERANKING IS NOT THE PROBLEM; THE READER WAS. Four arms over 40 probes:
+   *
+   *                                      ar       en       fr      all
+   *   no rerank                      4/7 57%  9/18 50%  8/15 53%    53%
+   *   gpt-5.4-mini @ low  (was live) 3/7 43% 11/18 61%  5/15 33%    48%
+   *   gpt-5.5 @ low                  4/7 57% 12/18 67%  8/15 53%    60%
+   *   gpt-5.5 @ medium               5/7 71% 12/18 67%  9/15 60%    65%
+   *
+   * The cheap model damages French in both measurements — 52->39 then 53->33 —
+   * and the flagship restores it to exactly baseline. So "reranking hurts
+   * French", which is why this was Arabic-only, was never true: the cheap model
+   * hurts French. The flagship looks better than no reranking everywhere, and
+   * that is NOT yet established — n=7 for Arabic there, and five probes of
+   * margin overall. Settling it means the flagship arm over all 59 Arabic
+   * probes, which the script can now do with `--lang ar --arms 0,3`.
+   *
+   * Until someone runs it, the embedding order is what measures best, and it is
+   * also free. `rerank.ts` and the comparison script stay for that run.
    */
-  if (passingChunks.length > 1 && (input.query.match(ARABIC_CHARS)?.length ?? 0) > 3) {
-    passingChunks = await rerankByRelevance(input.query, passingChunks, HANDED_OVER);
-  }
   passingChunks = passingChunks.slice(0, HANDED_OVER);
 
   if (passingChunks.length > 0 || standaloneSchemes.length > 0) {

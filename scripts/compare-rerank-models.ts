@@ -50,6 +50,20 @@ const arg = (n: string) => {
 // the main model at medium effort is not a cheap call. A full-corpus run is a
 // deliberate choice — pass --limit 0 — not something you get by forgetting.
 const LIMIT = argv.includes('--limit') ? Number(arg('--limit')) : 40;
+/*
+ * One language, and only the arms named.
+ *
+ * Added because the first four-arm run answered the question it was built for
+ * and raised a sharper one it could not answer: Arabic got 7 of the 40 probes,
+ * and on those 7 the CURRENT production setting scored below no reranking at
+ * all — against a comment in `retrieval.ts` claiming it nearly doubles Arabic.
+ * Seven probes cannot tell those apart, and the probe set holds 59.
+ *
+ * Narrowing to one language and two arms turns a $2 run into a $0.15 one, which
+ * is the difference between being able to check a live policy and not.
+ */
+const LANG = arg('--lang');
+const ARM_FILTER = arg('--arms');
 const FIELD = 20;
 const KEEP = 8;
 
@@ -72,14 +86,23 @@ async function main() {
   let probes: Probe[] = rows.map((r) => ({
     chunkId: r.id, query: raw[r.id]!, subjectId: r.subjectId, lang: r.lang,
   }));
+  // Filtered before the limit, so `--lang ar --limit 0` is every Arabic probe
+  // rather than whichever Arabic probes survived a slice taken across all three.
+  if (LANG) probes = probes.filter((p) => p.lang === LANG);
   if (LIMIT > 0) probes = probes.slice(0, LIMIT);
 
-  const ARMS: { name: string; opts: RerankOptions | null }[] = [
+  const ALL_ARMS: { name: string; opts: RerankOptions | null }[] = [
     { name: 'no rerank (embedding order)', opts: null },
     { name: `${env().OPENAI_MODEL_VERIFY} @ low   (current)`, opts: { effort: 'low' } },
     { name: `${env().OPENAI_MODEL} @ low`, opts: { model: env().OPENAI_MODEL, effort: 'low' } },
     { name: `${env().OPENAI_MODEL} @ medium`, opts: { model: env().OPENAI_MODEL, effort: 'medium' } },
   ];
+  // `--arms 0,1` by position. The no-rerank arm costs nothing and is the
+  // baseline every other arm is read against, so dropping it saves no money and
+  // makes the rest unreadable; include it unless you know why you are not.
+  const ARMS = ARM_FILTER
+    ? ARM_FILTER.split(',').map((i) => ALL_ARMS[Number(i)]!).filter(Boolean)
+    : ALL_ARMS;
 
   const score = new Map<string, Map<string, { hit: number; n: number }>>();
   const bump = (arm: string, lang: string, hit: boolean) => {
