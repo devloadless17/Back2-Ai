@@ -49,11 +49,18 @@ export type Rerankable = { contentText: string };
  * Which model does the reading, and how hard it thinks.
  *
  * Exists so the choice can be MEASURED rather than assumed. The default — the
- * cheap verify model at low effort — is what the Arabic-only policy in
- * `retrieval.ts` was measured against, and that policy exists because reranking
- * as configured HURT French (top-1 52% -> 39%). Whether that is reranking being
- * wrong for French or the cheap model being wrong for French is a different
- * question, and it is answerable: see `scripts/compare-rerank-models.ts`.
+ * fast model at low effort — is what the Arabic-only policy in `retrieval.ts`
+ * was measured against, and that policy exists because reranking as configured
+ * HURT French (top-1 52% -> 39%). Whether that is reranking being wrong for
+ * French or the cheap model being wrong for French is a different question, and
+ * it is answerable: see `scripts/compare-rerank-models.ts`.
+ *
+ * It used to read `verifyModel` and call it "the cheap verify model", which was
+ * true of the OpenAI config and false of the Anthropic one, where that name
+ * points at Opus. `fastModel` defaults to the same gpt-5.4-mini the measurement
+ * above was taken on, so the rename moves no number — but if you repoint
+ * `*_MODEL_FAST`, the French and Arabic figures quoted here no longer describe
+ * what is running, and that script is how you get new ones.
  */
 export type RerankOptions = { model?: string; effort?: 'low' | 'medium' | 'high' };
 
@@ -94,7 +101,7 @@ export async function rerankByRelevance<T extends Rerankable>(
       schemaName: 'passage_ranking',
       effort: opts.effort ?? 'low',
       maxTokens: 400,
-      model: opts.model ?? ai().verifyModel,
+      model: opts.model ?? ai().fastModel,
       parse: (value) => rankingSchema.parse(value),
     });
 

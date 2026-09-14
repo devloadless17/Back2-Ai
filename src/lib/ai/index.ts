@@ -24,7 +24,15 @@ import type { AiProvider, AiRequest } from './types';
  * logged, not raised.
  */
 function metered(provider: AiProvider): AiProvider {
-  const record = (request: AiRequest, response: { modelUsed: string; inputTokens: number | null; outputTokens: number | null }) => {
+  const record = (
+    request: AiRequest,
+    response: {
+      modelUsed: string;
+      inputTokens: number | null;
+      cachedInputTokens: number | null;
+      outputTokens: number | null;
+    },
+  ) => {
     // The request may name its own meter; otherwise the ambient one the API
     // route opened. Neither means work outside a request — still recorded, but
     // charged to no student.
@@ -34,6 +42,7 @@ function metered(provider: AiProvider): AiProvider {
       kind: meter?.kind ?? 'offline',
       model: response.modelUsed,
       inputTokens: response.inputTokens,
+      cachedInputTokens: response.cachedInputTokens,
       outputTokens: response.outputTokens,
     });
   };

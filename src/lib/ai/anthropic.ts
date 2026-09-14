@@ -88,6 +88,28 @@ function textFrom(content: Anthropic.ContentBlock[]): string {
     .trim();
 }
 
+/**
+ * The prompt's size and how much of it was cached, normalised to our rule that
+ * the cached count is a SUBSET of the input count.
+ *
+ * Anthropic reports it the other way round: `input_tokens` counts only what was
+ * charged at full rate, with cache reads and cache writes as separate figures
+ * beside it. Reporting `input_tokens` alone would therefore understate the
+ * prompt, and understate it by MORE the better the cache worked.
+ *
+ * Cache writes are folded into the fresh side. Anthropic charges them at 1.25x
+ * base and `costMicros` has no rate for that, so this under-bills them by a
+ * quarter — which is exactly zero today, because nothing in this codebase sends
+ * `cache_control` and Anthropic never writes a cache it was not asked to. Send
+ * `cache_control` and this comment becomes a real debt, so give the price table
+ * a write rate at the same time.
+ */
+export function usageOf(usage: Anthropic.Usage): { inputTokens: number; cachedInputTokens: number } {
+  const cached = usage.cache_read_input_tokens ?? 0;
+  const written = usage.cache_creation_input_tokens ?? 0;
+  return { inputTokens: usage.input_tokens + cached + written, cachedInputTokens: cached };
+}
+
 function wrapError(err: unknown): never {
   if (err instanceof AiError) throw err;
   if (err instanceof Anthropic.RateLimitError) {
@@ -114,6 +136,10 @@ export const anthropicProvider: AiProvider = {
     return env().ANTHROPIC_MODEL_VERIFY;
   },
 
+  get fastModel() {
+    return env().ANTHROPIC_MODEL_FAST;
+  },
+
   isConfigured() {
     return env().ANTHROPIC_API_KEY.length > 0;
   },
@@ -135,7 +161,7 @@ export const anthropicProvider: AiProvider = {
         return {
           text: '',
           modelUsed: response.model,
-          inputTokens: response.usage.input_tokens,
+          ...usageOf(response.usage),
           outputTokens: response.usage.output_tokens,
           refused: true,
         };
@@ -144,7 +170,7 @@ export const anthropicProvider: AiProvider = {
       return {
         text: textFrom(response.content),
         modelUsed: response.model,
-        inputTokens: response.usage.input_tokens,
+        ...usageOf(response.usage),
         outputTokens: response.usage.output_tokens,
         refused: false,
       };
@@ -187,7 +213,7 @@ export const anthropicProvider: AiProvider = {
       return {
         data: request.parse(parsed),
         modelUsed: response.model,
-        inputTokens: response.usage.input_tokens,
+        ...usageOf(response.usage),
         outputTokens: response.usage.output_tokens,
       };
     } catch (err) {
@@ -218,7 +244,7 @@ export const anthropicProvider: AiProvider = {
       return {
         text: textFrom(final.content),
         modelUsed: final.model,
-        inputTokens: final.usage.input_tokens,
+        ...usageOf(final.usage),
         outputTokens: final.usage.output_tokens,
         refused: final.stop_reason === 'refusal',
       };

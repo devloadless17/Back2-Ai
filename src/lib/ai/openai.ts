@@ -104,6 +104,24 @@ function isQuotaExhausted(err: InstanceType<typeof OpenAI.APIError>): boolean {
   return body?.type === 'insufficient_quota' || body?.code === 'credit_balance_exhausted';
 }
 
+/**
+ * How much of the prompt OpenAI served from its cache.
+ *
+ * OpenAI caches automatically — there is no flag to set and nothing to ask for.
+ * Any prompt over 1024 tokens whose prefix it has seen recently is discounted,
+ * which on this product is every turn after the first in a chat session: the
+ * system prompt and the conversation so far are a stable prefix that only ever
+ * grows, and the retrieved material and the new question come after it.
+ *
+ * `prompt_tokens` ALREADY INCLUDES these, so the cached count is a subset and
+ * `costMicros` subtracts it to find what was charged at full rate. Returning
+ * the sum instead would double-count the whole prompt.
+ */
+export function cachedTokensOf(usage: { prompt_tokens_details?: { cached_tokens?: number } | null } | null | undefined): number | null {
+  if (!usage) return null;
+  return usage.prompt_tokens_details?.cached_tokens ?? 0;
+}
+
 function wrapError(err: unknown): never {
   if (err instanceof AiError) throw err;
   if (err instanceof OpenAI.RateLimitError) {
@@ -137,6 +155,10 @@ export const openaiProvider: AiProvider = {
     return env().OPENAI_MODEL_VERIFY;
   },
 
+  get fastModel() {
+    return env().OPENAI_MODEL_FAST;
+  },
+
   isConfigured() {
     return env().OPENAI_API_KEY.length > 0;
   },
@@ -158,6 +180,7 @@ export const openaiProvider: AiProvider = {
           text: '',
           modelUsed: response.model,
           inputTokens: response.usage?.prompt_tokens ?? null,
+          cachedInputTokens: cachedTokensOf(response.usage),
           outputTokens: response.usage?.completion_tokens ?? null,
           refused: true,
         };
@@ -167,6 +190,7 @@ export const openaiProvider: AiProvider = {
         text: (choice?.message.content ?? '').trim(),
         modelUsed: response.model,
         inputTokens: response.usage?.prompt_tokens ?? null,
+        cachedInputTokens: cachedTokensOf(response.usage),
         outputTokens: response.usage?.completion_tokens ?? null,
         refused: choice?.finish_reason === 'content_filter',
       };
@@ -209,6 +233,7 @@ export const openaiProvider: AiProvider = {
         data: request.parse(parsed),
         modelUsed: response.model,
         inputTokens: response.usage?.prompt_tokens ?? null,
+        cachedInputTokens: cachedTokensOf(response.usage),
         outputTokens: response.usage?.completion_tokens ?? null,
       };
     } catch (err) {
@@ -231,6 +256,7 @@ export const openaiProvider: AiProvider = {
 
       let text = '';
       let inputTokens: number | null = null;
+      let cachedInputTokens: number | null = null;
       let outputTokens: number | null = null;
       let refused = false;
       let modelUsed = model;
@@ -240,6 +266,7 @@ export const openaiProvider: AiProvider = {
 
         if (chunk.usage) {
           inputTokens = chunk.usage.prompt_tokens;
+          cachedInputTokens = cachedTokensOf(chunk.usage);
           outputTokens = chunk.usage.completion_tokens;
         }
 
@@ -253,7 +280,7 @@ export const openaiProvider: AiProvider = {
         }
       }
 
-      return { text: text.trim(), modelUsed, inputTokens, outputTokens, refused };
+      return { text: text.trim(), modelUsed, inputTokens, cachedInputTokens, outputTokens, refused };
     } catch (err) {
       wrapError(err);
     }

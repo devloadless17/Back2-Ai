@@ -474,7 +474,7 @@ async function otherScriptQuery(query: string, subjectIds: string[]): Promise<st
       messages: [{ role: 'user', content: `Translate into ${target}:\n${query}` }],
       maxTokens: 300,
       effort: 'low',
-      model: ai().verifyModel,
+      model: ai().fastModel,
     });
     const text = response.text.trim();
     return text && text !== query ? text : null;
@@ -508,7 +508,7 @@ async function conceptQuery(query: string): Promise<string | null> {
       messages: [{ role: 'user', content: query.slice(0, 4000) }],
       maxTokens: 2000,
       effort: 'low',
-      model: ai().verifyModel,
+      model: ai().fastModel,
     });
     const text = response.text.trim();
     return text.length > 3 && text !== query ? text : null;

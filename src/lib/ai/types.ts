@@ -53,6 +53,20 @@ export type AiResponse = {
   text: string;
   modelUsed: string;
   inputTokens: number | null;
+  /**
+   * How many of `inputTokens` the provider served from its prompt cache.
+   *
+   * ALWAYS A SUBSET OF `inputTokens`, never additional to it, because that is
+   * what `costMicros` assumes when it splits the bill. The two providers report
+   * it differently and each adapter is responsible for normalising to this rule:
+   * OpenAI's `prompt_tokens` already includes the cached part, Anthropic's
+   * `input_tokens` excludes it and has to have it added back.
+   *
+   * Both providers discount these tokens by an order of magnitude. Left unread,
+   * every call is billed as if nothing were cached, and the student's AI budget
+   * drains faster than the invoice it is supposed to track.
+   */
+  cachedInputTokens: number | null;
   outputTokens: number | null;
   /**
    * True when the provider's safety layer declined the request. Callers must
@@ -75,13 +89,26 @@ export type AiJsonResponse<T> = {
   data: T;
   modelUsed: string;
   inputTokens: number | null;
+  /** Subset of `inputTokens` served from the prompt cache. See `AiResponse`. */
+  cachedInputTokens: number | null;
   outputTokens: number | null;
 };
 
 export interface AiProvider {
   readonly name: 'anthropic' | 'openai';
+  /** Writes what the student reads. */
   readonly defaultModel: string;
+  /** Judges: marks work, checks an answer against its sources. The strong one. */
   readonly verifyModel: string;
+  /**
+   * Plumbing: query translation, topic keywords, reranking search hits.
+   *
+   * Never shown to a student and never quoted as a fact, and every call site
+   * that uses it fails open — so the cheapest adequate model belongs here, and
+   * NOT `verifyModel`, which is chosen for correctness at the last gate before
+   * a wrong answer reaches someone sitting an exam. See `env.ts`.
+   */
+  readonly fastModel: string;
 
   /** Whether a usable API key is present. Callers render a configuration notice when false. */
   isConfigured(): boolean;

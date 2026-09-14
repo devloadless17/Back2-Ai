@@ -21,13 +21,46 @@ const schema = z.object({
 
   AI_PROVIDER: z.enum(['anthropic', 'openai']).default('anthropic'),
 
+  /*
+   * THREE MODELS, NOT TWO, because there are three jobs and the third was
+   * borrowing the wrong one's name.
+   *
+   *   MODEL         writes the answer the student reads.
+   *   MODEL_VERIFY  JUDGES: marks work, and checks an answer against its
+   *                 sources. Correctness outranks cost here — it is the last
+   *                 gate before a wrong answer reaches someone sitting a
+   *                 national exam — so it is deliberately the strong model.
+   *   MODEL_FAST    PLUMBING: translating a query, naming its topics,
+   *                 reordering search hits. None of it is ever shown to a
+   *                 student or quoted as a fact, and every one of those call
+   *                 sites fails open, so the cheapest model that can do the job
+   *                 is the right one.
+   *
+   * The plumbing used to run on MODEL_VERIFY, and `rerank.ts` still described
+   * that as "the cheap verify model" — true of the OpenAI config, where VERIFY
+   * is the mini model, and the exact opposite on the Anthropic config, where it
+   * is Opus. One knob cannot mean both "cheapest available" and "strongest
+   * available" depending on which provider is selected, and pointing at it from
+   * the plumbing is how a query translation ends up costing Opus rates.
+   *
+   * FAST DEFAULTS TO WHAT THE PLUMBING ALREADY RAN ON under the live OpenAI
+   * config, so this split changes no behaviour there — including the Arabic-only
+   * reranking policy, which was measured against gpt-5.4-mini and must not be
+   * silently re-decided by a config rename.
+   */
   ANTHROPIC_API_KEY: z.string().default(''),
   ANTHROPIC_MODEL: z.string().default('claude-sonnet-5'),
   ANTHROPIC_MODEL_VERIFY: z.string().default('claude-opus-5'),
+  // Sonnet rather than Haiku only because `PRICES` in ai/budget.ts carries a
+  // rate for Sonnet and not for Haiku, and an unpriced model is billed at the
+  // table's worst rate. Add the Haiku row from the published price list and
+  // this should move to it.
+  ANTHROPIC_MODEL_FAST: z.string().default('claude-sonnet-5'),
 
   OPENAI_API_KEY: z.string().default(''),
   OPENAI_MODEL: z.string().default('gpt-4.1'),
   OPENAI_MODEL_VERIFY: z.string().default('gpt-4.1'),
+  OPENAI_MODEL_FAST: z.string().default('gpt-5.4-mini'),
 
   // 'local' runs a small multilingual model on the CPU: no key, no per-token
   // cost, slower. Its similarity scores sit in a different band from the hosted
