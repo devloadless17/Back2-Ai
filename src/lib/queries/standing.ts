@@ -68,6 +68,15 @@ export type Standing = {
  * student 8% and blame them for a gap in our corpus.
  *
  * Track-global and static between ingestion runs — see `cacheCurriculum`.
+ *
+ * "Can be practised" means a chapter is allowed to SERVE a question, which is
+ * `alsoHasQuestions`. It used to ask for questions FILED under the chapter, and
+ * the two stopped being the same thing once an exercise could belong to several
+ * chapters at once: 178 chapters serve questions with nothing filed under them.
+ * That made the denominator 182 instead of 243 on GS and 194 instead of 243 on
+ * LS — a quarter short, which does not show a student a smaller number but a
+ * BIGGER one, because it is a divisor. Coverage read about a third higher than
+ * the programme they had actually covered.
  */
 const practisableChapterCount = cacheCurriculum(
   ['practisable-chapter-count'],
@@ -75,7 +84,7 @@ const practisableChapterCount = cacheCurriculum(
     db.chapter.count({
       where: {
         subject: { trackId: trackId ?? undefined },
-        questions: { some: {} },
+        alsoHasQuestions: { some: { question: { verifiedStatus: { not: 'rejected' } } } },
       },
     }),
 );

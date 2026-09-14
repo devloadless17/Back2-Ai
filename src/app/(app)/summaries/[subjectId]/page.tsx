@@ -48,7 +48,19 @@ export default async function SubjectSummaryPage({
       name: true,
       orderIndex: true,
       unit: { select: { name: true } },
-      _count: { select: { questions: true, contentChunks: true } },
+      /*
+       * `alsoHasQuestions`, not `questions`: what this chapter may ASK, which
+       * is what the quiz serves, rather than where an exercise happens to be
+       * filed. The filed count understated the index by 3-5x — see 6be57e6 —
+       * and here it is the line that tells a reader whether the chapter is
+       * examined at all.
+       */
+      _count: {
+        select: {
+          alsoHasQuestions: { where: { question: { verifiedStatus: { not: 'rejected' } } } },
+          contentChunks: true,
+        },
+      },
     },
     orderBy: { orderIndex: 'asc' },
   });
@@ -116,8 +128,10 @@ export default async function SubjectSummaryPage({
                         <div className="min-w-0">
                           <p className="truncate text-sm font-medium text-ink">{chapter.name}</p>
                           <p className="text-caption text-ink-faint">
-                            {chapter._count.questions > 0
-                              ? format(t.summaries.pastQuestions, { count: chapter._count.questions })
+                            {chapter._count.alsoHasQuestions > 0
+                              ? format(t.summaries.pastQuestions, {
+                                  count: chapter._count.alsoHasQuestions,
+                                })
                               : t.summaries.noPastQuestions}
                           </p>
                         </div>
