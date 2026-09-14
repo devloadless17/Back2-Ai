@@ -96,17 +96,35 @@ export default async function SubjectChaptersPage({
                   <ul className="ruled">
                     {unitChapters.map((chapter) => {
                       /*
-                       * A chapter with no questions is not a link.
+                       * THREE STATES, NOT TWO.
                        *
                        * The chapter list is the real curriculum, read from the
                        * textbooks, and it runs ahead of the questions — which
-                       * arrive chapter by chapter through ingestion. Linking to
-                       * a chapter that cannot be practised sends the student to
-                       * an empty screen and teaches them the list is unreliable.
-                       * Showing it greyed says the opposite: the syllabus is
-                       * complete, this part is not ready yet.
+                       * come from past papers and examine some chapters every
+                       * year and others never. A row that cannot be practised
+                       * is greyed rather than linked, because sending a student
+                       * to an empty screen teaches them the list is unreliable.
+                       *
+                       * That rule is older than `ChapterDeadEnd`, and it is now
+                       * the thing keeping students away from it. The chapter
+                       * page no longer shows an empty screen when there are no
+                       * questions: it offers the chapter's own reading, the
+                       * tutor grounded on that reading, and the nearest chapter
+                       * that can be practised. Greying the row hides all three.
+                       *
+                       * It matters at scale, not in the margins. 320 of 1,193
+                       * chapters have reading and no questions — 28 in LH أدب
+                       * عربي, and 782 passages behind ten grey rows in LH
+                       * English. Every one of them said "no questions", which is
+                       * true, and let the student conclude "nothing here", which
+                       * is not.
+                       *
+                       * So the inert state is kept for what it was written for:
+                       * a chapter with genuinely nothing behind it, of which
+                       * there are 22.
                        */
                       const practisable = chapter.questionCount > 0;
+                      const readable = !practisable && chapter.hasReading;
 
                       const row = (
                         <>
@@ -114,7 +132,7 @@ export default async function SubjectChaptersPage({
                             <p
                               className={cn(
                                 'truncate text-sm font-medium',
-                                practisable ? 'text-ink' : 'text-ink-faint',
+                                practisable || readable ? 'text-ink' : 'text-ink-faint',
                               )}
                             >
                               {chapter.name}
@@ -122,7 +140,9 @@ export default async function SubjectChaptersPage({
                             <p className="text-caption text-ink-faint">
                               {practisable
                                 ? `${chapter.questionCount} · ${chapter.attemptsCount} ${t.practice.attempts}`
-                                : t.practice.noQuestions}
+                                : readable
+                                  ? t.practice.readingOnly
+                                  : t.practice.noQuestions}
                             </p>
                           </div>
 
@@ -150,7 +170,7 @@ export default async function SubjectChaptersPage({
 
                       return (
                       <li key={chapter.id}>
-                        {practisable ? (
+                        {practisable || readable ? (
                         <Link
                           href={`/practice/${subject.id}/${chapter.id}`}
                           className="flex items-center gap-4 px-5 py-3.5 transition-colors duration-150 hover:bg-paper-sunken"

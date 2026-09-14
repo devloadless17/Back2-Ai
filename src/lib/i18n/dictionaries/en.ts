@@ -335,6 +335,13 @@ export const en = {
     chaptersIn: 'Chapters in {subject}',
     noQuestions: 'No practice questions for this chapter yet.',
     noQuestionsHint: 'The material is here even though the questions are not — you can read it or ask about it.',
+    /*
+     * A chapter row in the index with reading behind it and no questions. It
+     * has to say what the chapter DOES hold, in about three words: the row it
+     * replaces said "No practice questions", which a student reads as "nothing
+     * here" and skips past a textbook chapter.
+     */
+    readingOnly: 'Reading — no questions yet',
     emptyRead: 'Read this chapter',
     emptyAsk: 'Ask about this chapter',
     emptyElsewhere: 'Practise {chapter} instead',

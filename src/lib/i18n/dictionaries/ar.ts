@@ -340,6 +340,8 @@ export const ar: Dictionary = {
     chaptersIn: 'فصول مادة {subject}',
     noQuestions: 'لا توجد أسئلة لهذا الفصل بعد.',
     noQuestionsHint: 'المادة متوفرة حتى وإن لم تتوفر الأسئلة — يمكنك قراءتها أو السؤال عنها.',
+    /** فصل في الفهرس فيه مادة للقراءة ولا أسئلة بعد. */
+    readingOnly: 'مادة للقراءة — لا أسئلة بعد',
     emptyRead: 'اقرأ هذا الفصل',
     emptyAsk: 'اسأل عن هذا الفصل',
     emptyElsewhere: 'تدرّب على {chapter} بدلاً',

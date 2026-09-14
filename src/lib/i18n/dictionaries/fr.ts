@@ -317,6 +317,8 @@ export const fr: Dictionary = {
     chaptersIn: 'Chapitres de {subject}',
     noQuestions: 'Pas encore de questions pour ce chapitre.',
     noQuestionsHint: 'Le cours est là même si les questions ne le sont pas — vous pouvez le lire ou poser une question.',
+    /** Chapitre de l'index qui a le cours mais pas encore de questions. */
+    readingOnly: 'Cours — pas encore de questions',
     emptyRead: 'Lire ce chapitre',
     emptyAsk: 'Poser une question sur ce chapitre',
     emptyElsewhere: 'Travailler {chapter} à la place',

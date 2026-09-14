@@ -49,12 +49,20 @@ export async function ChapterDeadEnd({
      * The nearest sibling that can actually be practised. Ordered by position in
      * the book rather than by question count: a student working through a
      * syllabus wants the next thing, not the busiest thing.
+     *
+     * `alsoHasQuestions`, not `questions`: the first is what a chapter may ASK
+     * and is what the quiz selects on, the second is only where an exercise was
+     * filed. 178 chapters have nothing filed under them and questions they can
+     * serve, so the filed relation would skip straight past them — offering a
+     * chapter further down the book, or reporting no sibling at all, while the
+     * index right next to it shows the skipped one as practisable. Same
+     * distinction as `listChapters`; see 6be57e6.
      */
     db.chapter.findFirst({
       where: {
         subjectId,
         id: { not: chapterId },
-        questions: { some: { verifiedStatus: { not: 'rejected' } } },
+        alsoHasQuestions: { some: { question: { verifiedStatus: { not: 'rejected' } } } },
       },
       select: { id: true, name: true },
       orderBy: { orderIndex: 'asc' },

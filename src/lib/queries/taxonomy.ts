@@ -166,6 +166,19 @@ export type ChapterSummary = {
   unitName: string | null;
   orderIndex: number;
   questionCount: number;
+  /**
+   * Whether the chapter has textbook material behind it, independently of
+   * whether anything can be practised in it.
+   *
+   * The two run on different clocks. The chapter list is the syllabus, read off
+   * the textbooks; questions arrive from past papers, which examine some
+   * chapters every year and others never. 320 of 1,193 chapters have reading
+   * and no questions — 28 in LH أدب عربي, and 782 passages behind ten rows in
+   * LH English — and every one of them was a greyed-out row reading "no
+   * questions", which is true and tells the student the wrong thing. There is a
+   * summary page for each of them already; it was simply unreachable from here.
+   */
+  hasReading: boolean;
   masteryScore: number;
   attemptsCount: number;
 };
@@ -199,6 +212,10 @@ export async function listChapters(subjectId: string, userId: string): Promise<C
           alsoHasQuestions: { where: { question: { verifiedStatus: { not: 'rejected' } } } },
         },
       },
+      // Existence, not a count: the list only asks whether there is anything to
+      // read, and counting 782 join rows to answer a yes/no costs more than the
+      // answer is worth.
+      contentChunks: { select: { chunkId: true }, take: 1 },
       chapterMastery: { where: { userId }, select: { masteryScore: true, attemptsCount: true } },
     },
     orderBy: { orderIndex: 'asc' },
@@ -210,6 +227,7 @@ export async function listChapters(subjectId: string, userId: string): Promise<C
     unitName: chapter.unit?.name ?? null,
     orderIndex: chapter.orderIndex,
     questionCount: chapter._count.alsoHasQuestions,
+    hasReading: chapter.contentChunks.length > 0,
     masteryScore: Number(chapter.chapterMastery[0]?.masteryScore ?? 0),
     attemptsCount: chapter.chapterMastery[0]?.attemptsCount ?? 0,
   }));
