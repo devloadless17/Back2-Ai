@@ -237,7 +237,16 @@ const UNRESOLVED_REFERENCE_PROMPT = [
   'stands without it, and ask for it. Do not guess what it showed.',
 ].join('\n');
 
-function systemPrompt(
+/**
+ * Exported so a prompt experiment tests the prompt that actually ships.
+ *
+ * `scripts/compare-document-prompt.ts` appends a candidate block to this and
+ * scores both answers against the question's own barème. Copying the prompt
+ * into the script instead would measure a copy, and the copy would drift from
+ * this one the first time either changed — which is exactly how the reranking
+ * comment came to quote a number that had stopped being true.
+ */
+export function systemPrompt(
   tier: GroundingTier,
   classification: QuestionClassification,
   locale: Locale,

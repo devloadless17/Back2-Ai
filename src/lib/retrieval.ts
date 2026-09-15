@@ -1123,13 +1123,23 @@ export async function retrieveGrounding(input: RetrievalInput): Promise<Groundin
    * The cheap model damages French in both measurements — 52->39 then 53->33 —
    * and the flagship restores it to exactly baseline. So "reranking hurts
    * French", which is why this was Arabic-only, was never true: the cheap model
-   * hurts French. The flagship looks better than no reranking everywhere, and
-   * that is NOT yet established — n=7 for Arabic there, and five probes of
-   * margin overall. Settling it means the flagship arm over all 59 Arabic
-   * probes, which the script can now do with `--lang ar --arms 0,3`.
+   * hurts French.
    *
-   * Until someone runs it, the embedding order is what measures best, and it is
-   * also free. `rerank.ts` and the comparison script stay for that run.
+   * THE FLAGSHIP'S APPARENT GAIN WAS SEVEN PROBES OF NOISE. In that table it
+   * reads 5/7 = 71% on Arabic, which is one probe away from 4/7. Run over all
+   * 59 Arabic probes instead — `--lang ar --limit 0 --arms 0,3` — it lands
+   * exactly on the baseline:
+   *
+   *   no rerank          31/59  53%
+   *   gpt-5.5 @ medium   31/59  53%
+   *
+   * Not better, not worse, at roughly fifteen times the price per question. So
+   * reranking is finished as an idea for this corpus: the cheap model is worse
+   * than nothing and the expensive one is indistinguishable from it. The
+   * embedding order is what measures best AND is free, which is the happy case.
+   *
+   * `rerank.ts` and the comparison script stay — they are how this was settled,
+   * and how it would be re-opened if the embedding model ever changed.
    */
   passingChunks = passingChunks.slice(0, HANDED_OVER);
 
