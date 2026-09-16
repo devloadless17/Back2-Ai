@@ -8,6 +8,7 @@ import { Meter } from '@/components/ui/progress';
 import { Sheet, SheetBody } from '@/components/ui/sheet';
 import { TutorAnchor } from '@/components/chat/tutor-context';
 import { SubjectHub } from '@/components/practice/subject-hub';
+import { ExamFrequency } from '@/components/practice/exam-frequency';
 import { BackLink } from '@/components/ui/back-link';
 import { getSubjectHub } from '@/lib/queries/subject-hub';
 import { requireUser } from '@/lib/auth/guards';
@@ -137,13 +138,36 @@ export default async function SubjectChaptersPage({
                             >
                               {chapter.name}
                             </p>
-                            <p className="text-caption text-ink-faint">
-                              {practisable
-                                ? `${chapter.questionCount} · ${chapter.attemptsCount} ${t.practice.attempts}`
-                                : readable
-                                  ? t.practice.readingOnly
-                                  : t.practice.noQuestions}
-                            </p>
+                            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                              <p className="text-caption text-ink-faint">
+                                {practisable
+                                  ? `${chapter.questionCount} · ${chapter.attemptsCount} ${t.practice.attempts}`
+                                  : readable
+                                    ? t.practice.readingOnly
+                                    : t.practice.noQuestions}
+                              </p>
+
+                              {/*
+                                How often the examiners have actually set this
+                                chapter. Beside the question count on purpose:
+                                the count says how much there is to practise,
+                                this says whether it is worth practising, and a
+                                student deciding where to spend Sunday needs
+                                both in the same glance.
+                              */}
+                              {practisable && (
+                                <ExamFrequency
+                                  examYears={chapter.examYears}
+                                  labels={{
+                                    core: t.practice.examCore,
+                                    regular: t.practice.examRegular,
+                                    occasional: t.practice.examOccasional,
+                                    dormant: t.practice.examDormant,
+                                    years: t.practice.examYears,
+                                  }}
+                                />
+                              )}
+                            </div>
                           </div>
 
                           {practisable && (

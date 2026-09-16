@@ -317,6 +317,11 @@ export const en = {
   },
 
   practice: {
+    examCore: 'set {recent} of the last {window} years',
+    examRegular: 'set {recent} of the last {window} years',
+    examOccasional: 'set {recent} of the last {window} years',
+    examDormant: 'not set since {last}',
+    examYears: '{years}',
     simNotEnough: "That subject doesn't have enough questions for a full paper yet.",
     simNoneTitle: 'No subject has enough questions for a full paper yet.',
     simNoneBody: 'Chapter practice works on everything that is loaded.',

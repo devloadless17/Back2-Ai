@@ -299,6 +299,11 @@ export const fr: Dictionary = {
   },
 
   practice: {
+    examCore: 'tombé {recent} fois sur {window} ans',
+    examRegular: 'tombé {recent} fois sur {window} ans',
+    examOccasional: 'tombé {recent} fois sur {window} ans',
+    examDormant: 'pas tombé depuis {last}',
+    examYears: '{years}',
     simNotEnough: "Cette matière n'a pas encore assez de questions pour un sujet complet.",
     simNoneTitle: "Aucune matière n'a encore assez de questions pour un sujet complet.",
     simNoneBody: 'Le travail par chapitre fonctionne sur tout ce qui est chargé.',

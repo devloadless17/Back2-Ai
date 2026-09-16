@@ -322,6 +322,11 @@ export const ar: Dictionary = {
   },
 
   practice: {
+    examCore: 'ورد {recent} من آخر {window} سنوات',
+    examRegular: 'ورد {recent} من آخر {window} سنوات',
+    examOccasional: 'ورد {recent} من آخر {window} سنوات',
+    examDormant: 'لم يرد منذ {last}',
+    examYears: '{years}',
     simNotEnough: 'لا تحتوي هذه المادة على أسئلة كافية لمسابقة كاملة بعد.',
     simNoneTitle: 'لا توجد مادة فيها أسئلة كافية لمسابقة كاملة بعد.',
     simNoneBody: 'التدريب حسب الفصول يعمل على كل ما هو محمّل.',
