@@ -223,6 +223,57 @@ const PER_KIND: Record<QuestionClassification['kind'], string[]> = {
 };
 
 /**
+ * Added when the question is asked ABOUT DOCUMENTS printed on the paper.
+ *
+ * Lebanese history, geography and civics papers are built this way, and the
+ * marking scheme scores the PRESENTATION of each document separately from the
+ * analysis of it. The wording repeats across years almost verbatim:
+ *
+ *   قدّم كلاً من المستندات: نوعه، مصدره وحدّد المسألة التي يتناولها
+ *   present each document: its type, its source, and the issue it addresses
+ *
+ * It earns its own instruction because it is worth marks and because it is
+ * invisible: a tutor can write an excellent answer about what a document SAYS
+ * and score nothing for the marks awarded for saying what it IS. 141 of 163
+ * جغرافيا questions and 105 of 155 تربية وطنية questions are document
+ * questions, and 35 barèmes name type and source explicitly — this is the shape
+ * of most of two subjects, not an edge case.
+ *
+ * NOT MEASURED, and that should be said plainly rather than implied. The
+ * experiment written to check it — `scripts/compare-document-prompt.ts` —
+ * produced an invalid result on its only run: the judge re-split the marking
+ * scheme per arm, so the arms were scored against different rubrics. The script
+ * is fixed and has not been re-run. What stands behind this block is the barème
+ * text, which names the requirement, and the absence of any mention of it in
+ * this prompt. That is a gap you can read rather than measure. Whether closing
+ * it also makes answers better is the part still open.
+ */
+const DOCUMENT_PROMPT = [
+  '',
+  'This question is asked about documents printed on the exam paper, and a Lebanese marking scheme',
+  'scores the PRESENTATION of each document separately from the analysis of it. Before using a',
+  'document, name three things about it: its type (نوعه), its source (مصدره), and the issue it',
+  'addresses (المسألة التي يتناولها). Each carries marks of its own, so an answer that goes straight',
+  'to the content loses them however good the content is. Take all three from the document itself —',
+  'if it does not say who wrote it or when, say so rather than supplying a plausible source.',
+].join('\n');
+
+/**
+ * Does this question hand the candidate documents?
+ *
+ * Deliberately narrow. A question that mentions a source in passing is not a
+ * document exercise, and adding the instruction where it does not belong would
+ * have the tutor open an answer by announcing the type and source of a document
+ * that was never supplied — which is the failure `UNRESOLVED_REFERENCE_PROMPT`
+ * below exists to prevent, arriving from the opposite direction.
+ *
+ * The Arabic terms carry it, because this is the shape of the Arabic-medium
+ * humanities papers. The Latin words are included for the translated editions
+ * of the same exercises.
+ */
+const DOCUMENT_QUESTION = /المستند|المستندات|المستندين|الوثيقة|الوثائق|\bdocuments?\b/i;
+
+/**
  * Added when the question points at something that was not supplied.
  *
  * "Expliquez le schéma ci-dessous" with no diagram attached is answerable in
@@ -250,6 +301,14 @@ export function systemPrompt(
   tier: GroundingTier,
   classification: QuestionClassification,
   locale: Locale,
+  /**
+   * The student's question, read only to detect a document exercise.
+   *
+   * Optional so a caller with no question text gets the prompt without that
+   * block, rather than an instruction asserted about a document nobody has
+   * seen.
+   */
+  question?: string,
 ): string {
   const common = [
     'You are a tutor for the Lebanese Baccalaureate. You are talking to a student preparing for a national exam.',
@@ -335,7 +394,21 @@ export function systemPrompt(
       ? [UNRESOLVED_REFERENCE_PROMPT]
       : [];
 
-  return [...common, ...tierBlock, ...PER_KIND[classification.kind], ...unresolved].join('\n');
+  /*
+   * Independent of kind and tier. A document exercise is classified as
+   * comprehension or as concept depending on how it is phrased, and it is
+   * marked the same way either way — so keying this off the classification
+   * would drop the instruction on half the questions it belongs to.
+   */
+  const documents = question && DOCUMENT_QUESTION.test(question) ? [DOCUMENT_PROMPT] : [];
+
+  return [
+    ...common,
+    ...tierBlock,
+    ...PER_KIND[classification.kind],
+    ...unresolved,
+    ...documents,
+  ].join('\n');
 }
 
 /**
@@ -599,7 +672,7 @@ export async function* runChatTurn(input: ChatTurnInput): AsyncGenerator<ChatEve
   try {
     const stream = provider.streamText({
       system:
-        systemPrompt(grounding.tier, grounding.classification, input.locale) +
+        systemPrompt(grounding.tier, grounding.classification, input.locale, input.question) +
         (input.anchorAttempt ? `\n${CORRECTION_KEY_PROMPT}` : ''),
       messages: [...input.history.slice(-8), { role: 'user', content: userContent }],
       effort: 'high',
