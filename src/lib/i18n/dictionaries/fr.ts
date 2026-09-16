@@ -159,6 +159,33 @@ export const fr: Dictionary = {
       'Les chapitres sont classés selon leur faiblesse ET la fréquence à laquelle ils tombent. Un chapitre qui ne tombe plus n\'est pas listé, même mal maîtrisé.',
   },
 
+  worksheet: {
+    title:
+      'Créer une feuille d\'exercices',
+    subtitle:
+      'De vraies questions d\'examens, choisies par chapitre. Rien n\'est généré — chaque question vient d\'une épreuve datée.',
+    subject:
+      'Matière',
+    chapters:
+      'Chapitre',
+    allChapters:
+      'Tous les chapitres',
+    count:
+      'Questions',
+    withKey:
+      'Inclure le corrigé',
+    build:
+      'Créer',
+    none:
+      'Aucune question ne correspond. Essayez tous les chapitres, ou décochez le corrigé — toutes les questions n\'ont pas de barème.',
+    ofAvailable:
+      '{shown} sur {total} disponibles',
+    answerKey:
+      'Corrigé',
+    noKey:
+      'Aucun barème enregistré pour cette question.',
+  },
+
   standing: {
     title: 'Situation',
     subtitle: 'Où vous en êtes, en notes sur 20.',

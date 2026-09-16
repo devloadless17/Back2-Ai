@@ -170,6 +170,33 @@ export const en = {
       'Chapters are ranked by how weak they are AND how often the examiners set them. A chapter not set for years is not listed, however weak.',
   },
 
+  worksheet: {
+    title:
+      'Build a worksheet',
+    subtitle:
+      'Real past-exam questions, chosen by chapter. Nothing is generated — every question came off a named paper.',
+    subject:
+      'Subject',
+    chapters:
+      'Chapter',
+    allChapters:
+      'All chapters',
+    count:
+      'Questions',
+    withKey:
+      'Include the answer key',
+    build:
+      'Build',
+    none:
+      'No questions match that choice. Try all chapters, or turn off the answer key — not every question has a marking scheme.',
+    ofAvailable:
+      '{shown} of {total} available',
+    answerKey:
+      'Answer key',
+    noKey:
+      'No marking scheme stored for this question.',
+  },
+
   standing: {
     title: 'Standing',
     subtitle: 'Where you stand, in marks out of 20.',

@@ -116,6 +116,13 @@ export function Sidebar({
          * redirects here.
          */
         { href: '/chat', label: t.nav.chat, icon: IconChat },
+        /*
+         * Building a sheet of past-exam questions. Filed under Study rather
+         * than Assess because it is something you make, not a score you read —
+         * and a student assembling their own revision set is as legitimate a
+         * user of it as the teacher it was built for.
+         */
+        { href: '/worksheet', label: t.worksheet.title, icon: IconExam },
       ],
     },
     {
