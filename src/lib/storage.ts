@@ -239,5 +239,21 @@ export function ownerFromKey(key: string): string | null {
 }
 
 export const ALLOWED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp'] as const;
-export const ALLOWED_DOCUMENT_TYPES = ['application/pdf', 'text/plain', ...ALLOWED_IMAGE_TYPES] as const;
+/**
+ * What a student may attach.
+ *
+ * Word documents are here because that is what a Lebanese school hands out —
+ * teachers circulate .docx, and a student who cannot attach the handout their
+ * teacher gave them has to retype it or photograph a screen.
+ *
+ * `.doc` (the pre-2007 binary format) is deliberately absent. It is not a ZIP,
+ * needs a real parser, and returning garbled text from one would be worse than
+ * refusing it: the student would not know the tutor was reading nonsense.
+ */
+export const ALLOWED_DOCUMENT_TYPES = [
+  'application/pdf',
+  'text/plain',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  ...ALLOWED_IMAGE_TYPES,
+] as const;
 export const MAX_UPLOAD_BYTES = 15 * 1024 * 1024;

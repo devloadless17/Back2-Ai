@@ -12,8 +12,13 @@ import { apiUser } from '@/lib/auth/guards';
 import { budgetState } from '@/lib/ai';
 import { db } from '@/lib/db';
 import { isAiConfigured } from '@/lib/env';
-import { toAiImage, transcribeImage } from '@/lib/ocr';
-import { ALLOWED_IMAGE_TYPES, MAX_UPLOAD_BYTES, putObject } from '@/lib/storage';
+import { extractDocumentText, toAiImage, transcribeImage } from '@/lib/ocr';
+import {
+  ALLOWED_DOCUMENT_TYPES,
+  ALLOWED_IMAGE_TYPES,
+  MAX_UPLOAD_BYTES,
+  putObject,
+} from '@/lib/storage';
 
 /**
  * Photo entry point.
@@ -62,9 +67,20 @@ export const POST = route(async (request) => {
 
   if (!(file instanceof File)) return fail(422, 'FILE_REQUIRED');
   if (file.size > MAX_UPLOAD_BYTES) return fail(413, 'FILE_TOO_LARGE');
-  if (!(ALLOWED_IMAGE_TYPES as readonly string[]).includes(file.type)) {
+  if (!(ALLOWED_DOCUMENT_TYPES as readonly string[]).includes(file.type)) {
     return fail(415, 'UNSUPPORTED_FILE_TYPE');
   }
+
+  /*
+   * A photograph and a document are read differently and fail differently.
+   *
+   * A photo goes to the model, which reports the regions it could not read so
+   * the student is warned before they trust the transcription. A PDF, a Word
+   * file or a text file is parsed, which either works or returns nothing — and
+   * nothing from a PDF means a scan with no text layer, which is a different
+   * problem with a different remedy: photograph the page instead.
+   */
+  const isImage = (ALLOWED_IMAGE_TYPES as readonly string[]).includes(file.type);
 
   const bytes = Buffer.from(await file.arrayBuffer());
 
@@ -94,19 +110,29 @@ export const POST = route(async (request) => {
   }
 
   let extractedText: string;
-  let hasIllegibleRegions: boolean;
+  let hasIllegibleRegions = false;
 
   try {
-    const result = await transcribeImage(toAiImage(bytes, file.type));
-    extractedText = result.text;
-    hasIllegibleRegions = result.hasIllegibleRegions;
+    if (isImage) {
+      const result = await transcribeImage(toAiImage(bytes, file.type));
+      extractedText = result.text;
+      hasIllegibleRegions = result.hasIllegibleRegions;
+    } else {
+      extractedText = await extractDocumentText(bytes, file.type);
+    }
   } catch (err) {
-    console.error('[upload] transcription failed', err);
+    console.error('[upload] extraction failed', err);
     return fail(502, 'OCR_FAILED');
   }
 
   if (extractedText.trim().length < 10) {
-    return fail(422, 'OCR_EMPTY');
+    /*
+     * A PDF that yields nothing is a scan, and telling that student to "try a
+     * sharper photo" sends them round a loop they cannot exit — they did not
+     * take a photo. Its own code so the client can say the one useful thing:
+     * photograph the page instead.
+     */
+    return fail(422, isImage ? 'OCR_EMPTY' : 'DOCUMENT_HAS_NO_TEXT');
   }
 
   /*

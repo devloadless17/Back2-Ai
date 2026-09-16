@@ -111,6 +111,15 @@ export function IconCamera(props: IconProps) {
   );
 }
 
+/** A paperclip — attaching a file rather than taking a picture of one. */
+export function IconPaperclip(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M14.5 8.5 9 14a3 3 0 0 1-4.25-4.25l6-6a2 2 0 0 1 2.83 2.83l-5.9 5.9a1 1 0 0 1-1.41-1.42l5.3-5.3" />
+    </Icon>
+  );
+}
+
 export function IconChart(props: IconProps) {
   return (
     <Icon {...props}>

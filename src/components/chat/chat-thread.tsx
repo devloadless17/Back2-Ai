@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/field';
 import { Alert, Badge } from '@/components/ui/feedback';
 import { MathText } from '@/components/ui/math';
 import { Sheet, SheetBody } from '@/components/ui/sheet';
-import { IconCamera, IconClose } from '@/components/shell/icons';
+import { IconCamera, IconClose, IconPaperclip } from '@/components/shell/icons';
 import { cn } from '@/lib/cn';
 import { ApiRequestError, sendForm } from '@/lib/client/request';
 import { useI18n } from '@/lib/i18n/client';
@@ -63,6 +63,9 @@ function uploadError(err: unknown, t: ReturnType<typeof useI18n>['t']): string {
   if (!(err instanceof ApiRequestError)) return t.common.unknownError;
   if (err.status === 402) return t.upload.budgetExhausted;
   if (err.status === 415) return t.upload.wrongType;
+  // A document with no text layer is a scan, and "try a sharper photo" is
+  // useless advice to someone who uploaded a PDF. Its own message.
+  if (err.status === 422 && err.code === 'DOCUMENT_HAS_NO_TEXT') return t.upload.noTextInDocument;
   if (err.status === 413) return t.upload.tooBig;
   if (err.status === 503) return t.upload.serviceDown;
   return t.upload.failed;
@@ -86,6 +89,17 @@ export function ChatThread({
 
   // Photo attachment state.
   const fileRef = useRef<HTMLInputElement>(null);
+  /*
+   * A SECOND input, for documents, rather than widening the first.
+   *
+   * The photo input carries `capture="environment"`, which is what makes an
+   * iPhone transcode HEIC to JPEG as the picture is taken — see the note on it
+   * below, it was a real bug. That same attribute makes the picker open the
+   * CAMERA, so a student could never reach the file on their phone through it.
+   * Two inputs keep both behaviours instead of trading one for the other.
+   */
+  const docRef = useRef<HTMLInputElement>(null);
+  const [attachedName, setAttachedName] = useState<string | null>(null);
   const [attaching, setAttaching] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
   const [transcription, setTranscription] = useState<string | null>(null);
@@ -106,10 +120,16 @@ export function ChatThread({
    * way for them to tell that is what happened. Letting them fix it costs a
    * couple of lines on screen and removes the failure mode entirely.
    */
-  async function attach(file: File) {
+  async function attach(file: File, kind: 'photo' | 'document' = 'photo') {
     setError(null);
     setAttaching(true);
-    setPreview(URL.createObjectURL(file));
+    setAttachedName(kind === 'document' ? file.name : null);
+    /*
+     * Only a photograph gets an object-URL preview. A PDF or a Word file has
+     * nothing to show, and an <img> pointed at one renders a broken-image icon,
+     * which reads as "your upload failed" at the exact moment it succeeded.
+     */
+    setPreview(kind === 'photo' ? URL.createObjectURL(file) : null);
 
     const form = new FormData();
     form.append('file', file);
@@ -136,9 +156,14 @@ export function ChatThread({
   function clearAttachment() {
     if (preview) URL.revokeObjectURL(preview);
     setPreview(null);
+    setAttachedName(null);
     setTranscription(null);
     setIllegible(false);
+    // Both, and by value rather than by ref identity: leaving the old filename
+    // in an input means re-choosing the same file fires no change event, so a
+    // student who retries after an error appears to click a dead button.
     if (fileRef.current) fileRef.current.value = '';
+    if (docRef.current) docRef.current.value = '';
   }
 
   async function send(event: FormEvent) {
@@ -304,14 +329,28 @@ export function ChatThread({
       <form onSubmit={send} className="sticky bottom-4 space-y-2">
         <Sheet>
           <SheetBody className="space-y-2 p-3">
-            {preview ? (
+            {preview || attachedName ? (
               <div className="flex gap-3 rounded-lg bg-paper-sunken/60 p-2.5">
-                {/* eslint-disable-next-line @next/next/no-img-element -- object URL, never optimised */}
-                <img
-                  src={preview}
-                  alt=""
-                  className="h-20 w-20 shrink-0 rounded-md object-cover"
-                />
+                {/*
+                  A photo shows itself. A document cannot, so it shows its name
+                  in the same slot — the student needs to see WHICH file the
+                  tutor is about to read, and a blank square would say nothing.
+                */}
+                {preview ? (
+                  // eslint-disable-next-line @next/next/no-img-element -- object URL, never optimised
+                  <img
+                    src={preview}
+                    alt=""
+                    className="h-20 w-20 shrink-0 rounded-md object-cover"
+                  />
+                ) : (
+                  <div className="flex h-20 w-20 shrink-0 flex-col items-center justify-center gap-1 rounded-md bg-paper px-1 text-center">
+                    <IconPaperclip width={18} height={18} />
+                    <span className="line-clamp-2 break-all text-caption text-ink-faint">
+                      {attachedName}
+                    </span>
+                  </div>
+                )}
                 <div className="min-w-0 flex-1 space-y-1.5">
                   <div className="flex items-center justify-between gap-2">
                     <p className="text-caption font-semibold uppercase tracking-wide text-ink-faint">
@@ -380,16 +419,51 @@ export function ChatThread({
                   if (file) void attach(file);
                 }}
               />
-              <Button
-                type="button"
-                size="sm"
-                variant="quiet"
-                disabled={disabled || streaming || attaching}
-                onClick={() => fileRef.current?.click()}
-              >
-                <IconCamera width={16} height={16} />
-                <span className="ms-1.5">{t.upload.attach}</span>
-              </Button>
+              <input
+                ref={docRef}
+                type="file"
+                /*
+                 * No `capture` here, deliberately — that attribute opens the
+                 * camera and would put a document picker out of reach. The
+                 * types are named rather than left open so the picker greys out
+                 * what the server would refuse, instead of letting a student
+                 * choose a .doc or a .pages and learn it was wrong afterwards.
+                 */
+                accept={
+                  'application/pdf,text/plain,' +
+                  'application/vnd.openxmlformats-officedocument.wordprocessingml.document,' +
+                  'image/png,image/jpeg,image/webp'
+                }
+                className="sr-only"
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  if (file) void attach(file, 'document');
+                }}
+              />
+
+              <div className="flex items-center gap-1">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="quiet"
+                  disabled={disabled || streaming || attaching}
+                  onClick={() => fileRef.current?.click()}
+                >
+                  <IconCamera width={16} height={16} />
+                  <span className="ms-1.5">{t.upload.attach}</span>
+                </Button>
+
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="quiet"
+                  disabled={disabled || streaming || attaching}
+                  onClick={() => docRef.current?.click()}
+                >
+                  <IconPaperclip width={16} height={16} />
+                  <span className="ms-1.5">{t.upload.attachFile}</span>
+                </Button>
+              </div>
 
               <Button
                 type="submit"
