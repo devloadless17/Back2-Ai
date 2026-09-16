@@ -79,6 +79,7 @@
     "try:casual": "node --conditions=react-server --env-file=.env --import tsx scripts/try-casual-questions.ts",
     "compare:document-prompt": "node --conditions=react-server --env-file=.env --import tsx scripts/compare-document-prompt.ts",
     "compare:summary-models": "node --conditions=react-server --env-file=.env --import tsx scripts/compare-summary-models.ts",
+    "rotate:admin": "node --conditions=react-server --env-file=.env --import tsx scripts/rotate-admin-password.ts",
     "account:test": "node --conditions=react-server --env-file=.env --import tsx scripts/create-test-account.ts",
     "refile:cross-language": "node --conditions=react-server --env-file=.env --import tsx scripts/refile-cross-language-questions.ts"
   },
