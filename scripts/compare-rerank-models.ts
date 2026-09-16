@@ -66,6 +66,18 @@ const LANG = arg('--lang');
 const ARM_FILTER = arg('--arms');
 const FIELD = 20;
 const KEEP = 8;
+/*
+ * How many passages the tutor is actually handed — `HANDED_OVER` in
+ * retrieval.ts. Reported alongside top-1 because top-1 is not the number that
+ * decides whether a question can be answered, and reading it as though it were
+ * is what made reranking look worth doing.
+ *
+ * The model reads all twelve. Whether the right passage is FIRST is cosmetic;
+ * whether it is IN THERE is the whole thing. Reordering twelve passages cannot
+ * change which twelve they are, which is why every rerank arm moved top-1 a
+ * long way and coverage barely at all.
+ */
+const HANDED_OVER = 12;
 
 type Probe = { chunkId: string; query: string; subjectId: string; lang: string };
 
@@ -114,10 +126,20 @@ async function main() {
     score.set(arm, m);
   };
 
+  // Coverage does not depend on the arm — reordering cannot change membership —
+  // so it is counted once per probe, outside the arm loop.
+  const cover = new Map<string, { hit: number; n: number }>();
+
   let done = 0;
   for (const p of probes) {
     const hits = await searchContentChunks(await embed(p.query, 'query'), [p.subjectId], FIELD, p.query);
     if (!hits.length) continue;
+
+    const c = cover.get(p.lang) ?? { hit: 0, n: 0 };
+    c.n += 1;
+    if (hits.slice(0, HANDED_OVER).some((h) => h.id === p.chunkId)) c.hit += 1;
+    cover.set(p.lang, c);
+
     for (const arm of ARMS) {
       const ordered = arm.opts
         ? await rerankByRelevance(p.query, hits, KEEP, arm.opts)
@@ -144,6 +166,22 @@ async function main() {
     });
     console.log('  ' + arm.name.padEnd(38) + cells.join('') + `${Math.round((100 * hit) / Math.max(n, 1))}%`.padStart(9));
   }
+
+  /*
+   * The number that decides whether a question is answerable at all, printed
+   * under the one that does not. Same for every arm by construction.
+   */
+  let ch = 0, cn = 0;
+  const coverCells = langs.map((l) => {
+    const c = cover.get(l);
+    if (!c || !c.n) return '        -';
+    ch += c.hit; cn += c.n;
+    return `${Math.round((100 * c.hit) / c.n)}% (${c.n})`.padStart(9);
+  });
+  console.log('');
+  console.log(`  in the ${HANDED_OVER} passages handed to the tutor — what actually decides answerability\n`);
+  console.log('  ' + 'any arm (order cannot change this)'.padEnd(38) + coverCells.join('') +
+    `${Math.round((100 * ch) / Math.max(cn, 1))}%`.padStart(9));
   console.log('');
   await db.$disconnect();
 }

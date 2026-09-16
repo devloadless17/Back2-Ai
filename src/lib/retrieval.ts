@@ -1015,6 +1015,36 @@ export async function retrieveGrounding(input: RetrievalInput): Promise<Groundin
   // Material in the other script only surfaces if it is searched for in that
   // script. Attempted when nothing convincing has been found yet, so a question
   // that is already well answered costs no extra call.
+  /*
+   * Passages found by searching in Arabic, whatever script the student typed in.
+   *
+   * Collected because the concept gate is calibrated per SCRIPT — 0.50 for
+   * Latin, where on- and off-syllabus questions separate cleanly, and 0.45 for
+   * Arabic, where they overlap and a stricter bar refuses real questions. That
+   * calibration is about the material being matched, and `conceptThresholdFor`
+   * infers it from the script of the query, which is right until the two come
+   * apart.
+   *
+   * They come apart on ARABIZI, and Lebanese students write arabizi constantly:
+   *
+   *   "shu ya3ne el isti3ara w kif bfar2a 3an el tashbih"   0.301 raw
+   *   translated to "ما معنى الاستعارة وكيف أفرّق بينها وبين التشبيه؟"   0.491
+   *   the same question typed in Arabic                      0.497 -> answered
+   *
+   * The translation is excellent and recovers almost all of the score. The
+   * question is refused anyway: the query holds no Arabic character, so the
+   * Latin gate of 0.50 is applied to an Arabic-to-Arabic similarity, and it
+   * misses by nine thousandths. Every arabizi question in the trial was refused
+   * this way.
+   *
+   * So the Arabic gate follows the SEARCH rather than the typing. Only these
+   * hits get it: relaxing the gate for everything would hand the French side
+   * 0.45, and measured French off-syllabus questions reach 0.484 — it would
+   * start answering "quelle est la meilleure série sur Netflix" from the
+   * syllabus, which is the failure the gate exists to prevent.
+   */
+  const foundInArabic = new Set<string>();
+
   if ((chunkHits[0]?.similarity ?? 0) < TRANSLATE_BELOW) {
     const translated = await otherScriptQuery(input.query, input.subjectIds);
     if (translated) {
@@ -1024,6 +1054,9 @@ export async function retrieveGrounding(input: RetrievalInput): Promise<Groundin
         FIELD,
         translated,
       );
+      if ((translated.match(ARABIC_CHARS)?.length ?? 0) > 3) {
+        for (const hit of alternate) foundInArabic.add(hit.id);
+      }
       chunkHits = mergeHits(chunkHits, alternate);
     }
   }
@@ -1081,10 +1114,15 @@ export async function retrieveGrounding(input: RetrievalInput): Promise<Groundin
   // Gate on the raw similarity, then re-order what passed. The decision to
   // speak and the choice of what to speak from are kept separate: re-ranking
   // must never talk the pipeline into answering something it would refuse.
+  // A passage found by searching in Arabic is judged on the Arabic gate, even
+  // when the student typed in Latin letters. See `foundInArabic`.
+  const gateFor = (hit: { id: string }) =>
+    foundInArabic.has(hit.id) ? tier.concept : conceptGate;
+
   let passingChunks =
     chunkLead >= RELEVANCE_LEAD
       ? preferExplanations(
-          chunkHits.filter((c) => c.similarity >= conceptGate),
+          chunkHits.filter((c) => c.similarity >= gateFor(c)),
           input.query,
         )
       : [];
