@@ -677,7 +677,10 @@ async function syllabusScope(
   return {
     subject: subject.name,
     chapters: subject.chapters.map((c) => c.name),
-    examples: examples.map((q) => q.contentText.replace(/\s+/g, ' ').trim().slice(0, EXAMPLE_SHOWN)),
+    // `readable`, like everywhere else a question's text is shown or handed
+    // over. These are question STEMS used to bound the scope of a refusal, and
+    // a reversed one describes the syllabus no better than it answers it.
+    examples: examples.map((q) => readable(q).replace(/\s+/g, ' ').trim().slice(0, EXAMPLE_SHOWN)),
   };
 }
 
@@ -801,7 +804,7 @@ export function suppliedPassage(input: RetrievalInput): string | null {
 function formatMarkingSchemes(hits: MarkingSchemeHit[]): string {
   const blocks = hits.map((hit) => {
     const parts = [`## How this is marked — ${hit.chapterName}`];
-    parts.push(`Prompt of the marked question: ${hit.contentText.replace(/\s+/g, ' ').slice(0, 400)}`);
+    parts.push(`Prompt of the marked question: ${readable(hit).replace(/\s+/g, ' ').slice(0, 400)}`);
 
     const bareme = Array.isArray(hit.bareme) ? hit.bareme : [];
     if (bareme.length > 0) {
@@ -830,7 +833,7 @@ function schemeSource(hit: MarkingSchemeHit): RetrievalSource {
     kind: 'question',
     label: `${hit.chapterName} — official marking scheme`,
     similarity: hit.similarity,
-    text: hit.contentText.slice(0, 500),
+    text: readable(hit).slice(0, 500),
   };
 }
 
@@ -895,11 +898,11 @@ export async function retrieveGrounding(input: RetrievalInput): Promise<Groundin
           kind: 'question',
           label: 'The question being worked on',
           similarity: 1,
-          text: anchor.contentText,
+          text: readable(anchor),
         },
       ],
       context: formatQuestionContext(
-        anchor.contentText,
+        readable(anchor),
         anchor.officialSolution,
         anchor.sourcePassage ?? null,
       ),
@@ -926,7 +929,7 @@ export async function retrieveGrounding(input: RetrievalInput): Promise<Groundin
   const topQuestion = questionHits[0];
   const questionLead = relevanceLead(questionHits.map((q) => q.similarity));
 
-  const questionAgreement = topQuestion ? lexicalAgreement(input.query, topQuestion.contentText) : 0;
+  const questionAgreement = topQuestion ? lexicalAgreement(input.query, readable(topQuestion)) : 0;
 
   if (
     topQuestion &&
@@ -941,7 +944,7 @@ export async function retrieveGrounding(input: RetrievalInput): Promise<Groundin
       classification,
       sources: [questionSource(topQuestion)],
       context: formatQuestionContext(
-        topQuestion.contentText,
+        readable(topQuestion),
         topQuestion.officialSolution,
         topQuestion.sourcePassage,
       ),
@@ -1316,13 +1319,44 @@ function formatQuestionContext(
   return parts.join('\n\n');
 }
 
+/**
+ * A question as it should be READ, which is not always how it was stored.
+ *
+ * Two transcriptions of every question exist. `content_text` comes from the
+ * PDF's own text layer, and on a Lebanese paper — Arabic and Latin on one page —
+ * that layer stores Latin mathematics in VISUAL order, right to left. It is not
+ * subtle: `g(x) = 3x² + 9x + 1` is stored as `193 2++= xx)x(g`, and `lim g(x)`
+ * as `)x(glim`. 135 questions are damaged this way, 19% of GS Mathematics.
+ *
+ * `content_latex` came from a structure-aware pass and is intact. Of those 135
+ * questions, ZERO have damaged LaTeX and 97 have a clean version sitting in the
+ * next column. The material was never lost; it was simply not the column being
+ * read.
+ *
+ * `formatContext` already did this for content chunks — `c.contentLatex ??
+ * c.contentText`. Questions did not, so the tutor was handed the scrambled
+ * transcription of every past-exam question while reading textbook passages
+ * correctly. It cannot answer a question it cannot read, and reversed algebra
+ * is worse than missing algebra: it looks like text, embeds without complaint,
+ * and produces a confident answer to something the student never asked.
+ *
+ * Not a repair — nothing is un-reversed here, which could not be done safely
+ * anyway: the corruption is inconsistent within a single expression, so
+ * reversing `)x(glim` recovers `g(x)` and turns `lim` into `mil`. This just
+ * reads the column that was already right.
+ */
+function readable(hit: { contentText: string; contentLatex?: string | null }): string {
+  const latex = hit.contentLatex?.trim();
+  return latex && latex.length > 0 ? latex : hit.contentText;
+}
+
 function questionSource(hit: QuestionHit): RetrievalSource {
   return {
     id: hit.id,
     kind: 'question',
     label: `${hit.chapterName} — past question`,
     similarity: hit.similarity,
-    text: hit.contentText,
+    text: readable(hit),
   };
 }
 
