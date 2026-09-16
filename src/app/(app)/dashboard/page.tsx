@@ -6,6 +6,7 @@ import { SplitHero } from '@/components/dashboard/split-hero';
 import { streakFrom, type SubjectRing } from '@/components/dashboard/subject-rings';
 import { WelcomeHero } from '@/components/dashboard/welcome-hero';
 import { NextUpCard } from '@/components/progress/next-up-card';
+import { RecurringLossesCard } from '@/components/dashboard/recurring-losses-card';
 import { LinkButton } from '@/components/ui/button';
 import { bandForMastery } from '@/components/ui/band';
 import { ActivityColumns, BarRows, type BarDatum } from '@/components/ui/charts';
@@ -19,6 +20,7 @@ import { getTranslations } from '@/lib/i18n';
 import { daysUntil, format, formatDate } from '@/lib/i18n/format';
 import { attemptsByDay, weeklyEffort } from '@/lib/queries/activity';
 import { getFirstSteps } from '@/lib/queries/first-steps';
+import { recurringLosses } from '@/lib/queries/recurring-losses';
 import { getNextUp } from '@/lib/queries/next-up';
 import { findWeakestChapter, getProgressForUser } from '@/lib/queries/progress';
 import { getStanding } from '@/lib/queries/standing';
@@ -58,6 +60,7 @@ export default async function DashboardPage() {
     todaySessions,
     week,
     firstSteps,
+    losses,
   ] = await Promise.all([
     getProgressForUser(user.id, user.trackId, user.preferredLanguage),
     db.flashcardState.count({ where: { userId: user.id, dueDate: { lte: startOfToday() } } }),
@@ -110,6 +113,12 @@ export default async function DashboardPage() {
     // The last seven days, for the hero's three figures.
     weeklyEffort(user.id),
     getFirstSteps(user.id),
+    /*
+     * A plain read of what is already stored — no model call. The dashboard
+     * must never wait on one, and this is the card a student is most likely to
+     * act on, so it must not be the card that makes the page slow.
+     */
+    recurringLosses(user.id),
   ]);
 
   const weakest = findWeakestChapter(progress);
@@ -236,6 +245,26 @@ export default async function DashboardPage() {
       <div className="mb-5">
         <NextUpCard next={nextUp} />
       </div>
+
+      {/*
+        Directly under "what to do next", because it is what to watch for while
+        doing it. The card removes itself when there is no pattern to report —
+        see RecurringLossesCard.
+      */}
+      {losses.length > 0 && (
+        <div className="mb-5">
+          <RecurringLossesCard
+            losses={losses}
+            labels={{
+              title: t.dashboard.lossesTitle,
+              subtitle: t.dashboard.lossesSubtitle,
+              timesLost: t.dashboard.lossesTimes,
+              marksLost: t.dashboard.lossesMarks,
+              practise: t.dashboard.lossesPractise,
+            }}
+          />
+        </div>
+      )}
 
       {/* --- What am I on ------------------------------------------------- */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

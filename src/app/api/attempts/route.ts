@@ -256,6 +256,16 @@ export const POST = route(async (request) => {
       submittedAnswer: body.answerText ?? null,
       score,
       maxScore,
+      /*
+       * Kept, not just returned.
+       *
+       * This has always been computed and handed to the browser, where the
+       * student read it once and it was gone. It is the only record of WHICH
+       * criterion cost them the marks, and a total cannot be taken apart again
+       * afterwards — so "you keep losing marks for not stating the problematic"
+       * was unanswerable from the database until this line existed.
+       */
+      baremeResult: baremeResult === null ? undefined : (baremeResult as object),
       timeTakenSeconds: body.timeTakenSeconds ?? null,
       context: body.context,
     },

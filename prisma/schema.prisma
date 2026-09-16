@@ -919,6 +919,14 @@ model Attempt {
   submittedAnswer    String?        @map("submitted_answer")
   score              Decimal?       @db.Decimal(5, 2)
   maxScore           Decimal?       @map("max_score") @db.Decimal(5, 2)
+  /// Which criteria this answer earned, same shape as `exam_answers.bareme_result`:
+  /// [{ criterion, points_awarded, points_possible, justification, explanation }]
+  ///
+  /// The marker always produced this and the row always dropped it, so a
+  /// student could be told their total and never which part of the answer cost
+  /// them. Null for MCQ, which has no criteria, and for every attempt written
+  /// before this column existed — null means "no detail", never "scored zero".
+  baremeResult       Json?          @map("bareme_result")
   timeTakenSeconds   Int?           @map("time_taken_seconds")
   context            AttemptContext
   attemptedAt        DateTime       @default(now()) @map("attempted_at") @db.Timestamptz(6)

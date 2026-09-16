@@ -237,6 +237,11 @@ export const en = {
   },
 
   dashboard: {
+    lossesTitle: 'What keeps costing you marks',
+    lossesSubtitle: 'The same criterion, missed more than once. In the examiner\'s words.',
+    lossesTimes: 'missed {times} times',
+    lossesMarks: '{points} marks lost',
+    lossesPractise: 'See where it happened',
     title: 'Dashboard',
     greeting: 'Welcome back',
     readiness: 'Exam readiness',

@@ -222,6 +222,11 @@ export const ar: Dictionary = {
   },
 
   dashboard: {
+    lossesTitle: 'ما الذي يكلّفك علامات',
+    lossesSubtitle: 'المعيار نفسه، فاتك أكثر من مرّة. بصيغة المصحّح.',
+    lossesTimes: 'فاتك {times} مرّات',
+    lossesMarks: '{points} علامة ضائعة',
+    lossesPractise: 'شوف وين صار',
     title: 'لوحة المتابعة',
     greeting: 'أهلاً بعودتك',
     readiness: 'الجاهزية للامتحان',

@@ -226,6 +226,11 @@ export const fr: Dictionary = {
   },
 
   dashboard: {
+    lossesTitle: 'Ce qui vous coûte des points',
+    lossesSubtitle: 'Le même critère, manqué plus d\'une fois. Dans les termes du correcteur.',
+    lossesTimes: 'manqué {times} fois',
+    lossesMarks: '{points} points perdus',
+    lossesPractise: 'Voir où c\'est arrivé',
     title: 'Tableau de bord',
     greeting: 'Bon retour',
     readiness: 'Préparation à l’examen',
