@@ -135,6 +135,46 @@ def loose(s):
     return r"\s*".join(re.escape(c) for c in s if not c.isspace())
 
 
+def maths_spans(text):
+    """Character ranges already inside a `$…$` pair."""
+    return [(m.start(), m.end()) for m in re.finditer(r"\$[^$]*\$", text)]
+
+
+def first_match_outside_maths(pattern, text):
+    """The first match that does not touch an existing formula.
+
+    WHY THIS EXISTS. `main` splices each fraction in turn, and every splice
+    searches text that earlier splices have already changed. Nothing stopped a
+    later numerator from matching INSIDE a `$\\frac{…}$` written moments before,
+    and the corpus holds the result:
+
+        $\\frac{2$\\frac{9}{56}$}{56}$
+
+    KaTeX cannot parse that. `rehype-katex` renders an unparseable span in red,
+    inline, so a student is shown the raw source of a formula where the formula
+    should be — 240 such spans across Physics and Mathematiques, 7.2% of all the
+    mathematics in the corpus.
+
+    I could not reproduce the exact page geometry that produces it, so this is a
+    guard rather than a repair of a specific path: a fraction is written only
+    where no formula already stands. That is true regardless of which sequence
+    of splices got there, and it cannot make a page worse — the alternative to
+    writing a nested fraction is leaving the text flat, which is the state this
+    whole script is an improvement on.
+
+    Existing rows are NOT repaired by this. Stripping the inner delimiters of
+    one that is already stored would make it parse and render a clean-looking
+    formula that may be mathematically wrong, which is worse than one that is
+    visibly broken. `npm run check:math-rendering` counts what remains.
+    """
+    spans = maths_spans(text)
+    for match in re.finditer(pattern, text):
+        if any(start < match.end() and match.start() < end for start, end in spans):
+            continue
+        return match
+    return None
+
+
 def splice(text, num, den):
     """Put one fraction back into the flattened text.
 
@@ -154,7 +194,7 @@ def splice(text, num, den):
     If either half cannot be placed, the text is returned untouched. A fraction
     left flat is a known problem; a mangled sentence is a new one.
     """
-    match = re.search(loose(num), text)
+    match = first_match_outside_maths(loose(num), text)
     if not match:
         return text
 
