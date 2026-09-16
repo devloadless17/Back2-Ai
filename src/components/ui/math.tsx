@@ -6,6 +6,7 @@ import remarkBreaks from 'remark-breaks';
 import remarkMath from 'remark-math';
 
 import { cn } from '@/lib/cn';
+import { repairSymbolFont } from '@/lib/symbol-font';
 
 /**
  * Question, solution and explanation bodies.
@@ -40,8 +41,29 @@ import { cn } from '@/lib/cn';
  * `remarkMath`, so display math has already been parsed into its own nodes and
  * a break can never be inserted inside a formula.
  */
+/**
+ * Symbols the papers stored as private-use codepoints, put back before render.
+ *
+ * Lebanese exam papers set their mathematics in the Adobe Symbol font, and a
+ * PDF embedding Symbol writes each glyph at `0xF000 + its byte`. Extraction kept
+ * those codepoints faithfully; nothing downstream knows what they mean. 891 of
+ * the 1,158 questions carrying LaTeX contain them. `Δm = m₁ - m₂` reaches this
+ * component as a blank box followed by `m = m₁ - m₂`, and inside `$…$` it is not
+ * even a blank box — KaTeX cannot parse it, so the student is shown the raw
+ * source of the formula in red.
+ *
+ * DONE AT RENDER RATHER THAN IN THE DATABASE, deliberately. Rewriting 891 rows
+ * is a migration that cannot be undone if the mapping turns out to be wrong
+ * anywhere, and a mapping wrong in one place prints a different equation to
+ * somebody sitting a national exam. Here it is a pure function over text, the
+ * stored bytes stay exactly as the paper had them, and correcting the table
+ * corrects every screen at once. It costs one pass over a string that is about
+ * to be parsed as Markdown anyway.
+ */
 const REMARK = [remarkMath, remarkBreaks];
 const REHYPE = [rehypeKatex];
+
+
 
 export function MathText({
   children,
@@ -55,7 +77,7 @@ export function MathText({
   return (
     <div className={cn(compact ? 'text-sm leading-relaxed' : 'prose-exam', 'scroll-x', className)}>
       <ReactMarkdown remarkPlugins={REMARK} rehypePlugins={REHYPE} skipHtml>
-        {children}
+        {repairSymbolFont(children)}
       </ReactMarkdown>
     </div>
   );
