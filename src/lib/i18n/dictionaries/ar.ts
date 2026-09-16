@@ -527,6 +527,7 @@ export const ar: Dictionary = {
   },
 
   chat: {
+    readingFrom: 'يقرأ {count} مقاطع من {source}…',
     subjectPickTitle: 'شو بدنا ندرس؟',
     subjectPickHint: 'اختر مادة ليأتي الجواب من منهجها. بتقدر تغيّرها بعدين.',
     subjectPickAny: 'مساعدة عامة',

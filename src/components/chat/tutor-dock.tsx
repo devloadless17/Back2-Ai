@@ -203,13 +203,52 @@ export function TutorDock({
         </div>
       )}
 
+      {/*
+        WHAT IT IS LOOKING AT, ON THE CLOSED BUTTON.
+        The dock has always known — `TutorAnchor` publishes it and the panel
+        prints "Looking at: …" — but only once opened, which is the one moment
+        the student no longer needs telling. Closed, it was an anonymous circle
+        on every screen, so nothing ever suggested it had anything to say about
+        THIS chapter.
+
+        Shown only when there is an anchor and the dock is shut, and only on a
+        screen wide enough that a chapter title is not competing with the page
+        for room. It is presentational: the button beside it is the control, and
+        a second clickable thing saying the same would be one more tab stop for
+        no gain.
+      */}
+      {!open && context && (
+        <span
+          aria-hidden
+          className={cn(
+            'fixed bottom-5 end-20 z-40 hidden max-w-[14rem] items-center rounded-full sm:end-24',
+            'border border-rule bg-paper-raised px-3 py-1.5 shadow-pop',
+            'text-caption text-ink-muted animate-fade-up md:flex',
+          )}
+        >
+          <span className="truncate">{format(t.chat.dockContext, { label: context.label })}</span>
+        </span>
+      )}
+
       <button
         ref={toggleRef}
         type="button"
         onClick={() => setOpen((current) => !current)}
         aria-expanded={open}
         aria-controls="tutor-dock-panel"
-        aria-label={open ? t.chat.dockClose : t.chat.dockOpen}
+        /*
+         * The anchor goes in the ACCESSIBLE NAME, not only in the chip beside
+         * it. The chip is hidden from assistive technology and from narrow
+         * screens, so without this a screen-reader user gets "Ask the tutor"
+         * with none of the context a sighted user can see.
+         */
+        aria-label={
+          open
+            ? t.chat.dockClose
+            : context
+              ? format(t.chat.dockContext, { label: context.label })
+              : t.chat.dockOpen
+        }
         className={cn(
           'fixed bottom-5 end-4 z-40 flex h-14 w-14 items-center justify-center rounded-full',
           'bg-primary text-on-primary shadow-pop-lg',

@@ -12,6 +12,7 @@ import { IconCamera, IconClose, IconPaperclip } from '@/components/shell/icons';
 import { cn } from '@/lib/cn';
 import { ApiRequestError, sendForm } from '@/lib/client/request';
 import { useI18n } from '@/lib/i18n/client';
+import { format } from '@/lib/i18n/format';
 
 /**
  * The conversation.
@@ -308,7 +309,31 @@ export function ChatThread({
                 {message.content ? (
                   <MathText>{message.content}</MathText>
                 ) : (
-                  <p className=" text-sm text-ink-faint">{t.chat.thinking}</p>
+                  /*
+                   * WHAT IT IS READING, WHILE IT READS IT.
+                   *
+                   * Retrieval finishes before generation starts, so the sources
+                   * arrive on the `meta` event — ahead of the first token. The
+                   * header has always shown them; the body said "Thinking…",
+                   * which is what every chat box on the internet says and tells
+                   * a student nothing.
+                   *
+                   * Naming the chapter turns the wait into evidence that the
+                   * answer is coming from their own syllabus, at the one moment
+                   * they have nothing else to look at. It also lets them catch a
+                   * wrong subject before reading a paragraph of it.
+                   *
+                   * Falls back to "Thinking…" before `meta` lands, which is the
+                   * honest thing to say while retrieval is still running.
+                   */
+                  <p className="text-sm text-ink-faint">
+                    {message.sources.length > 0
+                      ? format(t.chat.readingFrom, {
+                          count: message.sources.length,
+                          source: message.sources[0]!.label,
+                        })
+                      : t.chat.thinking}
+                  </p>
                 )}
               </SheetBody>
 

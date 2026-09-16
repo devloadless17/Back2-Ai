@@ -510,6 +510,7 @@ export const fr: Dictionary = {
   },
 
   chat: {
+    readingFrom: 'Lecture de {count} passages de {source}…',
     subjectPickTitle: 'On révise quoi ?',
     subjectPickHint: 'Choisissez une matière pour que les réponses viennent de ce programme. Modifiable ensuite.',
     subjectPickAny: 'Aide générale',
