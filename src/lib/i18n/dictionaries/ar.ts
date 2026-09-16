@@ -517,6 +517,12 @@ export const ar: Dictionary = {
   },
 
   chat: {
+    subjectPickTitle: 'شو بدنا ندرس؟',
+    subjectPickHint: 'اختر مادة ليأتي الجواب من منهجها. بتقدر تغيّرها بعدين.',
+    subjectPickAny: 'مساعدة عامة',
+    subjectPickAnyHint: 'ابحث في كل موادي',
+    subjectScoped: 'الجواب من مادة {subject}',
+    subjectChange: 'غيّر المادة',
     title: 'اطرح سؤالاً',
     subtitle: 'الإجابات المأخوذة من منهجك مذكورة مصادرها، وما عداها مُعلَّم بذلك.',
     placeholder: 'اسأل عن مفهوم أو طريقة أو سؤال محدّد…',

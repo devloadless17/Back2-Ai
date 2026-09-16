@@ -75,6 +75,7 @@ export const POST = route(async (request) => {
     select: {
       id: true,
       title: true,
+      subjectId: true,
       question: { select: { id: true, contentText: true, officialSolution: true, bareme: true } },
       attempt: { select: { submittedAnswer: true, score: true, maxScore: true } },
       messages: {
@@ -95,7 +96,28 @@ export const POST = route(async (request) => {
     });
   }
 
-  const subjectIds = await subjectIdsForStudent(user.trackId, user.preferredLanguage);
+  /*
+   * The subjects this question may be answered from.
+   *
+   * The student's whole programme by default, and ONE subject when they named
+   * one before the first message. Narrowing matters more than it looks: asked
+   * "quelle est la différence entre le doute et la philosophie ?" against a
+   * whole track, retrieval ranks a French literature passage at 0.528 above the
+   * Arabic philosophy chapter that answers it at 0.399 — a confident answer
+   * from the wrong subject, which is the failure the tiers exist to prevent.
+   *
+   * The stored id is still intersected with the student's own scope rather than
+   * trusted. It was checked when it was written, but a subject can leave a
+   * track between then and now — re-seeding the taxonomy replaces subject rows —
+   * and a stale id must narrow to nothing rather than widen to somebody else's
+   * material. If it no longer resolves, the whole programme is the safe
+   * fallback: a worse search, never a search outside the track.
+   */
+  const allSubjectIds = await subjectIdsForStudent(user.trackId, user.preferredLanguage);
+  const subjectIds =
+    session.subjectId && allSubjectIds.includes(session.subjectId)
+      ? [session.subjectId]
+      : allSubjectIds;
 
   // Correction-key mode. Assembled here rather than in the pipeline so that the
   // pipeline keeps taking plain data and stays testable without a database.

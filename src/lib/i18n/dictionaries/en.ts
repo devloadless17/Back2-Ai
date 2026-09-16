@@ -524,6 +524,12 @@ export const en = {
   },
 
   chat: {
+    subjectPickTitle: 'What are we studying?',
+    subjectPickHint: 'Pick a subject so answers come from that syllabus. You can change it later.',
+    subjectPickAny: 'General help',
+    subjectPickAnyHint: 'Search all of my subjects',
+    subjectScoped: 'Answering from {subject}',
+    subjectChange: 'Change subject',
     title: 'Ask a question',
     subtitle: 'Answers from your curriculum are cited. Anything else is labelled as such.',
     placeholder: 'Ask about a concept, a method, or a specific question…',

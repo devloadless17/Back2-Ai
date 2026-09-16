@@ -500,6 +500,12 @@ export const fr: Dictionary = {
   },
 
   chat: {
+    subjectPickTitle: 'On révise quoi ?',
+    subjectPickHint: 'Choisissez une matière pour que les réponses viennent de ce programme. Modifiable ensuite.',
+    subjectPickAny: 'Aide générale',
+    subjectPickAnyHint: 'Chercher dans toutes mes matières',
+    subjectScoped: 'Réponses tirées de {subject}',
+    subjectChange: 'Changer de matière',
     title: 'Poser une question',
     subtitle: 'Les réponses tirées de ton programme sont sourcées. Le reste est signalé comme tel.',
     placeholder: 'Posez une question sur une notion, une méthode ou un exercice précis…',

@@ -311,6 +311,7 @@ model Subject {
   upcomingExams   UpcomingExam[]
   announcements   Announcement[]
   ingestionJobs   IngestionJob[]
+  chatSessions    ChatSession[]
 
   @@index([trackId])
   @@map("subjects")
@@ -1051,6 +1052,14 @@ model ChatSession {
   /// to the official solution. Without it the tutor can only re-explain the
   /// model answer, which is the one thing the student can already read.
   attemptId        String?  @map("attempt_id") @db.Uuid
+  /// Which subject this conversation is about, chosen before the first message.
+  ///
+  /// Null means "all of my subjects", which is what every conversation was
+  /// before this column and what the general-help option still is. Set, it
+  /// narrows retrieval to one subject and removes the cross-subject error
+  /// `retrieval.ts` documents — a French literature passage beating the Arabic
+  /// philosophy chapter that actually answers the question.
+  subjectId        String?  @map("subject_id") @db.Uuid
   uploadedImageUrl String?  @map("uploaded_image_url")
   title            String?
   createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
@@ -1059,10 +1068,12 @@ model ChatSession {
   user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   question Question? @relation(fields: [questionId], references: [id], onDelete: SetNull)
   attempt  Attempt?  @relation(fields: [attemptId], references: [id], onDelete: SetNull)
+  subject  Subject?  @relation(fields: [subjectId], references: [id], onDelete: SetNull)
 
   messages ChatMessage[]
 
   @@index([userId, updatedAt])
+  @@index([subjectId])
   @@map("chat_sessions")
 }
 

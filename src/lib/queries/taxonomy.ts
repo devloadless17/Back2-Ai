@@ -95,6 +95,35 @@ export async function subjectIdsForStudent(
 }
 
 /**
+ * The same scope, named, for a student to choose from.
+ *
+ * Deliberately built ON TOP of `subjectIdsForStudent` rather than beside it. The
+ * scope rules are not obvious — science subjects exist twice, once per language,
+ * and the Arabic-taught humanities are always in regardless of medium — and a
+ * second query applying its own version of them would drift from the one that
+ * governs retrieval. A student must never be offered a subject their questions
+ * cannot then be searched against.
+ *
+ * Ordered by language then name so the list groups the way a student thinks
+ * about their timetable, rather than by whatever order the ids came back in.
+ */
+export async function listSubjectsForStudent(
+  trackId: string | null,
+  language: Language,
+): Promise<{ id: string; name: string; language: string }[]> {
+  const ids = await subjectIdsForStudent(trackId, language);
+  if (ids.length === 0) return [];
+
+  const subjects = await db.subject.findMany({
+    where: { id: { in: ids } },
+    select: { id: true, name: true, language: true },
+    orderBy: [{ language: 'asc' }, { name: 'asc' }],
+  });
+
+  return subjects.map((s) => ({ id: s.id, name: s.name, language: String(s.language) }));
+}
+
+/**
  * Which subjects a student actually sits.
  *
  * The corpus carries one subject row per *book*, and the sciences were

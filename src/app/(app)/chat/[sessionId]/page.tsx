@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 
 import { ChatThread, type ChatMessageView } from '@/components/chat/chat-thread';
+import { SubjectPicker } from '@/components/chat/subject-picker';
 import { Alert } from '@/components/ui/feedback';
 import { QuestionBody } from '@/components/ui/math';
 import { PageHeader, Sheet, SheetBody, SheetHeader } from '@/components/ui/sheet';
@@ -10,6 +11,8 @@ import { requireUser } from '@/lib/auth/guards';
 import { db } from '@/lib/db';
 import { isAiConfigured, isEmbeddingConfigured } from '@/lib/env';
 import { getTranslations } from '@/lib/i18n';
+import { format } from '@/lib/i18n/format';
+import { listSubjectsForStudent } from '@/lib/queries/taxonomy';
 
 export const metadata: Metadata = { title: 'Ask a question' };
 
@@ -34,6 +37,8 @@ export default async function ChatSessionPage({
     select: {
       id: true,
       title: true,
+      subjectId: true,
+      subject: { select: { id: true, name: true } },
       uploadedImageUrl: true,
       question: {
         select: { id: true, contentText: true, contentLatex: true, chapter: { select: { name: true } } },
@@ -57,6 +62,24 @@ export default async function ChatSessionPage({
 
   const configured = isAiConfigured() && isEmbeddingConfigured();
 
+  /*
+   * Ask which subject only at the very start, and only when nothing else has
+   * already answered it.
+   *
+   * A session anchored to a question came from a practice screen and its
+   * subject is not in doubt. A session with messages in it has been running for
+   * a while, and interrupting it with a question about scope would be asking
+   * the student to re-decide something they are past. So the picker appears on
+   * exactly one screen: a new, unanchored conversation before its first message
+   * — which is the moment the student is deciding what to ask anyway.
+   */
+  const askForSubject =
+    configured && session.messages.length === 0 && !session.question && !session.subjectId;
+
+  const subjects = askForSubject
+    ? await listSubjectsForStudent(user.trackId, user.preferredLanguage)
+    : [];
+
   const messages: ChatMessageView[] = session.messages.map((message) => ({
     id: message.id,
     role: message.role,
@@ -74,6 +97,30 @@ export default async function ChatSessionPage({
         <Alert tone="warning" title={t.chat.aiNotConfigured} className="mb-5">
           {t.chat.aiNotConfiguredHint}
         </Alert>
+      )}
+
+      {askForSubject && (
+        <div className="mb-5">
+          <SubjectPicker
+            sessionId={session.id}
+            subjects={subjects}
+            labels={{
+              title: t.chat.subjectPickTitle,
+              hint: t.chat.subjectPickHint,
+              any: t.chat.subjectPickAny,
+              anyHint: t.chat.subjectPickAnyHint,
+              error: t.common.unknownError,
+            }}
+          />
+        </div>
+      )}
+
+      {/* Which syllabus the answers are coming from, once it is settled. The
+          student chose it several messages ago and the answers do not say. */}
+      {session.subject && (
+        <p className="mb-4 px-1 text-caption text-ink-faint">
+          {format(t.chat.subjectScoped, { subject: session.subject.name })}
+        </p>
       )}
 
       {session.question && (
