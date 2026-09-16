@@ -50,6 +50,17 @@ const CANDIDATE = [
   'if it does not say who wrote it or when, say that rather than supplying a plausible source.',
 ].join('\n');
 
+const SPLIT_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['requirements'],
+  properties: {
+    requirements: { type: 'array', items: { type: 'string' } },
+  },
+} as const;
+
+const splitSchema = z.object({ requirements: z.array(z.string()) });
+
 const COVERAGE_SCHEMA = {
   type: 'object',
   additionalProperties: false,
@@ -101,28 +112,76 @@ async function spentSince(mark: Date): Promise<number> {
   );
 }
 
-/** How many of this question's barème criteria the answer addresses. */
-async function coverage(
-  questionText: string,
-  bareme: { criterion: string }[],
-  answer: string,
-): Promise<{ hit: number; of: number }> {
+/**
+ * The separately-marked requirements in a scheme, enumerated ONCE.
+ *
+ * WHY THIS IS ITS OWN STEP. The first version of this script split the scheme
+ * and judged the answer in a single call, on the reasoning that both arms saw
+ * the same scheme text so any flaw in the split would apply equally to each.
+ * That was wrong, and the run proved it: the judge returned 18 requirements for
+ * one arm and 11 for the other on the SAME question, because it re-splits every
+ * time and what it sees in the answer colours how it reads the scheme. Two arms
+ * scored against different rubrics compare nothing.
+ *
+ * Split once, reuse for every arm. The split may still be imperfect — these
+ * schemes are OCR'd and were never separated by the extractor — but it is now
+ * imperfect IDENTICALLY, which is all the comparison needs.
+ */
+async function splitScheme(questionText: string, scheme: string): Promise<string[]> {
   const response = await ai().completeJson({
     system: [
-      'You are checking which items of an official marking scheme a tutoring answer addresses.',
+      'You are reading an official Lebanese Baccalaureate marking scheme.',
       '',
-      'For each criterion, addressed = true only if the answer actually does the thing the criterion',
-      'asks for. Mentioning the topic is not addressing the criterion. Judge only whether it is',
-      'addressed, never whether it is correct, well written or complete.',
+      'It is one block of text containing several separately-marked requirements, usually numbered',
+      '(1، 2، 3) and lettered (أ، ب، ج), each with its own marks in brackets.',
       '',
-      'Return every criterion you were given, in the order given, and no others.',
+      'List those requirements, one entry per separately-marked thing the candidate must do. Quote',
+      'each briefly. Do not judge anything and do not add requirements the scheme does not state.',
+    ].join('\n'),
+    messages: [
+      {
+        role: 'user',
+        content: `# Question\n${questionText.slice(0, 2500)}\n\n# Marking scheme\n${scheme.slice(0, 4000)}`,
+      },
+    ],
+    schema: SPLIT_SCHEMA as unknown as Record<string, unknown>,
+    schemaName: 'scheme_requirements',
+    effort: 'low',
+    model: ai().fastModel,
+    parse: (value) => splitSchema.parse(value),
+  });
+  return response.data.requirements.filter((r) => r.trim().length > 3);
+}
+
+/**
+ * How many of those requirements an answer meets.
+ *
+ * Takes the requirements rather than the scheme, so every arm is measured
+ * against one fixed list and the denominators are equal by construction.
+ */
+async function coverage(
+  questionText: string,
+  requirements: string[],
+  answer: string,
+): Promise<{ hit: number; of: number }> {
+  if (requirements.length === 0) return { hit: 0, of: 0 };
+
+  const response = await ai().completeJson({
+    system: [
+      'You are checking which requirements of an official marking scheme a tutoring answer meets.',
+      '',
+      'For each requirement, addressed = true only if the answer actually DOES the thing it asks for.',
+      'Mentioning the topic is not doing it. Judge only whether it is addressed — never whether it is',
+      'correct, well written or complete.',
+      '',
+      'Return every requirement you were given, in the order given, and no others.',
     ].join('\n'),
     messages: [
       {
         role: 'user',
         content: [
           `# Question\n${questionText.slice(0, 2500)}`,
-          `# Marking scheme\n${bareme.map((b, i) => `${i + 1}. ${b.criterion}`).join('\n')}`,
+          `# Requirements\n${requirements.map((r, i) => `${i + 1}. ${r}`).join('\n')}`,
           `# Answer to check\n${answer.slice(0, 8000)}`,
         ].join('\n\n'),
       },
@@ -134,12 +193,38 @@ async function coverage(
     parse: (value) => coverageSchema.parse(value),
   });
 
-  const covered = response.data.covered;
-  return { hit: covered.filter((c) => c.addressed).length, of: bareme.length };
+  // Denominator is the fixed list, never what came back — a judge that drops or
+  // invents an entry must not be able to move the score.
+  const covered = response.data.covered.slice(0, requirements.length);
+  return { hit: covered.filter((c) => c.addressed).length, of: requirements.length };
 }
 
 async function main() {
   const wanted = Number(arg('questions') ?? '6');
+
+  /*
+   * A HARD CEILING, CHECKED AFTER EVERY ANSWER.
+   *
+   * The first run of this script was estimated at $0.20 a question and cost
+   * $0.99 before it was killed by hand. The estimate came from a tutor question;
+   * these are Lebanese document questions, where the candidate must present
+   * three documents, extract from each and discuss — so at high effort the
+   * model reasons at length and then writes at length. Output was 29,242 tokens
+   * against 17,653 in, and output is priced six times higher.
+   *
+   * An estimate made before the work is a guess about a distribution nobody has
+   * seen. A ceiling checked against the meter is a fact. This aborts mid-run and
+   * reports what it has, which is always better than a bill nobody authorised.
+   */
+  const maxUsd = Number(arg('max-usd') ?? '0.80');
+
+  /*
+   * Effort, because it is the whole cost here and it is not obviously worth it.
+   * The summary comparison measured `medium` at 64% fewer output tokens than
+   * `high` on the same chapter. What that costs in answer quality is the thing
+   * this script is measuring, so it is a flag rather than a decision.
+   */
+  const effort = (arg('effort') ?? 'high') as 'low' | 'medium' | 'high';
 
   const rows = await db.$queryRaw<
     { id: string; text: string; bareme: unknown; subjectId: string; subject: string }[]
@@ -153,8 +238,12 @@ async function main() {
        AND q.verified_status <> 'rejected'
        AND q.content_text ~ 'المستند|المستندات|الوثيقة'
        AND q.bareme IS NOT NULL
-       AND jsonb_array_length(q.bareme) BETWEEN 2 AND 8
-       AND length(q.content_text) BETWEEN 200 AND 4000
+       -- Length of the SCHEME TEXT, not the number of criteria. Every one of
+       -- these stores a single criterion holding the whole scheme; requiring
+       -- two or more matched nothing at all. A short blob is a scheme with
+       -- nothing in it to cover.
+       AND length(q.bareme->0->>'criterion') > 150
+       AND length(q.content_text) BETWEEN 200 AND 6000
      ORDER BY md5(q.id::text)
      LIMIT ${wanted}`;
 
@@ -164,7 +253,9 @@ async function main() {
     return;
   }
 
-  console.log(`\n  ${rows.length} document question(s), scored against their own barème\n`);
+  console.log(
+    `\n  ${rows.length} document question(s) at effort=${effort}, ceiling $${maxUsd.toFixed(2)}\n`,
+  );
   console.log('  ' + 'question'.padEnd(34) + 'as shipped'.padStart(12) + 'with block'.padStart(12));
 
   let baseHit = 0;
@@ -176,7 +267,7 @@ async function main() {
     const bareme = (row.bareme as { criterion: string }[]).filter(
       (b) => typeof b?.criterion === 'string' && b.criterion.trim().length > 5,
     );
-    if (bareme.length < 2) continue;
+    if (bareme.length === 0) continue;
 
     const grounding = await retrieveGrounding({
       query: row.text,
@@ -185,6 +276,13 @@ async function main() {
     });
     if (grounding.context.trim().length === 0) {
       console.log(`  ${row.subject.padEnd(32)}  refused — no grounding, skipped`);
+      continue;
+    }
+
+    // One split, before either arm runs. See splitScheme.
+    const requirements = await splitScheme(row.text, bareme.map((b) => b.criterion).join('\n'));
+    if (requirements.length < 2) {
+      console.log(`  ${row.subject.padEnd(32)}  scheme did not split, skipped`);
       continue;
     }
 
@@ -211,20 +309,33 @@ async function main() {
             ].join('\n'),
           },
         ],
-        effort: 'high',
+        effort,
       });
-      scores[arm.key] = await coverage(row.text, bareme, answer.text);
+      scores[arm.key] = await coverage(row.text, requirements, answer.text);
       await new Promise((r) => setTimeout(r, 1200));
       spend += await spentSince(mark);
+
+      if (spend >= maxUsd) {
+        console.log(
+          `\n  STOPPED at $${spend.toFixed(4)}, ceiling $${maxUsd.toFixed(2)}. ` +
+            `Partial results above. Raise --max-usd deliberately, never by default.`,
+        );
+        await db.$disconnect();
+        return;
+      }
     }
 
     const b = scores.base!;
     const c = scores.cand!;
     baseHit += b.hit;
     candHit += c.hit;
+    // Equal by construction now — both arms were scored against `requirements`.
+    // The previous version added only the base arm's count and divided BOTH by
+    // it, which reported the candidate arm as 19/50 when its own denominator
+    // was 41.
     total += b.of;
 
-    const label = `${row.subject} (${b.of} criteria)`;
+    const label = `${row.subject} (${b.of} parts)`;
     console.log(
       '  ' +
         label.padEnd(34) +
