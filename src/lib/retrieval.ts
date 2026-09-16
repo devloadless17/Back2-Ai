@@ -132,6 +132,42 @@ export function conceptThresholdFor(query: string): number {
   const arabic = query.match(ARABIC_SCRIPT)?.length ?? 0;
   return arabic > 3 ? tier.concept : LATIN_CONCEPT_THRESHOLD;
 }
+
+/**
+ * The gate this question is actually judged on.
+ *
+ * The script default above is a fallback, not the answer. Where real student
+ * questions score varies enormously by SUBJECT — the tenth percentile runs from
+ * 0.286 in LH Mathematics to 0.716 in GS Physique — so one number per script
+ * refuses real questions in one subject while doing nothing in another.
+ * `subjects.concept_gate` holds a value measured per subject by
+ * `scripts/calibrate-subject-gates.ts`, which moves a gate only where the
+ * questions a subject must answer separate cleanly from the questions it must
+ * refuse.
+ *
+ * ONLY WHEN EXACTLY ONE SUBJECT IS IN SCOPE. A per-subject number means nothing
+ * applied to a search across fifteen subjects: the hits come from several of
+ * them and there is no single right gate. This is why the subject picker
+ * matters beyond the UI — it is what makes a per-subject gate applicable at all.
+ * With a wider scope the script default stands, which is exactly the behaviour
+ * that existed before.
+ *
+ * A subject with no calibrated value keeps the script default too. Null there is
+ * not missing data: it is the honest state for a subject whose two populations
+ * overlap, where no threshold separates them and tuning one would trade wrong
+ * refusals for confident wrong answers. GS جغرافيا is that case — its real
+ * questions score BELOW the off-syllabus ones, which is an embedding problem
+ * that no number here can repair.
+ */
+async function gateForScope(query: string, subjectIds: string[]): Promise<number> {
+  const fallback = conceptThresholdFor(query);
+  if (subjectIds.length !== 1) return fallback;
+
+  const rows = await db.$queryRaw<{ concept_gate: number | null }[]>`
+    SELECT concept_gate FROM subjects WHERE id = ${subjectIds[0]}::uuid`;
+  const gate = rows[0]?.concept_gate;
+  return typeof gate === 'number' ? gate : fallback;
+}
 export const PERSONAL_REFERENCE_THRESHOLD = tier.concept;
 
 /**
@@ -844,7 +880,7 @@ export async function retrieveGrounding(input: RetrievalInput): Promise<Groundin
    * tier at 0.50 and the next at 0.45 would refuse and admit the same question
    * depending only on which tier happened to fire.
    */
-  const conceptGate = conceptThresholdFor(input.query);
+  const conceptGate = await gateForScope(input.query, input.subjectIds);
 
   if (input.anchorQuestion) {
     const anchor = input.anchorQuestion;

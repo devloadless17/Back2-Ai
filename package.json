@@ -73,6 +73,7 @@
     "merge:chapters": "node --conditions=react-server --env-file=.env --import tsx scripts/merge-duplicate-chapters.ts",
     "corpus:link-parts": "node --conditions=react-server --env-file=.env --import tsx scripts/corpus/link-chapters-by-part.ts",
     "refile:english-rescan": "node --conditions=react-server --env-file=.env --import tsx scripts/refile-english-gsls-after-rescan.ts",
+    "calibrate:subject-gates": "node --conditions=react-server --env-file=.env --import tsx scripts/calibrate-subject-gates.ts",
     "measure:subject-thresholds": "node --conditions=react-server --env-file=.env --import tsx scripts/measure-subject-thresholds.ts",
     "try:casual": "node --conditions=react-server --env-file=.env --import tsx scripts/try-casual-questions.ts",
     "compare:document-prompt": "node --conditions=react-server --env-file=.env --import tsx scripts/compare-document-prompt.ts",

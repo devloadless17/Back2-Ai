@@ -299,6 +299,13 @@ model Subject {
   trackId  String?  @map("track_id") @db.Uuid
   name     String
   language Language
+  /// The similarity a question must reach before this subject answers it.
+  ///
+  /// Null means the language default (0.50 Latin, 0.45 Arabic). Set only by
+  /// scripts/calibrate-subject-gates.ts, which measures the questions a subject
+  /// must answer against the questions it must refuse and moves the gate only
+  /// where those two populations separate. Re-calibrate after re-chunking.
+  conceptGate Float? @map("concept_gate")
 
   track Track? @relation(fields: [trackId], references: [id], onDelete: SetNull)
 
