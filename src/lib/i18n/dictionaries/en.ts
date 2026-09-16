@@ -145,6 +145,31 @@ export const en = {
     wizardLockRequired: 'Tick the box to confirm before you continue.',
   },
 
+  report: {
+    title:
+      'Readiness report',
+    print:
+      'Print',
+    overall:
+      'Overall',
+    notEnough:
+      'Not enough marked work yet',
+    disclaimer:
+      'Estimated from work marked in this app against past examination barèmes. It is not an official mark and does not predict a result.',
+    coverage:
+      '{started} of {total} chapters started',
+    attempts:
+      '{count} answers marked',
+    focus:
+      'Where to spend the time',
+    examined:
+      'set {recent} of the last 8 years, last {last}',
+    notStarted:
+      'not started',
+    footer:
+      'Chapters are ranked by how weak they are AND how often the examiners set them. A chapter not set for years is not listed, however weak.',
+  },
+
   standing: {
     title: 'Standing',
     subtitle: 'Where you stand, in marks out of 20.',

@@ -134,6 +134,31 @@ export const fr: Dictionary = {
     wizardLockRequired: 'Cochez la case pour confirmer avant de continuer.',
   },
 
+  report: {
+    title:
+      'Bilan de préparation',
+    print:
+      'Imprimer',
+    overall:
+      'Moyenne',
+    notEnough:
+      'Pas encore assez de travail corrigé',
+    disclaimer:
+      'Estimé à partir du travail corrigé dans cette application selon les barèmes des épreuves passées. Ce n\'est pas une note officielle et cela ne prédit pas un résultat.',
+    coverage:
+      '{started} chapitres sur {total} commencés',
+    attempts:
+      '{count} réponses corrigées',
+    focus:
+      'Où passer le temps',
+    examined:
+      'tombé {recent} fois sur 8 ans, dernière fois {last}',
+    notStarted:
+      'non commencé',
+    footer:
+      'Les chapitres sont classés selon leur faiblesse ET la fréquence à laquelle ils tombent. Un chapitre qui ne tombe plus n\'est pas listé, même mal maîtrisé.',
+  },
+
   standing: {
     title: 'Situation',
     subtitle: 'Où vous en êtes, en notes sur 20.',

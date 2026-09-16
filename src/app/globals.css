@@ -853,3 +853,56 @@
     transform: none;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   Printing.
+
+   One page in this app is meant to leave the screen: the readiness report, which
+   a school prints and hands to a parent. Everything the app wraps around a page
+   — sidebar, navigation, the tutor dock, anything marked print:hidden — is
+   furniture, and furniture on a printed report reads as a broken document.
+
+   Kept in one place rather than as utilities on each component: the shell does
+   not know the report exists, and the report cannot reach into the shell. A
+   stylesheet is where those two meet.
+   --------------------------------------------------------------------------- */
+@media print {
+  aside,
+  nav[aria-label],
+  .print\:hidden {
+    display: none !important;
+  }
+
+  /* The shell reserves space for a sidebar that is no longer there. */
+  main,
+  body > div {
+    margin: 0 !important;
+    padding: 0 !important;
+    max-width: none !important;
+    width: 100% !important;
+  }
+
+  /* Paper is white and ink is expensive; the app's raised surfaces are neither
+     visible nor useful once printed. */
+  body {
+    background: #fff !important;
+    color: #000 !important;
+  }
+
+  .sheet,
+  [class*='bg-paper'] {
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+
+  /* A subject split across two sheets stops being a report. */
+  section {
+    break-inside: avoid;
+  }
+
+  /* A link's href is meaningless on paper and its underline is noise. */
+  a {
+    text-decoration: none !important;
+    color: inherit !important;
+  }
+}

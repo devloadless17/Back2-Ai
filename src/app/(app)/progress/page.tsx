@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 
 import { Meter } from '@/components/ui/progress';
+import { LinkButton } from '@/components/ui/button';
 import { PageHeader, Sheet, SheetBody, SheetHeader, StatTile } from '@/components/ui/sheet';
 import { requireUser } from '@/lib/auth/guards';
 import { cn } from '@/lib/cn';
@@ -50,7 +51,20 @@ export default async function StandingPage() {
 
   return (
     <>
-      <PageHeader title={t.standing.title} description={t.standing.subtitle} />
+      <PageHeader
+        title={t.standing.title}
+        description={t.standing.subtitle}
+        /*
+         * The printable version lives one click from the live one. A parent
+         * meeting is the reason it exists, and nobody finds a page they have to
+         * be told the URL of.
+         */
+        actions={
+          <LinkButton href="/report" variant="secondary" size="sm">
+            {t.report.title}
+          </LinkButton>
+        }
+      />
 
       {/* --- The four figures --------------------------------------------- */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
