@@ -666,6 +666,36 @@ export const en = {
     trendDown: 'Slipping this month',
   },
 
+  evidence: {
+    summaryOfficial:
+      "Grounded in {count} official Bac source(s)",
+    summaryMaterial:
+      "Grounded in {count} piece(s) of your course material",
+    officialExam:
+      "Official exam",
+    pastQuestion:
+      "Past question",
+    textbook:
+      "Textbook",
+    yourDocument:
+      "Your document",
+    session:
+      "Session {n}",
+    marks:
+      "{count} marks",
+    withSolution:
+      "with the official solution",
+    withBareme:
+      "with the official barème",
+    kinds: {
+      definition: "Definition",
+      formula: "Formula",
+      theorem: "Theorem",
+      method: "Method",
+      worked_example: "Worked example",
+    },
+  },
+
   firstSteps: {
     title: 'Three things to try',
     subtitle: '{n} left. Each one takes a minute and puts something real on this page.',

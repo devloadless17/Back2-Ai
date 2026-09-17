@@ -6,6 +6,7 @@ import { FlagButton } from '@/components/practice/flag-button';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/field';
 import { Alert, Badge } from '@/components/ui/feedback';
+import { Evidence, type EvidenceSource } from '@/components/chat/evidence';
 import { MathText } from '@/components/ui/math';
 import { Sheet, SheetBody } from '@/components/ui/sheet';
 import { IconCamera, IconClose, IconPaperclip } from '@/components/shell/icons';
@@ -42,11 +43,17 @@ export type ChatMessageView = {
   role: 'user' | 'assistant';
   content: string;
   tier: GroundingTier | null;
-  sources: { id: string; label: string; similarity: number }[];
+  /*
+   * `EvidenceSource` rather than a local shape. What the student is shown about
+   * provenance is decided in one component, and a second definition here would
+   * be free to drift from it — which is how a UI ends up claiming "official"
+   * about a row that never said so.
+   */
+  sources: EvidenceSource[];
 };
 
 type StreamEvent =
-  | { type: 'meta'; tier: GroundingTier; sources: { id: string; label: string; similarity: number }[]; topSimilarity: number | null }
+  | { type: 'meta'; tier: GroundingTier; sources: EvidenceSource[]; topSimilarity: number | null }
   | { type: 'delta'; text: string }
   | { type: 'done'; messageId: string; verified: boolean }
   | { type: 'retracted'; messageId: string; reason: string }
@@ -313,13 +320,16 @@ export function ChatThread({
             </div>
           ) : (
             <Sheet key={message.id} className="animate-fade-up">
-              <div className="flex items-center justify-between gap-3 border-b border-rule px-5 py-2">
+              {/*
+                The tier badge alone. The source list used to sit here, joined
+                with middots and truncated by CSS — three labels reduced to
+                "Fonctions logarithmes — past ques…", which told a student
+                nothing and cost the width of the header to say it. Provenance
+                is now attached UNDER the answer, where it belongs: evidence
+                follows a claim, it does not precede it.
+              */}
+              <div className="flex items-center gap-3 border-b border-rule px-5 py-2">
                 <GroundingLabel tier={message.tier} />
-                {message.sources.length > 0 && (
-                  <span className="truncate text-caption text-ink-faint">
-                    {t.chat.sources}: {message.sources.map((s) => s.label).join(' · ')}
-                  </span>
-                )}
               </div>
 
               {/*
@@ -357,6 +367,19 @@ export function ChatThread({
                         })
                       : t.chat.thinking}
                   </p>
+                )}
+
+                {/*
+                  EVIDENCE FOLLOWS THE CLAIM.
+                  
+                  Rendered inside the body rather than in a footer of its own, so
+                  it sits against the text it supports and shares its measure.
+                  Only once there is text: during streaming the sources are
+                  already known, but an evidence block above a half-written
+                  answer is a citation for something nobody has read yet.
+                */}
+                {message.content && message.sources.length > 0 && (
+                  <Evidence sources={message.sources} />
                 )}
               </SheetBody>
 

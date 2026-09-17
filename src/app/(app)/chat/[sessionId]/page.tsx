@@ -12,6 +12,7 @@ import { db } from '@/lib/db';
 import { isAiConfigured, isEmbeddingConfigured } from '@/lib/env';
 import { getTranslations } from '@/lib/i18n';
 import { format } from '@/lib/i18n/format';
+import { citedSources } from '@/lib/queries/cited-sources';
 import { listSubjectsForStudent } from '@/lib/queries/taxonomy';
 
 export const metadata: Metadata = { title: 'Ask a question' };
@@ -80,12 +81,26 @@ export default async function ChatSessionPage({
     ? await listSubjectsForStudent(user.trackId, user.preferredLanguage)
     : [];
 
+  /*
+   * Provenance for answers written before this page load.
+   *
+   * Evidence arrives on the `meta` event, which covers the answer being
+   * streamed and nothing else — so reloading used to strip every earlier answer
+   * of the thing that made it trustworthy. One lookup for the whole thread,
+   * rather than one per message.
+   */
+  const stored = await citedSources(session.messages.flatMap((m) => m.citedSourceIds));
+
   const messages: ChatMessageView[] = session.messages.map((message) => ({
     id: message.id,
     role: message.role,
     content: message.content,
     tier: message.groundingTier,
-    sources: [],
+    // A cited row that has since been re-ingested or deleted simply does not
+    // come back; the answer shows fewer sources rather than a broken one.
+    sources: message.citedSourceIds
+      .map((id) => stored.get(id))
+      .filter((s): s is NonNullable<typeof s> => s !== undefined),
   }));
 
   return (

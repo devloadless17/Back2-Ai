@@ -650,6 +650,36 @@ export const fr: Dictionary = {
       "En baisse ce mois-ci",
   },
 
+  evidence: {
+    summaryOfficial:
+      "Appuyé sur {count} source(s) officielle(s) du Bac",
+    summaryMaterial:
+      "Appuyé sur {count} élément(s) de ton cours",
+    officialExam:
+      "Épreuve officielle",
+    pastQuestion:
+      "Question d'annales",
+    textbook:
+      "Manuel",
+    yourDocument:
+      "Ton document",
+    session:
+      "Session {n}",
+    marks:
+      "{count} points",
+    withSolution:
+      "avec le corrigé officiel",
+    withBareme:
+      "avec le barème officiel",
+    kinds: {
+      definition: "Définition",
+      formula: "Formule",
+      theorem: "Théorème",
+      method: "Méthode",
+      worked_example: "Exemple corrigé",
+    },
+  },
+
   firstSteps: {
     title: 'Trois choses à essayer',
     subtitle: 'Il en reste {n}. Chacune prend une minute et remplit cette page.',

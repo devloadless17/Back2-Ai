@@ -665,6 +665,36 @@ export const ar: Dictionary = {
       "في تراجع هذا الشهر",
   },
 
+  evidence: {
+    summaryOfficial:
+      "مستند إلى {count} مصدر رسميّ من البكالوريا",
+    summaryMaterial:
+      "مستند إلى {count} عنصر من موادّك",
+    officialExam:
+      "مسابقة رسميّة",
+    pastQuestion:
+      "سؤال من دورة سابقة",
+    textbook:
+      "الكتاب المدرسيّ",
+    yourDocument:
+      "مستندك",
+    session:
+      "الدورة {n}",
+    marks:
+      "{count} علامة",
+    withSolution:
+      "مع الحلّ الرسميّ",
+    withBareme:
+      "مع سلّم التصحيح الرسميّ",
+    kinds: {
+      definition: "تعريف",
+      formula: "قانون",
+      theorem: "نظريّة",
+      method: "طريقة",
+      worked_example: "مثال محلول",
+    },
+  },
+
   firstSteps: {
     title: 'ثلاثة أمور جرّبها',
     subtitle: 'بقي {n}. كلّ واحد يستغرق دقيقة ويملأ هذه الصفحة بشيء حقيقي.',

@@ -570,6 +570,37 @@ export type RetrievalSource = {
   label: string;
   similarity: number;
   text: string;
+  /**
+   * What the student is entitled to be told about where this came from.
+   *
+   * STRUCTURED, NOT A SENTENCE. The label above is one string assembled here,
+   * which means the UI can only print it — it cannot rank an official paper
+   * above a textbook page, cannot link a chapter to its practice, and cannot
+   * translate any of it. Every field here is a fact read off the row, and every
+   * one is optional because plenty of rows do not have it: a question with no
+   * `source_exam_id` is textbook material and must never be labelled official.
+   *
+   * `similarity` above is deliberately NOT part of this. It is the one number
+   * the student must never see — it is our retrieval architecture, not their
+   * evidence, and "0.84" invites a judgement nobody outside this codebase can
+   * make.
+   */
+  provenance?: {
+    /** True only when the row is tied to a real exam cycle. */
+    official: boolean;
+    examYear?: number | null;
+    examSession?: string | null;
+    marks?: number | null;
+    hasBareme?: boolean;
+    hasSolution?: boolean;
+    chapterName?: string | null;
+    /** Both ids, so the UI can route to practice. Absent means no link. */
+    chapterId?: string | null;
+    subjectId?: string | null;
+    /** For a textbook passage: definition, formula, theorem, method, example. */
+    chunkKind?: string | null;
+    fileName?: string | null;
+  };
 };
 
 export type GroundingResult = {
@@ -1357,6 +1388,20 @@ function questionSource(hit: QuestionHit): RetrievalSource {
     label: `${hit.chapterName} — past question`,
     similarity: hit.similarity,
     text: readable(hit),
+    provenance: {
+      // A year is what makes it an exam paper. Textbook questions have none,
+      // and calling those "official" would be the one claim in this product
+      // that a student could catch us getting wrong.
+      official: hit.examYear !== null,
+      examYear: hit.examYear,
+      examSession: hit.examSession,
+      marks: hit.marks === null ? null : Number(hit.marks),
+      hasBareme: hit.hasBareme,
+      hasSolution: Boolean(hit.officialSolution && hit.officialSolution.trim().length > 0),
+      chapterName: hit.chapterName,
+      chapterId: hit.chapterId,
+      subjectId: hit.subjectId,
+    },
   };
 }
 
@@ -1367,6 +1412,16 @@ function chunkSource(hit: ContentChunkHit): RetrievalSource {
     label: `${hit.chapterName} — ${hit.title ?? hit.kind}`,
     similarity: hit.similarity,
     text: hit.contentText,
+    provenance: {
+      // Textbook material. Never official — that word belongs to the ministry's
+      // own papers and schemes, and spending it here would make it meaningless
+      // where it counts.
+      official: false,
+      chapterName: hit.chapterName,
+      chapterId: hit.chapterId,
+      subjectId: hit.subjectId,
+      chunkKind: hit.kind,
+    },
   };
 }
 
@@ -1377,5 +1432,11 @@ function referenceSource(hit: UserReferenceHit): RetrievalSource {
     label: hit.fileName ?? 'Your uploaded document',
     similarity: hit.similarity,
     text: (hit.extractedText ?? '').slice(0, 500),
+    provenance: {
+      // The student's own file. Not official and not ours — it has been checked
+      // against nothing, which is exactly what the tier-3 notice says in words.
+      official: false,
+      fileName: hit.fileName,
+    },
   };
 }

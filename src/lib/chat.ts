@@ -46,6 +46,15 @@ export type CitedSource = {
   kind: RetrievalSource['kind'];
   label: string;
   similarity: number;
+  /**
+   * What the student may be shown about where this came from.
+   *
+   * Passed straight through from retrieval. `similarity` above stays on the
+   * type because the review queue and the threshold work read it, and it is
+   * deliberately NOT part of `provenance`: it is our retrieval architecture,
+   * not the student's evidence, and no interface should print it.
+   */
+  provenance?: RetrievalSource['provenance'];
 };
 
 const LANGUAGE_NAME: Record<Locale, string> = { fr: 'French', en: 'English', ar: 'Arabic' };
@@ -582,6 +591,7 @@ export async function* runChatTurn(input: ChatTurnInput): AsyncGenerator<ChatEve
     kind: s.kind,
     label: s.label,
     similarity: Math.round(s.similarity * 1000) / 1000,
+    provenance: s.provenance,
   }));
 
   /*

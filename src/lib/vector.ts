@@ -109,6 +109,18 @@ export type QuestionHit = SimilarityHit & {
   contentLatex: string | null;
   officialSolution: string | null;
   officialSolutionLatex: string | null;
+  /*
+   * PROVENANCE. Carried so the tutor can show a student WHERE an answer came
+   * from — "Official Exam · 2019 · Session 1 · 4 marks" — rather than a bare
+   * chapter name. All four are nullable and every one of them is a fact from
+   * the paper: a question with no `source_exam_id` is textbook material and
+   * must not be labelled official.
+   */
+  examYear: number | null;
+  examSession: string | null;
+  /** Total marks, summed from the barème's own criteria. Null when there is none. */
+  marks: number | null;
+  hasBareme: boolean;
 };
 
 /**
@@ -177,10 +189,28 @@ export async function searchQuestions(
       q.content_latex            AS "contentLatex",
       q.official_solution        AS "officialSolution",
       q.official_solution_latex  AS "officialSolutionLatex",
+      ec.year                    AS "examYear",
+      ec.session::text           AS "examSession",
+      -- Summed from the criteria rather than read from a column: these papers
+      -- print the exercise total in a header the extractor does not always
+      -- catch, but each criterion always carries its own marks.
+      -- CASE, not a WHERE inside the subquery: jsonb_array_elements is
+      -- evaluated before any filter and RAISES on a non-array, so a single
+      -- question whose bareme was stored as an object would fail the whole
+      -- search. CASE short-circuits and never calls it.
+      -- (No backticks in here: this is inside a template literal.)
+      CASE WHEN jsonb_typeof(q.bareme) = 'array'
+        THEN (SELECT sum((item->>'points')::numeric)
+                FROM jsonb_array_elements(q.bareme) item)
+      END                        AS "marks",
+      (q.bareme IS NOT NULL
+        AND jsonb_typeof(q.bareme) = 'array'
+        AND jsonb_array_length(q.bareme) > 0)    AS "hasBareme",
       1 - (q.embedding <=> ${literal}::vector) AS "similarity"
     FROM candidates
     JOIN questions q ON q.id = candidates.id
     JOIN chapters c ON c.id = q.chapter_id
+    LEFT JOIN exam_cycles ec ON ec.id = q.source_exam_id
     ORDER BY q.embedding <=> ${literal}::vector
     LIMIT ${limit}
   `));
@@ -189,6 +219,8 @@ export async function searchQuestions(
 export type ContentChunkHit = SimilarityHit & {
   chapterId: string;
   chapterName: string;
+  /** Needed to build a practice link; a chapter id alone cannot route. */
+  subjectId: string;
   kind: string;
   title: string | null;
   contentText: string;
@@ -381,6 +413,10 @@ export async function searchContentChunks(
         JOIN chapters c ON c.id = l.chapter_id
         WHERE l.chunk_id = cc.id AND ${subjectFilter('c.subject_id', scope)}
         LIMIT 1)       AS "chapterName",
+      (SELECT c.subject_id FROM chapter_content_chunks l
+        JOIN chapters c ON c.id = l.chapter_id
+        WHERE l.chunk_id = cc.id AND ${subjectFilter('c.subject_id', scope)}
+        LIMIT 1)       AS "subjectId",
       cc.kind::text    AS "kind",
       cc.title         AS "title",
       cc.content_text  AS "contentText",
