@@ -493,11 +493,33 @@ export function ChatThread({
                 )}
               </SheetBody>
 
-              {message.content && !message.id.startsWith('pending') && (
-                <div className="border-t border-rule px-5 py-2">
+              {/*
+                THE FOOTER IS ALWAYS IN THE LAYOUT, and only its contents wait.
+                
+                It used to mount at completion, which added a bordered row to a
+                message the student had just finished reading — the page grew
+                under them at the exact moment their eye reached the end. A
+                reserved row costs 37px of nothing while an answer streams and
+                removes the last height jump in the message.
+
+                `invisible` rather than a conditional: the element keeps its
+                box, so nothing reflows when it becomes usable. `aria-hidden`
+                and `inert`-by-omission keep it off the accessibility tree and
+                out of the tab order until there is something to report.
+              */}
+              <div className="border-t border-rule px-5 py-2">
+                <span
+                  className={cn(
+                    'block',
+                    message.content && !message.id.startsWith('pending')
+                      ? 'visible'
+                      : 'invisible',
+                  )}
+                  aria-hidden={!message.content || message.id.startsWith('pending')}
+                >
                   <FlagButton itemType="flagged_content" itemId={message.id} />
-                </div>
-              )}
+                </span>
+              </div>
             </Sheet>
           ),
         )}
