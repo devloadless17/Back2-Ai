@@ -1,4 +1,5 @@
 import { TutorContextProvider } from '@/components/chat/tutor-context';
+import { BottomNav } from '@/components/shell/bottom-nav';
 import { TutorDock } from '@/components/chat/tutor-dock';
 import { Sidebar, type SidebarCounts, type SidebarStanding } from '@/components/shell/sidebar';
 import { requireSession } from '@/lib/auth/guards';
@@ -88,8 +89,20 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             whole shell only ever produced dead margin either side of grids and
             tables that would happily have used the room. The page fills the
             window; padding steps down to the phone rather than up from it. */}
-          <div className="w-full px-3 py-5 sm:px-6 sm:py-6 lg:px-8 lg:py-8">{children}</div>
+          {/*
+            `pb-20` on small screens is the height of the bottom bar plus air.
+            Without it the last card on every page sits under the navigation,
+            which is the classic way a tab bar ruins the screen it was added to
+            improve — and this product's pages end in the action a student came
+            to take.
+          */}
+          <div className="w-full px-3 pb-20 pt-5 sm:px-6 sm:py-6 lg:px-8 lg:py-8 lg:pb-8">
+            {children}
+          </div>
         </main>
+
+        {/* Phone-primary navigation. Hidden from lg up, where the rail is. */}
+        <BottomNav />
       </div>
     </TutorContextProvider>
   );

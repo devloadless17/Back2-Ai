@@ -46,7 +46,10 @@ export const fr: Dictionary = {
     admin: 'Administration',
     logout: 'Se déconnecter',
     grades: 'Mes notes de l’école',
+    tutorShort: 'Nour',
     sections: {
+      today: "Aujourd'hui",
+      progress: 'Progrès',
       study: 'Étudier',
       assess: 'Évaluer',
       plan: 'Planifier',

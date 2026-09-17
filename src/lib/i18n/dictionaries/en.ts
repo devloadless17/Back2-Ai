@@ -60,7 +60,10 @@ export const en = {
     admin: 'Administration',
     logout: 'Sign out',
     grades: 'My school marks',
+    tutorShort: 'Nour',
     sections: {
+      today: 'Today',
+      progress: 'Progress',
       study: 'Study',
       assess: 'Assess',
       plan: 'Plan',

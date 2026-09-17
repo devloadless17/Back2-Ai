@@ -153,7 +153,7 @@ export function TutorDock({
           id="tutor-dock-panel"
           role="dialog"
           aria-label={t.chat.dockTitle}
-          className="sheet fixed bottom-24 end-4 z-40 flex w-[min(20rem,calc(100vw-2rem))] flex-col overflow-hidden shadow-pop-lg animate-fade-up sm:end-6"
+          className="sheet fixed bottom-[9.5rem] end-4 z-40 flex w-[min(20rem,calc(100vw-2rem))] flex-col overflow-hidden shadow-pop-lg animate-fade-up sm:end-6 lg:bottom-24"
         >
           <header className="flex items-center gap-3 border-b border-rule px-4 py-3">
             <span className="flex h-10 w-10 items-center justify-center rounded-full bg-primary-soft text-primary">
@@ -240,7 +240,7 @@ export function TutorDock({
         <span
           aria-hidden
           className={cn(
-            'fixed bottom-5 end-20 z-40 hidden max-w-[14rem] items-center rounded-full sm:end-24',
+            'fixed bottom-20 end-20 z-40 hidden max-w-[14rem] items-center rounded-full sm:end-24 lg:bottom-5',
             'border border-rule bg-paper-raised px-3 py-1.5 shadow-pop',
             'text-caption text-ink-muted animate-fade-up md:flex',
           )}
@@ -269,7 +269,10 @@ export function TutorDock({
               : t.chat.dockOpen
         }
         className={cn(
-          'fixed bottom-5 end-4 z-40 flex h-14 w-14 items-center justify-center rounded-full',
+          // Cleared above the phone's bottom navigation, and back down on lg where
+          // that bar is hidden. `bottom-5` alone put the button on top of the
+          // Progress tab.
+          'fixed bottom-20 end-4 z-40 flex h-14 w-14 items-center justify-center rounded-full lg:bottom-5',
           'bg-primary text-on-primary shadow-pop-lg',
           'transition-transform duration-150 active:scale-[0.94] active:duration-[120ms]',
           'motion-reduce:active:scale-100 sm:end-6',

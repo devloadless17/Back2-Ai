@@ -46,7 +46,10 @@ export const ar: Dictionary = {
     admin: 'الإدارة',
     logout: 'تسجيل الخروج',
     grades: 'علاماتي المدرسية',
+    tutorShort: 'نور',
     sections: {
+      today: 'اليوم',
+      progress: 'تقدّمي',
       study: 'الدراسة',
       assess: 'التقييم',
       plan: 'التخطيط',
