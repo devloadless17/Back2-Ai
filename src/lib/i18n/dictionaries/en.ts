@@ -590,6 +590,7 @@ export const en = {
     subjectPickTitle: 'What are we studying?',
     subjectPickHint: 'Pick a subject so answers come from that syllabus. You can change it later.',
     subjectPickAny: 'General help',
+    subjectPickChapters: '{count} chapters',
     subjectPickAnyHint: 'Search all of my subjects',
     subjectScoped: 'Answering from {subject}',
     subjectChange: 'Change subject',

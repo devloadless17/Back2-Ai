@@ -110,17 +110,43 @@ export async function subjectIdsForStudent(
 export async function listSubjectsForStudent(
   trackId: string | null,
   language: Language,
-): Promise<{ id: string; name: string; language: string }[]> {
+): Promise<{ id: string; name: string; language: string; chapterCount: number }[]> {
   const ids = await subjectIdsForStudent(trackId, language);
   if (ids.length === 0) return [];
 
   const subjects = await db.subject.findMany({
     where: { id: { in: ids } },
-    select: { id: true, name: true, language: true },
+    select: {
+      id: true,
+      name: true,
+      language: true,
+      /*
+       * Chapters with something to practise, for the subject picker.
+       *
+       * `alsoHasQuestions`, not `questions` — what a chapter may SERVE rather
+       * than where an exercise was filed, the same distinction as 6be57e6. A
+       * count taken the other way understates a subject by three to five times
+       * and would tell a student their programme is empty.
+       */
+      _count: {
+        select: {
+          chapters: {
+            where: {
+              alsoHasQuestions: { some: { question: { verifiedStatus: { not: 'rejected' } } } },
+            },
+          },
+        },
+      },
+    },
     orderBy: [{ language: 'asc' }, { name: 'asc' }],
   });
 
-  return subjects.map((s) => ({ id: s.id, name: s.name, language: String(s.language) }));
+  return subjects.map((s) => ({
+    id: s.id,
+    name: s.name,
+    language: String(s.language),
+    chapterCount: s._count.chapters,
+  }));
 }
 
 /**

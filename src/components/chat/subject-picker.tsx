@@ -5,8 +5,22 @@ import { useRouter } from 'next/navigation';
 
 import { Sheet, SheetBody } from '@/components/ui/sheet';
 import { cn } from '@/lib/cn';
+import { subjectIcon } from '@/lib/subject-icon';
 
-export type PickableSubject = { id: string; name: string; language: string };
+export type PickableSubject = {
+  id: string;
+  name: string;
+  language: string;
+  /**
+   * Chapters with something to practise, shown under the name.
+   *
+   * A picker that offers fifteen identical tiles tells a student nothing about
+   * which of them is worth opening. This is the cheapest true signal available
+   * — it is already counted for the practice index — and it quietly warns that
+   * a thin subject is thin before they ask it a question and get a refusal.
+   */
+  chapterCount: number;
+};
 
 /**
  * Which subject a conversation is about, asked before the first message.
@@ -46,6 +60,7 @@ export function SubjectPicker({
     hint: string;
     any: string;
     anyHint: string;
+    chapters: string;
     error: string;
   };
 }) {
@@ -79,7 +94,7 @@ export function SubjectPicker({
         <p className="text-sm font-medium text-ink">{labels.title}</p>
         <p className="mt-1 text-caption text-ink-faint">{labels.hint}</p>
 
-        <div className="mt-4 grid gap-2 sm:grid-cols-2">
+        <div className="mt-4 grid gap-2.5 sm:grid-cols-2">
           {subjects.map((subject) => (
             <button
               key={subject.id}
@@ -93,12 +108,34 @@ export function SubjectPicker({
               lang={subject.language}
               dir={subject.language === 'ar' ? 'rtl' : 'ltr'}
               className={cn(
-                'rounded-lg border border-rule px-4 py-3 text-start text-sm text-ink transition-colors duration-150',
-                'hover:border-primary hover:bg-paper-sunken disabled:opacity-50',
-                saving === subject.id && 'border-primary bg-paper-sunken',
+                'group flex items-center gap-3 rounded-xl border border-rule bg-paper-raised px-4 py-3.5',
+                'text-start transition-all duration-150',
+                'hover:-translate-y-px hover:border-primary hover:shadow-sm',
+                'disabled:pointer-events-none disabled:opacity-50',
+                saving === subject.id && 'border-primary shadow-sm',
               )}
             >
-              {subject.name}
+              {/*
+                The icon sits in a tinted tile rather than loose beside the text.
+                A bare emoji at text size disappears into the label; a tile the
+                eye can land on is what makes a grid scannable, which is the
+                whole job of this screen.
+              */}
+              <span
+                aria-hidden
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-paper-sunken text-lg transition-colors duration-150 group-hover:bg-primary-soft"
+              >
+                {subjectIcon(subject.name)}
+              </span>
+
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-medium text-ink">{subject.name}</span>
+                {subject.chapterCount > 0 && (
+                  <span className="block text-caption text-ink-faint">
+                    {labels.chapters.replace('{count}', String(subject.chapterCount))}
+                  </span>
+                )}
+              </span>
             </button>
           ))}
         </div>

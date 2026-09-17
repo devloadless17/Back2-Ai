@@ -566,6 +566,7 @@ export const fr: Dictionary = {
     subjectPickTitle: 'On révise quoi ?',
     subjectPickHint: 'Choisissez une matière pour que les réponses viennent de ce programme. Modifiable ensuite.',
     subjectPickAny: 'Aide générale',
+    subjectPickChapters: '{count} chapitres',
     subjectPickAnyHint: 'Chercher dans toutes mes matières',
     subjectScoped: 'Réponses tirées de {subject}',
     subjectChange: 'Changer de matière',

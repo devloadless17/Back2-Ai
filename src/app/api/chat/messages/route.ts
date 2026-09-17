@@ -76,6 +76,13 @@ export const POST = route(async (request) => {
       id: true,
       title: true,
       subjectId: true,
+      /*
+       * The language this subject is SAT in, which is not the student's account
+       * language and is the better instruction for the tutor. A candidate
+       * revising أدب عربي writes that paper in Arabic whether or not they typed
+       * their question in arabizi.
+       */
+      subject: { select: { language: true } },
       question: { select: { id: true, contentText: true, officialSolution: true, bareme: true } },
       attempt: { select: { submittedAnswer: true, score: true, maxScore: true } },
       messages: {
@@ -148,6 +155,17 @@ export const POST = route(async (request) => {
           subjectIds,
           trackId: user.trackId,
           locale: user.preferredLanguage,
+          /*
+           * Null until the student names a subject, which is every conversation
+           * started before the picker existed and every one that chooses
+           * general help. The prompt falls back to their account language there,
+           * which is the old behaviour and the best available guess when nobody
+           * has said what is being revised.
+           */
+          subjectLanguage:
+            session.subjectId && subjectIds.length === 1
+              ? (session.subject?.language ?? null)
+              : null,
           history: session.messages.map((m) => ({ role: m.role, content: m.content })),
           anchorQuestion: session.question && {
             ...session.question,

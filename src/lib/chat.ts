@@ -302,6 +302,11 @@ export function systemPrompt(
   classification: QuestionClassification,
   locale: Locale,
   /**
+   * The language the named subject is examined in, when one has been named.
+   * Overrides `locale` and the message's own language — see the note below.
+   */
+  subjectLanguage?: Locale | null,
+  /**
    * The student's question, read only to detect a document exercise.
    *
    * Optional so a caller with no question text gets the prompt without that
@@ -314,19 +319,31 @@ export function systemPrompt(
     'You are a tutor for the Lebanese Baccalaureate. You are talking to a student preparing for a national exam.',
     '',
     /*
-     * The QUESTION picks the language, not the account setting.
+     * THE SUBJECT PICKS THE LANGUAGE, and the question only decides it when no
+     * subject has been named.
      *
      * A Lebanese candidate sits Arabic history, French maths and English
-     * biology off one timetable, and switches language by subject rather than
-     * by profile. `preferred_language` is one value and cannot describe that.
-     * On 2026-08-26 a student asked "quels sont les mécanismes de l'évolution ?"
-     * and was answered in English, because their account said `en` — the tutor
-     * had the French in front of it and used the setting instead.
+     * biology off one timetable, so `preferred_language` — one value, chosen
+     * once at signup — cannot describe what they are studying at any moment. On
+     * 2026-08-26 a student asked "quels sont les mécanismes de l'évolution ?"
+     * and was answered in English because their account said `en`.
      *
-     * The setting stays as the tie-break for a message that names no language
-     * of its own: "merci", a bare formula, a pasted diagram caption.
+     * Reading the message's own language fixed that case and left a bigger one.
+     * A student revising أدب عربي who types "shu ya3ne el isti3ara" wrote in
+     * Latin letters, so the tutor answers in English — and every word of that
+     * answer is a word they cannot use, because they will sit that paper in
+     * Arabic. The language belongs to the EXAM, not to the keyboard.
+     *
+     * So when the conversation names a subject, that subject's language wins.
+     * The message's language is the rule only for general help, where nobody
+     * has said what is being revised.
      */
-    `Reply in the language the student wrote their message in. If that is unclear, reply in ${LANGUAGE_NAME[locale]}.`,
+    subjectLanguage
+      ? `Reply in ${LANGUAGE_NAME[subjectLanguage]}. That is the language this subject is examined in, ` +
+        'so it is the language the student has to be able to write their answer in — reply in it even ' +
+        'when they write to you in another language or in Latin letters. Only a request to translate, ' +
+        'or a question about a word in another language, is a reason to leave it.'
+      : `Reply in the language the student wrote their message in. If that is unclear, reply in ${LANGUAGE_NAME[locale]}.`,
     'Use the notation and vocabulary of the Lebanese programme.',
     'Mathematics in LaTeX: $...$ inline, $$...$$ displayed.',
     '',
@@ -443,6 +460,20 @@ export type ChatTurnInput = {
   /** The locked track itself, for the lanes that read the student's own record. */
   trackId: string | null;
   locale: Locale;
+  /**
+   * The language the named subject is SAT in, when one has been named.
+   *
+   * A better instruction than `locale` and not the same thing. `locale` is the
+   * app's language, chosen once at signup; this is the language of the paper
+   * the student will actually sit. A candidate revising أدب عربي writes that
+   * exam in Arabic whether they typed their question in Arabic, in French, or
+   * in arabizi — so an answer in English is a worse answer even when it is a
+   * correct one, because it is not in the words they have to reproduce.
+   *
+   * Null when no subject has been named, which is every conversation started
+   * before the subject picker existed and every one that chooses general help.
+   */
+  subjectLanguage?: Locale | null;
   /** Prior turns in this conversation, oldest first. */
   history: { role: 'user' | 'assistant'; content: string }[];
   anchorQuestion?: {
@@ -672,7 +703,13 @@ export async function* runChatTurn(input: ChatTurnInput): AsyncGenerator<ChatEve
   try {
     const stream = provider.streamText({
       system:
-        systemPrompt(grounding.tier, grounding.classification, input.locale, input.question) +
+        systemPrompt(
+          grounding.tier,
+          grounding.classification,
+          input.locale,
+          input.subjectLanguage ?? null,
+          input.question,
+        ) +
         (input.anchorAttempt ? `\n${CORRECTION_KEY_PROMPT}` : ''),
       messages: [...input.history.slice(-8), { role: 'user', content: userContent }],
       effort: 'high',

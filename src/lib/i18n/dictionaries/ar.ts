@@ -583,6 +583,7 @@ export const ar: Dictionary = {
     subjectPickTitle: 'شو بدنا ندرس؟',
     subjectPickHint: 'اختر مادة ليأتي الجواب من منهجها. بتقدر تغيّرها بعدين.',
     subjectPickAny: 'مساعدة عامة',
+    subjectPickChapters: '{count} فصلاً',
     subjectPickAnyHint: 'ابحث في كل موادي',
     subjectScoped: 'الجواب من مادة {subject}',
     subjectChange: 'غيّر المادة',

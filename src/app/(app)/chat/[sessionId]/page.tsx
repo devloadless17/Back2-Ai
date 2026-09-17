@@ -109,6 +109,7 @@ export default async function ChatSessionPage({
               hint: t.chat.subjectPickHint,
               any: t.chat.subjectPickAny,
               anyHint: t.chat.subjectPickAnyHint,
+              chapters: t.chat.subjectPickChapters,
               error: t.common.unknownError,
             }}
           />
