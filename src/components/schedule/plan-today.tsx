@@ -46,6 +46,18 @@ export async function PlanToday({ sessions }: { sessions: PlanSession[] }) {
         }
       />
 
+      {/* Nothing today is a normal state, not a failure, and it gets one real
+          action rather than a lecture. The recommendation card sits directly
+          below this on the page and already answers "what should I do
+          instead", so repeating it here would be the same answer twice. */}
+      {sessions.length === 0 && (
+        <SheetBody className="flex flex-wrap items-center gap-3 pt-0">
+          <LinkButton href="#add-session" variant="secondary" size="sm">
+            {t.schedule.addSession}
+          </LinkButton>
+        </SheetBody>
+      )}
+
       {sessions.length > 0 && (
         <SheetBody className="p-0">
           <ul className="ruled">

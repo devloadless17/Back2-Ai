@@ -479,8 +479,11 @@ export function SchedulePlanner({
         </Sheet>
 
         <div className="space-y-5">
-          {/* --- Add a session --- */}
-          <Sheet>
+          {/* --- Add a session ---
+              The id is the target of the empty Today state's one action. A
+              link that scrolls nowhere is the dead button this phase was told
+              not to ship. */}
+          <Sheet id="add-session">
             <SheetHeader title={t.schedule.addSession} />
             <SheetBody className="space-y-3">
               {/*

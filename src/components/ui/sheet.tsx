@@ -25,15 +25,19 @@ export function Sheet({
   className,
   interactive,
   hero,
+  id,
   children,
 }: {
   className?: string;
   interactive?: boolean;
   hero?: boolean;
+  /** Anchor target, so an in-page link can land on this sheet. */
+  id?: string;
   children: ReactNode;
 }) {
   return (
     <section
+      id={id}
       className={cn(
         'sheet',
         interactive && 'sheet-interactive',
