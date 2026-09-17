@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 
+import { ExaminerMark } from '@/components/practice/examiner-mark';
 import { FlagButton } from '@/components/practice/flag-button';
 import { Button, LinkButton } from '@/components/ui/button';
 import { WorkingArea } from '@/components/ui/field';
@@ -395,49 +396,31 @@ export function PracticeRunner({
         )}
 
         {/*
-          * Said before the marks, not after them. A student who has already
-          * read a score has already believed it.
-          */}
-        {outcome.baremeResult?.some((item) => item.provisional) && (
-          <SheetBody className="pb-0">
-            <Alert tone="warning">{t.examSim.provisionalNotice}</Alert>
-          </SheetBody>
-        )}
+          The barème, criterion by criterion, with the student-facing note set
+          apart from the examiner's wording.
 
+          This replaces a list that printed `justification` — the field written
+          for a TEACHER arbitrating a contested mark. A student read an argument
+          composed for somebody judging against them, and never saw
+          `explanation`, which was written for them and stored on the same row.
+
+          `provisional` moves from a banner over the whole result to the
+          individual criteria it describes: a paper can mix an exercise whose
+          scheme survived extraction with one whose did not, and one notice
+          covering both has to lie about one of them.
+        */}
         {outcome.baremeResult && outcome.baremeResult.length > 0 && (
-          <SheetBody className="p-0">
-            <div className="ruled">
-              {outcome.baremeResult.map((item, i) => (
-                <RuledRow key={`${item.criterion}-${i}`} className="flex-col items-stretch gap-1">
-                  <div className="flex items-baseline justify-between gap-3">
-                    <p className="min-w-0 text-body font-medium text-ink">{item.criterion}</p>
-                    {/*
-                      Three states, two of which are current.
-
-                      Marking is binary per criterion now — met or not met — so
-                      anything answered from today on lands on teal or rose. The
-                      amber middle is kept for rows marked before that change,
-                      which carry real fractional awards and would otherwise be
-                      rendered as failures.
-                    */}
-                    <p
-                      className={cn(
-                        'shrink-0 tabular-nums text-meta font-semibold',
-                        item.points_awarded >= item.points_possible
-                          ? 'text-correct'
-                          : item.points_awarded > 0
-                            ? 'text-partial'
-                            : 'text-mark',
-                      )}
-                    >
-                      {formatScore(item.points_awarded)} / {formatScore(item.points_possible)}
-                    </p>
-                  </div>
-                  <p className="text-meta leading-snug text-ink-muted">{item.justification}</p>
-                </RuledRow>
-              ))}
-            </div>
-          </SheetBody>
+          <ExaminerMark
+            total={outcome.score ?? 0}
+            max={outcome.maxScore ?? 0}
+            criteria={outcome.baremeResult}
+            labels={{
+              title: t.practice.examinerTitle,
+              nourNote: t.practice.nourNote,
+              provisional: t.practice.criterionProvisional,
+              repeated: t.practice.repeatedLoss,
+            }}
+          />
         )}
 
         {outcome.solution && (

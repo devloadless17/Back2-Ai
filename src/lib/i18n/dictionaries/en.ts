@@ -416,6 +416,14 @@ export const en = {
     yourAnswerPlaceholder: 'Write your working here…',
     checkAnswer: 'Check my answer',
     solution: 'Solution',
+    examinerTitle:
+      "EXAMINER'S MARK",
+    nourNote:
+      "Nour's note",
+    criterionProvisional:
+      "Our reading of the question, not the examiner's",
+    repeatedLoss:
+      "This has cost you marks {times} times — {points} in total.",
     officialSolution: 'Official solution',
     correct: 'Correct',
     incorrect: 'Not quite',

@@ -416,6 +416,14 @@ export const ar: Dictionary = {
     yourAnswerPlaceholder: 'اكتب حلّك هنا…',
     checkAnswer: 'تحقّق من إجابتي',
     solution: 'الحل',
+    examinerTitle:
+      "علامة المصحّح",
+    nourNote:
+      "ملاحظة نور",
+    criterionProvisional:
+      "قراءتنا للسؤال، لا قراءة المصحّح",
+    repeatedLoss:
+      "كلّفك هذا علامات {times} مرّات — {points} في المجموع.",
     officialSolution: 'الحل الرسمي',
     correct: 'صحيح',
     incorrect: 'ليس تماماً',
