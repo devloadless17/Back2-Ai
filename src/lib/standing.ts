@@ -64,19 +64,26 @@ export function overallMark(subjectMarks: number[]): number | null {
   return Math.round((total / subjectMarks.length) * 10) / 10;
 }
 
+/**
+ * STUDENT coverage. One definition, the same one the readiness model divides
+ * by: chapters attempted, over the chapters in the student's programme.
+ *
+ * The denominator used to be "chapters that have questions", which is a fact
+ * about our corpus rather than about the student — it moved when ingestion ran
+ * and it disagreed with readiness. That measure still exists, under a name
+ * that says what it counts, in `src/lib/queries/content-health.ts`.
+ *
+ * The chapter list runs ahead of the questions, so this number is honest about
+ * a programme the student cannot yet fully practise. That is why the count is
+ * always shown beside the percentage, and why a chapter with material but no
+ * questions says so rather than reading as a gap the student left.
+ */
 export type Coverage = {
   /** Chapters with at least one marked attempt. */
   practised: number;
-  /**
-   * Chapters that can be practised at all — those with questions in them.
-   *
-   * NOT the whole syllabus. The chapter list comes from the textbooks and runs
-   * ahead of the questions, which arrive chapter by chapter through ingestion.
-   * Dividing by the full syllabus would show a student 8% and blame them for a
-   * gap in our corpus. The label says "available", and it has to keep saying so.
-   */
+  /** Chapters in the programme. */
   available: number;
-  /** 0..1. Zero available reads as zero covered, never as complete. */
+  /** 0..1. Zero chapters reads as zero covered, never as complete. */
   ratio: number;
 };
 
@@ -124,40 +131,4 @@ export function monthlyEffort(activeDates: Date[], now: Date = new Date()): Mont
     daysInMonth,
     ratio: daysElapsed === 0 ? 0 : Math.min(1, worked.size / daysElapsed),
   };
-}
-
-/**
- * How mastery and coverage read together, in words.
- *
- * Readiness multiplies the two (see `docs/readiness-model.md`), and a student
- * cannot be asked to do that multiplication in their head. The dangerous case
- * is high mastery on a narrow slice: the score is correctly low, and without a
- * sentence the student reads that as "I am bad at this" when the truth is "I am
- * good at this, and I have barely started it". Those two need different work.
- *
- * Returns a key, not a sentence — the copy lives in the dictionaries so it can
- * be said properly in three languages.
- */
-export type EvidenceReading =
-  | 'none'
-  | 'early'
-  | 'strongNarrow'
-  | 'weakBroad'
-  | 'strongBroad';
-
-/** Above this share of attempted chapters scoring well, call it strong. */
-const STRONG_MASTERY = 0.65;
-/** Above this share of the subject's chapters touched, call it broad. */
-const BROAD_COVERAGE = 0.6;
-
-export function evidenceReading(mastery: number, coverage: number): EvidenceReading {
-  if (coverage <= 0) return 'none';
-
-  const strong = mastery >= STRONG_MASTERY;
-  const broad = coverage >= BROAD_COVERAGE;
-
-  if (strong && broad) return 'strongBroad';
-  if (strong) return 'strongNarrow';
-  if (broad) return 'weakBroad';
-  return 'early';
 }

@@ -70,7 +70,7 @@ export function BottomNav() {
     },
     {
       href: '/progress',
-      match: ['/progress', '/performance', '/report', '/schedule', '/todos'],
+      match: ['/progress', '/report', '/schedule', '/todos'],
       label: t.nav.sections.progress,
       icon: 'progress',
     },

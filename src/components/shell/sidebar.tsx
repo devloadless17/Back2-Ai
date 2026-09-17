@@ -11,7 +11,6 @@ import { useI18n } from '@/lib/i18n/client';
 import {
   IconBell,
   IconCalendar,
-  IconChart,
   IconChat,
   IconCheckList,
   IconClose,
@@ -129,7 +128,6 @@ export function Sidebar({
       label: t.nav.sections.assess,
       items: [
         { href: '/exam-sim', label: t.nav.examSim, icon: IconExam },
-        { href: '/performance', label: t.nav.performance, icon: IconChart },
         /*
          * School marks. The page has existed at `/settings/grades` since it
          * was written and was reachable only by typing the URL — filed under

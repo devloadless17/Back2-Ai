@@ -1,6 +1,5 @@
 import 'server-only';
 
-import { cacheCurriculum } from '@/lib/cache';
 import { db } from '@/lib/db';
 import {
   bandForMark,
@@ -59,11 +58,40 @@ export type SubjectMark = {
   evidence: SubjectEvidence;
 };
 
+/**
+ * The track read as one, for the three figures above the subject table.
+ *
+ * Aggregated here rather than in the page so that Progress, the dashboard and
+ * anything else asking the same question get the same arithmetic. Chapter
+ * counts add exactly, so `chaptersAttempted / chaptersTotal` is a real
+ * fraction and not a mean of fractions; `mastery` is the mean over every
+ * attempted chapter in the track, which weights a subject by the evidence it
+ * actually has rather than by being one subject among five.
+ */
+export type TrackEvidence = {
+  mastery: number;
+  chaptersAttempted: number;
+  chaptersTotal: number;
+  /** Marked answers behind all of it. The honest basis line. */
+  markedAnswers: number;
+};
+
 export type Standing = {
   overall: number | null;
   overallBand: MarkBand | null;
   subjects: SubjectMark[];
+  /**
+   * STUDENT coverage: chapters attempted over chapters in the programme.
+   *
+   * This used to divide by "chapters that have questions", which is a fact
+   * about the corpus, not about the student — and it disagreed with the
+   * denominator the readiness model uses, so the headline mark and the
+   * coverage figure beside it were measuring against different wholes. There
+   * is now one definition. The corpus question moved to
+   * `src/lib/queries/content-health.ts`, where it is named for what it counts.
+   */
   coverage: Coverage;
+  evidence: TrackEvidence;
   effort: MonthlyEffort;
   /** Days until the next exam on the student's calendar, null if none. */
   daysToExam: number | null;
@@ -107,16 +135,6 @@ export type Standing = {
  * BIGGER one, because it is a divisor. Coverage read about a third higher than
  * the programme they had actually covered.
  */
-const practisableChapterCount = cacheCurriculum(
-  ['practisable-chapter-count'],
-  async (trackId: string | null): Promise<number> =>
-    db.chapter.count({
-      where: {
-        subject: { trackId: trackId ?? undefined },
-        alsoHasQuestions: { some: { question: { verifiedStatus: { not: 'rejected' } } } },
-      },
-    }),
-);
 
 export async function getSidebarStanding(
   userId: string,
@@ -152,17 +170,18 @@ export async function getStanding(
   trackId: string | null,
   language: string,
 ): Promise<Standing> {
-  const [progress, practisedRow, availableRow, activeDays, nextExam] = await Promise.all([
+  /*
+   * Coverage no longer needs its own two queries.
+   *
+   * It used to count `chapter_mastery` rows for the user — WITHOUT a track
+   * filter, so a student who had switched track carried the old track's
+   * chapters into the numerator — over a cached count of chapters holding
+   * questions. Both numbers now come out of `getProgressForUser`, which is
+   * already track-scoped and already loaded here, so the figure agrees with
+   * readiness by construction and two round trips disappear.
+   */
+  const [progress, activeDays, nextExam] = await Promise.all([
     getProgressForUser(userId, trackId, language),
-
-    // Chapters this student has actually been marked in.
-    db.chapterMastery.count({ where: { userId, attemptsCount: { gt: 0 } } }),
-
-    // Chapters that can be practised at all — those with a question in them,
-    // inside the student's own track. Identical for every student in that
-    // track, so it is cached against the track rather than recounted per
-    // request; ingestion is the only thing that moves it.
-    practisableChapterCount(trackId),
 
     db.attempt.findMany({
       where: { userId, attemptedAt: { gte: startOfMonth() } },
@@ -199,11 +218,25 @@ export async function getStanding(
   const reportable = subjects.map((s) => s.mark).filter((m): m is number => m !== null);
   const overall = overallMark(reportable);
 
+  const chaptersAttempted = subjects.reduce((n, s) => n + s.evidence.chaptersAttempted, 0);
+  const chaptersTotal = subjects.reduce((n, s) => n + s.evidence.chaptersTotal, 0);
+  const evidence: TrackEvidence = {
+    mastery:
+      chaptersAttempted === 0
+        ? 0
+        : subjects.reduce((sum, s) => sum + s.evidence.mastery * s.evidence.chaptersAttempted, 0) /
+          chaptersAttempted,
+    chaptersAttempted,
+    chaptersTotal,
+    markedAnswers: subjects.reduce((n, s) => n + s.evidence.attempts, 0),
+  };
+
   return {
     overall,
     overallBand: overall === null ? null : bandForMark(overall),
     subjects,
-    coverage: coverage(practisedRow, availableRow),
+    coverage: coverage(chaptersAttempted, chaptersTotal),
+    evidence,
     effort: monthlyEffort(activeDays.map((a) => a.attemptedAt)),
     daysToExam: nextExam ? daysBetween(startOfToday(), nextExam.examDate) : null,
     examLabel: nextExam ? (nextExam.subject?.name ?? nextExam.label ?? null) : null,
