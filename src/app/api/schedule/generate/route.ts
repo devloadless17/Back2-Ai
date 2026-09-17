@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 import { assertSameOrigin, created, ok, parseBody, route, unauthorized } from '@/lib/api';
 import { apiUser } from '@/lib/auth/guards';
+import { today, toStoredDate } from '@/lib/calendar';
 import { db } from '@/lib/db';
 import {
   DEFAULT_MAX_DAILY_MINUTES,
@@ -54,7 +55,13 @@ export const POST = route(async (request) => {
   const body = await parseBody(request, bodySchema);
   const maxDailyMinutes = body.maxDailyMinutes ?? DEFAULT_MAX_DAILY_MINUTES;
 
-  const from = new Date(`${toDateKey(new Date())}T00:00:00.000Z`);
+  /*
+   * The plan starts on the student's today, not the server's. `buildPlan`'s
+   * own arithmetic is correct — it adds whole days to this anchor and reads
+   * them back with UTC getters, which is exactly right for calendar days. The
+   * only thing that was wrong was which day it started from.
+   */
+  const from = toStoredDate(today());
 
   const [progress, nextExam, dueCards] = await Promise.all([
     getProgressForUser(user.id, user.trackId, user.preferredLanguage),

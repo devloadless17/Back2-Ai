@@ -16,6 +16,7 @@ import { Meter } from '@/components/ui/progress';
 import { Sheet, SheetBody, SheetHeader, StatTile } from '@/components/ui/sheet';
 import { requireUser } from '@/lib/auth/guards';
 import { cn } from '@/lib/cn';
+import { today, toStoredDate } from '@/lib/calendar';
 import { db } from '@/lib/db';
 import { getTranslations } from '@/lib/i18n';
 import { daysUntil, format, formatDate } from '@/lib/i18n/format';
@@ -599,7 +600,13 @@ export default async function DashboardPage() {
   );
 }
 
+/**
+ * Midnight of the current BEIRUT day, as a `DATE` column compares it.
+ *
+ * Read the UTC date until now, which made Today, the due-card count and the
+ * exam countdown all answer yesterday between local midnight and 02:00 or
+ * 03:00. See `src/lib/calendar.ts`.
+ */
 function startOfToday(): Date {
-  const now = new Date();
-  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  return toStoredDate(today());
 }

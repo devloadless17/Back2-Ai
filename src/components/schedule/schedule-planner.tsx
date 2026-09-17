@@ -33,6 +33,10 @@ export type PlannerSession = {
   source: 'manual' | 'ai_suggested';
   status: 'planned' | 'done' | 'skipped';
   chapterName: string | null;
+  /** Subject first in the card hierarchy, so it needs its own field. */
+  subjectName: string | null;
+  /** What the session asks the student to DO. A plan of chapter names is a list. */
+  taskType: 'quiz' | 'flashcards' | 'exam_drill' | 'review' | null;
 };
 
 export type PlannerExam = {
@@ -63,11 +67,14 @@ export function SchedulePlanner({
   exams,
   subjects,
   chapters,
+  todayKey,
 }: {
   sessions: PlannerSession[];
   exams: PlannerExam[];
   subjects: { id: string; name: string }[];
   chapters: { id: string; name: string }[];
+  /** Today in Beirut, decided on the server. See `src/lib/calendar.ts`. */
+  todayKey: string;
 }) {
   const { t, formatDate } = useI18n();
   const router = useRouter();
@@ -114,7 +121,13 @@ export function SchedulePlanner({
 
   // --- Manual add ---------------------------------------------------------
   const [title, setTitle] = useState('');
-  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
+  /*
+   * The add-session form opens on the student's today, taken from the server.
+   * `new Date()` here is the browser's clock in the browser's timezone, which
+   * is a different day from the plan's for anyone up after midnight — and the
+   * form would then default to a day the page is not showing.
+   */
+  const [date, setDate] = useState(todayKey);
   const [chapterId, setChapterId] = useState('');
   /** Highlights the title field while a chapter is being dragged over it. */
   const [dropActive, setDropActive] = useState(false);
@@ -267,7 +280,7 @@ export function SchedulePlanner({
     byDate.set(session.scheduledDate, [...(byDate.get(session.scheduledDate) ?? []), session]);
   }
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayKey;
 
   return (
     <div className="space-y-5">
@@ -342,7 +355,13 @@ export function SchedulePlanner({
           />
           <SheetBody className={view === 'week' ? 'p-4' : 'p-0'}>
             {view === 'week' ? (
-              <WeekGrid sessions={sessions} exams={exams} onSetStatus={setStatus} />
+              <WeekGrid
+                sessions={sessions}
+                exams={exams}
+                todayKey={todayKey}
+                onSetStatus={setStatus}
+                onMove={moveSession}
+              />
             ) : (
           <>
             {sessions.length === 0 ? (

@@ -1,5 +1,7 @@
 import 'server-only';
 
+import { today, toStoredDate } from '@/lib/calendar';
+
 import { db } from '@/lib/db';
 import { findWeakestChapter, getProgressForUser } from '@/lib/queries/progress';
 
@@ -86,7 +88,11 @@ export async function getNextUp(
   return { kind: 'anything', href: '/practice' };
 }
 
+/**
+ * Midnight of the current Beirut day, as the value a `DATE` column compares
+ * against. See `src/lib/calendar.ts` — this used to read the UTC date, so
+ * between local midnight and 02:00 or 03:00 it returned yesterday.
+ */
 function startOfToday(): Date {
-  const now = new Date();
-  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  return toStoredDate(today());
 }

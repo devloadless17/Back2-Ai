@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { destinationFor } from '@/components/schedule/plan-today';
-import { RECONCILE_WINDOW_HOURS, countWithin, startOfTodayUtc } from '@/lib/queries/plan';
+import { RECONCILE_WINDOW_HOURS, countWithin, startOfTodayBeirut } from '@/lib/queries/plan';
 import { todosRedirectTarget } from '@/lib/todos-redirect';
 
 /**
@@ -27,11 +27,11 @@ describe('reconciling a completed session against real answers', () => {
 
   it('counts evening work that lands on the next UTC day', () => {
     /*
-     * The reason the window is not one day. Sessions carry a DATE and the
-     * product computes days in UTC, while the students are in Lebanon at UTC+2
-     * or +3. A student working at 22:30 Beirut time on Tuesday is already
-     * inside Wednesday in UTC, and a narrower window would tell them their own
-     * work was not recorded.
+     * The reason the window is not one day. Sessions carry a DATE and no time
+     * of day at all, and attempts are timestamps, so a student working late on
+     * Tuesday and one working on Wednesday morning are both doing Tuesday's
+     * session. A narrower window would tell them their own work was not
+     * recorded.
      */
     expect(countWithin([at('2026-05-12T20:30:00.000Z')], tuesday, RECONCILE_WINDOW_HOURS)).toBe(1);
     expect(countWithin([at('2026-05-13T09:00:00.000Z')], tuesday, RECONCILE_WINDOW_HOURS)).toBe(1);
@@ -54,22 +54,28 @@ describe('reconciling a completed session against real answers', () => {
   });
 });
 
-describe('the UTC day the plan is laid out against', () => {
-  it('is midnight UTC of the current date', () => {
-    expect(startOfTodayUtc(at('2026-05-12T21:45:00.000Z')).toISOString()).toBe(
-      '2026-05-12T00:00:00.000Z',
+describe('the day the plan is laid out against', () => {
+  it('is the current Beirut day, encoded as a stored DATE', () => {
+    expect(startOfTodayBeirut(at('2026-05-12T21:45:00.000Z')).toISOString()).toBe(
+      '2026-05-13T00:00:00.000Z',
     );
   });
 
-  it('is documented as UTC, which is NOT Beirut local midnight', () => {
+  it('shows TOMORROW once Beirut has passed midnight and UTC has not', () => {
     /*
-     * Pinned deliberately so the assumption is visible rather than implied.
-     * At 01:30 on Wednesday in Beirut it is still 22:30 Tuesday in UTC, so the
-     * plan shows Tuesday. Every date in this product behaves this way and the
-     * fix belongs in one place, not scattered through the planner.
+     * This is the regression. 22:30Z on Tuesday is 01:30 Wednesday in Beirut,
+     * and the plan used to answer Tuesday — a student revising after midnight
+     * was handed the previous day's sessions. `src/lib/calendar.ts` now owns
+     * the decision and every caller of it inherited the fix.
      */
-    const lateNightBeirut = at('2026-05-12T22:30:00.000Z'); // 01:30 Wed in Beirut
-    expect(startOfTodayUtc(lateNightBeirut).toISOString().slice(0, 10)).toBe('2026-05-12');
+    const afterMidnightInBeirut = at('2026-05-12T22:30:00.000Z');
+    expect(startOfTodayBeirut(afterMidnightInBeirut).toISOString().slice(0, 10)).toBe('2026-05-13');
+  });
+
+  it('still agrees with UTC in the middle of the day', () => {
+    expect(startOfTodayBeirut(at('2026-05-12T09:00:00.000Z')).toISOString().slice(0, 10)).toBe(
+      '2026-05-12',
+    );
   });
 });
 

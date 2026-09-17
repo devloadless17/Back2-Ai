@@ -96,9 +96,20 @@ at 1am sees the previous day's plan as today's, and the reminder job — which
 matches `scheduledDate: today` in UTC — fires against a UTC day boundary.
 
 Because sessions carry no time of day, this is a **date-boundary** bug rather
-than a time-shifting one, and it is consistent across the product. It is real
-and worth tests, and it is not currently causing anything to be silently
-misfiled.
+than a time-shifting one, and it is consistent across the product.
+
+**FIXED.** `src/lib/calendar.ts` now owns the decision. It separates the two
+operations that were being conflated — deciding what today IS, which is a
+Beirut question, from reading a day that is already STORED, which is a UTC
+question because a `DATE` round-trips as midnight UTC. DST comes from the IANA
+database through `Intl` rather than a hardcoded offset, because Lebanon has
+moved its clocks at short notice before. `tests/calendar.test.ts` pins the
+23:30/00:30 cases, month and year boundaries, and both sides of a DST change.
+
+The fix reached every academic-day caller: the plan, the planner's anchor, the
+reminder job, the exam countdown, the due-card badge, the tutor's planning
+context, the deck queries, the subject hub and Dashboard Today — most of them
+through the one shared `startOfToday` they already imported.
 
 ---
 
@@ -106,9 +117,17 @@ misfiled.
 
 Both `/schedule` and `/todos` load **every chapter in the track** into the
 client to populate a picker — `db.chapter.findMany({ where: { subject: {
-trackId } } })` with no take. On a GS track that is more than a thousand rows
-of `{ id, name, subject }` shipped to a phone so that a dropdown can exist.
-That is the clearest thing to fix in this phase.
+trackId } } })` with no take.
+
+**Measured before acting, and the first estimate here was wrong.** A GS track
+holds **243 chapters**, not a thousand — 1,193 is the corpus across all four
+tracks (GS, LS, SE, LH), which is the figure `taxonomy.ts` cites and which I
+misread as a per-track number. At roughly ninety bytes a row that is about
+22 kB uncompressed, a few kB gzipped.
+
+So the picker stays. The real duplication was that `/todos` loaded the same
+list again for its own picker, and both pages read their sessions and todos
+separately; `getPlan` removes that.
 
 ---
 

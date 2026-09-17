@@ -59,7 +59,7 @@ export default async function ProgressPage() {
    * One round of queries, issued together.
    *
    * The Bac Map is the reason this matters: Track -> Subject -> Chapter over a
-   * GS track is more than a thousand chapters, and asking per subject would
+   * GS track is 243 chapters across its subjects, and asking per subject would
    * grow the query count with the curriculum. `listChaptersForTrack` is two
    * queries for the whole track, and it shares its loader with the practice
    * index so the two surfaces cannot disagree about a chapter.

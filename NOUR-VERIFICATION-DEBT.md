@@ -228,8 +228,8 @@ merge, recurring losses and the Bac Map.
       have got wrong.
 - [ ] an old `/performance` bookmark, with and without query parameters
 - [ ] Dashboard and Progress side by side — the next action must read the same
-- [ ] a large track — a GS account has more than a thousand chapters across the
-      map; confirm the page is not absurd and the two chapter queries hold up
+- [ ] a large track — a GS account has 243 chapters across the map; confirm the
+      page is not absurd and the two chapter queries hold up
 
 ## VISUAL QA
 
@@ -326,6 +326,29 @@ undated intention — and are read as a backlog on the planning page.
 - [ ] due flashcards driving a flashcards session rather than a quiz
 - [ ] Dashboard Today and the plan's Today showing the same sessions
 
+## DATE / TIMEZONE QA
+
+The boundary is fixed in code and pinned in `tests/calendar.test.ts`. What no
+one has done is watch it behave against a real clock and a real database.
+
+- [ ] open the app at **23:30 Beirut** — the plan shows today, not tomorrow
+- [ ] open it at **00:30 Beirut** — the plan has rolled over, and Today is the
+      new day. This is the case that was broken
+- [ ] the same two moments in **winter** (UTC+2) and **summer** (UTC+3)
+- [ ] a session dated today displays on today, not shifted a day either way
+- [ ] yesterday's session still appears in the seven-day tail
+- [ ] tomorrow's session does not appear in Today
+- [ ] a session on the **1st of a month**, viewed on the last day of the
+      previous one
+- [ ] a session on **1 January**, viewed on 31 December
+- [ ] the reminder cron firing while Beirut and UTC are on different days —
+      it must select the sessions the student will see when they wake up
+- [ ] the exam countdown across a midnight, and on the exam day itself
+- [ ] the weekly agenda's weekday labels with the browser set to a timezone
+      **west** of UTC — the day must not render as the previous one
+- [ ] a browser clock deliberately wrong by a day — the page must follow the
+      server, because `todayKey` comes from it
+
 ## VISUAL QA
 
 - [ ] 360 / 390 / 430 — Today first, then the recommendation, then the week
@@ -338,16 +361,57 @@ undated intention — and are read as a backlog on the planning page.
       one, an `ai_suggested` badge
 - [ ] the move control at 360px — it sits under the row, not in a dialog
 
-## ROUTING QA
+## ROUTING / ACTION QA
 
 - [ ] an old `/todos` bookmark lands on `/schedule`, with and without a query
 - [ ] a quiz session with a chapter opens that chapter, not the practice index
 - [ ] a session with no chapter opens `/practice` and is not a dead button
 - [ ] flashcards and exam-drill sessions reach their real routes
 - [ ] no internal navigation still points at `/todos`
+- [ ] Move: picking a date actually moves the session, and the week re-renders
+- [ ] Move: opening the control and closing it again changes nothing
+- [ ] Move: a date in the past — the input allows it; decide whether that is
+      wanted or whether it needs a floor
+- [ ] Move is offered only on `planned` sessions, never on done or skipped
+- [ ] Move on an `ai_suggested` session the student accepted behaves the same
+      as on their own
+- [ ] a failed Move — the error is visible and the session does not appear to
+      have moved
+- [ ] two rows with their Move panels open at once is impossible (single
+      `movingId`)
+
+## ACCESSIBILITY QA
+
+Audited in source this phase; none of it has been driven with a keyboard or a
+screen reader.
+
+- [ ] tab through the week: nav buttons, each session's Done and Move, the
+      date input, in a sensible order
+- [ ] the previous/next week buttons announce as "previous"/"next" rather than
+      as a bracket glyph
+- [ ] today announces via `aria-current="date"` in both layouts
+- [ ] today is identifiable **without colour** — the word is present in both
+      the agenda and the board
+- [ ] session status is readable without colour: "✓ Done", "Skipped"
+- [ ] the day headings (`h4`) nest correctly under the week heading (`h3`)
+- [ ] the Move and Give-a-date buttons expose `aria-expanded` correctly
+- [ ] the date inputs are announced with their label
+- [ ] focus is visible on every control, in both themes
+- [ ] the backlog's error is announced (`role="alert"`)
+- [ ] a completed session is still readable — not struck through into noise
 
 ## Known limitations, recorded not fixed
 
+- **FIXED this phase: the Beirut/UTC day boundary.** `src/lib/calendar.ts`
+  owns it now. The note below is kept for the record of what was wrong.
+- **Not migrated to the shared calendar, deliberately:** `sm2.ts` and the
+  flashcard interval arithmetic. Those add whole days to an already-stored due
+  date, which is timezone-free; they were out of the brief's list and changing
+  them would touch the flashcard scheduler for no correctness gain.
+- **Reminder language comes from `preferred_language`.** A student who changed
+  language with the picker but never saved it to their profile gets reminders
+  in the account language. Smaller lie than English for everyone; worth closing
+  when the picker writes through.
 - **Everything is UTC and the students are in Lebanon.** `startOfTodayUtc`,
   `toDateKey`, the rest-day check and the reminder job all use UTC days. Between
   midnight and 03:00 local, "today" is still yesterday. Sessions carry no time
@@ -355,10 +419,12 @@ undated intention — and are read as a backlog on the planning page.
   and it is consistent across the product. Pinned in `tests/plan.test.ts` so the
   assumption is visible; **not fixed** — the fix belongs in one shared place and
   touches the planner, the reminder job and standing.
-- **The chapter picker still ships every chapter in the track** to the client —
-  more than a thousand rows on a GS account. `getPlan` removed the duplicate
-  load on `/todos` and the session/exam/backlog reads, but the add-session
-  dropdown needs a searchable endpoint before that last list can go.
+- **The chapter picker ships the track's chapters to the client, and that is
+  now a measured decision rather than an oversight.** A GS track is 243
+  chapters, about 22 kB uncompressed — not the thousand-plus I first claimed,
+  which was the four-track corpus misread. A searchable endpoint would add a
+  round trip per keystroke on a Lebanese mobile connection to fix a problem the
+  number does not support. Kept.
 - **Dashboard Today links generically.** `TodayTasks` sends a quiz to
   `/practice` rather than the session's chapter, because the dashboard selects
   `chapterId` but not the subject, and `/practice/[subjectId]/[chapterId]`

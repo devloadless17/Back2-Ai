@@ -818,6 +818,7 @@ export const ar: Dictionary = {
   schedule: {
     title: 'الجدول',
     subtitle: 'نظّم مراجعتك يدوياً أو بخطة مقترحة.',
+    thisWeek: 'هذا الأسبوع',
     today: 'اليوم',
     todayNothing: 'لا شيء مقرر اليوم.',
     todayCount: '{planned} للإنجاز · {minutes} دقيقة',
@@ -1077,6 +1078,11 @@ export const ar: Dictionary = {
   },
 
   notifications: {
+    flashcardsDueTitle: 'حان موعد مراجعة بطاقاتك',
+    flashcardsDueBody: '{count} بطاقة مستحقة اليوم.',
+    scheduleTitle: 'خطة دراستك لليوم',
+    sessionToday: 'جلسة اليوم: {title}',
+    sessionsToday: 'لديك {count} جلسات دراسية اليوم.',
     title: 'الإشعارات',
     markAllRead: 'تعليم الكل كمقروء',
     empty: 'لا جديد.',

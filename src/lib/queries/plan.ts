@@ -1,15 +1,15 @@
 import 'server-only';
 
+import { dayOf, today, toStoredDate } from '@/lib/calendar';
 import { db } from '@/lib/db';
 
 /**
  * Everything the planning page needs, in one round of queries.
  *
- * The old `/schedule` page loaded every chapter in the track — more than a
- * thousand rows on a GS account — so that a dropdown could exist, and `/todos`
- * did the same again. Neither needed the whole curriculum; both needed a
- * handful of sessions and a way to name a chapter. This loads the window, the
- * backlog, the exams and the evidence behind completion, and nothing else.
+ * `/schedule` and `/todos` each read their own sessions, todos and the whole
+ * chapter list, duplicating most of it. This loads the window, the backlog,
+ * the exams and the evidence behind completion, in one place. The chapter list
+ * for the picker is a measured decision — see the schedule page.
  */
 
 /** How far back the planner still shows. Yesterday's work is still tickable. */
@@ -20,12 +20,12 @@ export const HORIZON_DAYS = 14;
 /**
  * How long after a session's date an attempt still counts as that session.
  *
- * Forty-eight hours, for two reasons. Sessions carry a DATE and no time, and
- * everything in this product computes days in UTC while the students are in
- * Lebanon (UTC+2/+3) — so a student working at 22:00 on Tuesday is already
- * inside Wednesday by the time the row lands in some of our queries. And a
- * student who ticks Tuesday's session on Wednesday morning did the work; the
- * plan is not a stopwatch.
+ * Forty-eight hours, and it stays forty-eight now that the day boundary is
+ * correct. Sessions carry a DATE and no time at all, so a student who works
+ * late on Tuesday and one who works on Wednesday morning are both doing
+ * Tuesday's session; the plan is a plan, not a stopwatch. Attempts are
+ * timestamps rather than calendar days, so this window is deliberately
+ * generous at both ends of a day.
  *
  * The window is why the copy says "3 answers marked" and never "3 answers
  * marked that day". The narrower claim is the one we cannot support.
@@ -79,7 +79,7 @@ export type PlanExam = {
 };
 
 export type Plan = {
-  /** UTC day key the rest of the page is laid out against. */
+  /** The Beirut day the rest of the page is laid out against. */
   todayKey: string;
   sessions: PlanSession[];
   /** Undated intentions. Capture, not commitment — see `/todos` redirect. */
@@ -87,16 +87,21 @@ export type Plan = {
   exams: PlanExam[];
 };
 
-const dayKey = (date: Date): string => date.toISOString().slice(0, 10);
-
-export function startOfTodayUtc(now: Date = new Date()): Date {
-  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+/**
+ * The Beirut day a stored session belongs to.
+ *
+ * `dayOf` reads a `DATE` column, which round-trips as midnight UTC; `today`
+ * decides what day it is where the students are. Two different operations —
+ * see `src/lib/calendar.ts`, which exists because this file conflated them.
+ */
+export function startOfTodayBeirut(now: Date = new Date()): Date {
+  return toStoredDate(today(now));
 }
 
 export async function getPlan(userId: string, now: Date = new Date()): Promise<Plan> {
-  const today = startOfTodayUtc(now);
-  const from = new Date(today.getTime() - PAST_TAIL_DAYS * 86_400_000);
-  const to = new Date(today.getTime() + HORIZON_DAYS * 86_400_000);
+  const anchor = startOfTodayBeirut(now);
+  const from = new Date(anchor.getTime() - PAST_TAIL_DAYS * 86_400_000);
+  const to = new Date(anchor.getTime() + HORIZON_DAYS * 86_400_000);
 
   const [rows, todos, exams] = await Promise.all([
     db.studySession.findMany({
@@ -131,7 +136,7 @@ export async function getPlan(userId: string, now: Date = new Date()): Promise<P
     }),
 
     db.upcomingExam.findMany({
-      where: { userId, examDate: { gte: today } },
+      where: { userId, examDate: { gte: anchor } },
       select: {
         id: true,
         examDate: true,
@@ -146,11 +151,11 @@ export async function getPlan(userId: string, now: Date = new Date()): Promise<P
   const answersByChapter = await countAnswers(userId, rows, from, to);
 
   return {
-    todayKey: dayKey(today),
+    todayKey: dayOf(anchor),
     sessions: rows.map((row) => ({
       id: row.id,
       title: row.title,
-      scheduledDate: dayKey(row.scheduledDate),
+      scheduledDate: dayOf(row.scheduledDate),
       durationMinutes: row.durationMinutes,
       taskType: row.taskType,
       rationale: row.rationale,
@@ -180,7 +185,7 @@ export async function getPlan(userId: string, now: Date = new Date()): Promise<P
     })),
     exams: exams.map((exam) => ({
       id: exam.id,
-      examDate: dayKey(exam.examDate),
+      examDate: dayOf(exam.examDate),
       label: exam.label,
       subjectName: exam.subject?.name ?? null,
       isBacExam: exam.isBacExam,

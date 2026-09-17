@@ -4,6 +4,9 @@ import { purgeExpiredSessions } from '@/lib/auth/session';
 import { db } from '@/lib/db';
 import { autoSubmitExpired, markSubmitted } from '@/lib/exam';
 import { recalibrateDifficulty } from '@/lib/ingestion';
+import { isLocale, type Locale } from '@/lib/i18n/config';
+import { getDictionary } from '@/lib/i18n';
+import { format } from '@/lib/i18n/format';
 import { startOfToday } from '@/lib/queries/flashcards';
 import { getProgressForUser } from '@/lib/queries/progress';
 import { appLink, sendEmail } from '@/lib/email';
@@ -134,6 +137,31 @@ async function deliver(userId: string, subject: string, body: string, href: stri
  * twice should not find six reminders about the same twelve cards. That guard
  * covers the email too, since delivery happens beside the row that records it.
  */
+/**
+ * The language to write a student's reminder in.
+ *
+ * `preferred_language` is the account's INTERFACE language — it is what
+ * `getTranslations` falls back to when there is no cookie, and a background
+ * job has no cookie by definition, so it is the only truthful source here. It
+ * is deliberately not inferred from the subjects the student studies: someone
+ * reading the app in French sits Arabic papers, and guessing from the corpus
+ * would write half of them the wrong reminder.
+ *
+ * A student who switched language with the picker but never saved it to their
+ * profile will get reminders in the account language. That is a real gap and a
+ * smaller lie than English for everyone.
+ */
+async function localesByUser(userIds: string[]): Promise<Map<string, Locale>> {
+  if (userIds.length === 0) return new Map();
+  const rows = await db.user.findMany({
+    where: { id: { in: userIds } },
+    select: { id: true, preferredLanguage: true },
+  });
+  return new Map(
+    rows.map((row) => [row.id, isLocale(row.preferredLanguage) ? row.preferredLanguage : 'en']),
+  );
+}
+
 export async function sendReminders(): Promise<number> {
   const today = startOfToday();
   let created = 0;
@@ -144,6 +172,8 @@ export async function sendReminders(): Promise<number> {
     _count: { questionId: true },
   });
 
+  const cardLocales = await localesByUser(dueCounts.map((row) => row.userId));
+
   for (const row of dueCounts) {
     const already = await db.notification.findFirst({
       where: { userId: row.userId, type: 'flashcards_due', createdAt: { gte: today } },
@@ -151,7 +181,8 @@ export async function sendReminders(): Promise<number> {
     });
     if (already) continue;
 
-    const message = `${row._count.questionId} flashcard(s) are due today.`;
+    const t = getDictionary(cardLocales.get(row.userId) ?? 'en').notifications;
+    const message = format(t.flashcardsDueBody, { count: row._count.questionId });
     await db.notification.create({
       data: {
         userId: row.userId,
@@ -160,7 +191,7 @@ export async function sendReminders(): Promise<number> {
         href: '/flashcards/review',
       },
     });
-    await deliver(row.userId, 'Your flashcards are due', message, '/flashcards/review');
+    await deliver(row.userId, t.flashcardsDueTitle, message, '/flashcards/review');
     created += 1;
   }
 
@@ -176,6 +207,8 @@ export async function sendReminders(): Promise<number> {
     byUser.set(session.userId, list);
   }
 
+  const sessionLocales = await localesByUser([...byUser.keys()]);
+
   for (const [userId, titles] of byUser) {
     const already = await db.notification.findFirst({
       where: { userId, type: 'schedule_reminder', createdAt: { gte: today } },
@@ -183,14 +216,15 @@ export async function sendReminders(): Promise<number> {
     });
     if (already) continue;
 
+    const t = getDictionary(sessionLocales.get(userId) ?? 'en').notifications;
     const message =
       titles.length === 1
-        ? `Today's session: ${titles[0]}`
-        : `You have ${titles.length} study sessions planned today.`;
+        ? format(t.sessionToday, { title: titles[0] ?? '' })
+        : format(t.sessionsToday, { count: titles.length });
     await db.notification.create({
       data: { userId, type: 'schedule_reminder', message, href: '/schedule' },
     });
-    await deliver(userId, 'Your study plan for today', message, '/schedule');
+    await deliver(userId, t.scheduleTitle, message, '/schedule');
     created += 1;
   }
 

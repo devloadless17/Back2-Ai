@@ -43,10 +43,19 @@ export default async function SchedulePage() {
   const { t } = await getTranslations();
 
   /*
-   * Three reads, not the curriculum. This page used to load every chapter in
-   * the track so a dropdown could exist — more than a thousand rows on a GS
-   * account, shipped to a phone. `getPlan` loads the window, the backlog and
-   * the exams; the picker keeps its own list until it is made searchable.
+   * THE CHAPTER LIST IS KEPT, DELIBERATELY, AND THE NUMBER IS WHY.
+   *
+   * I described this earlier as "more than a thousand rows on a GS account".
+   * That was wrong: 1,193 is the whole corpus across four tracks, and a single
+   * track is 243 chapters — the figure `standing.ts` and `content-health.ts`
+   * both cite for GS and LS. At roughly ninety bytes a row that is about 22 kB
+   * uncompressed and a few kB over the wire.
+   *
+   * A searchable endpoint would trade that for a network round trip on every
+   * keystroke, on Lebanese mobile connections, to solve a problem the
+   * measurement does not support. The picker stays. What `getPlan` removed was
+   * the real duplication: `/todos` loaded the same list again for its own
+   * picker, and both pages read sessions and todos separately.
    */
   const [plan, next, subjects, chapters] = await Promise.all([
     getPlan(user.id),
@@ -69,6 +78,8 @@ export default async function SchedulePage() {
     source: session.source,
     status: session.status,
     chapterName: session.chapterName,
+    subjectName: session.subjectName,
+    taskType: session.taskType,
   }));
 
   const plannerExams: PlannerExam[] = plan.exams.map((exam) => ({
@@ -103,6 +114,7 @@ export default async function SchedulePage() {
         exams={plannerExams}
         subjects={subjects.map((s) => ({ id: s.id, name: s.name }))}
         chapters={chapters.map((c) => ({ id: c.id, name: `${c.subject.name} — ${c.name}` }))}
+        todayKey={plan.todayKey}
       />
 
       {/* --- Noted, not committed to ---------------------------------------- */}

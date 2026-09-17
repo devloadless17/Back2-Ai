@@ -805,6 +805,7 @@ export const fr: Dictionary = {
   schedule: {
     title: 'Planning',
     subtitle: 'Organisez vos révisions, à la main ou avec un plan suggéré.',
+    thisWeek: 'Cette semaine',
     today: 'Aujourd’hui',
     todayNothing: 'Rien de prévu aujourd’hui.',
     todayCount: '{planned} à faire · {minutes} min',
@@ -1068,6 +1069,11 @@ export const fr: Dictionary = {
   },
 
   notifications: {
+    flashcardsDueTitle: 'Vos cartes sont à réviser',
+    flashcardsDueBody: '{count} cartes sont à réviser aujourd’hui.',
+    scheduleTitle: 'Votre plan d’étude du jour',
+    sessionToday: 'Séance du jour : {title}',
+    sessionsToday: 'Vous avez {count} séances prévues aujourd’hui.',
     title: 'Notifications',
     markAllRead: 'Tout marquer comme lu',
     empty: 'Rien de nouveau.',

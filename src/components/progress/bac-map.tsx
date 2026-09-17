@@ -13,8 +13,8 @@ import type { SubjectMark } from '@/lib/queries/standing';
  * actually holds. There is no skill or topic level and none is invented here.
  *
  * It is a map of position and evidence, not a visualisation. Subjects are
- * closed by default and open one at a time: a GS track runs past a thousand
- * chapters, and a page that renders all of them is a page nobody scrolls. The
+ * closed by default and open one at a time: a GS track holds 243 chapters,
+ * and a page that renders all of them at once is a page nobody scrolls. The
  * question level is the existing chapter page rather than a fourth tier
  * rendered inline — pulling question bodies into `/progress` to display a
  * count would ship the corpus to a phone to draw a number.

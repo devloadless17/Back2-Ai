@@ -1,5 +1,7 @@
 import 'server-only';
 
+import { today, toStoredDate } from '@/lib/calendar';
+
 import { db } from '@/lib/db';
 import { MIN_ATTEMPTS_FOR_WEAKNESS } from '@/lib/scoring/mastery';
 
@@ -173,9 +175,20 @@ export async function weakChapters(
   }));
 }
 
+/**
+ * Midnight of the current BEIRUT day, as a `DATE` column compares it.
+ *
+ * Read the UTC date until now, so between local midnight and 02:00 or 03:00 it
+ * answered yesterday: a student revising at 00:30 was shown the previous day's
+ * due cards and the nightly reminder selected against a boundary nobody lives
+ * in. Every caller of this — the app layout's due badge, the tutor's planning
+ * context, the reminder job, the deck queries, the subject hub — inherited it.
+ *
+ * See `src/lib/calendar.ts` for why the academic day is Beirut and not the
+ * server, the browser, or UTC.
+ */
 export function startOfToday(): Date {
-  const now = new Date();
-  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  return toStoredDate(today());
 }
 
 export async function countDue(userId: string, trackId: string | null, scope: ReviewScope = { kind: 'all' }) {

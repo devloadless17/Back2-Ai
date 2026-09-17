@@ -820,6 +820,7 @@ export const en = {
   schedule: {
     title: 'Schedule',
     subtitle: 'Plan your revision, by hand or with a suggested plan.',
+    thisWeek: 'This week',
     today: 'Today',
     todayNothing: 'Nothing scheduled for today.',
     todayCount: '{planned} to do · {minutes} min',
@@ -1079,6 +1080,11 @@ export const en = {
   },
 
   notifications: {
+    flashcardsDueTitle: 'Your flashcards are due',
+    flashcardsDueBody: '{count} flashcards are due today.',
+    scheduleTitle: 'Your study plan for today',
+    sessionToday: 'Session today: {title}',
+    sessionsToday: 'You have {count} study sessions planned today.',
     title: 'Notifications',
     markAllRead: 'Mark all as read',
     empty: 'Nothing new.',
