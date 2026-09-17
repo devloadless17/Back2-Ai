@@ -10,7 +10,24 @@ import type { MarkComparison } from '@/lib/queries/grades';
 import { cn } from '@/lib/cn';
 
 /**
- * School marks beside the mark this product predicts.
+ * School marks beside this product's readiness mark.
+ *
+ * WHAT THE TWO COLUMNS ARE. "At school" is the mean of the marks the student
+ * logged themselves, out of 20, with the count shown because one test is not a
+ * picture. "Readiness here" is `markOutOf20(readiness.score)` — the standing
+ * mark, the same figure the tiles and the subject table show. It is NOT a
+ * second model and nothing here forecasts anything.
+ *
+ * This column used to be called "We predict", under a heading reading "School
+ * marks vs our prediction". That was an overclaim: no validated prediction of
+ * a Bac result exists in this product, `docs/readiness-model.md` forbids the
+ * phrase in as many words, and a readiness score is a description of evidence
+ * rather than a forecast. Renamed rather than re-engineered — the arithmetic
+ * was always honest, only the label was not.
+ *
+ * It stays below the evidence threshold in the same way everything else does:
+ * `predicted` is null when readiness is not reportable, and the row then says
+ * so instead of printing a mark.
  *
  * The one place the product checks itself against the outside world. Every
  * other figure here is computed from work done inside it, which means they can
@@ -19,9 +36,9 @@ import { cn } from '@/lib/cn';
  *
  * So the interesting row is the one that disagrees, and the wording is careful
  * about what a disagreement means. It never says the student is wrong or that
- * the prediction is wrong — it says the two do not match and names which is
+ * the readiness mark is wrong — it says the two do not match and names which is
  * higher, because that difference points at different actions. A school mark
- * below the prediction usually means exam technique or timing rather than
+ * below the readiness mark usually means exam technique or timing rather than
  * knowledge, which is the opposite of what practice drills fix.
  *
  * The verdict is a word and an icon, never a colour on its own, like every

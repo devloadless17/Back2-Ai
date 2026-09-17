@@ -192,7 +192,7 @@ export const fr: Dictionary = {
   standing: {
     title: 'Situation',
     subtitle: 'Où vous en êtes, en notes sur 20.',
-    predictedMark: 'Note prévue',
+    predictedMark: 'Note de préparation',
     predictedMarkHint: 'Estimée à partir de vos copies corrigées. Ce n’est pas une note officielle.',
     overall: 'Moyenne',
     outOf: '{mark} / {scale}',
@@ -786,10 +786,10 @@ export const fr: Dictionary = {
     noData: 'Pas encore assez de tentatives pour estimer votre préparation.',
     noDataHint: 'Travaillez quelques chapitres et cette page se remplira.',
     practiseThis: 'Travailler ce point',
-    schoolTitle: 'Notes de l’école vs notre prévision',
+    schoolTitle: 'Notes de l’école et votre préparation',
     schoolHint: 'Le seul chiffre ici qui vienne de l’extérieur de l’application.',
     schoolColumn: 'À l’école',
-    predictedColumn: 'Prévision',
+    predictedColumn: 'Préparation ici',
     verdictColumn: 'Accord',
     fromMarks: 'moyenne de {count} note(s)',
     verdictAligned: 'Concordant',
@@ -797,7 +797,7 @@ export const fr: Dictionary = {
     verdictSchoolHigher: 'École plus haut',
     schoolNone: 'Aucune note d’école enregistrée',
     schoolNoneHint:
-      'Ajoutez les notes obtenues à l’école et nous les comparerons à ce que votre travail ici laisse prévoir.',
+      'Ajoutez les notes obtenues à l’école et nous les comparerons à votre préparation ici.',
     schoolLowerAdvice:
       'Quand la note de l’école est la plus basse, l’écart tient généralement au temps ou à la méthode d’examen plutôt qu’aux connaissances — ici, vous maîtrisez la matière. Passer une épreuve complète chronométrée le vérifie directement.',
   },

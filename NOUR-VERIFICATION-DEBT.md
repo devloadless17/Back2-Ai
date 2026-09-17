@@ -1,21 +1,29 @@
-# Nour — verification debt
+# Verification debt
 
-**Status: implementation complete, runtime verification pending.**
+Grouped by surface. Every box here is something nobody has run or looked at.
 
-Written 2026-09-18. Nothing in this file has been checked. It is a list of what
-somebody must actually run and actually look at before the Nour phase can be
-called verified.
+## Status
 
-Two things blocked verification on the machine this was built on:
+| | |
+|---|---|
+| **Implementation** | code-complete for Nour, Practice + Examiner, and Progress + Bac Map |
+| **Verification** | runtime and visual QA pending, all of it |
 
-- **Docker was not running**, so the local database was unavailable. The
-  provenance SQL has never executed.
-- **No browser was available**, so every visual claim is reasoned from code.
+Those are separate things and the distinction is the point of this file. The
+machine this was built on has no Docker and no browser, so no query has run
+against real rows and no pixel has been rendered. Typecheck, the test suite and
+the production build all pass, and none of that exercises either.
 
-Typecheck, 381 tests and the production build all pass. None of that exercises
-a query against real rows or renders a pixel.
+Code being complete is not a claim that it works. Nothing below may be ticked
+without someone actually doing it.
 
 ---
+
+# NOUR
+
+Two things blocked verification: **Docker was not running**, so the provenance
+SQL has never executed, and **no browser was available**, so every visual claim
+is reasoned from code.
 
 ## Database QA — the provenance query has never run
 
@@ -118,10 +126,9 @@ Mobile specifics:
 
 ---
 
-# Practice + Examiner Mode — added 2026-09-18
+# PRACTICE / EXAMINER
 
-Same conditions: no Docker, no browser. Implementation and static verification
-only.
+Same conditions: no Docker, no browser.
 
 ## Database QA
 
@@ -192,12 +199,12 @@ The four gaps above are now closed in code. None of it has been seen.
 
 ---
 
-## Progress + Bac Map (2026-09-17)
+# PROGRESS / BAC MAP
 
-Docker is unavailable and no browser is available, so none of this has been run
-against a database or seen rendered. All of it is read off the source.
+Covers the readiness v2 decomposition, the coverage split, the `/performance`
+merge, recurring losses and the Bac Map.
 
-### Data states nobody has looked at
+## DATA QA
 
 - [ ] mastery 100% / practised 10% — the narrow-but-strong account, the whole
       reason the two figures are separate
@@ -224,7 +231,7 @@ against a database or seen rendered. All of it is read off the source.
 - [ ] a large track — a GS account has more than a thousand chapters across the
       map; confirm the page is not absurd and the two chapter queries hold up
 
-### Visual, unseen
+## VISUAL QA
 
 - [ ] 360 / 390 / 430 — the subject list is the stacked one, NOT the table
 - [ ] sm and up — the table appears, with its contained sideways scroll
@@ -236,7 +243,20 @@ against a database or seen rendered. All of it is read off the source.
 - [ ] a subject with zero chapters returned
 - [ ] dark mode, all of the above
 
-### Known limitations, recorded not fixed
+## ROUTING QA
+
+- [ ] an old `/performance` bookmark with no query string lands on `/progress`
+- [ ] the same with `?subject=<id>`, and the parameter survives
+- [ ] a recurring criterion confined to one chapter offers its chapter, and the
+      link opens that chapter
+- [ ] one spanning chapters in a subject offers the subject, and names no
+      chapter anywhere in the row
+- [ ] one spanning subjects offers nothing — unreachable today, see below
+- [ ] a material-only chapter's link reaches real reading, not an empty page
+- [ ] an inert chapter is not a link at all
+- [ ] no internal navigation passes through the `/performance` redirect
+
+## Known limitations, recorded not fixed
 
 - **Criterion identity is the raw examiner string**, normalised for whitespace,
   numbering, kashida, case and trailing punctuation, keyed with the subject.
@@ -254,9 +274,55 @@ against a database or seen rendered. All of it is read off the source.
   correctly named when it came off Progress, but nothing renders it yet. It
   belongs in a content-health view.
 
+## Available, deliberately unsurfaced
+
+- **`pastPaperCoverage`** is defined and correct: chapters with indexed
+  past-paper questions over all chapters in the track. It is a fact about the
+  corpus, not about a student, and it is deliberately absent from `/progress`.
+  Available for a future admin or content-health experience. Building a screen
+  for it during this phase would have been manufacturing work to justify a
+  query, so it was not built.
+- **Recommendation copy.** The decision logic is shared through `getNextUp`, so
+  Dashboard and Progress cannot recommend different things. Presentation copy
+  remains independently mapped on each surface and should be consolidated when
+  the Dashboard file is safe to edit — it currently carries unrelated in-flight
+  work.
+
 ---
 
-## Progress — mastery and coverage surfaced (2026-09-17)
+# GLOBAL / MIXED RTL
+
+Cases that belong to no single surface. Each list above keeps its own
+direction and dark-mode rows; these are the ones that only fail when two
+surfaces are used together, or when a language and an interface disagree.
+
+- [ ] **Arabic content inside an LTR interface**, across Nour, Practice and
+      Progress in one session — the subject-language rule creates this state on
+      purpose and it has never been seen
+- [ ] **French content inside an Arabic interface**, the mirror case
+- [ ] mixed script inside one line: an Arabic chapter name beside a Latin
+      figure, which is every Bac Map row for an Arabic subject
+- [ ] numerals under RTL — marks out of 20, percentages and chapter counts must
+      not reverse
+- [ ] `Meter` fill direction under RTL, everywhere it appears: subject rows,
+      Bac Map chapters, chapter rank lists
+- [ ] the `<details>` disclosure triangle under RTL in the Bac Map
+- [ ] contained sideways scroll under RTL — the subject table and the
+      school-marks table must start at the correct edge
+- [ ] dark mode across a whole session rather than one screen at a time
+- [ ] font fallback for Arabic diacritics in chapter and criterion names
+- [ ] a language change mid-session: cached curriculum names are keyed by
+      language, and nothing has confirmed the switch is clean
+- [ ] bottom navigation and the composer together at 360px with the keyboard
+      open, in Arabic
+
+---
+
+## Earlier entry — mastery and coverage first surfaced
+
+Kept for the record. Superseded in part by the sections above: the second
+coverage percentage it worried about has since been removed from Progress, and
+the `evidenceReading` thresholds it describes were deleted.
 
 Docker is unavailable, so none of the following has been seen against a
 database. All of it is read off the source.
@@ -281,4 +347,3 @@ database. All of it is read off the source.
 *questions available*, while the new "Practised" column counts *chapters
 attempted*. They are different denominators and both labels say so, but two
 coverage-shaped numbers on one page is a real risk of confusion. Worth
-resolving when `/performance` is merged in.

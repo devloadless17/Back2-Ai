@@ -203,7 +203,7 @@ export const en = {
   standing: {
     title: 'Standing',
     subtitle: 'Where you stand, in marks out of 20.',
-    predictedMark: 'Predicted mark',
+    predictedMark: 'Readiness mark',
     predictedMarkHint: 'Estimated from your marked work. Not a grade.',
     overall: 'Overall',
     outOf: '{mark} / {scale}',
@@ -801,10 +801,10 @@ export const en = {
     noData: 'Not enough attempts yet to predict readiness.',
     noDataHint: 'Practise a few chapters and this page will fill in.',
     practiseThis: 'Practise this',
-    schoolTitle: 'School marks vs our prediction',
+    schoolTitle: 'School marks vs your readiness',
     schoolHint: 'The only figure here that comes from outside this app.',
     schoolColumn: 'At school',
-    predictedColumn: 'We predict',
+    predictedColumn: 'Readiness here',
     verdictColumn: 'Agreement',
     fromMarks: 'average of {count} logged',
     verdictAligned: 'Match',
@@ -812,7 +812,7 @@ export const en = {
     verdictSchoolHigher: 'School higher',
     schoolNone: 'No school marks logged yet',
     schoolNoneHint:
-      'Add the marks you get at school and we will compare them with what your practice here predicts.',
+      'Add the marks you get at school and we will compare them with your readiness here.',
     schoolLowerAdvice:
       'Where your school mark is the lower one, the gap is usually timing or exam technique rather than knowledge — you know the material well enough here. Sitting a full timed paper tests that directly.',
   },
