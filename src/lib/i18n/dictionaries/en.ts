@@ -638,6 +638,7 @@ export const en = {
     errorNetwork:
       "That didn't reach me. Check your connection and try again.",
     jumpToLatest: "Jump to latest",
+    subjectAll: "All my subjects",
     dockOpen: 'Ask the tutor',
     dockClose: 'Close the tutor',
     dockTitle: 'Tutor',

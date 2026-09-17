@@ -39,7 +39,7 @@ export default async function ChatSessionPage({
       id: true,
       title: true,
       subjectId: true,
-      subject: { select: { id: true, name: true } },
+      subject: { select: { id: true, name: true, language: true } },
       uploadedImageUrl: true,
       question: {
         select: { id: true, contentText: true, contentLatex: true, chapter: { select: { name: true } } },
@@ -131,13 +131,13 @@ export default async function ChatSessionPage({
         </div>
       )}
 
-      {/* Which syllabus the answers are coming from, once it is settled. The
-          student chose it several messages ago and the answers do not say. */}
-      {session.subject && (
-        <p className="mb-4 px-1 text-caption text-ink-faint">
-          {format(t.chat.subjectScoped, { subject: session.subject.name })}
-        </p>
-      )}
+      {/*
+        The subject notice used to live here, at the top of the page, where it
+        scrolled out of sight after two messages — so a student several turns
+        into a conversation had no way to tell which syllabus was answering
+        them. It is now pinned in the composer, which is the one element always
+        on screen.
+      */}
 
       {session.question && (
         <Sheet className="mb-5">
@@ -212,7 +212,16 @@ export default async function ChatSessionPage({
         </Sheet>
       )}
 
-      <ChatThread sessionId={session.id} initialMessages={messages} disabled={!configured} />
+      <ChatThread
+        sessionId={session.id}
+        initialMessages={messages}
+        disabled={!configured}
+        subject={
+          session.subject
+            ? { name: session.subject.name, language: String(session.subject.language) }
+            : null
+        }
+      />
     </>
   );
 }

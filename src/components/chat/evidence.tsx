@@ -106,7 +106,12 @@ export function Evidence({ sources }: { sources: EvidenceSource[] }) {
             officialCount > 0 ? 'bg-primary' : 'border border-ink-faint',
           )}
         />
-        <span className="flex-1 truncate font-medium">{summary}</span>
+        {/*
+          Wraps rather than truncating. At 360px in Arabic this line is close to
+          the full width, and an ellipsis here would cut the count — which is
+          the only fact the line carries.
+        */}
+        <span className="flex-1 font-medium">{summary}</span>
         <span aria-hidden className="text-ink-faint transition-transform duration-150">
           {open ? '−' : '+'}
         </span>
@@ -165,12 +170,24 @@ function SourceItem({ source }: { source: EvidenceSource }) {
       <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
         <span className="text-caption font-semibold text-ink">{heading}</span>
         {facts.length > 0 && (
+          /* `tabular-nums` keeps a year and a mark count aligned between rows;
+             the parent is `flex-wrap`, so this drops to its own line on a
+             narrow screen rather than being clipped. */
           <span className="text-caption tabular-nums text-ink-faint">{facts.join(' · ')}</span>
         )}
       </div>
 
+      {/*
+        NEVER TRUNCATED. This is how a student identifies which source they are
+        looking at, and Lebanese chapter names are long in all three languages —
+        "Les relations entre le Nord et le Sud", and the Arabic geography
+        chapters run half a line. An ellipsis here would reproduce, inside the
+        panel, the exact failure this component was built to remove from the
+        header. break-words so a long unbroken token cannot force a horizontal
+        scroll at 360px either.
+      */}
       {p?.chapterName && (
-        <p className="mt-0.5 truncate text-caption text-ink-muted">{p.chapterName}</p>
+        <p className="mt-0.5 break-words text-caption text-ink-muted">{p.chapterName}</p>
       )}
 
       {/*

@@ -615,6 +615,7 @@ export const fr: Dictionary = {
     errorNetwork:
       "Ça ne m'est pas parvenu. Vérifie ta connexion et réessaie.",
     jumpToLatest: "Aller au plus récent",
+    subjectAll: "Toutes mes matières",
     dockOpen: 'Demander au tuteur',
     dockClose: 'Fermer le tuteur',
     dockTitle: 'Tuteur',

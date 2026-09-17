@@ -12,6 +12,7 @@ import { MathText } from '@/components/ui/math';
 import { Sheet, SheetBody } from '@/components/ui/sheet';
 import { IconCamera, IconClose, IconPaperclip } from '@/components/shell/icons';
 import { cn } from '@/lib/cn';
+import { subjectIcon } from '@/lib/subject-icon';
 import { ApiRequestError, sendForm } from '@/lib/client/request';
 import { useI18n } from '@/lib/i18n/client';
 import { format } from '@/lib/i18n/format';
@@ -92,10 +93,18 @@ export function ChatThread({
   sessionId,
   initialMessages,
   disabled,
+  subject,
 }: {
   sessionId: string;
   initialMessages: ChatMessageView[];
   disabled: boolean;
+  /**
+   * The syllabus answering this conversation, when one has been named.
+   *
+   * Null is a real state and is shown as one — general help, every subject in
+   * scope. It is not an error and must not read as a missing value.
+   */
+  subject?: { name: string; language: string } | null;
 }) {
   const { t } = useI18n();
 
@@ -555,6 +564,38 @@ export function ChatThread({
       <form onSubmit={send} className="sticky bottom-4 space-y-2">
         <Sheet>
           <SheetBody className="space-y-2 p-3">
+            {/*
+              WHICH SYLLABUS IS ANSWERING, pinned where it cannot scroll away.
+              
+              One line, caption size, no control — the picker already exists on
+              a fresh conversation and a second selector here would be a second
+              way to do the same thing. The language code matters because Nour
+              answers in the SUBJECT's language, not the interface's: a student
+              reading French in an English app should be able to see why.
+            */}
+            <p className="flex items-center gap-1.5 px-1 text-caption text-ink-faint">
+              {subject ? (
+                <>
+                  <span aria-hidden>{subjectIcon(subject.name)}</span>
+                  {/* `dir` on the name only. The row is laid out by the page. */}
+                  <span
+                    lang={subject.language}
+                    dir={subject.language === 'ar' ? 'rtl' : 'ltr'}
+                    className="font-medium text-ink-muted"
+                  >
+                    {subject.name}
+                  </span>
+                  <span aria-hidden>·</span>
+                  <span className="uppercase">{subject.language}</span>
+                </>
+              ) : (
+                <>
+                  <span aria-hidden>🔎</span>
+                  <span>{t.chat.subjectAll}</span>
+                </>
+              )}
+            </p>
+
             {preview || attachedName ? (
               <div className="flex gap-3 rounded-lg bg-paper-sunken/60 p-2.5">
                 {/*

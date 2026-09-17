@@ -630,6 +630,7 @@ export const ar: Dictionary = {
     errorNetwork:
       "لم تصلني. تحقّق من اتّصالك وحاول مجدّداً.",
     jumpToLatest: "انتقل إلى الأحدث",
+    subjectAll: "كلّ موادّي",
     dockOpen: 'اسأل المعلّم',
     dockClose: 'إغلاق المعلّم',
     dockTitle: 'المعلّم',
