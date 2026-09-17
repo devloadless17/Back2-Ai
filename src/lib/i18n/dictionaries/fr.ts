@@ -598,6 +598,23 @@ export const fr: Dictionary = {
     anchoredAttempt: 'Correction de votre propre réponse',
     anchoredAttemptHint:
       'Cette conversation voit ce que vous avez écrit, les points obtenus critère par critère, et la solution officielle.',
+    refusalNeedsPassageTitle:
+      "Montre-moi le texte et on le travaille ensemble.",
+    refusalOffProgrammeTitle:
+      "Je n'ai pas assez de matière du Bac pour répondre avec certitude.",
+    refusalRetractedTitle:
+      "J'ai retiré cette réponse.",
+    recoveryAttach:
+      "Joins une photo ou le fichier ci-dessous",
+    recoveryPickSubject:
+      "Choisis une matière",
+    recoveryNameChapter:
+      "Indique le chapitre dans ton prochain message",
+    errorGeneration:
+      "Je n'ai pas pu terminer cette réponse. Réessaie.",
+    errorNetwork:
+      "Ça ne m'est pas parvenu. Vérifie ta connexion et réessaie.",
+    jumpToLatest: "Aller au plus récent",
     dockOpen: 'Demander au tuteur',
     dockClose: 'Fermer le tuteur',
     dockTitle: 'Tuteur',

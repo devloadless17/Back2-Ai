@@ -613,6 +613,23 @@ export const ar: Dictionary = {
     flagged: 'شكراً — سجّلناها. سيطّلع عليها أحدهم.',
     anchoredAttempt: 'تصحيح إجابتك أنت',
     anchoredAttemptHint: 'ترى هذه المحادثة ما كتبته، والعلامات التي نالها كل معيار، والحل الرسمي.',
+    refusalNeedsPassageTitle:
+      "أرِني النصّ ولنعمل عليه معاً.",
+    refusalOffProgrammeTitle:
+      "لا أملك ما يكفي من موادّ البكالوريا لأجيب بثقة.",
+    refusalRetractedTitle:
+      "سحبتُ تلك الإجابة.",
+    recoveryAttach:
+      "أرفِق صورة أو الملفّ في الأسفل",
+    recoveryPickSubject:
+      "اختر مادة",
+    recoveryNameChapter:
+      "اذكر الفصل في رسالتك التالية",
+    errorGeneration:
+      "لم أتمكّن من إنهاء تلك الإجابة. حاول مجدّداً.",
+    errorNetwork:
+      "لم تصلني. تحقّق من اتّصالك وحاول مجدّداً.",
+    jumpToLatest: "انتقل إلى الأحدث",
     dockOpen: 'اسأل المعلّم',
     dockClose: 'إغلاق المعلّم',
     dockTitle: 'المعلّم',

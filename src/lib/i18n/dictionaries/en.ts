@@ -621,6 +621,23 @@ export const en = {
     anchoredAttempt: 'Marking your own answer',
     anchoredAttemptHint:
       'This conversation can see what you wrote, the marks each criterion earned, and the official solution.',
+    refusalNeedsPassageTitle:
+      "Show me the text and we will work through it.",
+    refusalOffProgrammeTitle:
+      "I don't have enough in your Bac material to answer that confidently.",
+    refusalRetractedTitle:
+      "I withdrew that answer.",
+    recoveryAttach:
+      "Attach a photo or the file below",
+    recoveryPickSubject:
+      "Choose a subject",
+    recoveryNameChapter:
+      "Name the chapter in your next message",
+    errorGeneration:
+      "I couldn't finish that answer. Try again.",
+    errorNetwork:
+      "That didn't reach me. Check your connection and try again.",
+    jumpToLatest: "Jump to latest",
     dockOpen: 'Ask the tutor',
     dockClose: 'Close the tutor',
     dockTitle: 'Tutor',

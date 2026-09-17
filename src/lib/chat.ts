@@ -35,7 +35,23 @@ import { verifyAgainstContext } from '@/lib/verification';
  */
 
 export type ChatEvent =
-  | { type: 'meta'; tier: GroundingTier; sources: CitedSource[]; topSimilarity: number | null }
+  | {
+      type: 'meta';
+      tier: GroundingTier;
+      sources: CitedSource[];
+      topSimilarity: number | null;
+      /**
+       * WHICH refusal, when the tier is a refusal.
+       *
+       * `ungrounded_refused` covers two situations that send a student to
+       * opposite places — a comprehension question whose extract was never
+       * supplied, and a concept question with nothing behind it in this track.
+       * The server has always known the difference and said so in the message
+       * text; the client could only read the tier, so it presented both
+       * identically and could offer neither the right recovery.
+       */
+      refusal?: 'needsPassage' | 'offProgramme';
+    }
   | { type: 'delta'; text: string }
   | { type: 'done'; messageId: string; verified: boolean }
   | { type: 'retracted'; messageId: string; reason: string }
@@ -659,6 +675,9 @@ export async function* runChatTurn(input: ChatTurnInput): AsyncGenerator<ChatEve
      * front of us — so listing subjects there would imply the opposite.
      */
     let text: string;
+    const refusalKind =
+      grounding.classification.kind === 'comprehension' ? 'needsPassage' : 'offProgramme';
+
     if (grounding.classification.kind === 'comprehension') {
       text = NEEDS_PASSAGE_TEXT[input.locale];
     } else {
@@ -671,6 +690,22 @@ export async function* runChatTurn(input: ChatTurnInput): AsyncGenerator<ChatEve
         REFUSAL_TEXT[input.locale] +
         (subjects.length ? `\n\n${scopeNote(subjects.map((s) => s.name), input.locale)}` : '');
     }
+    /*
+     * A second `meta`, carrying which refusal this is.
+     *
+     * The first one went out before the lane was known — it had to, because the
+     * badge is drawn from it — and by the time the refusal is composed the
+     * client has already rendered. Re-emitting is cheaper and clearer than
+     * deferring the badge, and the client merges rather than replaces.
+     */
+    yield {
+      type: 'meta',
+      tier: 'ungrounded_refused',
+      sources: [],
+      topSimilarity: grounding.topSimilarity,
+      refusal: refusalKind,
+    };
+
     yield { type: 'delta', text };
 
     const message = await persistAssistantMessage({

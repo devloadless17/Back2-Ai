@@ -5,8 +5,9 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { FlagButton } from '@/components/practice/flag-button';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/field';
-import { Alert, Badge } from '@/components/ui/feedback';
+import { Badge } from '@/components/ui/feedback';
 import { Evidence, type EvidenceSource } from '@/components/chat/evidence';
+import { GroundingState, TechnicalError, type RefusalKind } from '@/components/chat/grounding-state';
 import { MathText } from '@/components/ui/math';
 import { Sheet, SheetBody } from '@/components/ui/sheet';
 import { IconCamera, IconClose, IconPaperclip } from '@/components/shell/icons';
@@ -50,10 +51,18 @@ export type ChatMessageView = {
    * about a row that never said so.
    */
   sources: EvidenceSource[];
+  /** Which refusal, when this message is one. Absent on every other message. */
+  refusal?: RefusalKind;
 };
 
 type StreamEvent =
-  | { type: 'meta'; tier: GroundingTier; sources: EvidenceSource[]; topSimilarity: number | null }
+  | {
+      type: 'meta';
+      tier: GroundingTier;
+      sources: EvidenceSource[];
+      topSimilarity: number | null;
+      refusal?: RefusalKind;
+    }
   | { type: 'delta'; text: string }
   | { type: 'done'; messageId: string; verified: boolean }
   | { type: 'retracted'; messageId: string; reason: string }
@@ -94,6 +103,20 @@ export function ChatThread({
   const [input, setInput] = useState('');
   const [streaming, setStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /*
+   * The question that failed, kept so it can be sent again.
+   *
+   * Without it a retry button is a lie — the text was cleared from the composer
+   * the moment it was sent, so "try again" would have had nothing to try.
+   */
+  const [lastQuestion, setLastQuestion] = useState<string | null>(null);
+
+  /*
+   * Where a student goes to name a subject, offered when a refusal says nothing
+   * in their material matched. This conversation is the page they are on, so it
+   * is a reload of it — the picker appears when a session has no subject.
+   */
+  const subjectHref = `/chat/${sessionId}`;
 
   // Photo attachment state.
   const fileRef = useRef<HTMLInputElement>(null);
@@ -116,9 +139,39 @@ export function ChatThread({
   const [illegible, setIllegible] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
 
+  /*
+   * FOLLOW THE ANSWER ONLY IF THE STUDENT IS STILL AT THE BOTTOM.
+   *
+   * This fired on every `messages` change, which during streaming is every
+   * token. A student who scrolled up to reread the question — or to check an
+   * equation three paragraphs back — was dragged to the bottom several times a
+   * second and could not read anything. On a phone, where the answer is many
+   * screens long and the thumb is already on the glass, it made a long answer
+   * unusable.
+   *
+   * So: near the bottom, follow. Anywhere else, hold position and offer a way
+   * back. The threshold is generous because "at the bottom" should include
+   * somebody a line or two above it, not only an exact match.
+   */
+  const [following, setFollowing] = useState(true);
+
   useEffect(() => {
+    function onScroll() {
+      const gap =
+        document.documentElement.scrollHeight -
+        window.scrollY -
+        window.innerHeight;
+      setFollowing(gap < 120);
+    }
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
+  useEffect(() => {
+    if (!following) return;
     endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
-  }, [messages]);
+  }, [messages, following]);
 
   /*
    * A photo clipped to the conversation.
@@ -171,6 +224,22 @@ export function ChatThread({
     }
   }
 
+  /*
+   * Send the last question again after a technical failure.
+   *
+   * Only offered for a TECHNICAL error — a refusal is not something retrying
+   * fixes, and a retry button under one would suggest the tutor could be talked
+   * round. Drops the failed pair first so the thread does not accumulate a
+   * half-written answer per attempt.
+   */
+  async function retry() {
+    const question = lastQuestion;
+    if (!question || streaming) return;
+    setMessages((current) => current.filter((m) => !m.id.startsWith('pending')));
+    setError(null);
+    await ask(question);
+  }
+
   function clearAttachment() {
     if (preview) URL.revokeObjectURL(preview);
     setPreview(null);
@@ -207,7 +276,20 @@ export function ChatThread({
 
     setInput('');
     clearAttachment();
+    await ask(question);
+  }
+
+  /*
+   * One question, start to finish.
+   *
+   * Split out of `send` so `retry` can reuse it. `send` owns the composer —
+   * reading the box, folding in a transcription, clearing both — and this owns
+   * the request. A retry has no composer state to read; it has a question it
+   * was already given.
+   */
+  async function ask(question: string) {
     setError(null);
+    setLastQuestion(question);
     setStreaming(true);
 
     const pendingId = `pending-${Date.now()}`;
@@ -276,7 +358,19 @@ export function ChatThread({
 
         switch (event.type) {
           case 'meta':
-            return { ...message, tier: event.tier, sources: event.sources };
+            /*
+             * MERGED, NOT REPLACED. The refusal path emits a second `meta` once
+             * it knows which refusal it is, and that one carries no sources — a
+             * replace would wipe provenance the first event had already
+             * delivered. `??` rather than `||` so an empty array from the
+             * second event does not overwrite a populated one.
+             */
+            return {
+              ...message,
+              tier: event.tier,
+              sources: event.sources.length > 0 ? event.sources : message.sources,
+              refusal: event.refusal ?? message.refusal,
+            };
           case 'delta':
             return { ...message, content: message.content + event.text };
           case 'done':
@@ -288,6 +382,9 @@ export function ChatThread({
               content: event.reason,
               tier: 'ungrounded_refused',
               sources: [],
+              // Its own refusal kind: an answer was written and then withdrawn,
+              // which is neither "show me the passage" nor "off your programme".
+              refusal: 'retracted' as const,
             };
           default:
             return message;
@@ -318,6 +415,19 @@ export function ChatThread({
                 </p>
               </div>
             </div>
+          ) : message.refusal && message.content ? (
+            /*
+             * A refusal is not an answer with no sources; it is a different
+             * kind of response, and rendering it in the answer shell put it
+             * under a rose badge meaning "lost marks" with an empty evidence
+             * slot beneath. Its own component, its own recovery.
+             */
+            <GroundingState
+              key={message.id}
+              kind={message.refusal}
+              text={message.content}
+              subjectHref={subjectHref}
+            />
           ) : (
             <Sheet key={message.id} className="animate-fade-up">
               {/*
@@ -395,7 +505,30 @@ export function ChatThread({
         <div ref={endRef} />
       </div>
 
-      {error && <Alert tone="error">{error}</Alert>}
+      {/*
+        Offered only while an answer is still arriving and the student has moved
+        away from it. Not a permanent control: a button that is always there is
+        chrome, and one that appears when it is useful is an answer to a
+        question the student just asked by scrolling.
+      */}
+      {streaming && !following && (
+        <button
+          type="button"
+          onClick={() => endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })}
+          className="sticky bottom-24 z-10 mx-auto flex h-9 items-center gap-1.5 rounded-full border border-rule bg-paper-raised px-4 text-caption font-medium text-ink shadow-sm lg:bottom-20"
+        >
+          {t.chat.jumpToLatest}
+          <span aria-hidden>↓</span>
+        </button>
+      )}
+
+      {/*
+        A TECHNICAL FAILURE, never a refusal. `GroundingState` above handles the
+        case where Nour declined; this is the case where something broke, and
+        the two must not look alike — a student who reads an outage as caution
+        will wait instead of retrying.
+      */}
+      {error && <TechnicalError message={error} onRetry={retry ?? undefined} />}
 
       <form onSubmit={send} className="sticky bottom-4 space-y-2">
         <Sheet>
