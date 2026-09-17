@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 
 import { useTutorSession } from '@/components/chat/use-tutor-session';
@@ -54,6 +55,20 @@ export function TutorDock({
   firstName?: string | null;
 }) {
   const { t, format } = useI18n();
+  /*
+   * NOT ON THE CHAT PAGE. That page IS the tutor.
+   *
+   * The dock renders from the app layout, so it was appearing on top of the
+   * conversation it is a shortcut to — a floating button labelled "Tutor" over
+   * the tutor, offering "Explain this" on a screen with nothing on it to
+   * explain. It is `fixed bottom-24 end-4`, so on a page whose content fills
+   * the viewport the open panel sat squarely over the subject picker and hid
+   * three of the subjects a student was being asked to choose between.
+   *
+   * Checked here rather than in the layout because the layout is a server
+   * component and this already runs on the client.
+   */
+  const pathname = usePathname();
   const { open: openSession, opening, failed } = useTutorSession();
 
   /*
@@ -116,6 +131,10 @@ export function TutorDock({
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
   }, [open]);
+
+  // After every hook, never before one — an early return above them changes the
+  // hook order between renders and React throws.
+  if (pathname?.startsWith('/chat')) return null;
 
   const anchor = context?.questionId || context?.attemptId ? context : undefined;
 

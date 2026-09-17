@@ -101,12 +101,16 @@ export function SubjectPicker({
               type="button"
               disabled={saving !== null}
               onClick={() => choose(subject.id)}
-              // `lang` and `dir` per button: a French-track student sees Arabic
-              // subject names in this list, and an Arabic name inside a
-              // left-to-right page renders its punctuation on the wrong side
-              // without them.
-              lang={subject.language}
-              dir={subject.language === 'ar' ? 'rtl' : 'ltr'}
+              /*
+               * `dir` goes on the NAME, not on the card — see the span below.
+               *
+               * Setting it here flipped the whole flex row, so Arabic subjects
+               * put their icon on the right and their text hard against the
+               * far edge while the Latin ones did the opposite. In a grid that
+               * mixes both — which every Lebanese track does — the result is a
+               * ragged column that looks like a rendering fault rather than
+               * like two languages.
+               */
               className={cn(
                 'group flex items-center gap-3 rounded-xl border border-rule bg-paper-raised px-4 py-3.5',
                 'text-start transition-all duration-150',
@@ -129,7 +133,18 @@ export function SubjectPicker({
               </span>
 
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-medium text-ink">{subject.name}</span>
+                {/*
+                  The name carries its own direction so Arabic punctuation and
+                  any Latin fragment inside it — "SE اقتصاد" — render correctly,
+                  while the card itself stays laid out like every other card.
+                */}
+                <span
+                  lang={subject.language}
+                  dir={subject.language === 'ar' ? 'rtl' : 'ltr'}
+                  className="block truncate text-sm font-medium text-ink"
+                >
+                  {subject.name}
+                </span>
                 {subject.chapterCount > 0 && (
                   <span className="block text-caption text-ink-faint">
                     {labels.chapters.replace('{count}', String(subject.chapterCount))}
