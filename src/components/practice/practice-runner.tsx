@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 
+import { AcademicQuestion } from '@/components/practice/academic-question';
 import { ExaminerMark } from '@/components/practice/examiner-mark';
 import { FlagButton } from '@/components/practice/flag-button';
 import { Button, LinkButton } from '@/components/ui/button';
@@ -45,6 +46,11 @@ export type PracticeQuestion = {
   contentImages: string[];
   options: { id: string; text: string }[] | null;
   baremeCriteria: string[];
+  /** The paper this came off. Null for textbook and generated questions. */
+  examYear: number | null;
+  examSession: string | null;
+  /** Total marks, summed from the barème. Null when it carries none. */
+  marks: number | null;
   attemptedByYou: boolean;
 };
 
@@ -63,6 +69,12 @@ type AttemptResponse = {
   score: number | null;
   maxScore: number | null;
   baremeResult: BaremeResultItem[] | null;
+  /**
+   * How often each lost criterion has cost this student marks before, keyed by
+   * the criterion text. Server-computed from every persisted attempt — the
+   * runner holds only what is on screen and could not count this honestly.
+   */
+  repeats?: Record<string, { times: number; pointsLost: number }>;
   needsHumanReview: boolean;
   solution: string | null;
   mastery: { chapterId: string; masteryScore: number; attemptsCount: number };
@@ -241,11 +253,29 @@ export function PracticeRunner({
             }
           />
 
+          {/*
+            The canonical question presentation, shared with the mock exam, past
+            papers and worksheets rather than drawn again in each. It owns the
+            question and its provenance; the answer workspace below stays here,
+            because a worksheet has no workspace and a past paper has no submit.
+          */}
           <SheetBody>
-            <QuestionBody
+            <AcademicQuestion
               contentText={question.contentText}
               contentLatex={question.contentLatex}
               images={question.contentImages}
+              meta={{
+                chapterName,
+                examYear: question.examYear,
+                examSession: question.examSession,
+                marks: question.marks,
+              }}
+              labels={{
+                officialBac: t.practice.officialBac,
+                session: t.evidence.session,
+                marks: t.evidence.marks,
+                question: t.practice.question,
+              }}
             />
           </SheetBody>
 
@@ -389,9 +419,24 @@ export function PracticeRunner({
           }
         />
 
+        {/*
+          THE MARK IS NOT FINAL, and the student is told so before they read it.
+          
+          This was showing `chat.aiNotConfiguredHint` — "an administrator needs
+          to set an AI provider key" — to a student who had just written an
+          answer. Wrong copy, wrong audience, and it described our deployment
+          rather than their work.
+          
+          It does NOT promise that a teacher will look at it. `needs_human_review`
+          means the marker declined, and whether anybody ever reviews it is a
+          workflow question this component cannot answer. Saying "a teacher will
+          review this shortly" would be an invented promise.
+        */}
         {outcome.needsHumanReview && (
           <SheetBody className="pb-0">
-            <Alert tone="warning">{t.chat.aiNotConfiguredHint}</Alert>
+            <Alert tone="warning" title={t.practice.notMarkedTitle}>
+              {t.practice.notMarkedBody}
+            </Alert>
           </SheetBody>
         )}
 
@@ -414,6 +459,7 @@ export function PracticeRunner({
             total={outcome.score ?? 0}
             max={outcome.maxScore ?? 0}
             criteria={outcome.baremeResult}
+            repeats={outcome.repeats ? new Map(Object.entries(outcome.repeats)) : undefined}
             labels={{
               title: t.practice.examinerTitle,
               nourNote: t.practice.nourNote,

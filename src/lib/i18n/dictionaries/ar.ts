@@ -416,6 +416,11 @@ export const ar: Dictionary = {
     yourAnswerPlaceholder: 'اكتب حلّك هنا…',
     checkAnswer: 'تحقّق من إجابتي',
     solution: 'الحل',
+    officialBac: "بكالوريا رسميّة",
+    notMarkedTitle:
+      "لم أتمكّن من تصحيح هذه بثقة.",
+    notMarkedBody:
+      "إجابتك محفوظة. حاول أن تكتبها بتفصيل أوفى، أو اسأل نور عن هذا السؤال.",
     examinerTitle:
       "علامة المصحّح",
     nourNote:

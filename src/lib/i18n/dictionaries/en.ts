@@ -416,6 +416,11 @@ export const en = {
     yourAnswerPlaceholder: 'Write your working here…',
     checkAnswer: 'Check my answer',
     solution: 'Solution',
+    officialBac: "Official Bac",
+    notMarkedTitle:
+      "I couldn't mark this one reliably.",
+    notMarkedBody:
+      "Your answer is saved. Try writing it out more fully, or ask Nour about this question.",
     examinerTitle:
       "EXAMINER'S MARK",
     nourNote:

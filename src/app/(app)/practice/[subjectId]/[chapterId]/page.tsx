@@ -58,6 +58,15 @@ export default async function ChapterPracticePage({
         contentImages: true,
         options: true,
         bareme: true,
+        /*
+         * The paper this question came off, for the question masthead.
+         *
+         * Null for textbook questions, and that is the fact the UI needs: a
+         * question with no exam cycle is not official and must not be dressed
+         * as one. Paper number and question-number-on-paper are NOT in this
+         * schema and stay absent rather than become invented metadata.
+         */
+        sourceExam: { select: { year: true, session: true } },
         _count: { select: { attempts: { where: { userId: user.id } } } },
       },
       orderBy: [{ difficulty: 'asc' }, { createdAt: 'asc' }],
@@ -99,6 +108,14 @@ export default async function ChapterPracticePage({
       contentImages: question.contentImages,
       options: parseOptions(question.options),
       baremeCriteria: criteriaOf(question.bareme),
+      examYear: question.sourceExam?.year ?? null,
+      examSession: question.sourceExam?.session ?? null,
+      /*
+       * Summed from the criteria, not read from a column. These papers print
+       * the exercise total in a header the extractor does not always catch,
+       * and every criterion carries its own marks regardless.
+       */
+      marks: marksOf(question.bareme),
       attemptedByYou: question._count.attempts > 0,
     })),
     ...generated.map((problem) => ({
@@ -113,6 +130,11 @@ export default async function ChapterPracticePage({
       contentImages: [],
       options: null,
       baremeCriteria: criteriaOf(problem.bareme),
+      // A generated problem came off no paper. Never official, and the masthead
+      // says nothing rather than implying otherwise.
+      examYear: null,
+      examSession: null,
+      marks: marksOf(problem.bareme),
       attemptedByYou: problem._count.attempts > 0,
     })),
   ];
@@ -151,6 +173,23 @@ function criteriaOf(bareme: unknown): string[] {
   return Array.isArray(bareme)
     ? (bareme as { criterion?: unknown }[]).map((c) => String(c?.criterion ?? ''))
     : [];
+}
+
+/**
+ * Total marks a question carries, summed from its own criteria.
+ *
+ * Not read from a column: these papers print the exercise total in a header
+ * the extractor does not always catch, while every criterion carries its own
+ * marks. Zero becomes null — a question worth nothing is a question with no
+ * barème, and the masthead should stay silent rather than print "0 marks".
+ */
+function marksOf(bareme: unknown): number | null {
+  if (!Array.isArray(bareme)) return null;
+  const total = (bareme as { points?: unknown }[]).reduce(
+    (sum, c) => sum + (Number(c?.points) || 0),
+    0,
+  );
+  return total > 0 ? total : null;
 }
 
 /** `options` is JSONB; anything that is not the expected shape is treated as absent. */

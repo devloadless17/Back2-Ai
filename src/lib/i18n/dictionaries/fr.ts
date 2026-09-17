@@ -393,6 +393,11 @@ export const fr: Dictionary = {
     yourAnswerPlaceholder: 'Rédigez votre raisonnement ici…',
     checkAnswer: 'Vérifier ma réponse',
     solution: 'Solution',
+    officialBac: "Bac officiel",
+    notMarkedTitle:
+      "Je n'ai pas pu corriger celle-ci de façon fiable.",
+    notMarkedBody:
+      "Ta réponse est enregistrée. Essaie de la développer, ou pose la question à Nour.",
     examinerTitle:
       "NOTE DE L'EXAMINATEUR",
     nourNote:

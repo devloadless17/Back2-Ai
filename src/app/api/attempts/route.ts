@@ -14,6 +14,7 @@ import {
 import { apiUser } from '@/lib/auth/guards';
 import { budgetState } from '@/lib/ai';
 import { db } from '@/lib/db';
+import { repeatedCriteria } from '@/lib/queries/repeated-criteria';
 import { resolveCreditChapter } from '@/lib/queries/progress';
 import { gradeAgainstBareme, gradeWithoutBareme, parseBareme, statedMarksOf } from '@/lib/grading';
 import { retrieveGrounding } from '@/lib/retrieval';
@@ -284,12 +285,30 @@ export const POST = route(async (request) => {
     select: { masteryScore: true, attemptsCount: true },
   });
 
+  /*
+   * How often these same criteria have cost this student marks before.
+   *
+   * Read AFTER the attempt is persisted, so the one just marked is counted —
+   * a criterion failed for the second time reports two, which is what the
+   * student would count themselves. Only the criteria actually lost are asked
+   * about: a criterion they earned needs no history.
+   */
+  const lostCriteria = Array.isArray(baremeResult)
+    ? (baremeResult as { criterion?: unknown; points_awarded?: unknown; points_possible?: unknown }[])
+        .filter((item) => Number(item?.points_awarded ?? 0) < Number(item?.points_possible ?? 0))
+        .map((item) => String(item?.criterion ?? ''))
+        .filter(Boolean)
+    : [];
+
+  const repeats = await repeatedCriteria(user.id, lostCriteria);
+
   return created({
     attemptId: attempt.id,
     isCorrect,
     score,
     maxScore,
     baremeResult,
+    repeats,
     needsHumanReview,
     solution: isQuestion ? source.officialSolution : source.generatedSolution,
     mastery: {

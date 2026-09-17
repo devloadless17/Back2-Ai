@@ -115,3 +115,55 @@ Mobile specifics:
   that does not exist. Not built rather than faked.
 - **Paper number / question number on the paper** — not in the schema. Must stay
   missing rather than become invented UI.
+
+---
+
+# Practice + Examiner Mode — added 2026-09-18
+
+Same conditions: no Docker, no browser. Implementation and static verification
+only.
+
+## Database QA
+
+- [ ] `repeatedCriteria` returns real counts after a second failure of the same
+      criterion — the attempt is persisted before it runs, so a criterion failed
+      twice must report **2**, not 1
+- [ ] a criterion failed once returns nothing (threshold is 2)
+- [ ] `marksOf` sums a decimal barème (`2.5`) correctly
+- [ ] a question with `source_exam_id` shows year and session in the masthead
+- [ ] a textbook question shows **no** official masthead
+- [ ] a generated problem shows no official masthead
+
+## Visual QA
+
+Question:
+
+- [ ] official masthead — subject, year, session, marks
+- [ ] textbook question — no masthead, chapter name instead
+- [ ] Arabic question body, French question body, mixed script
+- [ ] equation-heavy question, inline and display
+- [ ] question with images/figures
+- [ ] MCQ vs open vs problem
+- [ ] very long criterion text in Examiner Mode
+
+Marking:
+
+- [ ] `✓` earned / `◐` partial / `×` lost, each with its colour
+- [ ] Nour's note appears **only** where a mark was lost
+- [ ] a fully-earned criterion stays a single concise row
+- [ ] mixed provisional / non-provisional criteria in one result
+- [ ] recurring-loss line appears only at 2+ and reads correctly
+- [ ] `needs_human_review` — the new copy, not the old provider-key message
+- [ ] barème only / solution only / both / neither
+- [ ] dark mode, all of the above
+
+## Known not done in this phase
+
+- **Mobile sequential flow** and **desktop two-column comparison** are NOT
+  implemented. The result still appears below the question in one column at
+  every width. The brief asked for progressive disclosure on mobile and a
+  side-by-side comparison on desktop; neither was built.
+- **Post-marking actions** were not audited or reorganised.
+- **Official solution placement** was not changed — it still renders after the
+  marking, which happens to match the intended hierarchy, but was not
+  deliberately designed.
