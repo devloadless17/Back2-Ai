@@ -290,6 +290,88 @@ merge, recurring losses and the Bac Map.
 
 ---
 
+# STUDY PLAN / SCHEDULE
+
+`/todos` redirects into `/schedule`. Todos remain a distinct persisted thing —
+undated intention — and are read as a backlog on the planning page.
+
+## DATA QA
+
+- [ ] no plan at all — Today's empty state, and the backlog hidden rather than
+      shown empty
+- [ ] one session today
+- [ ] several sessions today, mixed planned / done / skipped
+- [ ] a week with empty days
+- [ ] a completed session **with** answers in its chapter — reads "3 answers
+      marked"
+- [ ] a completed session with **none** — reads "No answers recorded", and
+      must not read as an accusation
+- [ ] a completed session with **no chapter** — `answersMarked` is null and the
+      line is absent entirely. Null and zero must not render the same
+- [ ] answers marked at 22:30 Beirut on the session's day, which is the next
+      UTC day — must still count, which is the whole reason the window is 48h
+- [ ] answers marked three days later — must NOT count
+- [ ] a past incomplete session, still tickable inside the seven-day tail
+- [ ] a session moved to another day, and the move persisting
+- [ ] a manual session beside an `ai_suggested` one — provenance visibly
+      different
+- [ ] a backlog item given a date: session created, todo gone, nothing
+      duplicated if the request is retried
+- [ ] a backlog item with a linked action, and one without
+- [ ] no exam date — the plan builder's own state, no invented countdown
+- [ ] exam date present — the ramp and the exam-subject focus
+- [ ] an account with no evidence at all — `NO_PROGRESS_YET`
+- [ ] a mature account — `NOTHING_WEAK` when every practised chapter is above
+      the ceiling
+- [ ] due flashcards driving a flashcards session rather than a quiz
+- [ ] Dashboard Today and the plan's Today showing the same sessions
+
+## VISUAL QA
+
+- [ ] 360 / 390 / 430 — Today first, then the recommendation, then the week
+- [ ] desktop week
+- [ ] a long Arabic session title wrapping in Today
+- [ ] Arabic interface with a French subject in a session title
+- [ ] French interface with an Arabic chapter name
+- [ ] the date input under RTL, and the move control inside a session row
+- [ ] dark mode: today's highlight, a completed session, a skipped one, a past
+      one, an `ai_suggested` badge
+- [ ] the move control at 360px — it sits under the row, not in a dialog
+
+## ROUTING QA
+
+- [ ] an old `/todos` bookmark lands on `/schedule`, with and without a query
+- [ ] a quiz session with a chapter opens that chapter, not the practice index
+- [ ] a session with no chapter opens `/practice` and is not a dead button
+- [ ] flashcards and exam-drill sessions reach their real routes
+- [ ] no internal navigation still points at `/todos`
+
+## Known limitations, recorded not fixed
+
+- **Everything is UTC and the students are in Lebanon.** `startOfTodayUtc`,
+  `toDateKey`, the rest-day check and the reminder job all use UTC days. Between
+  midnight and 03:00 local, "today" is still yesterday. Sessions carry no time
+  of day, so this is a date-boundary problem rather than a time-shifting one,
+  and it is consistent across the product. Pinned in `tests/plan.test.ts` so the
+  assumption is visible; **not fixed** — the fix belongs in one shared place and
+  touches the planner, the reminder job and standing.
+- **The chapter picker still ships every chapter in the track** to the client —
+  more than a thousand rows on a GS account. `getPlan` removed the duplicate
+  load on `/todos` and the session/exam/backlog reads, but the add-session
+  dropdown needs a searchable endpoint before that last list can go.
+- **Dashboard Today links generically.** `TodayTasks` sends a quiz to
+  `/practice` rather than the session's chapter, because the dashboard selects
+  `chapterId` but not the subject, and `/practice/[subjectId]/[chapterId]`
+  needs both. Fixing it means editing a file that carries unrelated in-flight
+  work. The plan's own Today does link correctly.
+- **The reminder notification is hardcoded English.** `lib/jobs.ts` writes
+  "Today's session: …" directly rather than through the dictionaries.
+- **Completion still does not feed mastery or readiness, by design.** Ticking a
+  session is a self-report; `answersMarked` is what the product saw. Neither is
+  mastery and no surface says otherwise.
+
+---
+
 # GLOBAL / MIXED RTL
 
 Cases that belong to no single surface. Each list above keeps its own

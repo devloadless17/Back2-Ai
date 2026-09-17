@@ -1,0 +1,245 @@
+import 'server-only';
+
+import { db } from '@/lib/db';
+
+/**
+ * Everything the planning page needs, in one round of queries.
+ *
+ * The old `/schedule` page loaded every chapter in the track — more than a
+ * thousand rows on a GS account — so that a dropdown could exist, and `/todos`
+ * did the same again. Neither needed the whole curriculum; both needed a
+ * handful of sessions and a way to name a chapter. This loads the window, the
+ * backlog, the exams and the evidence behind completion, and nothing else.
+ */
+
+/** How far back the planner still shows. Yesterday's work is still tickable. */
+export const PAST_TAIL_DAYS = 7;
+/** How far forward one screen of planning reaches. */
+export const HORIZON_DAYS = 14;
+
+/**
+ * How long after a session's date an attempt still counts as that session.
+ *
+ * Forty-eight hours, for two reasons. Sessions carry a DATE and no time, and
+ * everything in this product computes days in UTC while the students are in
+ * Lebanon (UTC+2/+3) — so a student working at 22:00 on Tuesday is already
+ * inside Wednesday by the time the row lands in some of our queries. And a
+ * student who ticks Tuesday's session on Wednesday morning did the work; the
+ * plan is not a stopwatch.
+ *
+ * The window is why the copy says "3 answers marked" and never "3 answers
+ * marked that day". The narrower claim is the one we cannot support.
+ */
+export const RECONCILE_WINDOW_HOURS = 48;
+
+export type PlanSession = {
+  id: string;
+  title: string;
+  /** YYYY-MM-DD, as stored. */
+  scheduledDate: string;
+  durationMinutes: number | null;
+  taskType: 'quiz' | 'flashcards' | 'exam_drill' | 'review' | null;
+  rationale: string | null;
+  source: 'manual' | 'ai_suggested';
+  status: 'planned' | 'done' | 'skipped';
+  chapterId: string | null;
+  chapterName: string | null;
+  subjectId: string | null;
+  subjectName: string | null;
+  /**
+   * Answers marked in this session's chapter inside the reconciliation window.
+   *
+   * Null when the session has no chapter, so nothing could be counted. Zero is
+   * a real answer and means we looked and found none — the UI must not read
+   * the two as the same thing.
+   *
+   * This is the whole of what completion means here. Ticking a session records
+   * that the student says they did it; this records what the product actually
+   * saw. Neither is mastery, and the page never implies it is.
+   */
+  answersMarked: number | null;
+};
+
+export type PlanTodo = {
+  id: string;
+  content: string;
+  isDone: boolean;
+  linkedAction: 'quiz' | 'flashcards' | 'practice' | 'exam_sim' | null;
+  chapterId: string | null;
+  chapterName: string | null;
+  subjectId: string | null;
+};
+
+export type PlanExam = {
+  id: string;
+  examDate: string;
+  label: string | null;
+  subjectName: string | null;
+  isBacExam: boolean;
+};
+
+export type Plan = {
+  /** UTC day key the rest of the page is laid out against. */
+  todayKey: string;
+  sessions: PlanSession[];
+  /** Undated intentions. Capture, not commitment — see `/todos` redirect. */
+  backlog: PlanTodo[];
+  exams: PlanExam[];
+};
+
+const dayKey = (date: Date): string => date.toISOString().slice(0, 10);
+
+export function startOfTodayUtc(now: Date = new Date()): Date {
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+}
+
+export async function getPlan(userId: string, now: Date = new Date()): Promise<Plan> {
+  const today = startOfTodayUtc(now);
+  const from = new Date(today.getTime() - PAST_TAIL_DAYS * 86_400_000);
+  const to = new Date(today.getTime() + HORIZON_DAYS * 86_400_000);
+
+  const [rows, todos, exams] = await Promise.all([
+    db.studySession.findMany({
+      where: { userId, scheduledDate: { gte: from, lte: to } },
+      select: {
+        id: true,
+        title: true,
+        scheduledDate: true,
+        durationMinutes: true,
+        taskType: true,
+        rationale: true,
+        source: true,
+        status: true,
+        chapterId: true,
+        chapter: { select: { name: true, subjectId: true, subject: { select: { name: true } } } },
+      },
+      orderBy: [{ scheduledDate: 'asc' }, { createdAt: 'asc' }],
+    }),
+
+    db.todo.findMany({
+      where: { userId, isDone: false },
+      select: {
+        id: true,
+        content: true,
+        isDone: true,
+        linkedAction: true,
+        linkedChapter: { select: { id: true, name: true, subjectId: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+      // A backlog is a list, not an archive. Past this, the page is the problem.
+      take: 20,
+    }),
+
+    db.upcomingExam.findMany({
+      where: { userId, examDate: { gte: today } },
+      select: {
+        id: true,
+        examDate: true,
+        label: true,
+        isBacExam: true,
+        subject: { select: { name: true } },
+      },
+      orderBy: { examDate: 'asc' },
+    }),
+  ]);
+
+  const answersByChapter = await countAnswers(userId, rows, from, to);
+
+  return {
+    todayKey: dayKey(today),
+    sessions: rows.map((row) => ({
+      id: row.id,
+      title: row.title,
+      scheduledDate: dayKey(row.scheduledDate),
+      durationMinutes: row.durationMinutes,
+      taskType: row.taskType,
+      rationale: row.rationale,
+      source: row.source,
+      status: row.status,
+      chapterId: row.chapterId,
+      chapterName: row.chapter?.name ?? null,
+      subjectId: row.chapter?.subjectId ?? null,
+      subjectName: row.chapter?.subject?.name ?? null,
+      answersMarked:
+        row.chapterId === null
+          ? null
+          : countWithin(
+              answersByChapter.get(row.chapterId) ?? [],
+              row.scheduledDate,
+              RECONCILE_WINDOW_HOURS,
+            ),
+    })),
+    backlog: todos.map((todo) => ({
+      id: todo.id,
+      content: todo.content,
+      isDone: todo.isDone,
+      linkedAction: todo.linkedAction,
+      chapterId: todo.linkedChapter?.id ?? null,
+      chapterName: todo.linkedChapter?.name ?? null,
+      subjectId: todo.linkedChapter?.subjectId ?? null,
+    })),
+    exams: exams.map((exam) => ({
+      id: exam.id,
+      examDate: dayKey(exam.examDate),
+      label: exam.label,
+      subjectName: exam.subject?.name ?? null,
+      isBacExam: exam.isBacExam,
+    })),
+  };
+}
+
+/**
+ * When the student actually answered something, per chapter.
+ *
+ * One query for the whole window rather than one per session — a fortnight of
+ * planning is easily thirty rows, and thirty round trips to draw one page is
+ * the shape of problem this module exists to avoid. The timestamps come back
+ * unbucketed and each session counts its own window in memory.
+ *
+ * `attempts.chapter_id` is null when the student practised through a question's
+ * own chapter, so it falls back the same way the rest of the product does.
+ */
+async function countAnswers(
+  userId: string,
+  rows: { chapterId: string | null; scheduledDate: Date }[],
+  from: Date,
+  to: Date,
+): Promise<Map<string, Date[]>> {
+  const chapterIds = [...new Set(rows.map((r) => r.chapterId).filter((id): id is string => !!id))];
+  if (chapterIds.length === 0) return new Map();
+
+  const until = new Date(to.getTime() + RECONCILE_WINDOW_HOURS * 3_600_000);
+
+  const attempts = await db.attempt.findMany({
+    where: {
+      userId,
+      attemptedAt: { gte: from, lt: until },
+      OR: [
+        { chapterId: { in: chapterIds } },
+        { chapterId: null, question: { chapterId: { in: chapterIds } } },
+      ],
+    },
+    select: { attemptedAt: true, chapterId: true, question: { select: { chapterId: true } } },
+  });
+
+  const byChapter = new Map<string, Date[]>();
+  for (const attempt of attempts) {
+    const id = attempt.chapterId ?? attempt.question?.chapterId;
+    if (!id) continue;
+    const list = byChapter.get(id);
+    if (list) list.push(attempt.attemptedAt);
+    else byChapter.set(id, [attempt.attemptedAt]);
+  }
+  return byChapter;
+}
+
+export function countWithin(times: Date[], start: Date, windowHours: number): number {
+  const begin = start.getTime();
+  const end = begin + windowHours * 3_600_000;
+  let n = 0;
+  for (const time of times) {
+    const at = time.getTime();
+    if (at >= begin && at < end) n += 1;
+  }
+  return n;
+}

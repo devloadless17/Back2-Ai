@@ -73,6 +73,7 @@ export function SchedulePlanner({
   const router = useRouter();
 
   const [busy, setBusy] = useState(false);
+  const [movingId, setMovingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [proposal, setProposal] = useState<SuggestResponse | null>(null);
   const [suggestingFor, setSuggestingFor] = useState(exams[0]?.id ?? '');
@@ -159,6 +160,29 @@ export function SchedulePlanner({
       router.refresh();
     } catch {
       setError(t.common.unknownError);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  /**
+   * Move a session to another day.
+   *
+   * `/api/schedule/[id]` has accepted `scheduledDate` on PATCH since it was
+   * written and nothing ever called it, so a student whose Tuesday did not
+   * happen could mark it skipped or delete it and had no way to say "not then,
+   * Thursday". Missing work that can only be erased or confessed to is how a
+   * plan stops being used.
+   *
+   * Nothing is rescheduled automatically. A plan that quietly rearranges
+   * itself behind someone is a plan they no longer recognise as theirs.
+   */
+  async function moveSession(id: string, scheduledDate: string) {
+    setBusy(true);
+    try {
+      await sendJson(`/api/schedule/${id}`, 'PATCH', { scheduledDate });
+      setMovingId(null);
+      router.refresh();
     } finally {
       setBusy(false);
     }
@@ -388,6 +412,16 @@ export function SchedulePlanner({
                               >
                                 {t.schedule.markSkipped}
                               </button>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setMovingId(movingId === session.id ? null : session.id)
+                                }
+                                aria-expanded={movingId === session.id}
+                                className="rounded px-2 py-1 text-caption text-ink-faint hover:bg-paper-sunken"
+                              >
+                                {t.schedule.move}
+                              </button>
                             </div>
                           ) : (
                             <button
@@ -397,6 +431,21 @@ export function SchedulePlanner({
                             >
                               {t.common.delete}
                             </button>
+                          )}
+
+                          {movingId === session.id && (
+                            <label className="flex w-full shrink-0 items-center gap-2 pt-2 text-caption text-ink-muted">
+                              <span>{t.schedule.moveTo}</span>
+                              <input
+                                type="date"
+                                defaultValue={session.scheduledDate}
+                                disabled={busy}
+                                onChange={(e) => {
+                                  if (e.target.value) moveSession(session.id, e.target.value);
+                                }}
+                                className="rounded-sm border border-rule bg-paper px-2 py-1 text-sm text-ink"
+                              />
+                            </label>
                           )}
                         </li>
                       ))}

@@ -1,56 +1,56 @@
 import type { Metadata } from 'next';
 
+import { NextUpCard } from '@/components/progress/next-up-card';
+import { PlanBacklog } from '@/components/schedule/plan-backlog';
 import { PlanBuilder } from '@/components/schedule/plan-builder';
-import { SchedulePlanner, type PlannerExam, type PlannerSession } from '@/components/schedule/schedule-planner';
+import { PlanToday } from '@/components/schedule/plan-today';
+import {
+  SchedulePlanner,
+  type PlannerExam,
+  type PlannerSession,
+} from '@/components/schedule/schedule-planner';
 import { PageHeader } from '@/components/ui/sheet';
 import { requireUser } from '@/lib/auth/guards';
 import { db } from '@/lib/db';
 import { getTranslations } from '@/lib/i18n';
+import { getNextUp } from '@/lib/queries/next-up';
+import { getPlan } from '@/lib/queries/plan';
 import { listSubjects } from '@/lib/queries/taxonomy';
 
 export const metadata: Metadata = { title: 'Schedule' };
 
 /**
- * The planner.
+ * The plan — one page for what to study and when.
  *
- * Sessions from today onwards, plus a short tail of the recent past so a
- * student can still tick off yesterday's work — a planner that hides the moment
- * it becomes "yesterday" is one people stop marking up.
+ * `/todos` redirects here. Todos and sessions remain different things in the
+ * database and that distinction is kept: a todo is an intention with no date,
+ * a session is a commitment with one. What changed is that they are read in
+ * the same place. A todo used to appear on `/todos` and nowhere else — not on
+ * the Dashboard, not in Today, not in any count — which made writing one a way
+ * of filing work away from yourself.
+ *
+ * The order is the order a student needs it in. What is due now, then the one
+ * thing worth doing if nothing is, then the week, then the things they noted
+ * but have not committed to.
+ *
+ * Nothing here claims to know when the student is free. Sessions carry a date
+ * and no time of day — the column is a DATE — so the plan never says "18:00",
+ * and the only capacity it works from is the minutes-a-day and rest-day the
+ * student types into the plan builder themselves.
  */
 export default async function SchedulePage() {
   const user = await requireUser();
   const { t } = await getTranslations();
 
-  const today = startOfToday();
-  const from = new Date(today.getTime() - 7 * 86_400_000);
-
-  const [sessions, exams, subjects, chapters] = await Promise.all([
-    db.studySession.findMany({
-      where: { userId: user.id, scheduledDate: { gte: from } },
-      select: {
-        id: true,
-        title: true,
-        scheduledDate: true,
-        durationMinutes: true,
-        taskType: true,
-        rationale: true,
-        source: true,
-        status: true,
-        chapter: { select: { id: true, name: true } },
-      },
-      orderBy: [{ scheduledDate: 'asc' }, { createdAt: 'asc' }],
-    }),
-    db.upcomingExam.findMany({
-      where: { userId: user.id, examDate: { gte: today } },
-      select: {
-        id: true,
-        examDate: true,
-        label: true,
-        isBacExam: true,
-        subject: { select: { id: true, name: true } },
-      },
-      orderBy: { examDate: 'asc' },
-    }),
+  /*
+   * Three reads, not the curriculum. This page used to load every chapter in
+   * the track so a dropdown could exist — more than a thousand rows on a GS
+   * account, shipped to a phone. `getPlan` loads the window, the backlog and
+   * the exams; the picker keeps its own list until it is made searchable.
+   */
+  const [plan, next, subjects, chapters] = await Promise.all([
+    getPlan(user.id),
+    getNextUp(user.id, user.trackId, user.preferredLanguage),
     listSubjects(user.trackId, user.preferredLanguage),
     db.chapter.findMany({
       where: { subject: { trackId: user.trackId ?? undefined } },
@@ -59,20 +59,22 @@ export default async function SchedulePage() {
     }),
   ]);
 
-  const plannerSessions: PlannerSession[] = sessions.map((session) => ({
+  const today = plan.sessions.filter((s) => s.scheduledDate === plan.todayKey);
+
+  const plannerSessions: PlannerSession[] = plan.sessions.map((session) => ({
     id: session.id,
     title: session.title,
-    scheduledDate: session.scheduledDate.toISOString().slice(0, 10),
+    scheduledDate: session.scheduledDate,
     durationMinutes: session.durationMinutes,
     source: session.source,
     status: session.status,
-    chapterName: session.chapter?.name ?? null,
+    chapterName: session.chapterName,
   }));
 
-  const plannerExams: PlannerExam[] = exams.map((exam) => ({
+  const plannerExams: PlannerExam[] = plan.exams.map((exam) => ({
     id: exam.id,
-    examDate: exam.examDate.toISOString().slice(0, 10),
-    label: exam.subject?.name ?? exam.label ?? t.schedule.bacExam,
+    examDate: exam.examDate,
+    label: exam.subjectName ?? exam.label ?? t.schedule.bacExam,
     isBacExam: exam.isBacExam,
   }));
 
@@ -80,7 +82,21 @@ export default async function SchedulePage() {
     <>
       <PageHeader title={t.schedule.title} description={t.schedule.subtitle} />
 
-      <PlanBuilder hasExam={plannerExams.length > 0} />
+      {/* --- What is due now ----------------------------------------------- */}
+      <PlanToday sessions={today} />
+
+      {/* --- The one thing worth doing -------------------------------------
+          The same `getNextUp` the Dashboard and Progress read. A third place
+          asking "what should I work on" must not answer it a third way, and
+          this is a recommendation rather than a plan: nothing about showing it
+          here puts it in anyone's week. */}
+      <div className="mt-5">
+        <NextUpCard next={next} />
+      </div>
+
+      <div className="mt-5">
+        <PlanBuilder hasExam={plannerExams.length > 0} />
+      </div>
 
       <SchedulePlanner
         sessions={plannerSessions}
@@ -88,11 +104,11 @@ export default async function SchedulePage() {
         subjects={subjects.map((s) => ({ id: s.id, name: s.name }))}
         chapters={chapters.map((c) => ({ id: c.id, name: `${c.subject.name} — ${c.name}` }))}
       />
+
+      {/* --- Noted, not committed to ---------------------------------------- */}
+      <div className="mt-5">
+        <PlanBacklog items={plan.backlog} todayKey={plan.todayKey} />
+      </div>
     </>
   );
-}
-
-function startOfToday(): Date {
-  const now = new Date();
-  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
 }

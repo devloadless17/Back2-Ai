@@ -143,7 +143,6 @@ export function Sidebar({
       label: t.nav.sections.plan,
       items: [
         { href: '/schedule', label: t.nav.schedule, icon: IconCalendar },
-        { href: '/todos', label: t.nav.todos, icon: IconCheckList },
       ],
     },
     {
