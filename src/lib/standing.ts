@@ -125,3 +125,39 @@ export function monthlyEffort(activeDates: Date[], now: Date = new Date()): Mont
     ratio: daysElapsed === 0 ? 0 : Math.min(1, worked.size / daysElapsed),
   };
 }
+
+/**
+ * How mastery and coverage read together, in words.
+ *
+ * Readiness multiplies the two (see `docs/readiness-model.md`), and a student
+ * cannot be asked to do that multiplication in their head. The dangerous case
+ * is high mastery on a narrow slice: the score is correctly low, and without a
+ * sentence the student reads that as "I am bad at this" when the truth is "I am
+ * good at this, and I have barely started it". Those two need different work.
+ *
+ * Returns a key, not a sentence — the copy lives in the dictionaries so it can
+ * be said properly in three languages.
+ */
+export type EvidenceReading =
+  | 'none'
+  | 'early'
+  | 'strongNarrow'
+  | 'weakBroad'
+  | 'strongBroad';
+
+/** Above this share of attempted chapters scoring well, call it strong. */
+const STRONG_MASTERY = 0.65;
+/** Above this share of the subject's chapters touched, call it broad. */
+const BROAD_COVERAGE = 0.6;
+
+export function evidenceReading(mastery: number, coverage: number): EvidenceReading {
+  if (coverage <= 0) return 'none';
+
+  const strong = mastery >= STRONG_MASTERY;
+  const broad = coverage >= BROAD_COVERAGE;
+
+  if (strong && broad) return 'strongBroad';
+  if (strong) return 'strongNarrow';
+  if (broad) return 'weakBroad';
+  return 'early';
+}

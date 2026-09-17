@@ -189,3 +189,32 @@ The four gaps above are now closed in code. None of it has been seen.
 - **No "try again".** Nothing in the runner or the API supports re-marking an
   attempt, and a button that silently created a second one would misrepresent
   the record. Left unbuilt rather than faked.
+
+---
+
+## Progress — mastery and coverage surfaced (2026-09-17)
+
+Docker is unavailable, so none of the following has been seen against a
+database. All of it is read off the source.
+
+**Unverified, needs a real account:**
+
+- The reading sentence on a live track. `evidenceReading` is unit-tested, but
+  which of the five readings a real student actually lands on is unknown — the
+  0.65 / 0.6 thresholds are a judgement, not a fit. If most accounts read
+  `early`, the sentence is useless and the thresholds want moving.
+- `trackMastery` across subjects. It weights each subject by chapters
+  attempted, which is exact arithmetic, but nobody has looked at what it reads
+  for an account with one heavily worked subject and four untouched ones.
+- The subject table at 42rem on a 360px phone. The sideways scroll is
+  contained and was already there, but five columns is two more than it held
+  and I have not seen it render.
+- The Arabic column order and the `Meter` caption under RTL.
+- `attemptsNeeded` copy for a subject at nine attempts — the one attempt short
+  case, which is where the wording matters most.
+
+**Known limitation, not debt:** the "Programme covered" stat tile counts
+*questions available*, while the new "Practised" column counts *chapters
+attempted*. They are different denominators and both labels say so, but two
+coverage-shaped numbers on one page is a real risk of confusion. Worth
+resolving when `/performance` is merged in.

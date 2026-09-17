@@ -9,7 +9,7 @@ import { cn } from '@/lib/cn';
 import { getTranslations } from '@/lib/i18n';
 import { format } from '@/lib/i18n/format';
 import { getStanding } from '@/lib/queries/standing';
-import { markOutOf20, PASS_MARK, type MarkBand } from '@/lib/standing';
+import { evidenceReading, markOutOf20, PASS_MARK, type MarkBand } from '@/lib/standing';
 
 export async function generateMetadata(): Promise<Metadata> {
   const { t } = await getTranslations();
@@ -42,6 +42,32 @@ export default async function StandingPage() {
     good: t.standing.bandGood,
     strong: t.standing.bandStrong,
   };
+
+  /*
+   * The track read as one. Chapter counts add exactly, so `trackCoverage` is a
+   * real fraction rather than a mean of fractions, and `trackMastery` is the
+   * mean over every attempted chapter in the track — weighting each subject by
+   * the evidence it actually has, not by how many subjects there are.
+   */
+  const chaptersAttempted = standing.subjects.reduce((n, s) => n + s.evidence.chaptersAttempted, 0);
+  const chaptersTotal = standing.subjects.reduce((n, s) => n + s.evidence.chaptersTotal, 0);
+  const trackMastery =
+    chaptersAttempted === 0
+      ? 0
+      : standing.subjects.reduce((sum, s) => sum + s.evidence.mastery * s.evidence.chaptersAttempted, 0) /
+        chaptersAttempted;
+  const trackCoverage = chaptersTotal === 0 ? 0 : chaptersAttempted / chaptersTotal;
+
+  const readingText = {
+    none: t.standing.readingNone,
+    early: t.standing.readingEarly,
+    strongNarrow: format(t.standing.readingStrongNarrow, {
+      done: chaptersAttempted,
+      total: chaptersTotal,
+    }),
+    weakBroad: t.standing.readingWeakBroad,
+    strongBroad: t.standing.readingStrongBroad,
+  }[evidenceReading(trackMastery, trackCoverage)];
 
   const trendLabel = {
     up: t.standing.trendUp,
@@ -110,6 +136,52 @@ export default async function StandingPage() {
         />
       </div>
 
+      {/* --- What the mark is made of -------------------------------------
+          Readiness multiplies strength by breadth, and a student cannot be
+          asked to do that multiplication in their head. Without this, high
+          marks on a quarter of the programme produce a low figure that reads
+          as "I am bad at this" when the truth is "I am good at this and have
+          barely started it" — and those two call for completely different
+          work. The two figures are given different shapes on purpose: breadth
+          is a proportion, so it gets a bar; strength is a level, so it gets a
+          numeral. They are never combined into one dial. */}
+      <Sheet className="mt-5">
+        <SheetHeader title={t.standing.madeOf} description={t.standing.madeOfNote} />
+        <SheetBody className="space-y-4">
+          <p className="text-body text-ink">{readingText}</p>
+
+          {chaptersTotal > 0 && (
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <p className="label">{t.standing.strength}</p>
+                <p className="figure mt-1 text-heading leading-none text-ink sm:text-display">
+                  {chaptersAttempted === 0
+                    ? t.standing.notStarted
+                    : format(t.standing.outOf, {
+                        mark: Math.round(trackMastery * scale * 10) / 10,
+                        scale,
+                      })}
+                </p>
+                <p className="mt-1 text-meta text-ink-muted">{t.standing.strengthHint}</p>
+              </div>
+
+              <div>
+                <p className="label">{t.standing.practised}</p>
+                <Meter
+                  className="mt-2"
+                  value={trackCoverage}
+                  caption={format(t.standing.practisedOf, {
+                    done: chaptersAttempted,
+                    total: chaptersTotal,
+                  })}
+                  tone="primary"
+                />
+              </div>
+            </div>
+          )}
+        </SheetBody>
+      </Sheet>
+
       {/* --- Subject by subject, as a mark sheet --------------------------- */}
       <Sheet className="mt-5">
         <SheetHeader title={t.standing.bySubject} description={t.standing.equalWeighting} />
@@ -120,7 +192,7 @@ export default async function StandingPage() {
               column-to-column comparison the table exists for. The page body
               still never scrolls sideways; only this box does. */}
           <div className="scroll-x">
-            <table className="w-full min-w-[30rem] text-sm">
+            <table className="w-full min-w-[42rem] text-sm">
             <thead>
               <tr className="border-b border-rule">
                 <th scope="col" className="label px-5 py-2 text-start font-semibold">
@@ -128,6 +200,12 @@ export default async function StandingPage() {
                 </th>
                 <th scope="col" className="label px-3 py-2 text-end font-semibold">
                   {t.standing.predictedMark}
+                </th>
+                <th scope="col" className="label px-3 py-2 text-end font-semibold">
+                  {t.standing.strength}
+                </th>
+                <th scope="col" className="label px-3 py-2 text-start font-semibold">
+                  {t.standing.practised}
                 </th>
                 <th scope="col" className="label hidden px-3 py-2 text-start font-semibold sm:table-cell">
                   {t.performance.trend}
@@ -148,7 +226,14 @@ export default async function StandingPage() {
 
                   <td className="px-3 py-3 text-end">
                     {subject.mark === null ? (
-                      <span className="text-meta text-ink-faint">{t.standing.notEnoughYet}</span>
+                      /* Not a low mark — no mark. The student is told how much
+                         more work makes one appear, so the blank reads as a
+                         threshold rather than a verdict. */
+                      <span className="text-meta text-ink-faint">
+                        {subject.evidence.attemptsNeeded > 0
+                          ? format(t.standing.needMore, { count: subject.evidence.attemptsNeeded })
+                          : t.standing.notEnoughYet}
+                      </span>
                     ) : (
                       <span
                         className={cn(
@@ -159,6 +244,38 @@ export default async function StandingPage() {
                         {format(t.standing.outOf, { mark: subject.mark, scale })}
                       </span>
                     )}
+                  </td>
+
+                  {/* Strength: a level, so a numeral. A subject nobody has
+                      opened says so — an untouched chapter is not a failed
+                      one, and printing 0 here would be the exact error v1
+                      made in the model. */}
+                  <td className="px-3 py-3 text-end">
+                    {subject.evidence.chaptersAttempted === 0 ? (
+                      <span className="text-meta text-ink-faint">{t.standing.notStarted}</span>
+                    ) : (
+                      <span className="figure text-body text-ink">
+                        {format(t.standing.outOf, {
+                          mark: Math.round(subject.evidence.mastery * scale * 10) / 10,
+                          scale,
+                        })}
+                      </span>
+                    )}
+                  </td>
+
+                  {/* Practised: a share of a whole, so a bar. Never the same
+                      shape as strength, so the two cannot be misread as one
+                      measure at two sizes. */}
+                  <td className="px-3 py-3">
+                    <Meter
+                      size="sm"
+                      value={subject.evidence.coverage}
+                      tone="primary"
+                      caption={format(t.standing.practisedOf, {
+                        done: subject.evidence.chaptersAttempted,
+                        total: subject.evidence.chaptersTotal,
+                      })}
+                    />
                   </td>
 
                   <td className="hidden px-3 py-3 text-meta text-ink-muted sm:table-cell">

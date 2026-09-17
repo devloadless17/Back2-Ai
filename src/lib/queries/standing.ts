@@ -13,6 +13,8 @@ import {
   type MonthlyEffort,
 } from '@/lib/standing';
 
+import { MIN_ATTEMPTS_FOR_READINESS } from '@/lib/scoring/readiness';
+
 import { getProgressForUser } from './progress';
 
 /**
@@ -21,6 +23,32 @@ import { getProgressForUser } from './progress';
  * drift from the work behind it.
  */
 
+/**
+ * What a subject's mark is made of.
+ *
+ * Readiness is `mastery x coverage` plus the strict coverage and trend terms
+ * (`docs/readiness-model.md`). v1 reported only the product, which is why a
+ * student with two perfect chapters out of twenty read as weak rather than as
+ * narrow. The two ideas are carried separately here so the UI can say which
+ * one is actually short — they call for different work.
+ */
+export type SubjectEvidence = {
+  /** How well, on chapters with at least one attempt. Zero when none. */
+  mastery: number;
+  /** How much of the subject has any attempt at all. */
+  coverage: number;
+  chaptersAttempted: number;
+  chaptersTotal: number;
+  attempts: number;
+  /**
+   * Attempts still needed before a mark may be shown, zero once reportable.
+   * The difference between "we cannot say yet" and "you are weak here" is the
+   * whole credibility of the number, so the UI states the gap rather than
+   * leaving the student to guess how much more work is enough.
+   */
+  attemptsNeeded: number;
+};
+
 export type SubjectMark = {
   subjectId: string;
   subjectName: string;
@@ -28,6 +56,7 @@ export type SubjectMark = {
   mark: number | null;
   band: MarkBand | null;
   trend: 'up' | 'flat' | 'down';
+  evidence: SubjectEvidence;
 };
 
 export type Standing = {
@@ -149,12 +178,21 @@ export async function getStanding(
 
   const subjects: SubjectMark[] = progress.map((subject) => {
     const mark = subject.readiness.reportable ? markOutOf20(subject.readiness.score) : null;
+    const r = subject.readiness;
     return {
       subjectId: subject.subjectId,
       subjectName: subject.subjectName,
       mark,
       band: mark === null ? null : bandForMark(mark),
-      trend: subject.readiness.trend,
+      trend: r.trend,
+      evidence: {
+        mastery: r.mastery,
+        coverage: r.coverage,
+        chaptersAttempted: r.chaptersAttempted,
+        chaptersTotal: r.chaptersTotal,
+        attempts: r.totalAttempts,
+        attemptsNeeded: Math.max(0, MIN_ATTEMPTS_FOR_READINESS - r.totalAttempts),
+      },
     };
   });
 

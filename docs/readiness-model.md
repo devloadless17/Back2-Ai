@@ -110,13 +110,24 @@ word meaning depth, with coverage then added again beside it.
 
 ### Why v1 and v2 scores are comparable
 
-`mean_over_all_chapters` is **identically** `mastery_on_attempted ×
-fraction_attempted`. v2 did not change the formula; it factored it. Proven in
+**The decomposition preserves the readiness scale for accounts with evidence;
+v2 corrects the zero-evidence edge case.**
+
+That is the precise claim, and it is narrower than "v1 and v2 are identical".
+For any account with at least one attempt, `mean_over_all_chapters` is
+identically `mastery_on_attempted × fraction_attempted` under the current
+chapter weighting, so the factoring changes nothing. Proven in
 `tests/readiness-v2.test.ts`.
 
-**So historical `readiness_scores` remain on one scale and existing trend lines
-stay truthful.** The only behavioural change is the empty-account floor, which
-moves a number nothing was permitted to display.
+The zero-evidence case is **deliberately different**: v1 returned 0.1 there and
+v2 returns 0. That is the one state where the two models disagree, and it was
+changed on purpose.
+
+**Consequences for history.** No reset, no era separator, no snapshot
+migration, no score conversion, no chart discontinuity. Stored
+`readiness_scores` remain on one scale and existing trend lines stay truthful,
+because no row with evidence behind it moved — and a row with no evidence was
+never displayable, since `reportable` requires ten attempts.
 
 This is why the weights were left alone. Changing them would have broken that
 comparability and would have needed distributions nobody has.
