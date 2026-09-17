@@ -311,6 +311,16 @@ export const POST = route(async (request) => {
     repeats,
     needsHumanReview,
     solution: isQuestion ? source.officialSolution : source.generatedSolution,
+    /*
+     * WHOSE solution that is.
+     *
+     * A past-exam question carries the ministry's own; a generated problem
+     * carries one this system wrote. Both were returned under the same field
+     * and the screen labelled both "Official solution" — which is the single
+     * claim in this product a student could catch us getting wrong. The flag
+     * travels so the label can be true.
+     */
+    solutionIsOfficial: isQuestion,
     mastery: {
       chapterId: creditChapterId,
       masteryScore: Number(mastery?.masteryScore ?? 0),

@@ -157,13 +157,35 @@ Marking:
 - [ ] barème only / solution only / both / neither
 - [ ] dark mode, all of the above
 
-## Known not done in this phase
+## Layout and actions — added after the restructure
 
-- **Mobile sequential flow** and **desktop two-column comparison** are NOT
-  implemented. The result still appears below the question in one column at
-  every width. The brief asked for progressive disclosure on mobile and a
-  side-by-side comparison on desktop; neither was built.
-- **Post-marking actions** were not audited or reorganised.
-- **Official solution placement** was not changed — it still renders after the
-  marking, which happens to match the intended hierarchy, but was not
-  deliberately designed.
+The four gaps above are now closed in code. None of it has been seen.
+
+- [ ] **360 / 390 / 430** — the stacked sequence reads question, answer, mark,
+      criteria, model answer, action, in that order
+- [ ] **xl and above** — question and answer on the left, result on the right;
+      the eye moves between them without scrolling
+- [ ] **1024-1279** — deliberately still stacked. Confirm the single column at
+      that width is not wasteful enough to want `lg`
+- [ ] very wide desktop — the question does not become an absurd line of prose
+- [ ] long mathematical question beside a long barème at xl
+- [ ] long submitted answer preserved and readable after marking
+- [ ] long French criterion, long Arabic criterion, no horizontal overflow
+- [ ] Arabic question inside an English interface, at xl — the left/right
+      comparison must stay comprehensible
+- [ ] model answer expanded — long solution inside `<details>`
+- [ ] `solutionIsOfficial` false on a generated problem: heading reads "Model
+      answer", NOT "Official solution"
+- [ ] no solution at all — the result still feels complete
+- [ ] `needs_human_review` inside the new layout, not dressed as a final mark
+- [ ] mixed provisional criteria after the restructure
+- [ ] recurring-loss callout after the restructure
+- [ ] first / middle / **final** question — `next` on the last lands on the
+      completion state rather than a dead button
+- [ ] the flag control still reachable in the marked state
+
+## Known not done
+
+- **No "try again".** Nothing in the runner or the API supports re-marking an
+  attempt, and a button that silently created a second one would misrepresent
+  the record. Left unbuilt rather than faked.

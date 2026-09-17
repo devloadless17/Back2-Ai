@@ -429,6 +429,7 @@ export const ar: Dictionary = {
       "قراءتنا للسؤال، لا قراءة المصحّح",
     repeatedLoss:
       "كلّفك هذا علامات {times} مرّات — {points} في المجموع.",
+    modelSolution: "إجابة نموذجيّة",
     officialSolution: 'الحل الرسمي',
     correct: 'صحيح',
     incorrect: 'ليس تماماً',

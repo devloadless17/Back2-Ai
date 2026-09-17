@@ -406,6 +406,7 @@ export const fr: Dictionary = {
       "Notre lecture de la question, pas celle de l'examinateur",
     repeatedLoss:
       "Cela t'a coûté des points {times} fois — {points} au total.",
+    modelSolution: "Réponse modèle",
     officialSolution: 'Solution officielle',
     correct: 'Correct',
     incorrect: 'Pas tout à fait',

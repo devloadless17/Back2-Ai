@@ -76,6 +76,8 @@ type AttemptResponse = {
    */
   repeats?: Record<string, { times: number; pointsLost: number }>;
   needsHumanReview: boolean;
+  /** True only for a past-exam question. A generated problem's is ours. */
+  solutionIsOfficial?: boolean;
   solution: string | null;
   mastery: { chapterId: string; masteryScore: number; attemptsCount: number };
 };
@@ -242,7 +244,31 @@ export function PracticeRunner({
   }
 
   return (
-    <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_260px]">
+    /*
+     * THE LAYOUT CHANGES WHEN COMPARISON BECOMES USEFUL, and not before.
+     *
+     * While answering, the student is solving: the question takes the width and
+     * a narrow rail carries their mastery. Surrounding someone mid-derivation
+     * with empty examiner infrastructure would be decoration.
+     *
+     * Once marked, the second column becomes the result, so the answer they
+     * wrote and the criteria it was measured against sit side by side and the
+     * eye moves between them without scrolling. `xl` rather than `lg`: at 1024
+     * a mathematical question and a barème in two columns are both too narrow,
+     * and a cramped comparison is worse than a scrolled one.
+     *
+     * Below xl everything stacks, which IS the mobile sequence — question,
+     * answer, mark, criteria, solution, action — in that order, because that is
+     * the order the DOM is written in.
+     */
+    <div
+      className={cn(
+        'grid gap-5',
+        result
+          ? 'xl:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)]'
+          : 'lg:grid-cols-[minmax(0,1fr)_260px]',
+      )}
+    >
       <div className="min-w-0 space-y-5">
         <Sheet>
           <SheetHeader
@@ -335,35 +361,75 @@ export function PracticeRunner({
             )}
           </SheetBody>
 
-          <SheetFooter className="justify-between">
+          {/*
+            Submit only. The post-marking actions used to live here, which put
+            them ABOVE the result in the DOM — so on a phone the student was
+            offered "next question" before they had seen their mark. They now
+            sit after the result, where the sequence ends.
+          */}
+          {!result && (
+            <SheetFooter className="justify-between">
+              <FlagButton
+                itemType={question.kind === 'generated' ? 'generated_problem' : 'tagged_question'}
+                itemId={question.id}
+              />
+              <Button variant="primary" onClick={submit} loading={submitting}>
+                {t.practice.checkAnswer}
+              </Button>
+            </SheetFooter>
+          )}
+        </Sheet>
+      </div>
+
+      {result ? (
+        <div className="min-w-0 space-y-5">
+          <ResultSheet result={result} />
+
+          {/*
+            ONE PRIMARY ACTION AND ONE SECONDARY, both real.
+
+            `next` advances the index and, past the last question, lands on the
+            completion state — so it stays correct on the final question rather
+            than needing a disabled button. `explain` opens a conversation
+            anchored to THIS ATTEMPT, which is why it is worth its place: the
+            student's question after a lost mark is not "what is the method" but
+            "why did mine not get the marks", and only the attempt can answer
+            that.
+
+            There is no "try again": nothing in the runner or the API supports
+            re-marking an attempt, and a button that silently created a second
+            one would misrepresent the record.
+          */}
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <FlagButton
               itemType={question.kind === 'generated' ? 'generated_problem' : 'tagged_question'}
               itemId={question.id}
             />
-
-            {result ? (
-              <div className="flex gap-2">
-                <Button onClick={explain} loading={askingExplain}>
-                  {t.practice.explainThis}
-                </Button>
-                <Button variant="primary" onClick={next}>
-                  {isLast ? t.common.next : t.practice.nextQuestion}
-                </Button>
-              </div>
-            ) : (
-              <Button variant="primary" onClick={submit} loading={submitting}>
-                {t.practice.checkAnswer}
+            <div className="flex flex-wrap gap-2">
+              <Button onClick={explain} loading={askingExplain}>
+                {t.practice.explainThis}
               </Button>
-            )}
-          </SheetFooter>
-        </Sheet>
+              <Button variant="primary" onClick={next}>
+                {isLast ? t.common.next : t.practice.nextQuestion}
+              </Button>
+            </div>
+          </div>
 
-        {result && <ResultSheet result={result} />}
-      </div>
-
-      <div className="space-y-5">
-        <MasterySheet score={mastery.score} attempts={mastery.attempts} chapterName={chapterName} />
-      </div>
+          <MasterySheet
+            score={mastery.score}
+            attempts={mastery.attempts}
+            chapterName={chapterName}
+          />
+        </div>
+      ) : (
+        <div className="space-y-5">
+          <MasterySheet
+            score={mastery.score}
+            attempts={mastery.attempts}
+            chapterName={chapterName}
+          />
+        </div>
+      )}
     </div>
   );
 
@@ -469,13 +535,33 @@ export function PracticeRunner({
           />
         )}
 
+        {/*
+          THE MODEL ANSWER, LAST AND COLLAPSED.
+          
+          Deliberately after the marking rather than beside it. Handing a
+          student the model answer first teaches less than showing them what
+          happened to THEIRS — they read the good version, recognise it, and
+          never work out why their own lost the mark. So the sequence is: your
+          mark, how the barème awarded it, Nour on the difference, and only
+          then this. Available, one tap, not hidden.
+
+          THE LABEL IS TRUE. A past-exam question carries the ministry's
+          solution; a generated problem carries one this system wrote, and both
+          arrived under the same field and were labelled "Official solution".
+          `solutionIsOfficial` now travels with it so the heading can be honest
+          — the same rule the evidence work in Nour follows.
+        */}
         {outcome.solution && (
-          <>
-            <SheetHeader title={t.practice.officialSolution} className="border-t" />
-            <SheetBody>
+          <details className="border-t border-rule">
+            <summary className="cursor-pointer list-none px-5 py-3 text-meta font-medium text-ink transition-colors hover:bg-paper-sunken">
+              {outcome.solutionIsOfficial
+                ? t.practice.officialSolution
+                : t.practice.modelSolution}
+            </summary>
+            <SheetBody className="pt-0">
               <MathText>{outcome.solution}</MathText>
             </SheetBody>
-          </>
+          </details>
         )}
       </Sheet>
     );

@@ -429,6 +429,7 @@ export const en = {
       "Our reading of the question, not the examiner's",
     repeatedLoss:
       "This has cost you marks {times} times — {points} in total.",
+    modelSolution: "Model answer",
     officialSolution: 'Official solution',
     correct: 'Correct',
     incorrect: 'Not quite',
