@@ -643,6 +643,29 @@ export const en = {
     dockRenameHint: 'Only you see this name.',
   },
 
+  nextMove: {
+    eyebrow: 'YOUR NEXT MOVE',
+    start: 'Start',
+    /* Reasons. Each corresponds to a rung of the evidence ladder in
+       `src/lib/queries/next-move.ts` — never write one here that the data
+       cannot earn. */
+    reasonLoss:
+      'You have lost marks {times} times on the same thing in {subject}: “{criterion}”. That is {points} marks so far.',
+    reasonWeak: '{chapter} is where you are weakest right now — {percent}% of the marks so far.',
+    reasonCards: '{count} cards are due today. They take a few minutes and they are yours.',
+    reasonNew: 'You have not started {chapter} yet.',
+    readinessTitle: 'BAC READINESS',
+    outOf: '/ 20',
+    basis: 'Based on {count} marked answers',
+    emptyTitle: 'Your readiness is taking shape.',
+    emptyBody:
+      'I need a little more marked work before I can estimate your Bac score honestly.',
+    emptyProgress: '{count} of {needed} answers marked',
+    trendUp: 'Rising this month',
+    trendFlat: 'Steady this month',
+    trendDown: 'Slipping this month',
+  },
+
   firstSteps: {
     title: 'Three things to try',
     subtitle: '{n} left. Each one takes a minute and puts something real on this page.',

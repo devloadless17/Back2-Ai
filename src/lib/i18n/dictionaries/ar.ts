@@ -632,6 +632,39 @@ export const ar: Dictionary = {
     dockRenameHint: 'لا يرى هذا الاسم سواك.',
   },
 
+  nextMove: {
+    eyebrow:
+      "خطوتك التالية",
+    start:
+      "ابدأ",
+    reasonLoss:
+      "خسرت علامات {times} مرّات على الأمر نفسه في {subject}: «{criterion}». هذا {points} علامة حتّى الآن.",
+    reasonWeak:
+      "{chapter} هو أضعف ما لديك الآن — {percent}% من العلامات حتّى الآن.",
+    reasonCards:
+      "{count} بطاقة مستحقّة اليوم. دقائق قليلة، وهي لك.",
+    reasonNew:
+      "لم تبدأ {chapter} بعد.",
+    readinessTitle:
+      "الجهوزيّة للبكالوريا",
+    outOf:
+      "/ ٢٠",
+    basis:
+      "بناءً على {count} إجابة مصحّحة",
+    emptyTitle:
+      "جهوزيّتك تتشكّل.",
+    emptyBody:
+      "أحتاج إلى مزيد من العمل المصحّح قبل أن أقدّر علامتك بصدق.",
+    emptyProgress:
+      "{count} من {needed} إجابة مصحّحة",
+    trendUp:
+      "في ارتفاع هذا الشهر",
+    trendFlat:
+      "ثابتة هذا الشهر",
+    trendDown:
+      "في تراجع هذا الشهر",
+  },
+
   firstSteps: {
     title: 'ثلاثة أمور جرّبها',
     subtitle: 'بقي {n}. كلّ واحد يستغرق دقيقة ويملأ هذه الصفحة بشيء حقيقي.',

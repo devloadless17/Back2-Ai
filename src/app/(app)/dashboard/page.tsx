@@ -5,7 +5,8 @@ import { FirstSteps } from '@/components/dashboard/first-steps';
 import { SplitHero } from '@/components/dashboard/split-hero';
 import { streakFrom, type SubjectRing } from '@/components/dashboard/subject-rings';
 import { WelcomeHero } from '@/components/dashboard/welcome-hero';
-import { NextUpCard } from '@/components/progress/next-up-card';
+import { NextMove } from '@/components/dashboard/next-move';
+import { ReadinessPanel } from '@/components/dashboard/readiness-panel';
 import { RecurringLossesCard } from '@/components/dashboard/recurring-losses-card';
 import { LinkButton } from '@/components/ui/button';
 import { bandForMastery } from '@/components/ui/band';
@@ -22,9 +23,11 @@ import { attemptsByDay, weeklyEffort } from '@/lib/queries/activity';
 import { getFirstSteps } from '@/lib/queries/first-steps';
 import { recurringLosses } from '@/lib/queries/recurring-losses';
 import { getNextUp } from '@/lib/queries/next-up';
+import { nextMoveReason } from '@/lib/queries/next-move';
 import { findWeakestChapter, getProgressForUser } from '@/lib/queries/progress';
 import { getStanding } from '@/lib/queries/standing';
 import { MIN_ATTEMPTS_FOR_WEAKNESS } from '@/lib/scoring/mastery';
+import { MIN_ATTEMPTS_FOR_READINESS } from '@/lib/scoring/readiness';
 import { markOutOf20, PASS_MARK } from '@/lib/standing';
 
 // Browser-tab titles are resolved per request from the user's locale, like
@@ -195,6 +198,59 @@ export default async function DashboardPage() {
 
   const nextExam = upcomingExams[0] ?? null;
 
+  /** Minutes still planned for today. Real sessions, real durations. */
+  const todayPlannedMinutes = todaySessions
+    .filter((session) => session.status === 'planned')
+    .reduce((sum, session) => sum + (session.durationMinutes ?? 0), 0);
+
+  /*
+   * THE NEXT MOVE, AND THE ARGUMENT FOR IT.
+   *
+   * The action comes from `getNextUp`, which already ranks what to do. The
+   * reason comes from `nextMoveReason`, which ranks what we are ENTITLED to say
+   * about it — see that file for the ladder and the tests that pin it. They are
+   * separate because a good action with a made-up justification is worse than a
+   * good action with none: the first teaches a student the product is guessing.
+   */
+  const reason = nextMoveReason({ next: nextUp, losses, weakest });
+
+  const reasonText =
+    reason.kind === 'recurringLoss'
+      ? t.nextMove.reasonLoss
+          .replace('{times}', String(reason.times))
+          .replace('{subject}', reason.subjectName)
+          // The criterion is an examiner's sentence and can run long; the card
+          // has to stay readable, so it is cut where a reader can still tell
+          // which criterion is meant.
+          .replace('{criterion}', reason.criterion.replace(/\s+/g, ' ').slice(0, 90))
+          .replace('{points}', String(reason.pointsLost))
+      : reason.kind === 'weakChapter'
+        ? t.nextMove.reasonWeak
+            .replace('{chapter}', reason.chapterName)
+            .replace('{percent}', String(reason.percent))
+        : reason.kind === 'flashcards'
+          ? t.nextMove.reasonCards.replace('{count}', String(reason.count))
+          : reason.kind === 'notStarted'
+            ? t.nextMove.reasonNew.replace('{chapter}', reason.chapterName)
+            : null;
+
+  /* What the action is called, from the same `nextUp` the reason was read from. */
+  const moveTitle =
+    nextUp.kind === 'flashcards'
+      ? t.standing.nextUpDue.replace('{count}', String(nextUp.count))
+      : nextUp.kind === 'weakChapter' || nextUp.kind === 'newChapter'
+        ? nextUp.chapterName
+        : nextUp.kind === 'examSim'
+          ? t.standing.nextUpPaper
+          : t.standing.nextUpCaughtUp;
+
+  const moveSubject =
+    nextUp.kind === 'newChapter'
+      ? nextUp.subjectName
+      : reason.kind === 'recurringLoss'
+        ? reason.subjectName
+        : null;
+
   return (
     <>
       {/*
@@ -218,6 +274,55 @@ export default async function DashboardPage() {
         weakSpots={weakSpots}
       />
 
+      {/*
+        THE DECISION, THEN THE STANDING. In that order and at that weight.
+        Everything under this pair is context for a choice the student has
+        already been helped to make; putting the statistics first turns the page
+        into a report about them rather than an instrument they use.
+
+        Two columns from `lg` and stacked below it, next-move first in both —
+        on a phone the readiness figure must not be what a tired student has to
+        scroll past to reach the thing to do.
+      */}
+      <div className="mb-5 grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+        <NextMove
+          eyebrow={t.nextMove.eyebrow}
+          subjectName={moveSubject}
+          title={moveTitle}
+          reason={reasonText}
+          href={nextUp.href}
+          cta={t.nextMove.start}
+          meta={
+            todayPlannedMinutes > 0
+              ? t.dashboard.minutesShort.replace('{minutes}', String(todayPlannedMinutes))
+              : null
+          }
+        />
+
+        <ReadinessPanel
+          mark={standing.overall}
+          trend={standing.subjects[0]?.trend ?? null}
+          evidenceCount={totalAttempts}
+          evidenceNeeded={MIN_ATTEMPTS_FOR_READINESS}
+          labels={{
+            title: t.nextMove.readinessTitle,
+            outOf: t.nextMove.outOf,
+            basis: t.nextMove.basis,
+            emptyTitle: t.nextMove.emptyTitle,
+            emptyBody: t.nextMove.emptyBody,
+            emptyProgress: t.nextMove.emptyProgress,
+            trendUp: t.nextMove.trendUp,
+            trendFlat: t.nextMove.trendFlat,
+            trendDown: t.nextMove.trendDown,
+          }}
+        />
+      </div>
+
+      {/*
+        Today's plan and the subject rings, demoted from a hero to context. The
+        capability is unchanged — same component, same data — but it now sits
+        below the decision rather than competing with it.
+      */}
       <SplitHero
         today={todaySessions}
         subjects={subjectRings}
@@ -242,9 +347,6 @@ export default async function DashboardPage() {
         />
       )}
 
-      <div className="mb-5">
-        <NextUpCard next={nextUp} />
-      </div>
 
       {/*
         Directly under "what to do next", because it is what to watch for while

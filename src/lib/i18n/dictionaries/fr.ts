@@ -617,6 +617,39 @@ export const fr: Dictionary = {
     dockRenameHint: 'Vous seul voyez ce nom.',
   },
 
+  nextMove: {
+    eyebrow:
+      "VOTRE PROCHAINE ÉTAPE",
+    start:
+      "Commencer",
+    reasonLoss:
+      "Tu as perdu des points {times} fois sur la même chose en {subject} : « {criterion} ». Cela fait {points} points.",
+    reasonWeak:
+      "{chapter} est ton point le plus faible en ce moment — {percent}% des points jusqu'ici.",
+    reasonCards:
+      "{count} cartes sont à revoir aujourd'hui. Quelques minutes, et elles sont à toi.",
+    reasonNew:
+      "Tu n'as pas encore commencé {chapter}.",
+    readinessTitle:
+      "PRÉPARATION AU BAC",
+    outOf:
+      "/ 20",
+    basis:
+      "D'après {count} réponses corrigées",
+    emptyTitle:
+      "Ta préparation se dessine.",
+    emptyBody:
+      "Il me faut encore un peu de travail corrigé avant d'estimer honnêtement ta note.",
+    emptyProgress:
+      "{count} réponses corrigées sur {needed}",
+    trendUp:
+      "En hausse ce mois-ci",
+    trendFlat:
+      "Stable ce mois-ci",
+    trendDown:
+      "En baisse ce mois-ci",
+  },
+
   firstSteps: {
     title: 'Trois choses à essayer',
     subtitle: 'Il en reste {n}. Chacune prend une minute et remplit cette page.',
