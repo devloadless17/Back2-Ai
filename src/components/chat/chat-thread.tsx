@@ -101,6 +101,8 @@ export function ChatThread({
    */
   const docRef = useRef<HTMLInputElement>(null);
   const [attachedName, setAttachedName] = useState<string | null>(null);
+  /** True when the file was too long for the box and was stored as a reference. */
+  const [storedWhole, setStoredWhole] = useState(false);
   const [attaching, setAttaching] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
   const [transcription, setTranscription] = useState<string | null>(null);
@@ -137,12 +139,20 @@ export function ChatThread({
     form.append('sessionId', sessionId);
 
     try {
-      const response = await sendForm<{ extractedText: string; hasIllegibleRegions: boolean }>(
-        '/api/upload',
-        form,
-      );
+      const response = await sendForm<{
+        extractedText: string;
+        hasIllegibleRegions: boolean;
+        previewOnly?: boolean;
+      }>('/api/upload', form);
       setTranscription(response.extractedText);
       setIllegible(response.hasIllegibleRegions);
+      /*
+       * A long document is stored whole and searched; only an opening goes in
+       * the box. Saying so matters — a student looking at the first paragraph
+       * of their ten-page handout would otherwise assume that is all the tutor
+       * received, and retype the rest.
+       */
+      setStoredWhole(response.previewOnly === true);
     } catch (err) {
       // Say which thing went wrong. "Try a sharper one" cannot help a file
         // refused for its type or its size, and it sends the student round a
@@ -158,6 +168,7 @@ export function ChatThread({
     if (preview) URL.revokeObjectURL(preview);
     setPreview(null);
     setAttachedName(null);
+    setStoredWhole(false);
     setTranscription(null);
     setIllegible(false);
     // Both, and by value rather than by ref identity: leaving the old filename
@@ -172,7 +183,19 @@ export function ChatThread({
     const typed = input.trim();
     // A photo on its own is a question: "explain this". Requiring words as well
     // would make the attachment useless on its own.
-    const question = [transcription?.trim(), typed].filter(Boolean).join('\n\n');
+    /*
+     * Trimmed to what the server accepts, rather than sent and rejected.
+     *
+     * `chat/messages` caps content at 4,000 characters and answers anything
+     * longer with a 422 the student cannot act on — which is exactly what
+     * happened the day documents became attachable. The upload route no longer
+     * hands back more than that, and this is the second line of the same
+     * defence: a long preview plus a long typed question can still cross it.
+     */
+    const question = [transcription?.trim(), typed]
+      .filter(Boolean)
+      .join('\n\n')
+      .slice(0, 4000);
     if (!question || streaming || disabled) return;
 
     setInput('');
@@ -402,6 +425,16 @@ export function ChatThread({
 
                   {illegible ? (
                     <p className="text-caption text-partial">{t.upload.illegible}</p>
+                  ) : null}
+
+                  {/*
+                    Only an opening is in the box; the whole file is stored and
+                    searchable. Without this line a student sees one paragraph
+                    of a ten-page handout and reasonably concludes the rest was
+                    lost.
+                  */}
+                  {storedWhole ? (
+                    <p className="text-caption text-ink-faint">{t.upload.storedWhole}</p>
                   ) : null}
                 </div>
               </div>

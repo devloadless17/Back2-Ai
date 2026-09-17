@@ -652,6 +652,8 @@ export const en = {
   upload: {
     attachFile: 'File',
     attachedFile: 'Attached: {name}',
+    storedWhole:
+      'Only the opening is shown here. The whole file has been read and can be asked about.',
     noTextInDocument: 'That file has no text in it — it is a scan. Photograph the page instead and we will read it.',
     attach: 'Photo',
     checkTranscription: 'Check what we read',

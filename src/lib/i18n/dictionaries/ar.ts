@@ -641,6 +641,8 @@ export const ar: Dictionary = {
   upload: {
     attachFile: 'ملف',
     attachedFile: 'مرفق: {name}',
+    storedWhole:
+      'يظهر هنا المطلع فقط. قُرئ الملف كاملاً ويمكن السؤال عن أيّ جزء منه.',
     noTextInDocument: 'هذا الملف لا يحتوي نصًّا — إنّه صورة ممسوحة. صوّر الصفحة وسنقرأها.',
     attach: 'صورة',
     checkTranscription: 'تحقّق ممّا قرأناه',

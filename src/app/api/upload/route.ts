@@ -11,8 +11,10 @@ import {
 import { apiUser } from '@/lib/auth/guards';
 import { budgetState } from '@/lib/ai';
 import { db } from '@/lib/db';
-import { isAiConfigured } from '@/lib/env';
+import { isAiConfigured, isEmbeddingConfigured } from '@/lib/env';
+import { embed } from '@/lib/ai';
 import { extractDocumentText, toAiImage, transcribeImage } from '@/lib/ocr';
+import { setEmbedding } from '@/lib/vector';
 import {
   ALLOWED_DOCUMENT_TYPES,
   ALLOWED_IMAGE_TYPES,
@@ -33,6 +35,15 @@ import {
  * The image itself is stored privately and referenced by key. It is a
  * photograph of a minor's schoolwork, sometimes with their name on the page.
  */
+/**
+ * How much of a document is put in the message box.
+ *
+ * Comfortably under the 4,000-character cap `chat/messages` enforces, with room
+ * for whatever the student types alongside it. The rest is not lost — it is
+ * stored as a reference and searched.
+ */
+const DOCUMENT_PREVIEW = 1500;
+
 export const POST = route(async (request) => {
   assertSameOrigin(request);
 
@@ -174,10 +185,65 @@ export const POST = route(async (request) => {
     });
   }
 
+  /*
+   * A DOCUMENT IS NOT A MESSAGE.
+   *
+   * `chat/messages` caps `content` at 4,000 characters, which is right: it is a
+   * question a student typed. A photographed page transcribes to well under
+   * that. A PDF or a Word file does not — `extractDocumentText` returns up to
+   * 200,000 characters — and the client pastes whatever comes back into the
+   * message body, so every real document was rejected with a 422 the moment
+   * uploads were widened beyond photographs.
+   *
+   * Truncating to fit would be worse than the error. The tutor would answer
+   * from the first four thousand characters of a ten-page handout while the
+   * student believed it had read all of it, and nothing on screen would say
+   * otherwise.
+   *
+   * So a long document is stored as a USER REFERENCE — the tier-3 material
+   * retrieval already searches — and the chat gets a short preview plus the
+   * fact that the whole thing is now readable. The student asks about page
+   * seven and retrieval finds page seven, which is the behaviour they expected
+   * from attaching it.
+   */
+  let referenceId: string | null = null;
+  let previewOnly = false;
+
+  if (!isImage && extractedText.length > DOCUMENT_PREVIEW) {
+    const reference = await db.userReference.create({
+      data: {
+        userId: user.id,
+        fileUrl: stored?.key ?? '',
+        fileName: file.name?.slice(0, 200) ?? null,
+        extractedText,
+      },
+      select: { id: true },
+    });
+    referenceId = reference.id;
+    previewOnly = true;
+
+    if (isEmbeddingConfigured()) {
+      try {
+        // Same 8,000 characters the references route embeds on: enough to place
+        // the document in vector space, and a hit returns the full text anyway.
+        const vector = await embed(extractedText.slice(0, 8000), 'document');
+        await setEmbedding('user_references', reference.id, vector);
+      } catch (err) {
+        // The document is stored and readable by its owner either way; without
+        // the vector it simply will not surface from a question, which is a
+        // smaller loss than refusing the upload.
+        console.error('[upload] could not embed the reference', err);
+      }
+    }
+  }
+
   return created({
     sessionId: session.id,
     imageKey: stored?.key ?? null,
-    extractedText,
+    // Never more than the message field will accept. See above.
+    extractedText: previewOnly ? extractedText.slice(0, DOCUMENT_PREVIEW) : extractedText,
     hasIllegibleRegions,
+    referenceId,
+    previewOnly,
   });
 });

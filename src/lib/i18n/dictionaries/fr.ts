@@ -626,6 +626,8 @@ export const fr: Dictionary = {
   upload: {
     attachFile: 'Fichier',
     attachedFile: 'Joint : {name}',
+    storedWhole:
+      'Seul le début est affiché ici. Le fichier entier a été lu et peut être interrogé.',
     noTextInDocument: 'Ce fichier ne contient pas de texte — c’est un scan. Photographiez la page et nous la lirons.',
     attach: 'Photo',
     checkTranscription: 'Vérifiez notre lecture',
