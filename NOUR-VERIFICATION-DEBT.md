@@ -192,6 +192,70 @@ The four gaps above are now closed in code. None of it has been seen.
 
 ---
 
+## Progress + Bac Map (2026-09-17)
+
+Docker is unavailable and no browser is available, so none of this has been run
+against a database or seen rendered. All of it is read off the source.
+
+### Data states nobody has looked at
+
+- [ ] mastery 100% / practised 10% — the narrow-but-strong account, the whole
+      reason the two figures are separate
+- [ ] mastery low / practised high — the opposite, broad and weak
+- [ ] a subject with no attempts at all — must read "Not started", never 0%
+- [ ] an untouched chapter in the Bac Map — same rule, against a chapter name
+- [ ] a material-only chapter — "Study material available · No indexed
+      past-paper questions", and the link reaching real reading
+- [ ] a chapter with questions and no attempts — the count and "Start practice"
+- [ ] a chapter practised whose questions were later rejected — evidence still
+      shown, no practice offered
+- [ ] a recurring criterion confined to one chapter — chapter link
+- [ ] a recurring criterion spanning chapters in one subject — subject link,
+      and NO chapter named anywhere in the row
+- [ ] a recurring criterion spanning subjects — no destination at all. Note
+      this cannot currently arise: the grouping key includes the subject. The
+      branch is tested as a pure function.
+- [ ] a criterion lost more than five times whose first five occasions share a
+      chapter but whose later ones do not — routing must still refuse the
+      chapter link. This is the case `occasions` being capped at five would
+      have got wrong.
+- [ ] an old `/performance` bookmark, with and without query parameters
+- [ ] Dashboard and Progress side by side — the next action must read the same
+- [ ] a large track — a GS account has more than a thousand chapters across the
+      map; confirm the page is not absurd and the two chapter queries hold up
+
+### Visual, unseen
+
+- [ ] 360 / 390 / 430 — the subject list is the stacked one, NOT the table
+- [ ] sm and up — the table appears, with its contained sideways scroll
+- [ ] a long Arabic chapter name in an expanded Bac Map subject at 390px
+- [ ] a long French criterion in the recurring-loss list, wrapping not truncated
+- [ ] Arabic interface, RTL — `Meter` captions, the `details` disclosure
+      triangle, and column order in the table
+- [ ] every subject expanded at once in the Bac Map
+- [ ] a subject with zero chapters returned
+- [ ] dark mode, all of the above
+
+### Known limitations, recorded not fixed
+
+- **Criterion identity is the raw examiner string**, normalised for whitespace,
+  numbering, kashida, case and trailing punctuation, keyed with the subject.
+  Trivial wording differences split what a reader would call one criterion. The
+  error is always under-counting, so a real pattern can fall below the
+  two-occurrence floor and go unshown; it cannot invent one. Fuzzy matching
+  would fix the splitting and introduce the opposite failure — two different
+  criteria merged into one confident insight — which is a worse lie than
+  silence. Documented in `recurring-losses.ts`, not solved.
+- **The dashboard still maps `NextUp` to its own copy inline.** Both surfaces
+  read the same `getNextUp`, so the recommendation cannot differ, but the
+  wording is derived in two places. Extracting it means editing a file that
+  carries unrelated in-flight work, so it was left alone.
+- **`pastPaperCoverage` has no surface.** The calculation was preserved and
+  correctly named when it came off Progress, but nothing renders it yet. It
+  belongs in a content-health view.
+
+---
+
 ## Progress — mastery and coverage surfaced (2026-09-17)
 
 Docker is unavailable, so none of the following has been seen against a

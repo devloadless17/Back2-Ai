@@ -221,6 +221,22 @@ export const ar: Dictionary = {
     needMore: 'تحتاج {count} إجابات إضافية',
     basedOnAnswers: 'استنادًا إلى {count} إجابة مصححة',
 
+    whereMarksGo: 'أين تذهب العلامات',
+    whereMarksGoNote: 'المعايير التي خسرت عليها العلامة كاملة أكثر من مرة.',
+    affectedAttempts: '{count} محاولات متأثرة',
+    marksLost: '{count} علامات مفقودة',
+    practiseSubject: 'تدرب على هذه المادة',
+
+    bacMap: 'خريطة البكالوريا',
+    bacMapNote: 'منهجك، مادة بمادة. افتح مادة لعرض فصولها.',
+    markedAnswers: '{count} إجابة مصححة',
+    notPractised: 'لم تتدرب عليه',
+    pastPaperQuestions: '{count} سؤالًا من دورات سابقة',
+    studyMaterial: 'تتوفر مادة للدراسة',
+    noIndexedQuestions: 'لا أسئلة مفهرسة من دورات سابقة',
+    startPractice: 'ابدأ التدرب',
+    openStudy: 'ادرس',
+
     bySubject: 'حسب المادة',
     trendUp: 'في تحسّن',
     trendFlat: 'ثابت',

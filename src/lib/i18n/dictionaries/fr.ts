@@ -225,6 +225,22 @@ export const fr: Dictionary = {
     needMore: 'Encore {count} réponses nécessaires',
     basedOnAnswers: 'À partir de {count} réponses corrigées',
 
+    whereMarksGo: 'Où partent les points',
+    whereMarksGoNote: 'Les critères sur lesquels vous avez perdu tous les points plus d’une fois.',
+    affectedAttempts: '{count} copies concernées',
+    marksLost: '{count} points perdus',
+    practiseSubject: 'Travailler cette matière',
+
+    bacMap: 'Ma carte du Bac',
+    bacMapNote: 'Votre programme, matière par matière. Ouvrez-en une pour voir ses chapitres.',
+    markedAnswers: '{count} réponses corrigées',
+    notPractised: 'Pas travaillé',
+    pastPaperQuestions: '{count} questions d’annales',
+    studyMaterial: 'Support de cours disponible',
+    noIndexedQuestions: 'Aucune question d’annales indexée',
+    startPractice: 'Commencer',
+    openStudy: 'Étudier',
+
     bySubject: 'Par matière',
     trendUp: 'En progrès',
     trendFlat: 'Stable',

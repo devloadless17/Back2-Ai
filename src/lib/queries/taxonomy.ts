@@ -1,6 +1,6 @@
 import 'server-only';
 
-import type { Language } from '@prisma/client';
+import { Prisma, type Language } from '@prisma/client';
 
 import { db } from '@/lib/db';
 
@@ -250,12 +250,44 @@ export type ChapterSummary = {
   examYears: number[];
   masteryScore: number;
   attemptsCount: number;
+  /** Which subject this chapter belongs to. The Bac Map groups by it. */
+  subjectId: string;
 };
 
 /** Chapters of a subject with this student's mastery folded in, in syllabus order. */
 export async function listChapters(subjectId: string, userId: string): Promise<ChapterSummary[]> {
+  return loadChapters({ subjectId }, subjectId, userId);
+}
+
+/**
+ * Every chapter in a track, for the Bac Map.
+ *
+ * The map runs Track -> Subject -> Chapter, and calling `listChapters` once per
+ * subject would be two round trips per subject on a page showing all of them —
+ * fourteen queries for a track with seven subjects, growing with the
+ * curriculum. This is the same two queries with a wider WHERE.
+ *
+ * It shares its loader with `listChapters` deliberately. A chapter's title,
+ * order, subject, question availability and reading availability must read the
+ * same on the Bac Map as on the practice index; two implementations of that is
+ * two chances for them to disagree, and a student who sees "12 questions" on
+ * one page and "no questions" on the other has no reason to trust either.
+ */
+export async function listChaptersForTrack(
+  trackId: string,
+  userId: string,
+): Promise<ChapterSummary[]> {
+  return loadChapters({ subject: { trackId } }, trackId, userId);
+}
+
+async function loadChapters(
+  where: Prisma.ChapterWhereInput,
+  scopeId: string,
+  userId: string,
+): Promise<ChapterSummary[]> {
+  const byTrack = 'subject' in where;
   const chapters = await db.chapter.findMany({
-    where: { subjectId },
+    where,
     select: {
       id: true,
       name: true,
@@ -286,8 +318,11 @@ export async function listChapters(subjectId: string, userId: string): Promise<C
       // answer is worth.
       contentChunks: { select: { chunkId: true }, take: 1 },
       chapterMastery: { where: { userId }, select: { masteryScore: true, attemptsCount: true } },
+      subjectId: true,
     },
-    orderBy: { orderIndex: 'asc' },
+    // Subjects have no explicit order in the schema, so the Bac Map groups by
+    // subject in the caller and relies on syllabus order within each.
+    orderBy: [{ subjectId: 'asc' }, { orderIndex: 'asc' }],
   });
 
   /*
@@ -303,7 +338,8 @@ export async function listChapters(subjectId: string, userId: string): Promise<C
       JOIN questions q ON q.id = qc.question_id AND q.verified_status <> 'rejected'
       JOIN exam_cycles ec ON ec.id = q.source_exam_id
       JOIN chapters c ON c.id = qc.chapter_id
-     WHERE c.subject_id = ${subjectId}::uuid
+      JOIN subjects s ON s.id = c.subject_id
+     WHERE ${byTrack ? Prisma.sql`s.track_id = ${scopeId}::uuid` : Prisma.sql`c.subject_id = ${scopeId}::uuid`}
      GROUP BY qc.chapter_id`;
 
   const yearsByChapter = new Map(yearRows.map((r) => [r.chapter_id, r.years]));
@@ -318,6 +354,7 @@ export async function listChapters(subjectId: string, userId: string): Promise<C
     examYears: yearsByChapter.get(chapter.id) ?? [],
     masteryScore: Number(chapter.chapterMastery[0]?.masteryScore ?? 0),
     attemptsCount: chapter.chapterMastery[0]?.attemptsCount ?? 0,
+    subjectId: chapter.subjectId,
   }));
 }
 

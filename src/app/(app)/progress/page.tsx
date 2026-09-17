@@ -1,7 +1,9 @@
 import type { Metadata } from 'next';
 
+import { BacMap } from '@/components/progress/bac-map';
 import { ChapterRankList } from '@/components/progress/chapter-rank-list';
 import { NextUpCard } from '@/components/progress/next-up-card';
+import { RecurringLosses } from '@/components/progress/recurring-losses';
 import { SchoolVsPredicted } from '@/components/progress/school-vs-predicted';
 import { LinkButton } from '@/components/ui/button';
 import { Meter } from '@/components/ui/progress';
@@ -13,7 +15,9 @@ import { format } from '@/lib/i18n/format';
 import { compareMarks, schoolMarksBySubject } from '@/lib/queries/grades';
 import { getNextUp } from '@/lib/queries/next-up';
 import { getProgressForUser, rankChapters, rankStrongest } from '@/lib/queries/progress';
+import { recurringLosses } from '@/lib/queries/recurring-losses';
 import { getStanding } from '@/lib/queries/standing';
+import { listChaptersForTrack } from '@/lib/queries/taxonomy';
 import { markOutOf20, PASS_MARK, type MarkBand } from '@/lib/standing';
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -51,11 +55,26 @@ export default async function ProgressPage() {
   const user = await requireUser();
   const { t } = await getTranslations();
 
-  const [standing, progress, schoolMarks, next] = await Promise.all([
+  /*
+   * One round of queries, issued together.
+   *
+   * The Bac Map is the reason this matters: Track -> Subject -> Chapter over a
+   * GS track is more than a thousand chapters, and asking per subject would
+   * grow the query count with the curriculum. `listChaptersForTrack` is two
+   * queries for the whole track, and it shares its loader with the practice
+   * index so the two surfaces cannot disagree about a chapter.
+   *
+   * No question bodies are loaded. The map shows counts and links into the
+   * existing chapter page; shipping the corpus to a phone to draw a number
+   * would be a poor trade on a Lebanese mobile connection.
+   */
+  const [standing, progress, schoolMarks, next, losses, chapters] = await Promise.all([
     getStanding(user.id, user.trackId, user.preferredLanguage),
     getProgressForUser(user.id, user.trackId, user.preferredLanguage),
     schoolMarksBySubject(user.id),
     getNextUp(user.id, user.trackId, user.preferredLanguage),
+    recurringLosses(user.id, { limit: 5 }),
+    user.trackId ? listChaptersForTrack(user.trackId, user.id) : Promise.resolve([]),
   ]);
 
   const scale = markOutOf20(1);
@@ -157,12 +176,66 @@ export default async function ProgressPage() {
       <Sheet className="mt-5">
         <SheetHeader title={t.standing.bySubject} description={t.standing.equalWeighting} />
         <SheetBody className="p-0">
-          {/* Contained sideways scroll. A subject table on a 360px phone is the
-              one place in this product where horizontal scroll is the right
-              answer — the alternative is a stacked list that loses the
-              column-to-column comparison the table exists for. The page body
-              still never scrolls sideways; only this box does. */}
-          <div className="scroll-x">
+          {/* --- Phones: one subject per row, stacked -----------------------
+              The table below carries five columns, which is a comparison
+              instrument and needs width to be one. Dragging it sideways on a
+              360px screen does not give a student the comparison — it gives
+              them two columns at a time and a memory test. So the phone gets
+              the same four figures in reading order instead, and the table
+              starts where there is room for it. */}
+          <ul className="ruled sm:hidden">
+            {standing.subjects.map((subject) => (
+              <li key={subject.subjectId} className="px-5 py-3.5">
+                <div className="flex items-baseline justify-between gap-3">
+                  <span className="min-w-0 break-words font-medium text-ink">
+                    {subject.subjectName}
+                  </span>
+                  {subject.mark === null ? (
+                    <span className="shrink-0 text-meta text-ink-faint">
+                      {subject.evidence.attemptsNeeded > 0
+                        ? format(t.standing.needMore, { count: subject.evidence.attemptsNeeded })
+                        : t.standing.notEnoughYet}
+                    </span>
+                  ) : (
+                    <span
+                      className={cn(
+                        'figure shrink-0 text-body',
+                        subject.mark < PASS_MARK ? 'text-mark' : 'text-ink',
+                      )}
+                    >
+                      {format(t.standing.outOf, { mark: subject.mark, scale })}
+                    </span>
+                  )}
+                </div>
+
+                <p className="mt-0.5 text-meta text-ink-muted">
+                  {subject.evidence.chaptersAttempted === 0
+                    ? t.standing.notStarted
+                    : `${t.standing.mastery} ${percent(subject.evidence.mastery)}`}
+                  {' · '}
+                  {format(t.standing.practisedOf, {
+                    done: subject.evidence.chaptersAttempted,
+                    total: subject.evidence.chaptersTotal,
+                  })}
+                  {' · '}
+                  {trendLabel[subject.trend]}
+                </p>
+
+                <Meter
+                  className="mt-1.5"
+                  size="sm"
+                  value={subject.evidence.coverage}
+                  tone="primary"
+                />
+              </li>
+            ))}
+          </ul>
+
+          {/* --- From sm up: the comparison table ---------------------------
+              Still allowed its own contained sideways scroll between sm and
+              the width the five columns want. The page body never scrolls
+              sideways; only this box does. */}
+          <div className="scroll-x hidden sm:block">
             <table className="w-full min-w-[42rem] text-sm">
               <thead>
                 <tr className="border-b border-rule">
@@ -178,10 +251,7 @@ export default async function ProgressPage() {
                   <th scope="col" className="label px-3 py-2 text-start font-semibold">
                     {t.standing.practised}
                   </th>
-                  <th
-                    scope="col"
-                    className="label hidden px-3 py-2 text-start font-semibold sm:table-cell"
-                  >
+                  <th scope="col" className="label px-3 py-2 text-start font-semibold">
                     {t.performance.trend}
                   </th>
                 </tr>
@@ -251,7 +321,7 @@ export default async function ProgressPage() {
                       />
                     </td>
 
-                    <td className="hidden px-3 py-3 text-meta text-ink-muted sm:table-cell">
+                    <td className="px-3 py-3 text-meta text-ink-muted">
                       {trendLabel[subject.trend]}
                     </td>
                   </tr>
@@ -267,6 +337,11 @@ export default async function ProgressPage() {
         <SchoolVsPredicted rows={compareMarks(standing.subjects, schoolMarks)} />
       </div>
 
+      {/* --- Where marks keep going ----------------------------------------- */}
+      <div className="mt-5">
+        <RecurringLosses losses={losses} />
+      </div>
+
       {/* --- Chapters, ranked -----------------------------------------------
           Migrated from /performance, which is where the subject table used to
           stop. Weakest leads because it is the actionable half; strongest sits
@@ -279,6 +354,14 @@ export default async function ProgressPage() {
           withAction
         />
         <ChapterRankList title={t.performance.strongTopics} chapters={rankStrongest(progress, 5)} />
+      </div>
+
+      {/* --- The programme itself -------------------------------------------
+          Last because it is the reference, not the news. A student opening
+          Progress wants to know where they stand; the map is what they come
+          back to when they have decided to do something about it. */}
+      <div className="mt-5">
+        <BacMap subjects={standing.subjects} chapters={chapters} />
       </div>
     </>
   );

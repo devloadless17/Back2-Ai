@@ -18,6 +18,7 @@ const loss = (over: Partial<RecurringLoss> = {}): RecurringLoss => ({
   pointsLost: 9,
   subjectName: 'فلسفة عامة',
   occasions: [],
+  scope: { kind: 'none' },
   ...over,
 });
 

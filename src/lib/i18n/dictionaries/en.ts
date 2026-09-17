@@ -236,6 +236,22 @@ export const en = {
     needMore: '{count} more answers needed',
     basedOnAnswers: 'Based on {count} marked answers',
 
+    whereMarksGo: 'Where marks keep going',
+    whereMarksGoNote: 'Criteria you have lost full marks on more than once.',
+    affectedAttempts: '{count} affected attempts',
+    marksLost: '{count} marks lost',
+    practiseSubject: 'Practise this subject',
+
+    bacMap: 'My Bac map',
+    bacMapNote: 'Your programme, subject by subject. Open one to see its chapters.',
+    markedAnswers: '{count} marked answers',
+    notPractised: 'Not practised',
+    pastPaperQuestions: '{count} past-paper questions',
+    studyMaterial: 'Study material available',
+    noIndexedQuestions: 'No indexed past-paper questions',
+    startPractice: 'Start practice',
+    openStudy: 'Study',
+
     bySubject: 'By subject',
     trendUp: 'Improving',
     trendFlat: 'Steady',

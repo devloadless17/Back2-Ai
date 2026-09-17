@@ -13,6 +13,7 @@ import { BackLink } from '@/components/ui/back-link';
 import { getSubjectHub } from '@/lib/queries/subject-hub';
 import { requireUser } from '@/lib/auth/guards';
 import { cn } from '@/lib/cn';
+import { chapterHasQuestions, chapterState } from '@/lib/curriculum';
 import { getTranslations } from '@/lib/i18n';
 import { getSubjectForTrack, listChapters } from '@/lib/queries/taxonomy';
 
@@ -124,8 +125,15 @@ export default async function SubjectChaptersPage({
                        * a chapter with genuinely nothing behind it, of which
                        * there are 22.
                        */
-                      const practisable = chapter.questionCount > 0;
-                      const readable = !practisable && chapter.hasReading;
+                      /*
+                       * Shared with the Bac Map. Both pages have to answer
+                       * "what is this chapter" and they must answer it the
+                       * same way; a student reading "12 questions" here and
+                       * "nothing here" there has no reason to trust either.
+                       */
+                      const state = chapterState(chapter);
+                      const practisable = chapterHasQuestions(state);
+                      const readable = state === 'readingOnly';
 
                       const row = (
                         <>
