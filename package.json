@@ -24,6 +24,7 @@
     "db:reset": "prisma migrate reset --force",
     "vector:resize": "node --conditions=react-server --env-file=.env --import tsx scripts/resize-embeddings.ts",
     "ingest": "node --conditions=react-server --env-file=.env --import tsx scripts/ingest.ts",
+    "measure:handover": "node --conditions=react-server --env-file=.env --import tsx scripts/measure-handover-size.ts",
     "check:math-rendering": "node --conditions=react-server --env-file=.env --import tsx scripts/check-math-rendering.ts",
     "check:retrieval": "node --conditions=react-server --env-file=.env --import tsx scripts/check-retrieval.ts",
     "check:ranking": "node --conditions=react-server --env-file=.env --import tsx scripts/check-ranking.ts",
