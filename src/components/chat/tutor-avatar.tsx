@@ -62,8 +62,14 @@ export function TutorAvatar({
       aria-hidden="true"
       focusable="false"
     >
-      {/* Head first, so the cap overlaps it rather than floating above a gap. */}
-      <ellipse cx="16" cy="20" rx="8.4" ry="7.6" fill="currentColor" />
+      {/*
+        Head first, so the cap overlaps it rather than floating above a gap.
+        Rounder than it was — 8.9 by 8.3 against 8.4 by 7.6. The old ellipse was
+        wide and flat, which at 22px in the dock read as a generic academic icon
+        rather than as somebody. A near-circle reads as a face at any size, and
+        size is the constraint: this is drawn at 22px far more often than at 30.
+      */}
+      <ellipse cx="16" cy="20.2" rx="8.9" ry="8.3" fill="currentColor" />
 
       {/* Mortarboard: a diamond and a short tassel. At 22px the tassel is two
           pixels of nothing, but it is what stops the cap reading as a hat. */}
@@ -81,14 +87,17 @@ export function TutorAvatar({
         /* Eyes down and narrowed — the shape of someone reading, not asleep. */
         <>
           <path
-            d="M10.6 20.2h2.6M18.8 20.2h2.6"
+            d="M10.4 20.4h2.9M18.7 20.4h2.9"
             fill="none"
-            strokeWidth="1.6"
+            strokeWidth="1.7"
             strokeLinecap="round"
             className={tone.stroke}
           />
+          {/* A small straight mouth. Not a frown — it is concentrating, not
+              disappointed, and a downward curve here would read as bad news
+              arriving before the answer does. */}
           <path
-            d="M13.8 24h4.4"
+            d="M13.9 24.2h4.2"
             fill="none"
             strokeWidth="1.5"
             strokeLinecap="round"
@@ -97,8 +106,24 @@ export function TutorAvatar({
         </>
       ) : (
         <>
-          <circle cx="12.6" cy="19.6" r="1.55" className={tone.fill} />
-          <circle cx="19.4" cy="19.6" r="1.55" className={tone.fill} />
+          {/*
+            Bigger eyes — 1.85 against 1.55 — and set slightly wider and lower.
+            Eye size is most of what separates a character from a pictogram, and
+            it survives being drawn at 22px where a brow or a cheek does not.
+          */}
+          <circle cx="12.5" cy="19.9" r="1.85" className={tone.fill} />
+          <circle cx="19.5" cy="19.9" r="1.85" className={tone.fill} />
+
+          {/*
+            A highlight in each eye, one pixel across at the smallest size it is
+            drawn. It is the difference between an eye and a dot, and it costs
+            two elements — the reason it is drawn in `currentColor` rather than
+            white is that the face IS currentColor, so the highlight is a hole
+            in the pupil and works on either ink.
+          */}
+          <circle cx="13.1" cy="19.3" r="0.6" fill="currentColor" />
+          <circle cx="20.1" cy="19.3" r="0.6" fill="currentColor" />
+
           {mood === 'attentive' && (
             /* One raised brow. Enough to change the expression, little enough
                that it never reads as a second face. */
@@ -110,8 +135,23 @@ export function TutorAvatar({
               className={tone.stroke}
             />
           )}
+          {/*
+            Cheeks. Two soft ovals at a third opacity, outside the eyes and
+            below them.
+
+            This is the one element here that is pure warmth — it says nothing
+            true about the system's state, which every other feature of this
+            face does. It earns its place because a face with eyes and a mouth
+            and nothing else reads as neutral, and neutral is what the whole
+            palette change is trying to move away from. At 22px they are a
+            suggestion rather than a shape, which is the intent.
+          */}
+          <ellipse cx="9.6" cy="22.3" rx="1.5" ry="1.05" className={tone.fill} opacity="0.32" />
+          <ellipse cx="22.4" cy="22.3" rx="1.5" ry="1.05" className={tone.fill} opacity="0.32" />
+
+          {/* A wider, shallower smile than before: it sits under bigger eyes. */}
           <path
-            d="M13.1 23.1q2.9 2.1 5.8 0"
+            d="M12.8 23.4q3.2 2.4 6.4 0"
             fill="none"
             strokeWidth="1.5"
             strokeLinecap="round"

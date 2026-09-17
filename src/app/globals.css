@@ -5,12 +5,12 @@
 /* ---------------------------------------------------------------------------
  * Design tokens
  *
- * Lavender paper, indigo-to-violet accent, soft-shouldered cards floating on
+ * Warm off-white paper, mint-to-amber accent, soft-shouldered cards floating on
  * tinted shadow. Warm and confident rather than austere — a study tool a
  * seventeen-year-old opens by choice, not an instrument they endure.
  *
- * Indigo is the spine: brand, primary action, focus, the chart ramp. Violet is
- * its lighter partner and carries gradients and secondary emphasis. The three
+ * Mint is the spine: brand, primary action, focus, the chart ramp. Amber is its
+ * warm partner and carries gradients and secondary emphasis. The three
  * status colours — teal, amber, rose — are reserved for what a mark is worth
  * and are never used decoratively, because a student learns their meaning in
  * the first session and must be able to trust it afterwards.
@@ -21,43 +21,55 @@
  * ------------------------------------------------------------------------- */
 
 :root {
-  /* Surfaces. Paper is lavender-tinted; cards are true white so they lift. */
-  /* Deepened from 97%/96%. The cards are white and the ground was one per cent
-   * off white, so nothing on the page separated from anything else and the
-   * whole product read as one flat sheet. This is as far as it goes: at 95%
-   * the sunken surface drops --ink-muted to 4.48, under the 4.5 floor, so the
-   * remaining separation has to be carried by shadow rather than by tone. */
-  --paper: 253 55% 96%;
+  /* Surfaces. Paper is a warm off-white; cards are true white so they lift.
+   * The ground stays one per cent off the cards for the reason it always did:
+   * at 95% the sunken surface pushed --ink-muted under the 4.5 floor, so the
+   * separation below that is carried by shadow rather than by tone. */
+  /* ---------------------------------------------------------------------
+   * WARMED, 2026-09-18. The palette was indigo on lavender — correct,
+   * measured, and cold. A student opening this at eleven at night before a
+   * national exam should feel met by it, and a cool violet-grey reads as
+   * institutional software.
+   *
+   * The ground is now a warm off-white and the spine is a deep mint. Every
+   * value below was SOLVED rather than picked: relative luminance is
+   * hue-dependent, so a mint at the indigo's old lightness is much brighter
+   * and drops white text under the floor. Each pair was computed against
+   * WCAG AA on the darkest surface it can land on, and the ratio is recorded
+   * beside it. Changing a hue here means recomputing, not eyeballing.
+   * ------------------------------------------------------------------- */
+  --paper: 40 38% 96%;
   --paper-raised: 0 0% 100%;
-  --paper-sunken: 249 58% 95%;
+  --paper-sunken: 38 40% 95%;
 
-  /* Ink. Deep indigo-black rather than neutral grey — it belongs to the hue
-   * family, so text on lavender never reads as a foreign layer. */
-  --ink: 250 33% 18%;
-  --ink-muted: 250 16% 47%;
-  /* Was 68%, which measured 2.32:1 on paper — below the 3.0 floor for LARGE
-   * text, on a token used 82 times at 11.5–12.5px. 49% is the lightest value
-   * that clears 4.5:1 on all three surfaces (card 5.24, paper 4.76, sunken
-   * 4.59). Hue and saturation are untouched, so the token still reads as the
-   * quietest member of the same family rather than as a different grey. */
-  --ink-faint: 250 18% 49%;
+  /* Ink. Warm near-black, in the ground's own hue family so text never reads
+   * as a foreign layer laid on top of the paper.
+   *   ink        13.08 on the sunken surface
+   *   ink-muted   4.75 */
+  --ink: 28 20% 16%;
+  --ink-muted: 28 10% 42%;
+  --ink-faint: 28 11% 43%;   /* 4.57 on sunken — the lightest that clears 4.5 */
 
   /* Rules, kept faint. The card edge is now carried by shadow, not by a line. */
-  --rule: 249 63% 94%;
-  --rule-strong: 248 62% 88%;
+  --rule: 38 35% 91%;
+  --rule-strong: 36 32% 84%;
 
-  /* The spine: indigo. */
-  --primary: 245 77% 61%;
-  --primary-hover: 245 70% 52%;
-  --primary-soft: 250 100% 96%;
+  /* The spine: deep mint. Dark enough to carry white text, which a light mint
+   * cannot — the friendly pale mint lives in --primary-soft, as a ground.
+   *   white on primary        4.56
+   *   white on primary-hover  6.23
+   *   ink on primary-soft    13.34 */
+  --primary: 168 62% 32%;
+  --primary-hover: 168 64% 26%;
+  --primary-soft: 168 55% 95%;
   --on-primary: 0 0% 100%;
 
-  /* Violet — gradients, secondary emphasis, the lighter half of the brand. */
-  --accent: 264 78% 73%;
+  /* Amber — gradients, secondary emphasis, the warm half of the brand. */
+  --accent: 28 70% 38%;      /* warm amber, white on it 5.05 */
   /* Doubles as the text colour of the accent chip in `feedback.tsx`, which
-   * sits on --accent-soft. At 63% that pair measured 3.60. */
-  --accent-hover: 264 66% 57%;
-  --accent-soft: 264 80% 96%;
+   * sits on --accent-soft. */
+  --accent-hover: 28 72% 30%;  /* also the chip's text on --accent-soft: 6.55 */
+  --accent-soft: 34 80% 95%;
 
   /* Status. Rose is the examiner's pen; teal and amber are the bands above it.
    * Text-weight values: the display versions are --viz-* and --*-bright. */
@@ -77,7 +89,7 @@
   --correct-bright: 170 61% 47%;
   --partial-bright: 32 100% 62%;
 
-  --focus: 245 77% 61%;
+  --focus: 168 62% 32%;      /* the spine, so a focus ring belongs to the brand */
 
   /* The welcome banner's gradient, stop by stop.
    *
@@ -97,16 +109,16 @@
    * button and a 3px rule elsewhere, and nothing ever prints white on it —
    * darkening the token to fix a surface that misuses it would be paying for
    * this banner everywhere else in the product. */
-  --hero-from: 245 77% 61%;
-  --hero-mid: 247 87% 66%;
-  --hero-to: 264 78% 62%;
+  --hero-from: 168 62% 32%;
+  --hero-mid: 160 55% 34%;
+  --hero-to: 28 70% 38%;     /* mint running into amber, all three carry white */
 
   /* Chart ramp — indigo through violet, monotone in lightness so it still
    * reads as an ordered scale in greyscale. */
-  --viz-1: 250 100% 88%;
-  --viz-2: 247 87% 73%;
-  --viz-3: 245 77% 61%;
-  --viz-4: 250 60% 40%;
+  --viz-1: 168 55% 85%;
+  --viz-2: 168 50% 66%;
+  --viz-3: 168 62% 44%;
+  --viz-4: 172 66% 26%;
 
   /* Soft shoulders. A 22px card and a 999px pill; the corner is part of the
    * voice, not a leftover. */
@@ -213,25 +225,29 @@
   :root:not([data-theme='light']) {
     color-scheme: dark;
 
-    --paper: 250 30% 9%;
-    --paper-raised: 250 24% 13%;
-    --paper-sunken: 252 32% 7%;
+    /* Warmed alongside the light theme. Lightness is what carries contrast,
+     * so these keep the old values and move hue — every pair recomputed:
+     * ink 14.09 on the darkest surface, muted 7.69, faint 5.72, and the dark
+     * ink on primary 10.16. */
+    --paper: 28 18% 9%;
+    --paper-raised: 28 14% 13%;
+    --paper-sunken: 28 20% 7%;
 
-    --ink: 250 30% 94%;
-    --ink-muted: 250 14% 68%;
-    --ink-faint: 250 12% 56%;
+    --ink: 34 25% 94%;
+    --ink-muted: 30 12% 70%;
+    --ink-faint: 30 10% 60%;
 
-    --rule: 250 20% 20%;
-    --rule-strong: 250 20% 29%;
+    --rule: 30 14% 20%;
+    --rule-strong: 30 14% 29%;
 
-    --primary: 245 85% 74%;
-    --primary-hover: 245 92% 82%;
-    --primary-soft: 246 38% 21%;
-    --on-primary: 250 45% 11%;
+    --primary: 168 58% 64%;
+    --primary-hover: 168 62% 72%;
+    --primary-soft: 170 30% 18%;
+    --on-primary: 28 30% 10%;
 
-    --accent: 264 80% 79%;
-    --accent-hover: 264 88% 86%;
-    --accent-soft: 264 34% 23%;
+    --accent: 34 80% 70%;
+    --accent-hover: 34 88% 80%;
+    --accent-soft: 30 34% 20%;
 
     --mark: 349 95% 72%;
     --mark-soft: 345 42% 19%;
