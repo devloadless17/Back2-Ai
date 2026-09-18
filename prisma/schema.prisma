@@ -663,6 +663,19 @@ model ExamCycle {
   /// ADDITION — the exam-sim timer needs an authoritative duration, and a real
   /// cycle's duration is a property of the paper, not of the student's run.
   durationMinutes Int      @default(180) @map("duration_minutes")
+  /// Whether `durationMinutes` is the paper's own, or our fallback.
+  ///
+  /// It has to be said out loud because the column above cannot say it. The
+  /// default of 180 was indistinguishable from a paper we actually know runs
+  /// three hours, and `scripts/corpus/load-exams.ts` never sets a duration at
+  /// all — so every ingested official paper was sat on a three-hour clock while
+  /// being described as sat exactly as it was printed. Lebanese Bac
+  /// Mathematics SG is four hours.
+  ///
+  /// False means we do not know this paper's duration and the sitting runs on
+  /// our standard length, which the UI must say. True means the number came
+  /// from the paper, through `scripts/ingest.ts --duration` or the seed.
+  durationIsOfficial Boolean @default(false) @map("duration_is_official")
 
   subject         Subject          @relation(fields: [subjectId], references: [id], onDelete: Cascade)
   questions       Question[]

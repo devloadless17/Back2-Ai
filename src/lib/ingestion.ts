@@ -447,7 +447,15 @@ async function ingestExamPaper(ctx: {
         year: source.year,
         session: source.session ?? 'session1',
         title: source.label,
+        /*
+         * A duration supplied on the command line came off the paper; the
+         * fallback did not, and the flag is the difference. Without it the
+         * sitting cannot tell a four-hour Mathematics paper from one nobody
+         * recorded, and it was presenting both as three hours "exactly as it
+         * was sat".
+         */
         durationMinutes: source.durationMinutes ?? 180,
+        durationIsOfficial: source.durationMinutes !== undefined,
       },
       select: { id: true },
     });

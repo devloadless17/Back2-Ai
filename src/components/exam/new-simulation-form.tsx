@@ -9,12 +9,20 @@ import { Alert, EmptyAction, EmptyState } from '@/components/ui/feedback';
 import { Sheet, SheetBody, SheetFooter, SheetHeader } from '@/components/ui/sheet';
 import { cn } from '@/lib/cn';
 import { ApiRequestError, sendJson } from '@/lib/client/request';
+import { formatDuration } from '@/lib/exam-duration';
 import { useI18n } from '@/lib/i18n/client';
 
 export type SimulationOption = {
   subjectId: string;
   subjectName: string;
-  cycles: { id: string; label: string; questionCount: number; durationMinutes: number }[];
+  cycles: {
+    id: string;
+    label: string;
+    questionCount: number;
+    durationMinutes: number;
+    /** Whether the duration came off the paper or is our fallback. */
+    durationIsOfficial: boolean;
+  }[];
   /** Real past-exam questions available to assemble a mock paper from. */
   realPoolCount: number;
   generatedAvailable: number;
@@ -30,6 +38,7 @@ export type SimulationOption = {
 export function NewSimulationForm({
   options,
   initialSubjectId,
+  initialCycleId,
 }: {
   options: SimulationOption[];
   /**
@@ -41,20 +50,38 @@ export function NewSimulationForm({
    * the first option, not render a form with nothing selected.
    */
   initialSubjectId?: string;
+  /** Preselects a paper, for the link from a past paper. */
+  initialCycleId?: string;
 }) {
   const { t, format } = useI18n();
   const router = useRouter();
 
   const start =
-    options.find((option) => option.subjectId === initialSubjectId) ?? options[0];
+    /*
+     * A `?cycle=` from a past paper decides the subject too — the student
+     * asked for that specific paper, and landing them on a different subject's
+     * default would quietly ignore what they clicked.
+     */
+    options.find((option) =>
+      initialCycleId
+        ? option.cycles.some((cycle) => cycle.id === initialCycleId)
+        : option.subjectId === initialSubjectId,
+    ) ??
+    options.find((option) => option.subjectId === initialSubjectId) ??
+    options[0];
 
   const [subjectId, setSubjectId] = useState(start?.subjectId ?? '');
   const [mode, setMode] = useState<'real_cycle' | 'ai_generated' | 'real_mixed'>('real_cycle');
-  const [cycleId, setCycleId] = useState(start?.cycles[0]?.id ?? '');
+  const [cycleId, setCycleId] = useState(
+    (initialCycleId && start?.cycles.some((cycle) => cycle.id === initialCycleId)
+      ? initialCycleId
+      : start?.cycles[0]?.id) ?? '',
+  );
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const subject = options.find((option) => option.subjectId === subjectId);
+  const selectedCycle = subject?.cycles.find((cycle) => cycle.id === cycleId);
   const canUseReal = (subject?.cycles.length ?? 0) > 0;
   /* Five is the paper size; below that there is nothing to assemble. */
   const canUseMixed = (subject?.realPoolCount ?? 0) >= 5;
@@ -173,6 +200,26 @@ export function NewSimulationForm({
                   </option>
                 ))}
               </Select>
+
+              {/* How long it runs, and where that number came from. The second
+                  half is the point: a clock nobody recorded must not be
+                  presented as the paper's own, and "exactly as it was sat" is
+                  a claim about time as much as about content. */}
+              {selectedCycle && (
+                <p className="mt-1.5 text-meta leading-snug text-ink-muted">
+                  {t.examSim.duration}
+                  {': '}
+                  {formatDuration(selectedCycle.durationMinutes, {
+                    hours: t.examSim.durationHours,
+                    hoursMinutes: t.examSim.durationHoursMinutes,
+                    minutesOnly: t.examSim.durationMinutesOnly,
+                  })}
+                  {' · '}
+                  {selectedCycle.durationIsOfficial
+                    ? t.examSim.durationOfficial
+                    : t.examSim.durationStandard}
+                </p>
+              )}
             </div>
           )}
         </SheetBody>

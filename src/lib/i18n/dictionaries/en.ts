@@ -526,6 +526,13 @@ export const en = {
     modeAiGenerated: 'A generated paper',
     modeAiGeneratedHint: 'A new paper composed from approved material in the same style.',
     chooseCycle: 'Which paper',
+    durationOfficial: 'as printed on the paper',
+    durationStandardShort: 'standard sitting',
+    durationStandard: 'our standard sitting — this paper’s own duration is not recorded',
+    durationHours: '{hours}h',
+    durationHoursMinutes: '{hours}h {minutes}',
+    durationMinutesOnly: '{minutes} min',
+    sitThisPaper: 'Sit this paper under exam conditions',
     duration: 'Duration',
     begin: 'Begin',
     beginWarning:

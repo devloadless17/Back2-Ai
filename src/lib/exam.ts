@@ -667,7 +667,22 @@ async function startFromGeneratedPool(input: StartInput): Promise<{ id: string }
 
 const SIMULATION_INCLUDE = {
   subject: { select: { id: true, name: true, language: true } },
-  examCycle: { select: { id: true, title: true, year: true, session: true } },
+  examCycle: {
+    select: {
+      id: true,
+      title: true,
+      year: true,
+      session: true,
+      /*
+       * Carried so the sitting can say whether its clock is the paper's own.
+       * `duration_minutes` defaults to 180 and the corpus loader sets nothing,
+       * so without this the timer on a four-hour Mathematics paper looked
+       * exactly like a timer we had a source for.
+       */
+      durationIsOfficial: true,
+      durationMinutes: true,
+    },
+  },
   questions: {
     orderBy: { orderIndex: 'asc' },
     include: {
@@ -680,6 +695,8 @@ const SIMULATION_INCLUDE = {
           questionType: true,
           options: true,
           officialSolution: true,
+          /* Whether the solution is an examiner's. See `slotContent`. */
+          sourceType: true,
           chapter: { select: { id: true, name: true } },
         },
       },
@@ -713,12 +730,25 @@ export function remainingSeconds(simulation: { expiresAt: Date; status: string }
 }
 
 /** Question text for a slot, whichever kind of question fills it. */
+/**
+ * What a slot shows, and whether its solution is an examiner's.
+ *
+ * `officialSolution` is a column name, not a claim. A slot can hold a real
+ * past-exam question, a textbook question, or a model-written problem, and all
+ * three arrive through the same field — so the results page was heading every
+ * one of them "Official solution", including the generated ones. Practice
+ * fixed exactly this and carries `solutionIsOfficial` for it; the exam had its
+ * own reader and missed the fix.
+ *
+ * Official means: a stored question that came off a past paper. Nothing else.
+ */
 export function slotContent(slot: LoadedSimulation['questions'][number]): {
   contentText: string;
   contentLatex: string | null;
   contentImages: string[];
   chapterName: string | null;
   officialSolution: string | null;
+  solutionIsOfficial: boolean;
 } {
   if (slot.question) {
     return {
@@ -727,6 +757,7 @@ export function slotContent(slot: LoadedSimulation['questions'][number]): {
       contentImages: slot.question.contentImages,
       chapterName: slot.question.chapter?.name ?? null,
       officialSolution: slot.question.officialSolution,
+      solutionIsOfficial: slot.question.sourceType === 'past_exam',
     };
   }
   if (slot.generatedProblem) {
@@ -736,6 +767,8 @@ export function slotContent(slot: LoadedSimulation['questions'][number]): {
       contentImages: [],
       chapterName: slot.generatedProblem.chapter?.name ?? null,
       officialSolution: slot.generatedProblem.generatedSolution,
+      // Model-written. Never an examiner's, whatever the column is called.
+      solutionIsOfficial: false,
     };
   }
   return {
@@ -744,6 +777,7 @@ export function slotContent(slot: LoadedSimulation['questions'][number]): {
     contentImages: [],
     chapterName: null,
     officialSolution: null,
+    solutionIsOfficial: false,
   };
 }
 

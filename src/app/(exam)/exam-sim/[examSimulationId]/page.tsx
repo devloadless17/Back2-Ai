@@ -51,6 +51,14 @@ export default async function ExamSittingPage({
     <ExamRunner
       simulationId={simulation.id}
       subjectName={simulation.subject.name}
+      /*
+       * A composed or generated paper has no printed duration to be faithful
+       * to, so our length IS its length and the marker would be noise. Only a
+       * real cycle can disagree with the paper it claims to reproduce.
+       */
+      durationIsOfficial={
+        simulation.sourceMode !== 'real_cycle' || (simulation.examCycle?.durationIsOfficial ?? false)
+      }
       title={simulation.examCycle?.title ?? simulation.subject.name}
       slots={slots}
       initialRemainingSeconds={remaining}

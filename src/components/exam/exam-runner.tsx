@@ -52,12 +52,15 @@ const RETRY_DELAYS_MS = [2_000, 5_000, 15_000];
 export function ExamRunner({
   simulationId,
   subjectName,
+  durationIsOfficial,
   title,
   slots,
   initialRemainingSeconds,
 }: {
   simulationId: string;
   subjectName: string;
+  /** Whether the countdown is the paper's own limit or our fallback. */
+  durationIsOfficial: boolean;
   title: string;
   slots: ExamSlot[];
   initialRemainingSeconds: number;
@@ -275,7 +278,19 @@ export function ExamRunner({
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="min-w-0">
             <p className="truncate text-body font-semibold text-ink">{title}</p>
-            <p className="text-caption text-ink-faint">{subjectName}</p>
+            <p className="text-caption text-ink-faint">
+              {subjectName}
+              {/* Where the clock came from. Said once, quietly, because the
+                  setup screen has already said it in full — but a student
+                  sitting a paper is entitled to know whether the time limit
+                  is the examiner's or ours. */}
+              {!durationIsOfficial && (
+                <>
+                  {' · '}
+                  {t.examSim.durationStandardShort}
+                </>
+              )}
+            </p>
           </div>
 
           <div className="flex items-center gap-3">

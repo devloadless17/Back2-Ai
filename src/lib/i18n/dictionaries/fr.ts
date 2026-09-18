@@ -502,6 +502,13 @@ export const fr: Dictionary = {
     modeAiGenerated: 'Un sujet généré',
     modeAiGeneratedHint: 'Un nouveau sujet composé à partir de contenus validés, dans le même style.',
     chooseCycle: 'Quel sujet',
+    durationOfficial: 'telle qu’imprimée sur le sujet',
+    durationStandardShort: 'durée standard',
+    durationStandard: 'notre durée standard — la durée propre à ce sujet n’est pas enregistrée',
+    durationHours: '{hours} h',
+    durationHoursMinutes: '{hours} h {minutes}',
+    durationMinutesOnly: '{minutes} min',
+    sitThisPaper: 'Passer ce sujet en conditions d’examen',
     duration: 'Durée',
     begin: 'Commencer',
     beginWarning:

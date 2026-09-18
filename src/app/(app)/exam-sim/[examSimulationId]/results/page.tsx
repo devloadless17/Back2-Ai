@@ -4,6 +4,7 @@ import { notFound, redirect } from 'next/navigation';
 import { TutorAnchor } from '@/components/chat/tutor-context';
 import { TutorButton } from '@/components/chat/tutor-button';
 import { MarkExplanation } from '@/components/exam/mark-explanation';
+import { NextUpCard } from '@/components/progress/next-up-card';
 import { LinkButton } from '@/components/ui/button';
 import { Alert, Badge, EmptyState } from '@/components/ui/feedback';
 import { MathText, QuestionBody } from '@/components/ui/math';
@@ -12,6 +13,7 @@ import { Meter } from '@/components/ui/progress';
 import { PageHeader, Sheet, SheetBody, SheetFooter, SheetHeader } from '@/components/ui/sheet';
 import { BackLink } from '@/components/ui/back-link';
 import { requireUser } from '@/lib/auth/guards';
+import { getNextUp } from '@/lib/queries/next-up';
 import { db } from '@/lib/db';
 import { loadSimulation, slotContent } from '@/lib/exam';
 import { parseBaremeResult } from '@/lib/grading';
@@ -40,7 +42,10 @@ export default async function ExamResultsPage({
   const user = await requireUser();
   const { t } = await getTranslations();
 
-  const simulation = await loadSimulation(examSimulationId, user.id);
+  const [simulation, next] = await Promise.all([
+    loadSimulation(examSimulationId, user.id),
+    getNextUp(user.id, user.trackId, user.preferredLanguage),
+  ]);
   if (!simulation) notFound();
 
   if (simulation.status === 'in_progress') {
@@ -125,6 +130,16 @@ export default async function ExamResultsPage({
           </LinkButton>
         }
       />
+
+      {/* --- What to do with this ------------------------------------------
+          A paper sat and marked is the best evidence this product ever gets,
+          and the page ended with a back button. The recommendation is the same
+          `getNextUp` the Dashboard, Progress and the plan all read — this
+          answer must not become a fourth one, and the attempts this sitting
+          just wrote are already inside it. */}
+      <div className="mb-5">
+        <NextUpCard next={next} />
+      </div>
 
       {expired === '1' && (
         <Alert tone="warning" className="mb-5">
@@ -284,7 +299,19 @@ export default async function ExamResultsPage({
                 {/* Official solution */}
                 {content.officialSolution && (
                   <>
-                    <SheetHeader title={t.practice.officialSolution} className="border-t" />
+                    {/* "Official solution" only when an examiner wrote it.
+                        A generated problem's solution is a model answer, and
+                        Practice already makes this distinction — the exam had
+                        its own reader and was heading every one of them
+                        official. */}
+                    <SheetHeader
+                      title={
+                        content.solutionIsOfficial
+                          ? t.practice.officialSolution
+                          : t.practice.modelSolution
+                      }
+                      className="border-t"
+                    />
                     <SheetBody>
                       <MathText>{content.officialSolution}</MathText>
                     </SheetBody>

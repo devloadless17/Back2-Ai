@@ -438,6 +438,84 @@ screen reader.
 
 ---
 
+# MOCK EXAM / EXAM SIMULATION
+
+Partially addressed. The audit is in `EXAM-AUDIT.md`; most of this surface was
+already correct, and what changed is listed in the commits.
+
+## DATA QA
+
+- [ ] an official paper ingested **without** a duration — the sitting runs our
+      standard length and both the setup screen and the header say so
+- [ ] an official paper ingested **with** `--duration` — reads "as printed on
+      the paper" and runs that length
+- [ ] a seeded cycle (Maths SG 240, Chimie 120) — official, and the right clock
+- [ ] a composed `real_mixed` mock — no standard-sitting marker, because there
+      is no printed paper to differ from
+- [ ] an `ai_generated` paper — same
+- [ ] a generated problem's solution reads **Model answer**, never "Official
+      solution". This was live: the results page headed every solution official
+- [ ] a past-exam question's solution reads **Official solution**
+- [ ] a textbook-sourced question in a sim — must NOT read official
+- [ ] a question with no solution at all — the result still reads as complete
+- [ ] a paper with no official barème — the existing "treat the mark as an
+      indication" copy still appears
+- [ ] `awaitingMarking` > 0 — the total excludes them and says so
+
+## DATE / TIMING QA
+
+- [ ] refresh mid-exam — answers and remaining time both survive
+- [ ] close and reopen the browser — same
+- [ ] the clock crossing local midnight during a sitting
+- [ ] expiry while the tab is backgrounded — the cron submits it
+- [ ] expiry while the tab is open — the client submits
+- [ ] loading the desk after expiry — redirects to results, not a dead paper
+- [ ] starting a second paper while one is live — refused
+- [ ] starting one while a stale expired paper exists — the old one is
+      auto-submitted first
+
+## ROUTING / ACTION QA
+
+- [ ] **Sit this paper** from a past paper lands on setup with that paper and
+      its subject already chosen
+- [ ] the same link when the cycle belongs to a different subject than the
+      default — the subject must follow the paper
+- [ ] `?cycle=` naming a cycle the student's track cannot see — falls back
+      without crashing
+- [ ] the result's next action matches what Progress and the Dashboard show
+- [ ] autosave failure — the unsaved marker appears and the retry succeeds
+- [ ] submitting with unanswered questions — the count is factual
+
+## VISUAL / ACCESSIBILITY QA
+
+- [ ] the timer does not announce every second; it goes `polite` only under
+      five minutes
+- [ ] the standard-sitting marker at 360px, where the header is already tight
+- [ ] Arabic interface with a French paper title in the header
+- [ ] the duration line in Arabic — "4 ساعة" reads correctly, not "4h"
+- [ ] dark mode across the desk, the navigator and the result
+- [ ] keyboard navigation through the question navigator
+
+## Known limitations, recorded not fixed
+
+- **Two grading UIs exist.** The result renders `MarkExplanation`, which
+  predates the `ExaminerMark` component built for Practice. They do not
+  currently disagree, but they are two implementations of one idea and will
+  drift. Not swapped here — it is a real change to a working marked-paper
+  surface and deserves its own pass.
+- **The exam desk and result layouts have not been audited** for mobile,
+  desktop, RTL or dark mode this phase. They were not obviously wrong; they
+  were not examined.
+- **No pause, and no flag-for-review.** Neither exists. The navigator can
+  therefore only show answered / unanswered / current, which is what it should
+  show anyway.
+- **`duration_is_official` is false for the whole existing corpus.** That is
+  the honest backfill — nothing recorded a duration, so nothing claims one —
+  but it means every real past paper currently reads "standard sitting" until
+  durations are supplied.
+
+---
+
 # GLOBAL / MIXED RTL
 
 Cases that belong to no single surface. Each list above keeps its own

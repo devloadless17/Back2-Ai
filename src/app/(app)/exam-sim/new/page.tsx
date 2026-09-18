@@ -23,9 +23,9 @@ export const metadata: Metadata = { title: 'New simulation' };
 export default async function NewSimulationPage({
   searchParams,
 }: {
-  searchParams: Promise<{ subject?: string }>;
+  searchParams: Promise<{ subject?: string; cycle?: string }>;
 }) {
-  const { subject: fromSubject } = await searchParams;
+  const { subject: fromSubject, cycle: fromCycle } = await searchParams;
   const user = await requireUser();
   const { t } = await getTranslations();
 
@@ -68,6 +68,7 @@ export default async function NewSimulationPage({
             session: true,
             language: true,
             durationMinutes: true,
+            durationIsOfficial: true,
             _count: { select: { questions: true } },
           },
           orderBy: [{ year: 'desc' }, { session: 'asc' }],
@@ -109,6 +110,7 @@ export default async function NewSimulationPage({
             ` · ${LOCALE_LABELS[cycle.language]}`,
           questionCount: cycle._count.questions,
           durationMinutes: cycle.durationMinutes,
+          durationIsOfficial: cycle.durationIsOfficial,
         })),
         generatedAvailable: generatedCount,
       };
@@ -118,7 +120,11 @@ export default async function NewSimulationPage({
   return (
     <>
       <PageHeader title={t.examSim.newTitle} description={t.examSim.subtitle} />
-      <NewSimulationForm options={options} initialSubjectId={fromSubject} />
+      <NewSimulationForm
+        options={options}
+        initialSubjectId={fromSubject}
+        initialCycleId={fromCycle}
+      />
     </>
   );
 }

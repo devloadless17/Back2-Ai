@@ -148,13 +148,23 @@ async function main() {
           language: subjectLanguage,
         },
       },
-      update: { title: cycle.title, durationMinutes: cycle.durationMinutes },
+      /*
+       * Seeded cycles carry real durations — 240 for Mathematics SG, 120 for
+       * Chemistry — so they are exactly the case the flag exists for. The
+       * corpus loader, which sets no duration at all, leaves it false.
+       */
+      update: {
+        title: cycle.title,
+        durationMinutes: cycle.durationMinutes,
+        durationIsOfficial: true,
+      },
       create: {
         subjectId,
         year: cycle.year,
         session: cycle.session,
         title: cycle.title,
         durationMinutes: cycle.durationMinutes,
+        durationIsOfficial: true,
       },
     });
 

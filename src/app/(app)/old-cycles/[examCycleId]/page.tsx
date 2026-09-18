@@ -8,6 +8,7 @@ import { FlagButton } from '@/components/practice/flag-button';
 import { RevealableSolution } from '@/components/practice/revealable-solution';
 import { Alert, EmptyAction, EmptyState } from '@/components/ui/feedback';
 import { QuestionBody } from '@/components/ui/math';
+import { LinkButton } from '@/components/ui/button';
 import { PageHeader, Sheet } from '@/components/ui/sheet';
 import { BackLink } from '@/components/ui/back-link';
 import { requireUser } from '@/lib/auth/guards';
@@ -58,6 +59,7 @@ export default async function ExamCyclePage({
       year: true,
       session: true,
       durationMinutes: true,
+      durationIsOfficial: true,
       subject: { select: { id: true, name: true } },
       questions: {
         where: { verifiedStatus: { not: 'rejected' } },
@@ -106,7 +108,31 @@ export default async function ExamCyclePage({
 
       <PageHeader
         title={cycle.title}
-        description={`${cycle.subject.name} · ${cycle.year}${cycle.session ? ` · ${cycle.session}` : ''} · ${format(t.oldCycles.duration, { count: cycle.durationMinutes })}`}
+        /*
+         * The duration says where it came from. This page printed the paper's
+         * `duration_minutes` flat, and that column defaults to 180 with the
+         * corpus loader setting nothing — so every ingested paper here claimed
+         * a three-hour limit we had no source for.
+         */
+        description={[
+          cycle.subject.name,
+          String(cycle.year),
+          cycle.session || null,
+          `${format(t.oldCycles.duration, { count: cycle.durationMinutes })} · ${
+            cycle.durationIsOfficial ? t.examSim.durationOfficial : t.examSim.durationStandardShort
+          }`,
+        ]
+          .filter(Boolean)
+          .join(' · ')}
+        actions={
+          /* The paper you are reading, sat properly. `startFromRealCycle` has
+             always accepted a cycle id; only the link was missing, so a
+             student who wanted to attempt what they were reading had to go and
+             find it again in a dropdown. */
+          <LinkButton href={`/exam-sim/new?cycle=${cycle.id}`} variant="secondary" size="sm">
+            {t.examSim.sitThisPaper}
+          </LinkButton>
+        }
       />
 
       <Alert tone="info" className="mb-5">
