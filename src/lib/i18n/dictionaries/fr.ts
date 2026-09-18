@@ -1005,6 +1005,37 @@ export const fr: Dictionary = {
 
   marketing: {
     ctaSeeHow: 'Voir comment BAC2 fonctionne',
+    examinerHeadA: 'Voyez exactement où',
+    examinerHeadB: 'les points sont partis.',
+    examinerLead:
+      'Votre copie est lue critère par critère au barème du sujet : vous voyez ce qui a rapporté des points, ce qui n’en a rapporté qu’une partie, et ce qui manquait.',
+    examinerTrust: 'Barème officiel · critère par critère',
+
+    scriptSubject: 'Chimie',
+    scriptSession: '2021 · Première session',
+    scriptExercise: 'Exercice 3',
+    scriptTotal: '5 points',
+    scriptQuestion: 'Q3. Montrer que la réaction est totale.',
+    scriptAnswerLabel: 'Votre réponse',
+
+    scriptLine1:
+      'On détermine l’avancement maximal à partir du réactif limitant, H₃O⁺, ce qui donne x_max = 2,0 × 10⁻³ mol.',
+    scriptCrit1: 'B1 · Méthode correcte',
+    scriptMark1: '+4',
+
+    scriptLine2:
+      'L’avancement final mesuré lors de l’expérience est x_f = 2,0 × 10⁻³ mol, donc x_f = x_max.',
+    scriptCrit2: 'B2 · Comparaison énoncée, non expliquée',
+    scriptMark2: '+2 / 3',
+
+    scriptMissingLabel: 'Attendu par le barème',
+    scriptMissing: '« …donc la réaction est totale. »',
+    scriptCrit3: 'B3 · Justification manquante',
+    scriptMark3: '0 / 2',
+
+    scriptNourNote:
+      'Vous maîtrisiez la chimie. Les deux points sont partis sur la phrase qu’exige le barème : dites que x_f = x_max signifie que la réaction est totale, et ils sont à vous.',
+
     secPractice: 'Entraînement',
     secExaminer: 'Mode correcteur',
     secNour: 'Nour',

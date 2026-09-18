@@ -1016,6 +1016,37 @@ export const en = {
 
   marketing: {
     ctaSeeHow: 'See how BAC2 works',
+    examinerHeadA: 'See exactly where the',
+    examinerHeadB: 'marks went.',
+    examinerLead:
+      'Your answer is read criterion by criterion against the paper’s barème — so you see what earned marks, what was partial, and what was missing.',
+    examinerTrust: 'Official barème · criterion by criterion',
+
+    scriptSubject: 'Chemistry',
+    scriptSession: '2021 · First session',
+    scriptExercise: 'Exercise 3',
+    scriptTotal: '5 marks',
+    scriptQuestion: 'Q3. Show that the reaction is complete.',
+    scriptAnswerLabel: 'Your answer',
+
+    scriptLine1:
+      'We determine the maximum advancement from the limiting reactant, H₃O⁺, which gives x_max = 2.0 × 10⁻³ mol.',
+    scriptCrit1: 'B1 · Correct method',
+    scriptMark1: '+4',
+
+    scriptLine2:
+      'The final advancement measured in the experiment is x_f = 2.0 × 10⁻³ mol, so x_f = x_max.',
+    scriptCrit2: 'B2 · Comparison stated, not explained',
+    scriptMark2: '+2 / 3',
+
+    scriptMissingLabel: 'Expected by the barème',
+    scriptMissing: '“…therefore the reaction is complete.”',
+    scriptCrit3: 'B3 · Missing justification',
+    scriptMark3: '0 / 2',
+
+    scriptNourNote:
+      'You knew the chemistry. The two marks went on the sentence the barème asks for — say that x_f = x_max means the reaction is complete, and they are yours.',
+
     secPractice: 'Practice',
     secExaminer: 'Examiner mode',
     secNour: 'Nour',

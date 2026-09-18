@@ -11,9 +11,9 @@ import {
 } from '@/components/marketing/identity';
 import { PreviewsSlot } from '@/components/marketing/previews-slot';
 import { SiteHeader } from '@/components/marketing/site-header';
+import { ExaminerScript } from '@/components/marketing/examiner-script';
 import {
   ExaminerFragment,
-  ExaminerShowcase,
   NextMoveFragment,
   NourFragment,
   QuestionPlate,
@@ -230,26 +230,62 @@ export default async function RootPage() {
 
         {/* ======================= 02 EXAMINER ======================= */}
         {/*
-          The one section that changes the colour of the room, because it is
-          the feature the page is built around. A plate rather than a card: the
-          mark enormous and alone, criteria against a ruled margin beneath it,
-          Nour's note in the margin under those.
+          The product hero of this page.
+
+          Deep warm graphite rather than the section's old brown, so the cream
+          script is the brightest thing in the room and the contrast does the
+          separating. 40/60 asymmetry: the narrative is the smaller half,
+          because the argument here is made by the object, not by the
+          paragraph beside it.
         */}
-        <section className="relative overflow-hidden border-y border-rule bg-ink text-paper">
+        <section className="relative overflow-hidden border-y border-rule bg-[hsl(28_18%_10%)] text-paper">
           <PaperRuling tone="dark" />
-          <div className="relative mx-auto grid w-full max-w-[1180px] gap-12 px-4 py-16 sm:px-6 sm:py-24 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] lg:gap-16 lg:px-8">
-            <div className="max-w-xl">
+          <div className="relative mx-auto grid w-full max-w-[1180px] items-center gap-14 px-4 py-20 sm:px-6 sm:py-28 lg:grid-cols-[minmax(0,0.68fr)_minmax(0,1fr)] lg:gap-16 lg:px-8">
+            <div className="max-w-md">
               <SectionMark index="02" label={m.secExaminer} tone="dark" />
-              <h2 className="mt-5 font-display text-heading font-semibold leading-tight tracking-tight sm:text-display">
-                {m.examinerTitle}
-                <br />
-                <span className="text-correct-bright">{m.examinerTitleAccent}</span>
+              {/*
+                Cream headline with one phrase in mint. The whole line in mint
+                shouted and, on this ground, read as a label rather than as a
+                sentence.
+              */}
+              <h2 className="mt-6 font-display text-heading font-semibold leading-[1.12] tracking-tight sm:text-display">
+                {m.examinerHeadA}{' '}
+                <span className="text-correct-bright">{m.examinerHeadB}</span>
               </h2>
-              <p className="mt-5 max-w-prose text-body leading-relaxed text-paper/70">
-                {m.examinerBody}
+              <p className="mt-6 max-w-prose text-body leading-relaxed text-paper/70">
+                {m.examinerLead}
+              </p>
+              <p className="mt-8 flex items-center gap-3 border-t border-paper/15 pt-5 text-micro uppercase tracking-[0.12em] text-paper/50">
+                <Seal
+                  tone="paper"
+                  className="size-6 [clip-path:polygon(0_0,calc(100%-4px)_0,100%_4px,100%_100%,0_100%)]"
+                />
+                {m.examinerTrust}
               </p>
             </div>
-            <ExaminerShowcase labels={examinerLabels} />
+
+            <ExaminerScript
+              labels={{
+                subject: m.scriptSubject,
+                session: m.scriptSession,
+                exercise: m.scriptExercise,
+                total: m.scriptTotal,
+                question: m.scriptQuestion,
+                answerLabel: m.scriptAnswerLabel,
+                line1: m.scriptLine1,
+                crit1: m.scriptCrit1,
+                mark1: m.scriptMark1,
+                line2: m.scriptLine2,
+                crit2: m.scriptCrit2,
+                mark2: m.scriptMark2,
+                missingLabel: m.scriptMissingLabel,
+                missing: m.scriptMissing,
+                crit3: m.scriptCrit3,
+                mark3: m.scriptMark3,
+                nourNoteLabel: m.examinerNourNote,
+                nourNote: m.scriptNourNote,
+              }}
+            />
           </div>
         </section>
 

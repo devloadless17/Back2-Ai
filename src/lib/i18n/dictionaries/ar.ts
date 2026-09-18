@@ -1014,6 +1014,37 @@ export const ar: Dictionary = {
 
   marketing: {
     ctaSeeHow: 'شاهد كيف يعمل BAC2',
+    examinerHeadA: 'انظر بالضبط أين',
+    examinerHeadB: 'ذهبت العلامات.',
+    examinerLead:
+      'تُقرأ إجابتك معيارًا معيارًا على سلّم تصحيح المسابقة، فترى ما استحقّ علامة، وما استحقّ جزءًا منها، وما كان ناقصًا.',
+    examinerTrust: 'سلّم التصحيح الرسمي · معيارًا معيارًا',
+
+    scriptSubject: 'الكيمياء',
+    scriptSession: '2021 · الدورة الأولى',
+    scriptExercise: 'التمرين 3',
+    scriptTotal: '5 علامات',
+    scriptQuestion: 'Q3. Show that the reaction is complete.',
+    scriptAnswerLabel: 'إجابتك',
+
+    scriptLine1:
+      'We determine the maximum advancement from the limiting reactant, H₃O⁺, which gives x_max = 2.0 × 10⁻³ mol.',
+    scriptCrit1: 'B1 · الطريقة صحيحة',
+    scriptMark1: '+4',
+
+    scriptLine2:
+      'The final advancement measured in the experiment is x_f = 2.0 × 10⁻³ mol, so x_f = x_max.',
+    scriptCrit2: 'B2 · المقارنة مذكورة دون تفسير',
+    scriptMark2: '+2 / 3',
+
+    scriptMissingLabel: 'ما يطلبه سلّم التصحيح',
+    scriptMissing: '“…therefore the reaction is complete.”',
+    scriptCrit3: 'B3 · التبرير ناقص',
+    scriptMark3: '0 / 2',
+
+    scriptNourNote:
+      'أنت تعرف الكيمياء. ذهبت العلامتان على الجملة التي يطلبها سلّم التصحيح — قل إنّ x_f = x_max تعني أنّ التفاعل تامّ، وتصبحان لك.',
+
     secPractice: 'التدرّب',
     secExaminer: 'وضع التصحيح',
     secNour: 'نور',

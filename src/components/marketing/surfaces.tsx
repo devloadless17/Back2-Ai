@@ -108,11 +108,6 @@ const OUTCOME: Record<Criterion['outcome'], string> = {
   partial: 'text-partial',
   lost: 'text-mark',
 };
-const OUTCOME_DARK: Record<Criterion['outcome'], string> = {
-  earned: 'text-correct-bright',
-  partial: 'text-partial-bright',
-  lost: 'text-mark-bright',
-};
 
 const CRITERIA: Criterion[] = [
   { outcome: 'earned', label: 'Correct method', awarded: '4', of: '4' },
@@ -184,63 +179,6 @@ export function ExaminerFragment({
         </div>
       </div>
     </Surface>
-  );
-}
-
-/**
- * The marked script, cinematic — for the dark section, where it is the section.
- *
- * Same information, laid out as a plate rather than a card: the mark enormous
- * and alone, the criteria beneath it against a ruled margin, Nour's note in
- * the margin under those. No border, no surface — on the dark ground the type
- * carries it, and a card here would put a box inside a room.
- */
-export function ExaminerShowcase({
-  labels,
-  className,
-}: {
-  labels: ExaminerLabels;
-  className?: string;
-}) {
-  return (
-    <div className={cn('min-w-0', className)}>
-      <PaperMeta items={labels.meta} tone="dark" />
-
-      <div className="mt-6 flex items-end gap-5">
-        {/* The number the section exists for. */}
-        <p className="figure text-[4.5rem] leading-[0.85] text-paper sm:text-[6rem]">14</p>
-        <div className="pb-2">
-          <p className="figure text-title text-paper/50">/ 20</p>
-          <Eyebrow className="mt-1 text-correct-bright">{labels.title}</Eyebrow>
-        </div>
-      </div>
-
-      <ul className="mt-8 space-y-px border-t border-paper/15">
-        {CRITERIA.map((item) => (
-          <li key={item.label} className="border-b border-paper/15">
-            <MarginRule marks={item.of} tone="dark" className="py-3.5">
-              <div className="flex items-baseline gap-3">
-                <span aria-hidden className={cn('text-lead leading-none', OUTCOME_DARK[item.outcome])}>
-                  {GLYPH[item.outcome]}
-                </span>
-                <span className="min-w-0 flex-1 text-body text-paper/90">{item.label}</span>
-                <span className={cn('figure shrink-0 text-body', OUTCOME_DARK[item.outcome])}>
-                  {item.awarded}
-                </span>
-              </div>
-            </MarginRule>
-          </li>
-        ))}
-      </ul>
-
-      <div className="mt-7 flex gap-4">
-        <NourMark className="mt-0.5 bg-correct-bright text-ink" />
-        <div className="min-w-0 border-s border-paper/20 ps-4">
-          <Eyebrow className="text-correct-bright">{labels.nourNote}</Eyebrow>
-          <p className="mt-1.5 max-w-prose text-body leading-relaxed text-paper/80">{labels.note}</p>
-        </div>
-      </div>
-    </div>
   );
 }
 
