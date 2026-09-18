@@ -70,9 +70,16 @@ describe('the parent of each nested page', () => {
     );
   });
 
-  it('sends a summaries subject hub to the dashboard, like practice', () => {
+  it('sends a subject’s summaries back to that subject', () => {
+    /*
+     * Not to the dashboard, and not to `/summaries`. This page is Chemistry's
+     * summaries and its parent is Chemistry — only the subject hub itself is a
+     * top-level destination, and everything hanging off a subject returns to
+     * that subject rather than being thrown to the top.
+     */
     const hub = page('summaries', '[subjectId]');
-    expect(hub).toContain('<BackLink href="/dashboard"');
+    expect(hub).toContain('href={`/practice/${subject.id}`}');
+    expect(hub).not.toContain('<BackLink href="/dashboard"');
   });
 
   it('sends a summary chapter to its own subject hub', () => {

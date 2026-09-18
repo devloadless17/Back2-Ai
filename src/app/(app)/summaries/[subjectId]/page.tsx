@@ -92,15 +92,19 @@ export default async function SubjectSummaryPage({
   return (
     <>
       {/*
-        Up to the dashboard, not across to the subject list — the same rule the
-        practice subject hub follows. `/summaries` is a picker a student passes
-        through once; the place they mean by "out of here" is the top.
+        Back to the subject, not to the dashboard and not to the summary list.
+        
+        This page is Chemistry's summaries; its parent is Chemistry. Only the
+        subject hub itself is a top-level destination — everything hanging off
+        a subject returns to that subject, so a student reading a summary goes
+        back to the place that holds the practice, the papers and the rest of
+        it rather than being thrown to the top.
 
-        This page also carried a SECOND back link three lines below this one,
-        hand-rolled, pointing at the same place and sitting in the middle of the
-        content. It predates `BackLink` and was never removed.
+        `/summaries` was the old target and was wrong twice over: it is a picker
+        passed through once, and a second hand-rolled copy of this same link
+        sat three lines below, pointing at it too.
       */}
-      <BackLink href="/dashboard" label={t.nav.dashboard} />
+      <BackLink href={`/practice/${subject.id}`} label={subject.name} />
       <PageHeader title={subject.name} description={t.summaries.subtitle} />
 
       {overview?.status === 'ok' && overview.overview ? (
