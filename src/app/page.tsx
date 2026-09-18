@@ -3,148 +3,563 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 
 import { PreviewsSlot } from '@/components/marketing/previews-slot';
-import { LinkButton } from '@/components/ui/button';
-import { Badge } from '@/components/ui/feedback';
-import { Sheet, SheetBody } from '@/components/ui/sheet';
+import { SiteHeader } from '@/components/marketing/site-header';
+import {
+  ExaminerFragment,
+  MarksLostFragment,
+  NextMoveFragment,
+  NourFragment,
+  NourMark,
+  QuestionFragment,
+  ReadinessFragment,
+  Surface,
+} from '@/components/marketing/surfaces';
 import { getSession } from '@/lib/auth/session';
+import { cn } from '@/lib/cn';
 import { getTranslations } from '@/lib/i18n';
 
 export async function generateMetadata(): Promise<Metadata> {
   const { t } = await getTranslations();
-  return { title: { absolute: `${t.common.appName} — ${t.marketing.headline}` } };
+  return {
+    title: { absolute: `${t.common.appName} — ${t.marketing.headline} ${t.marketing.headlineAccent}` },
+    description: t.marketing.subhead,
+  };
 }
 
 /**
  * The front door.
  *
- * This page used to be a redirect, with a comment saying there was no marketing
- * page and the product was entered either signed in or at the sign-in form.
- * That is no longer true, and the redirect for a signed-in visitor is kept
- * precisely because it was the useful half of that rule: someone already
- * carrying a session wants their dashboard, not a sales pitch for a product
- * they have already bought into.
+ * Two constraints carried over from the page this replaces, because neither is
+ * visible from here and both are still true:
  *
- * Two constraints worth stating, because neither is visible from here:
+ *   A signed-in visitor is redirected. Someone already carrying a session
+ *   wants their dashboard, not a sales pitch for a product they have bought
+ *   into.
  *
  *   The whole application is `noindex` at the root layout, on the grounds that
  *   a study tool holding student work has no business in search results. This
  *   page inherits that and is therefore shareable but not findable. Making the
- *   marketing page — and only the marketing page — indexable is a deliberate
- *   product decision that has not been taken, so it is not taken here.
+ *   marketing page — and only the marketing page — indexable is a product
+ *   decision that has not been taken, so it is not taken here.
  *
- *   Locale is a property of the account and there is no `[locale]` route. A
- *   signed-out visitor gets their cookie, then Accept-Language, then the
- *   default, exactly like the sign-in form does.
+ * WHAT THIS PAGE ARGUES, in order: this is for your exam specifically; here is
+ * the corpus behind that claim; here is the product doing the four things that
+ * matter; here is why the answers can be trusted; here is the loop they form.
+ * Each section is one idea with one product surface beside it. There is no
+ * feature grid, because a grid says "many things" where this product's case is
+ * "the right things, connected".
+ *
+ * Every figure in the product fragments is illustrative and says so where it
+ * could be mistaken for a real student's. The corpus numbers in the proof strip
+ * are the ones measured in this repository.
  */
 export default async function RootPage() {
   const session = await getSession();
   if (session) redirect('/dashboard');
 
   const { t } = await getTranslations();
+  const m = t.marketing;
+
+  const nav = [
+    { href: '#how', label: m.navHow },
+    { href: '#features', label: m.navFeatures },
+    { href: '#bac', label: m.navBac },
+    { href: '#pricing', label: m.navPricing },
+  ];
 
   return (
-    <div className="mx-auto w-full max-w-5xl px-4 pb-16 pt-5 sm:px-6 sm:pt-6">
-      <header className="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <span className="text-body font-semibold">{t.common.appName}</span>
-        <div className="flex items-center gap-3">
-          <Link
-            href="/login"
-            className="text-meta font-semibold text-ink underline-offset-2 hover:underline"
-          >
-            {t.marketing.navLogin}
-          </Link>
-          <LinkButton href="/signup" variant="primary" size="sm">
-            {t.marketing.navSignup}
-          </LinkButton>
-        </div>
-      </header>
+    <div className="bg-paper">
+      <SiteHeader
+        brand={t.common.appName}
+        nav={nav}
+        signIn={m.navLogin}
+        start={m.ctaStart}
+        menuLabel={m.navMenu}
+      />
 
-      {/* The same gradient banner the dashboard opens with, and for the same
-          reason: it is wide, it holds few words, and every colour on it is set
-          explicitly. It is the one gradient surface in the product and this is
-          the second place it is allowed to appear. */}
-      <section className="hero-banner mb-10 px-6 py-12 text-center sm:px-10 sm:py-16">
-        <div className="relative z-[1] mx-auto max-w-2xl">
-          <p className="text-caption font-bold uppercase tracking-[0.08em] text-on-primary">
-            {t.marketing.eyebrow}
-          </p>
+      <main>
+        {/* ================= HERO ================= */}
+        <section className="relative overflow-hidden border-b border-rule">
           {/*
-            The mockup sets the second line in amber. Measured against this
-            gradient that is 2.86:1 at the indigo end and 1.44:1 at the violet
-            one — under the 3.0 floor for large text everywhere on the banner,
-            and 1.12:1 in dark mode, where the gradient itself is light. It also
-            breaks the rule the palette states outright: the `-bright` cuts are
-            for rings, chips and fills, where a shape carries the contrast, not
-            for glyphs.
-
-            So the emphasis moves off the letterforms and under them. The word
-            stays white and fully legible; the amber is a rule beneath it, which
-            is a shape, which is where amber is allowed to live.
+            Atmosphere, not decoration. A single very pale mint wash off the
+            top-inline corner and a faint academic rule grid — enough to stop
+            the fold reading as a blank document, far short of a gradient.
+            Both are `aria-hidden` and neither moves.
           */}
-          <h1 className="mt-3 font-display text-display font-extrabold text-on-primary sm:text-hero">
-            {t.marketing.headline}
-            <br />
-            <span className="underline decoration-partial-bright decoration-4 underline-offset-[0.18em] sm:decoration-[6px]">
-              {t.marketing.headlineAccent}
-            </span>
-          </h1>
-          <p className="mx-auto mt-4 max-w-xl text-body text-on-primary">
-            {t.marketing.subhead}
-          </p>
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-0 bg-[radial-gradient(60%_50%_at_75%_0%,hsl(var(--primary-soft))_0%,transparent_70%)]"
+          />
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-0 opacity-[0.35] [background-image:linear-gradient(hsl(var(--rule))_1px,transparent_1px)] [background-size:100%_2.25rem]"
+          />
 
-          <div className="mt-7 flex flex-wrap justify-center gap-3">
-            <Link
-              href="/signup"
-              className="inline-flex items-center gap-2 rounded-full bg-partial-bright px-5 py-3 text-body font-bold text-ink shadow-pop transition-transform duration-200 ease-soft hover:-translate-y-0.5 motion-reduce:transform-none motion-reduce:hover:transform-none"
-            >
-              {t.marketing.ctaStart}
-              <span aria-hidden="true">→</span>
-            </Link>
-            <Link
-              href="/login"
-              className="inline-flex items-center rounded-full border border-on-primary/40 bg-on-primary/15 px-5 py-3 text-body font-bold text-on-primary transition-colors duration-150 hover:bg-on-primary/25"
-            >
-              {t.marketing.ctaHaveAccount}
-            </Link>
+          <div className="relative mx-auto w-full max-w-[1180px] px-4 pb-16 pt-14 sm:px-6 sm:pb-20 sm:pt-20 lg:px-8">
+            <div className="grid items-center gap-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] lg:gap-16">
+              <div className="max-w-xl">
+                <p className="text-micro font-semibold uppercase tracking-[0.14em] text-primary">
+                  {m.eyebrow}
+                </p>
+
+                {/*
+                  The one place on the site with display type. Two short lines:
+                  the exam, then the promise. The second line carries the mint
+                  because that is the word the page is actually selling.
+                */}
+                <h1 className="mt-5 font-display text-[2.25rem] font-semibold leading-[1.08] tracking-[-0.03em] text-ink sm:text-[3rem] lg:text-[3.5rem]">
+                  {m.headline}
+                  <br />
+                  <span className="text-primary">{m.headlineAccent}</span>
+                </h1>
+
+                <p className="mt-5 max-w-prose text-lead leading-relaxed text-ink-muted">
+                  {m.subhead}
+                </p>
+
+                <div className="mt-8 flex flex-wrap items-center gap-3">
+                  <Link
+                    href="/signup"
+                    className="inline-flex min-h-12 items-center gap-2 rounded-sm bg-primary px-6 text-body font-semibold text-on-primary transition-colors hover:bg-primary-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+                  >
+                    {m.finalCta}
+                    <span aria-hidden>→</span>
+                  </Link>
+                  <Link
+                    href="#how"
+                    className="inline-flex min-h-12 items-center rounded-sm border border-rule-strong px-6 text-body font-medium text-ink transition-colors hover:bg-paper-sunken focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+                  >
+                    {m.ctaSeeHow}
+                  </Link>
+                </div>
+              </div>
+
+              {/*
+                THE PRODUCT IS THE HERO IMAGE.
+
+                Three real surfaces, overlapped rather than stacked, with the
+                marked paper in front because "it marks you like the exam" is
+                the claim that separates this from a chatbot. Depth comes from
+                the overlap and one hairline each — nothing glows.
+
+                On a phone the stack becomes one column in reading order: the
+                mark first, then Nour, and the next-move card is dropped
+                entirely rather than shrunk into an unreadable chip.
+              */}
+              <div className="relative">
+                <div className="space-y-4 lg:space-y-0">
+                  <ExaminerFragment
+                    className="relative z-20 lg:max-w-[26rem]"
+                    labels={{
+                      title: m.examinerLabel,
+                      nourNote: m.examinerNourNote,
+                      note: m.examinerNote,
+                    }}
+                  />
+
+                  <NourFragment
+                    className="relative z-10 lg:-mt-6 lg:ms-16 lg:max-w-[27rem]"
+                    labels={{
+                      name: m.nourName,
+                      question: m.nourQuestion,
+                      answer: m.nourAnswer,
+                      grounded: m.nourGrounded,
+                    }}
+                  />
+
+                  <NextMoveFragment
+                    className="hidden lg:relative lg:z-20 lg:-mt-4 lg:block lg:max-w-[22rem]"
+                    labels={{
+                      eyebrow: m.nextMoveEyebrow,
+                      subject: m.nextMoveSubject,
+                      chapter: m.nextMoveChapter,
+                      reason: m.nextMoveReason,
+                      cta: m.nextMoveCta,
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
           </div>
+        </section>
+
+        {/* ================= PROOF ================= */}
+        {/*
+          Editorial, not four KPI cards. Large figures, thin rules between, and
+          the claim under each one in sentence case. These are the numbers this
+          repository actually measures.
+        */}
+        <section className="border-b border-rule">
+          <div className="mx-auto w-full max-w-[1180px] px-4 py-12 sm:px-6 sm:py-14 lg:px-8">
+            <dl className="grid grid-cols-2 gap-x-6 gap-y-9 sm:gap-x-10 lg:grid-cols-4 lg:divide-x lg:divide-rule">
+              {[
+                { v: m.proofYearsValue, l: m.proofYears },
+                { v: m.proofQuestionsValue, l: m.proofQuestions },
+                { v: m.proofChaptersValue, l: m.proofChapters },
+                { v: m.proofOfficialValue, l: m.proofOfficial },
+              ].map((item, i) => (
+                <div key={item.l} className={cn('min-w-0', i > 0 && 'lg:ps-10')}>
+                  <dt className="figure text-title leading-none text-ink sm:text-heading">
+                    {item.v}
+                  </dt>
+                  <dd className="mt-2 text-meta leading-snug text-ink-muted">{item.l}</dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+        </section>
+
+        {/* ================= PRACTICE ================= */}
+        <Story
+          id="features"
+          title={m.practiceTitle}
+          body={m.practiceBody}
+          surface={
+            <QuestionFragment
+              labels={{
+                subject: m.practiceSubject,
+                chapter: m.practiceChapter,
+                provenance: m.practiceProvenance,
+                marks: m.practiceMarks,
+              }}
+              body={m.practiceQuestion}
+              bodyLang="en"
+            />
+          }
+        />
+
+        {/* ================= EXAMINER ================= */}
+        {/*
+          The contrasting section. Warm near-black rather than pure black, mint
+          kept for the one accent, and the marked paper sitting on it at full
+          size — this is the feature the page is built around, so it is the
+          only section that changes the colour of the room.
+        */}
+        <section className="border-y border-rule bg-ink text-paper">
+          <div className="mx-auto grid w-full max-w-[1180px] items-center gap-10 px-4 py-16 sm:px-6 sm:py-20 lg:grid-cols-2 lg:gap-16 lg:px-8">
+            <div className="max-w-xl">
+              <h2 className="font-display text-heading font-semibold leading-tight tracking-tight sm:text-display">
+                {m.examinerTitle}
+                <br />
+                <span className="text-correct-bright">{m.examinerTitleAccent}</span>
+              </h2>
+              <p className="mt-5 max-w-prose text-body leading-relaxed text-paper/75">
+                {m.examinerBody}
+              </p>
+            </div>
+            <ExaminerFragment
+              className="lg:justify-self-end lg:max-w-[28rem]"
+              labels={{
+                title: m.examinerLabel,
+                nourNote: m.examinerNourNote,
+                note: m.examinerNote,
+              }}
+            />
+          </div>
+        </section>
+
+        {/* ================= NOUR ================= */}
+        <section className="border-b border-rule bg-primary-soft/40">
+          <div className="mx-auto grid w-full max-w-[1180px] items-center gap-10 px-4 py-16 sm:px-6 sm:py-20 lg:grid-cols-2 lg:gap-16 lg:px-8">
+            <NourFragment
+              className="order-2 lg:order-1 lg:max-w-[30rem]"
+              labels={{
+                name: m.nourName,
+                question: m.nourQuestion,
+                answer: m.nourAnswer,
+                grounded: m.nourGrounded,
+              }}
+            />
+            <div className="order-1 max-w-xl lg:order-2">
+              <NourMark className="mb-5 size-9" />
+              <h2 className="font-display text-heading font-semibold leading-tight tracking-tight text-ink sm:text-display">
+                {m.nourTitle}
+                <br />
+                <span className="text-primary">{m.nourTitleAccent}</span>
+              </h2>
+              <p className="mt-5 max-w-prose text-body leading-relaxed text-ink-muted">
+                {m.nourBody}
+              </p>
+              <p className="mt-6 border-s-2 border-primary ps-4 text-meta leading-relaxed text-ink">
+                {m.evidenceBody}
+              </p>
+            </div>
+          </div>
+        </section>
+
+        {/* ================= PROGRESS ================= */}
+        <Story
+          title={m.progressTitle}
+          titleAccent={m.progressTitleAccent}
+          body={m.progressBody}
+          reverse
+          surface={
+            <div className="space-y-4">
+              <ReadinessFragment
+                labels={{
+                  eyebrow: m.readinessEyebrow,
+                  readiness: m.readinessCaption,
+                  mastery: m.masteryLabel,
+                  practised: m.practisedLabel,
+                  evidence: m.evidenceLabel,
+                  evidenceValue: m.evidenceValue,
+                  illustrative: m.illustrative,
+                }}
+              />
+              <MarksLostFragment
+                labels={{
+                  eyebrow: m.marksLostEyebrow,
+                  rows: [
+                    { criterion: m.marksLost1, count: m.marksLost1Count },
+                    { criterion: m.marksLost2, count: m.marksLost2Count },
+                    { criterion: m.marksLost3, count: m.marksLost3Count },
+                  ],
+                  illustrative: m.illustrative,
+                }}
+              />
+            </div>
+          }
+        />
+
+        {/* ================= NEXT MOVE ================= */}
+        <Story
+          title={m.nextMoveTitle}
+          titleAccent={m.nextMoveTitleAccent}
+          body={m.nextMoveBody}
+          surface={
+            <NextMoveFragment
+              labels={{
+                eyebrow: m.nextMoveEyebrow,
+                subject: m.nextMoveSubject,
+                chapter: m.nextMoveChapter,
+                reason: m.nextMoveReason,
+                cta: m.nextMoveCta,
+              }}
+            />
+          }
+        />
+
+        {/* ================= LEBANESE BAC IDENTITY ================= */}
+        {/*
+          The section that earns the word "Lebanese". Not a flag — the tracks
+          by name, the three languages of instruction, and three real academic
+          lines each sitting in its own direction inside an interface that does
+          not move. That last part IS the argument.
+        */}
+        <section id="bac" className="border-b border-rule bg-paper-sunken">
+          <div className="mx-auto w-full max-w-[1180px] px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
+            <div className="max-w-2xl">
+              <h2 className="font-display text-heading font-semibold leading-tight tracking-tight text-ink sm:text-display">
+                {m.bacTitle}
+                <br />
+                <span className="text-primary">{m.bacTitleAccent}</span>
+              </h2>
+              <p className="mt-5 max-w-prose text-body leading-relaxed text-ink-muted">{m.bacBody}</p>
+            </div>
+
+            <div className="mt-10 flex flex-wrap items-baseline gap-x-10 gap-y-4 border-y border-rule py-5">
+              <p className="text-micro font-semibold uppercase tracking-[0.12em] text-ink-faint">
+                {m.tracksLabel}
+              </p>
+              <p className="figure text-lead text-ink">GS · LS · SE · LH</p>
+            </div>
+
+            <div className="mt-8 grid gap-4 md:grid-cols-3">
+              {[
+                { subject: m.bacArabicSubject, sample: m.bacArabicSample, lang: 'ar', dir: 'rtl' as const },
+                { subject: m.bacFrenchSubject, sample: m.bacFrenchSample, lang: 'fr', dir: 'ltr' as const },
+                { subject: m.bacEnglishSubject, sample: m.bacEnglishSample, lang: 'en', dir: 'ltr' as const },
+              ].map((item) => (
+                <Surface key={item.lang} className="p-5">
+                  <p className="text-micro font-semibold uppercase tracking-[0.12em] text-ink-faint">
+                    {item.subject}
+                  </p>
+                  {/*
+                    `dir` on the text and never on the card. The grid, the
+                    padding and the label stay in the reader's direction while
+                    the academic line inside reads in its own — which is exactly
+                    how the product behaves.
+                  */}
+                  <p
+                    dir={item.dir}
+                    lang={item.lang}
+                    className={cn(
+                      'mt-3 text-meta text-ink',
+                      item.dir === 'rtl' ? 'leading-loose' : 'leading-relaxed',
+                    )}
+                  >
+                    {item.sample}
+                  </p>
+                </Surface>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ================= MOCK ================= */}
+        <Story
+          title={m.mockTitle}
+          titleAccent={m.mockTitleAccent}
+          body={m.mockBody}
+          reverse
+          surface={
+            <QuestionFragment
+              labels={{
+                subject: m.practiceSubject,
+                chapter: m.practiceChapter,
+                provenance: m.practiceProvenance,
+                marks: m.practiceMarks,
+              }}
+              body={m.practiceQuestion}
+              bodyLang="en"
+            />
+          }
+        />
+
+        {/* ================= THE LOOP ================= */}
+        <section id="how" className="border-y border-rule">
+          <div className="mx-auto w-full max-w-[1180px] px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
+            <h2 className="max-w-2xl font-display text-heading font-semibold leading-tight tracking-tight text-ink sm:text-display">
+              {m.loopTitle}
+            </h2>
+
+            {/*
+              An ordered list, because it is one. The arrows are decoration and
+              hidden from assistive technology; the numbers carry the sequence.
+            */}
+            <ol className="mt-10 grid gap-px overflow-hidden rounded-lg border border-rule bg-rule md:grid-cols-5">
+              {[m.loop1, m.loop2, m.loop3, m.loop4, m.loop5].map((step, i) => (
+                <li key={step} className="bg-paper-raised p-5">
+                  <span className="figure text-micro text-primary">0{i + 1}</span>
+                  <p className="mt-2 text-meta font-medium leading-snug text-ink">{step}</p>
+                </li>
+              ))}
+            </ol>
+          </div>
+        </section>
+
+        {/* ================= TRY IT ================= */}
+        <section className="border-b border-rule">
+          <div className="mx-auto w-full max-w-[1180px] px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
+            <div className="max-w-2xl">
+              <h2 className="font-display text-heading font-semibold leading-tight tracking-tight text-ink sm:text-display">
+                {m.previewTitle}
+              </h2>
+              <p className="mt-3 text-body text-ink-muted">{m.previewSubtitle}</p>
+            </div>
+            <div className="mt-10">
+              <PreviewsSlot />
+            </div>
+            <p className="mt-4 text-caption text-ink-faint">{m.previewNothingSaved}</p>
+          </div>
+        </section>
+
+        {/* ================= PRICING ================= */}
+        <section id="pricing" className="border-b border-rule">
+          <div className="mx-auto w-full max-w-[1180px] px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
+            <div className="flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between">
+              <div className="max-w-xl">
+                <h2 className="font-display text-heading font-semibold leading-tight tracking-tight text-ink sm:text-display">
+                  {m.pricingTitle}
+                </h2>
+                <p className="mt-4 text-lead font-medium text-ink">{m.pricingHeading}</p>
+                <p className="mt-2 max-w-prose text-body leading-relaxed text-ink-muted">
+                  {m.pricingBody}
+                </p>
+              </div>
+              <Link
+                href="/signup"
+                className="inline-flex min-h-12 shrink-0 items-center gap-2 rounded-sm bg-primary px-6 text-body font-semibold text-on-primary transition-colors hover:bg-primary-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+              >
+                {m.pricingCta}
+                <span aria-hidden>→</span>
+              </Link>
+            </div>
+          </div>
+        </section>
+
+        {/* ================= FINAL ================= */}
+        <section className="bg-ink text-paper">
+          <div className="mx-auto w-full max-w-[1180px] px-4 py-20 text-center sm:px-6 sm:py-28 lg:px-8">
+            <h2 className="mx-auto max-w-3xl font-display text-heading font-semibold leading-tight tracking-tight sm:text-display lg:text-hero">
+              {m.finalTitle}
+              <br />
+              <span className="text-correct-bright">{m.finalTitleAccent}</span>
+            </h2>
+            <p className="mx-auto mt-6 max-w-xl text-body leading-relaxed text-paper/75">
+              {m.finalBody}
+            </p>
+            <div className="mt-9 flex flex-col items-center gap-4">
+              <Link
+                href="/signup"
+                className="inline-flex min-h-12 items-center gap-2 rounded-sm bg-paper px-7 text-body font-semibold text-ink transition-colors hover:bg-paper-sunken focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-paper"
+              >
+                {m.finalCta}
+                <span aria-hidden>→</span>
+              </Link>
+              <Link
+                href="/login"
+                className="rounded-sm text-meta text-paper/70 underline-offset-4 transition-colors hover:text-paper hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-paper"
+              >
+                {m.finalSignIn}
+              </Link>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <footer className="border-t border-rule">
+        <div className="mx-auto flex w-full max-w-[1180px] flex-wrap items-center justify-between gap-4 px-4 py-8 sm:px-6 lg:px-8">
+          <p className="text-lead font-semibold tracking-tight text-ink">
+            BAC<span className="text-primary">²</span>
+          </p>
+          <p className="text-caption text-ink-faint">{m.footerNote}</p>
         </div>
-      </section>
-
-      <section className="mb-12">
-        <div className="mb-5 text-center">
-          <h2 className="text-title font-semibold sm:text-heading">{t.marketing.previewTitle}</h2>
-          <p className="mt-1 text-meta text-ink-muted">{t.marketing.previewSubtitle}</p>
-        </div>
-
-        <PreviewsSlot />
-
-        <p className="mt-3 text-center text-caption text-ink-faint">
-          {t.marketing.previewNothingSaved}
-        </p>
-      </section>
-
-      {/* The one claim this product actually competes on, so it is stated
-          plainly rather than dressed up as a logo wall we do not have. */}
-      <p className="mx-auto mb-12 max-w-2xl text-center text-meta leading-relaxed text-ink-muted">
-        {t.marketing.trustLine}
-      </p>
-
-      <section>
-        <h2 className="mb-4 text-center text-title font-semibold sm:text-heading">
-          {t.marketing.pricingTitle}
-        </h2>
-
-        <Sheet className="mx-auto max-w-md">
-          <SheetBody className="space-y-3 p-6 text-center">
-            <Badge tone="partial">{t.marketing.pricingBadge}</Badge>
-            <h3 className="text-lead font-semibold">{t.marketing.pricingHeading}</h3>
-            <p className="text-meta leading-relaxed text-ink-muted">{t.marketing.pricingBody}</p>
-            <LinkButton href="/signup" variant="primary" size="lg" fullWidth>
-              {t.marketing.pricingCta}
-            </LinkButton>
-          </SheetBody>
-        </Sheet>
-      </section>
+      </footer>
     </div>
+  );
+}
+
+/**
+ * One idea, one product surface, alternating sides.
+ *
+ * The rhythm the page depends on. Every narrative section is this shape, so
+ * scrolling has a beat instead of a list of cards, and `reverse` is the only
+ * variation — enough to stop the eye settling, far short of a different layout
+ * each time.
+ */
+function Story({
+  id,
+  title,
+  titleAccent,
+  body,
+  surface,
+  reverse = false,
+}: {
+  id?: string;
+  title: string;
+  titleAccent?: string;
+  body: string;
+  surface: React.ReactNode;
+  reverse?: boolean;
+}) {
+  return (
+    <section id={id} className="border-b border-rule">
+      <div className="mx-auto grid w-full max-w-[1180px] items-center gap-10 px-4 py-16 sm:px-6 sm:py-20 lg:grid-cols-2 lg:gap-16 lg:px-8">
+        <div className={cn('max-w-xl', reverse && 'lg:order-2')}>
+          <h2 className="font-display text-heading font-semibold leading-tight tracking-tight text-ink sm:text-display">
+            {title}
+            {titleAccent && (
+              <>
+                <br />
+                <span className="text-primary">{titleAccent}</span>
+              </>
+            )}
+          </h2>
+          <p className="mt-5 max-w-prose text-body leading-relaxed text-ink-muted">{body}</p>
+        </div>
+        <div className={cn('min-w-0', reverse && 'lg:order-1')}>{surface}</div>
+      </div>
+    </section>
   );
 }
