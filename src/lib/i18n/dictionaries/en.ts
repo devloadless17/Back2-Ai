@@ -1016,6 +1016,16 @@ export const en = {
 
   marketing: {
     ctaSeeHow: 'See how BAC2 works',
+    secPractice: 'Practice',
+    secExaminer: 'Examiner mode',
+    secNour: 'Nour',
+    secProgress: 'Your standing',
+    secNextMove: 'Next move',
+    secBac: 'Your Bac',
+    secMock: 'Mock exams',
+    examinerExercise: 'Exercise 3',
+    practiceNumber: '04',
+
     navHow: 'How it works',
     navFeatures: 'Features',
     navBac: 'Your Bac',

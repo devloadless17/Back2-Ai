@@ -1005,6 +1005,16 @@ export const fr: Dictionary = {
 
   marketing: {
     ctaSeeHow: 'Voir comment BAC2 fonctionne',
+    secPractice: 'Entraînement',
+    secExaminer: 'Mode correcteur',
+    secNour: 'Nour',
+    secProgress: 'Votre niveau',
+    secNextMove: 'Prochaine étape',
+    secBac: 'Votre Bac',
+    secMock: 'Épreuves blanches',
+    examinerExercise: 'Exercice 3',
+    practiceNumber: '04',
+
     navHow: 'Comment ça marche',
     navFeatures: 'Fonctionnalités',
     navBac: 'Votre Bac',

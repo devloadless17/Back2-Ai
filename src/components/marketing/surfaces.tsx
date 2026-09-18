@@ -1,11 +1,15 @@
+import { MarginRule, NourMark, Seal } from '@/components/marketing/identity';
 import { cn } from '@/lib/cn';
+
+export { NourMark } from '@/components/marketing/identity';
 
 /**
  * Product fragments, for the public page.
  *
  * The visual asset on this page is BAC2 itself. Not an illustration of a
- * student at a laptop, not an abstract graphic standing in for "learning" —
- * the actual surfaces, cropped the way a magazine crops a photograph.
+ * student at a laptop — the actual surfaces, cropped the way a magazine crops
+ * a photograph, and dressed in the language of the thing they are about: a
+ * marked examination script.
  *
  * DELIBERATELY NOT THE REAL COMPONENTS. `ExaminerMark`, `AcademicQuestion` and
  * the evidence panel all expect marked attempts, a barème and a retrieval
@@ -15,27 +19,17 @@ import { cn } from '@/lib/cn';
  * mobile data. These are faithful copies in markup only: same tokens, same
  * type scale, same semantic colours, same glyph vocabulary.
  *
- * The academic content inside them is deliberately left in its own language.
- * An Arabic history question is shown in Arabic and a French mathematics one
- * in French, because that mix is the product's subject matter and pretending
- * otherwise would be showing a different product.
+ * The academic content inside them is left in its own language. An Arabic
+ * history question is shown in Arabic and a French mathematics one in French,
+ * because that mix is the product's subject matter.
  *
- * Everything here is illustrative. No number on this page is presented as a
- * real student's result.
+ * Everything here is illustrative. No number is presented as a real student's.
  */
 
 /* -------------------------------------------------------------------------
- * The frame every fragment sits in.
+ * Frames.
  * ---------------------------------------------------------------------- */
 
-/**
- * Depth from overlap and a hairline, never from glow.
- *
- * One border, one very small shadow, and the surface sits forward because it
- * overlaps something behind it — which is how a real object reads. The large
- * soft shadows in the authenticated UI are not carried over here; at marketing
- * scale they turn into haze.
- */
 export function Surface({
   children,
   className,
@@ -58,7 +52,6 @@ export function Surface({
   );
 }
 
-/** The small-caps marker the whole product uses for a field name. */
 function Eyebrow({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
     <p className={cn('text-micro font-semibold uppercase tracking-[0.12em]', className)}>
@@ -67,151 +60,247 @@ function Eyebrow({ children, className }: { children: React.ReactNode; className
   );
 }
 
+/**
+ * The masthead a real paper carries.
+ *
+ * Subject, the paper it came off, the exercise. Set in one thin line above the
+ * content, the way a printed script identifies itself — this is the detail
+ * that makes a fragment read as an exam rather than as an app screen.
+ */
+function PaperMeta({
+  items,
+  tone = 'light',
+  className,
+}: {
+  items: string[];
+  tone?: 'light' | 'dark';
+  className?: string;
+}) {
+  return (
+    <p
+      className={cn(
+        'flex flex-wrap items-center gap-x-2 gap-y-1 text-micro uppercase tracking-[0.1em]',
+        tone === 'dark' ? 'text-paper/50' : 'text-ink-faint',
+        className,
+      )}
+    >
+      {items.map((item, i) => (
+        <span key={item} className="flex items-center gap-2">
+          {i > 0 && <span aria-hidden>·</span>}
+          {item}
+        </span>
+      ))}
+    </p>
+  );
+}
+
 /* -------------------------------------------------------------------------
- * Examiner Mode — the signature fragment.
+ * Examiner.
  * ---------------------------------------------------------------------- */
 
-type Criterion = {
-  outcome: 'earned' | 'partial' | 'lost';
-  label: string;
-  awarded: string;
-};
+type Criterion = { outcome: 'earned' | 'partial' | 'lost'; label: string; awarded: string; of: string };
 
-const GLYPH: Record<Criterion['outcome'], string> = {
-  earned: '✓',
-  partial: '◐',
-  lost: '×',
-};
+const GLYPH: Record<Criterion['outcome'], string> = { earned: '✓', partial: '◐', lost: '×' };
 
-/**
- * Colour carries meaning here and nowhere else on the page.
- *
- * Teal is a mark earned, amber a mark part-earned, rose a mark lost. Rose has
- * impact precisely because it appears once on the whole site. The glyph is
- * always present, so the state survives without colour.
- */
-const OUTCOME_CLASS: Record<Criterion['outcome'], string> = {
+/** Colour carries meaning here and almost nowhere else on the page. */
+const OUTCOME: Record<Criterion['outcome'], string> = {
   earned: 'text-correct',
   partial: 'text-partial',
   lost: 'text-mark',
 };
+const OUTCOME_DARK: Record<Criterion['outcome'], string> = {
+  earned: 'text-correct-bright',
+  partial: 'text-partial-bright',
+  lost: 'text-mark-bright',
+};
 
+const CRITERIA: Criterion[] = [
+  { outcome: 'earned', label: 'Correct method', awarded: '4', of: '4' },
+  { outcome: 'partial', label: 'Explanation incomplete', awarded: '2', of: '3' },
+  { outcome: 'lost', label: 'Missing justification', awarded: '0', of: '2' },
+];
+
+export type ExaminerLabels = {
+  title: string;
+  nourNote: string;
+  note: string;
+  meta: string[];
+};
+
+/**
+ * The marked script, compact — for the hero, where it is the foreground object.
+ */
 export function ExaminerFragment({
   labels,
   className,
 }: {
-  labels: { title: string; nourNote: string; note: string };
+  labels: ExaminerLabels;
   className?: string;
 }) {
-  const criteria: Criterion[] = [
-    { outcome: 'earned', label: 'Correct method', awarded: '4/4' },
-    { outcome: 'partial', label: 'Explanation incomplete', awarded: '2/3' },
-    { outcome: 'lost', label: 'Missing justification', awarded: '0/2' },
-  ];
-
   return (
     <Surface className={cn('overflow-hidden', className)}>
-      <div className="flex items-baseline justify-between gap-4 border-b border-rule px-5 py-3">
-        <Eyebrow className="text-ink-faint">{labels.title}</Eyebrow>
-        {/* The mark is the thing. It gets the largest type in the fragment and
-            the tabular, tightened treatment every figure in the product uses. */}
-        <p className="figure text-display leading-none">
-          14<span className="text-title font-normal text-ink-faint"> / 20</span>
-        </p>
+      <div className="border-b border-rule px-5 pb-3 pt-4">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <Eyebrow className="text-ink-faint">{labels.title}</Eyebrow>
+            <PaperMeta items={labels.meta} className="mt-2" />
+          </div>
+          {/* The mark. Largest thing in the fragment, tabular and tightened,
+              because "it marks you" is the claim the whole page rests on. */}
+          <p className="figure shrink-0 text-display leading-none">
+            14<span className="text-title font-normal text-ink-faint">/20</span>
+          </p>
+        </div>
       </div>
 
+      {/* Each criterion sits against the margin, with what it was worth in it. */}
       <ul className="divide-y divide-rule">
-        {criteria.map((item) => (
-          <li key={item.label} className="flex items-center gap-3 px-5 py-2.5">
-            <span aria-hidden className={cn('w-4 text-center text-body', OUTCOME_CLASS[item.outcome])}>
-              {GLYPH[item.outcome]}
-            </span>
-            <span className="min-w-0 flex-1 truncate text-meta text-ink">{item.label}</span>
-            <span className={cn('figure text-meta', OUTCOME_CLASS[item.outcome])}>
-              {item.awarded}
-            </span>
+        {CRITERIA.map((item) => (
+          <li key={item.label}>
+            <MarginRule marks={item.of} className="px-5 py-2.5">
+              <div className="flex items-center gap-2.5">
+                <span aria-hidden className={cn('text-body leading-none', OUTCOME[item.outcome])}>
+                  {GLYPH[item.outcome]}
+                </span>
+                <span className="min-w-0 flex-1 truncate text-meta text-ink">{item.label}</span>
+                <span className={cn('figure text-meta', OUTCOME[item.outcome])}>{item.awarded}</span>
+              </div>
+            </MarginRule>
           </li>
         ))}
       </ul>
 
-      <div className="border-t border-rule bg-primary-soft/50 px-5 py-3.5">
-        <Eyebrow className="text-primary">{labels.nourNote}</Eyebrow>
-        <p className="mt-1 text-meta leading-relaxed text-ink">{labels.note}</p>
+      {/*
+        Nour's note as a margin annotation, not another panel. A teacher writes
+        in the margin beside the line that cost you the mark; the rule and the
+        indent are doing the same job here.
+      */}
+      <div className="border-t border-rule bg-primary-soft/40 px-5 py-3.5">
+        <div className="flex gap-3 border-s-2 border-primary ps-3">
+          <div className="min-w-0">
+            <Eyebrow className="text-primary">{labels.nourNote}</Eyebrow>
+            <p className="mt-1 text-meta leading-relaxed text-ink">{labels.note}</p>
+          </div>
+        </div>
       </div>
     </Surface>
   );
 }
 
-/* -------------------------------------------------------------------------
- * Nour — an answer with its sources under it.
- * ---------------------------------------------------------------------- */
-
 /**
- * The mortarboard, small.
+ * The marked script, cinematic — for the dark section, where it is the section.
  *
- * Nour has a face in the product and it stays this size everywhere. A tutor
- * who is beside the student does not need to be the largest thing on screen,
- * and scaling this up is how an identity becomes a mascot.
+ * Same information, laid out as a plate rather than a card: the mark enormous
+ * and alone, the criteria beneath it against a ruled margin, Nour's note in
+ * the margin under those. No border, no surface — on the dark ground the type
+ * carries it, and a card here would put a box inside a room.
  */
-export function NourMark({ className }: { className?: string }) {
+export function ExaminerShowcase({
+  labels,
+  className,
+}: {
+  labels: ExaminerLabels;
+  className?: string;
+}) {
   return (
-    <span
-      aria-hidden
-      className={cn(
-        'inline-flex size-7 shrink-0 items-center justify-center rounded-full bg-primary text-on-primary',
-        className,
-      )}
-    >
-      <svg viewBox="0 0 24 24" className="size-4" fill="currentColor">
-        <path d="M12 3 1.5 8.25 12 13.5l8.25-4.125V15h1.5V8.25L12 3Z" />
-        <path d="M5.25 11.1v3.9c0 1.7 3.02 3.15 6.75 3.15s6.75-1.45 6.75-3.15v-3.9L12 14.85 5.25 11.1Z" />
-      </svg>
-    </span>
+    <div className={cn('min-w-0', className)}>
+      <PaperMeta items={labels.meta} tone="dark" />
+
+      <div className="mt-6 flex items-end gap-5">
+        {/* The number the section exists for. */}
+        <p className="figure text-[4.5rem] leading-[0.85] text-paper sm:text-[6rem]">14</p>
+        <div className="pb-2">
+          <p className="figure text-title text-paper/50">/ 20</p>
+          <Eyebrow className="mt-1 text-correct-bright">{labels.title}</Eyebrow>
+        </div>
+      </div>
+
+      <ul className="mt-8 space-y-px border-t border-paper/15">
+        {CRITERIA.map((item) => (
+          <li key={item.label} className="border-b border-paper/15">
+            <MarginRule marks={item.of} tone="dark" className="py-3.5">
+              <div className="flex items-baseline gap-3">
+                <span aria-hidden className={cn('text-lead leading-none', OUTCOME_DARK[item.outcome])}>
+                  {GLYPH[item.outcome]}
+                </span>
+                <span className="min-w-0 flex-1 text-body text-paper/90">{item.label}</span>
+                <span className={cn('figure shrink-0 text-body', OUTCOME_DARK[item.outcome])}>
+                  {item.awarded}
+                </span>
+              </div>
+            </MarginRule>
+          </li>
+        ))}
+      </ul>
+
+      <div className="mt-7 flex gap-4">
+        <NourMark className="mt-0.5 bg-correct-bright text-ink" />
+        <div className="min-w-0 border-s border-paper/20 ps-4">
+          <Eyebrow className="text-correct-bright">{labels.nourNote}</Eyebrow>
+          <p className="mt-1.5 max-w-prose text-body leading-relaxed text-paper/80">{labels.note}</p>
+        </div>
+      </div>
+    </div>
   );
 }
+
+/* -------------------------------------------------------------------------
+ * Nour.
+ * ---------------------------------------------------------------------- */
 
 export function NourFragment({
   labels,
   className,
+  editorial = false,
 }: {
   labels: { name: string; question: string; answer: string; grounded: string };
   className?: string;
+  /** Larger, for the section where Nour is the subject rather than a support. */
+  editorial?: boolean;
 }) {
   return (
     <Surface className={cn('overflow-hidden', className)}>
       {/* The student's own line stays compact — it is the shorter half of the
-          exchange and giving it equal weight makes the page read as chat. */}
+          exchange, and equal weight would make the page read as chat. */}
       <div className="border-b border-rule bg-paper-sunken px-5 py-3">
         <p className="text-meta text-ink-muted" lang="fr">
           {labels.question}
         </p>
       </div>
 
-      <div className="px-5 py-4">
-        <div className="flex items-center gap-2.5">
-          <NourMark />
-          <Eyebrow className="text-primary">{labels.name}</Eyebrow>
+      <div className={cn('px-5', editorial ? 'py-6' : 'py-4')}>
+        <div className="flex gap-3.5">
+          <NourMark className={cn('mt-0.5', editorial && 'size-8')} />
+          <div className="min-w-0">
+            <Eyebrow className="text-primary">{labels.name}</Eyebrow>
+            <p
+              className={cn(
+                'mt-2 max-w-prose leading-relaxed text-ink',
+                editorial ? 'text-lead' : 'text-body',
+              )}
+            >
+              {labels.answer}
+            </p>
+          </div>
         </div>
-        {/* Nour's answer gets the reading measure and the leading. This is the
-            academic content, so it is the part allowed to breathe. */}
-        <p className="mt-2.5 max-w-prose text-body leading-relaxed text-ink">{labels.answer}</p>
       </div>
 
       {/*
-        Evidence, quiet. A student should register that the answer is grounded
-        without meeting a citation system — so it is one line of provenance and
-        two sources, set small, under a hairline.
+        The trust signature. Sealed rather than chipped: the seal, the phrase,
+        then the sources as a thin trail. A student should register that the
+        answer is grounded without meeting a citation system.
       */}
-      <div className="border-t border-rule px-5 py-3">
-        <Eyebrow className="text-ink-faint">{labels.grounded}</Eyebrow>
-        <dl className="mt-2 space-y-1.5">
-          <div className="flex items-baseline gap-2 text-caption">
-            <span aria-hidden className="size-1.5 shrink-0 rounded-full bg-primary" />
+      <div className="border-t border-rule px-5 py-3.5">
+        <div className="flex items-center gap-2.5">
+          <Seal className="size-6 [clip-path:polygon(0_0,calc(100%-5px)_0,100%_5px,100%_100%,0_100%)]" tone="primary" />
+          <Eyebrow className="text-primary">{labels.grounded}</Eyebrow>
+        </div>
+        <dl className="mt-3 space-y-1.5 border-s border-rule-strong ps-3">
+          <div className="flex flex-wrap items-baseline gap-x-2 text-caption">
             <dt className="font-medium text-ink">2022 · Second Session</dt>
             <dd className="text-ink-faint">Official solution</dd>
           </div>
-          <div className="flex items-baseline gap-2 text-caption">
-            <span aria-hidden className="size-1.5 shrink-0 rounded-full border border-rule-strong" />
+          <div className="flex flex-wrap items-baseline gap-x-2 text-caption">
             <dt className="font-medium text-ink">Physics · Mechanics</dt>
             <dd className="text-ink-faint">Textbook</dd>
           </div>
@@ -222,7 +311,7 @@ export function NourFragment({
 }
 
 /* -------------------------------------------------------------------------
- * Next move — the product turning evidence into one instruction.
+ * Next move.
  * ---------------------------------------------------------------------- */
 
 export function NextMoveFragment({
@@ -234,8 +323,6 @@ export function NextMoveFragment({
 }) {
   return (
     <Surface className={cn('relative overflow-hidden', className)}>
-      {/* The same 3px mint edge the product uses to mark its primary action.
-          `start` rather than `left`, so it sits correctly in Arabic. */}
       <span aria-hidden className="absolute inset-y-0 start-0 w-[3px] bg-primary" />
       <div className="p-5 ps-6">
         <Eyebrow className="text-primary">{labels.eyebrow}</Eyebrow>
@@ -251,63 +338,62 @@ export function NextMoveFragment({
 }
 
 /* -------------------------------------------------------------------------
- * A real question, as the exam prints it.
+ * A question, as the paper prints it.
  * ---------------------------------------------------------------------- */
 
-export function QuestionFragment({
+/**
+ * The question is the artwork.
+ *
+ * No surface, no border, no card — the metadata sits above it the way a paper
+ * heads an exercise, the margin carries the number and the marks, and the
+ * question itself is set at reading size with room around it. Interface chrome
+ * would only get in the way of the one thing this section is about.
+ */
+export function QuestionPlate({
   labels,
   body,
   bodyLang,
   bodyDir = 'ltr',
   className,
 }: {
-  labels: { subject: string; chapter: string; provenance: string; marks: string };
+  labels: { number: string; meta: string[]; marks: string };
   body: string;
   bodyLang: string;
   bodyDir?: 'ltr' | 'rtl';
   className?: string;
 }) {
   return (
-    <Surface className={cn('overflow-hidden', className)}>
-      {/* The masthead a real paper carries: subject, chapter, which paper it
-          came off, what it is worth. Set small, so the question dominates. */}
-      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-rule px-5 py-3">
-        <div className="min-w-0">
-          <Eyebrow className="text-ink-faint">{labels.subject}</Eyebrow>
-          <p className="mt-0.5 text-meta font-medium text-ink">{labels.chapter}</p>
-        </div>
-        <p className="shrink-0 text-caption text-ink-faint">
-          {labels.provenance} · <span className="figure text-caption">{labels.marks}</span>
-        </p>
+    <div className={cn('min-w-0', className)}>
+      <PaperMeta items={labels.meta} />
+      <div className="mt-5 border-t border-rule-strong pt-6">
+        <MarginRule number={labels.number} marks={labels.marks}>
+          {/*
+            `dir` on the text and never on the layout around it. The margin,
+            the metadata and the grid stay in the reader's direction while an
+            Arabic paper inside them reads right to left — which is exactly how
+            the product behaves.
+          */}
+          <p
+            dir={bodyDir}
+            lang={bodyLang}
+            className={cn(
+              'max-w-prose text-lead text-ink',
+              bodyDir === 'rtl' ? 'leading-loose' : 'leading-relaxed',
+            )}
+          >
+            {body}
+          </p>
+        </MarginRule>
       </div>
-
-      {/*
-        The question is the interface. Reading measure, generous leading, and
-        its own direction — `dir` sits on the text and never on the layout
-        around it, which is what lets an Arabic paper live inside an English
-        page without the page flipping.
-      */}
-      <div className="px-5 py-5">
-        <p
-          dir={bodyDir}
-          lang={bodyLang}
-          className={cn(
-            'max-w-prose text-body text-ink',
-            bodyDir === 'rtl' ? 'leading-loose' : 'leading-relaxed',
-          )}
-        >
-          {body}
-        </p>
-      </div>
-    </Surface>
+    </div>
   );
 }
 
 /* -------------------------------------------------------------------------
- * Readiness — editorial, not a gauge.
+ * Readiness — an academic report, not a dashboard.
  * ---------------------------------------------------------------------- */
 
-export function ReadinessFragment({
+export function ReadinessPlate({
   labels,
   className,
 }: {
@@ -319,82 +405,53 @@ export function ReadinessFragment({
     evidence: string;
     evidenceValue: string;
     illustrative: string;
+    marksLostEyebrow: string;
+    rows: { criterion: string; count: string }[];
   };
   className?: string;
 }) {
-  const rows = [
-    { label: labels.mastery, value: '72%', bar: 0.72 },
-    { label: labels.practised, value: '48%', bar: 0.48 },
+  const figures = [
+    { label: labels.mastery, value: '72%' },
+    { label: labels.practised, value: '48%' },
+    { label: labels.evidence, value: labels.evidenceValue },
   ];
 
   return (
-    <Surface className={cn('overflow-hidden', className)}>
-      <div className="border-b border-rule px-5 py-4">
-        <Eyebrow className="text-ink-faint">{labels.eyebrow}</Eyebrow>
-        <p className="mt-2 figure text-display leading-none">
-          12.8<span className="text-title font-normal text-ink-faint"> / 20</span>
-        </p>
-        <p className="mt-1.5 text-caption text-ink-faint">{labels.readiness}</p>
-      </div>
+    <div className={cn('min-w-0', className)}>
+      <Eyebrow className="text-ink-faint">{labels.eyebrow}</Eyebrow>
 
-      <dl className="space-y-3 px-5 py-4">
-        {rows.map((row) => (
-          <div key={row.label}>
-            <div className="flex items-baseline justify-between gap-3">
-              <dt className="text-meta text-ink-muted">{row.label}</dt>
-              <dd className="figure text-meta">{row.value}</dd>
-            </div>
-            {/* A thin rule, not a chart. Length is the only variable. */}
-            <div className="mt-1.5 h-1 w-full overflow-hidden rounded-sm bg-paper-sunken">
-              <div className="h-full bg-primary" style={{ width: `${row.bar * 100}%` }} />
-            </div>
+      {/* The anchor. Everything under it is support. */}
+      <p className="figure mt-4 text-[3.25rem] leading-none sm:text-[4rem]">
+        12.8<span className="text-heading font-normal text-ink-faint">/20</span>
+      </p>
+      <p className="mt-2 text-meta text-ink-muted">{labels.readiness}</p>
+
+      {/* Rules and type, no boxes. A report states three figures in a row and
+          trusts the reader to read a row. */}
+      <dl className="mt-8 grid grid-cols-3 gap-x-4 border-y border-rule py-5">
+        {figures.map((f) => (
+          <div key={f.label} className="min-w-0">
+            <dt className="text-micro uppercase tracking-[0.1em] text-ink-faint">{f.label}</dt>
+            <dd className="figure mt-1.5 text-title">{f.value}</dd>
           </div>
         ))}
-        <div className="flex items-baseline justify-between gap-3 border-t border-rule pt-3">
-          <dt className="text-meta text-ink-muted">{labels.evidence}</dt>
-          <dd className="figure text-meta">{labels.evidenceValue}</dd>
-        </div>
       </dl>
 
-      {/* Said plainly. These are sample figures on a public page, not anyone's
-          marks, and the product's whole argument is that it does not invent
-          numbers — so it cannot start here. */}
-      <p className="border-t border-rule px-5 py-2.5 text-micro text-ink-faint">
-        {labels.illustrative}
-      </p>
-    </Surface>
-  );
-}
-
-/* -------------------------------------------------------------------------
- * Where marks go — the recurring-loss view.
- * ---------------------------------------------------------------------- */
-
-export function MarksLostFragment({
-  labels,
-  className,
-}: {
-  labels: { eyebrow: string; rows: { criterion: string; count: string }[]; illustrative: string };
-  className?: string;
-}) {
-  return (
-    <Surface className={cn('overflow-hidden', className)}>
-      <div className="border-b border-rule px-5 py-3">
-        <Eyebrow className="text-ink-faint">{labels.eyebrow}</Eyebrow>
+      {/* Examiner feedback, in the same voice as the marked script above. */}
+      <div className="mt-8">
+        <Eyebrow className="text-ink-faint">{labels.marksLostEyebrow}</Eyebrow>
+        <ul className="mt-3 divide-y divide-rule border-t border-rule">
+          {labels.rows.map((row) => (
+            <li key={row.criterion} className="flex items-baseline justify-between gap-4 py-3">
+              <span className="min-w-0 text-body text-ink">{row.criterion}</span>
+              {/* Rose, because these are marks actually lost. */}
+              <span className="figure shrink-0 text-meta text-mark">{row.count}</span>
+            </li>
+          ))}
+        </ul>
       </div>
-      <ul className="divide-y divide-rule">
-        {labels.rows.map((row) => (
-          <li key={row.criterion} className="flex items-baseline justify-between gap-4 px-5 py-3">
-            <span className="min-w-0 text-meta text-ink">{row.criterion}</span>
-            {/* Rose, because these are marks actually lost. It is the second
-                and last place on the page this colour appears. */}
-            <span className="figure shrink-0 text-meta text-mark">{row.count}</span>
-          </li>
-        ))}
-      </ul>
-      <p className="border-t border-rule px-5 py-2.5 text-micro text-ink-faint">
-        {labels.illustrative}
-      </p>
-    </Surface>
+
+      <p className="mt-4 text-micro text-ink-faint">{labels.illustrative}</p>
+    </div>
   );
 }

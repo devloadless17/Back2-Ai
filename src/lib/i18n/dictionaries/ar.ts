@@ -1014,6 +1014,16 @@ export const ar: Dictionary = {
 
   marketing: {
     ctaSeeHow: 'شاهد كيف يعمل BAC2',
+    secPractice: 'التدرّب',
+    secExaminer: 'وضع التصحيح',
+    secNour: 'نور',
+    secProgress: 'مستواك',
+    secNextMove: 'خطوتك التالية',
+    secBac: 'بكالورياك',
+    secMock: 'مسابقات تجريبية',
+    examinerExercise: 'التمرين 3',
+    practiceNumber: '04',
+
     navHow: 'كيف يعمل',
     navFeatures: 'الميزات',
     navBac: 'بكالورياك',

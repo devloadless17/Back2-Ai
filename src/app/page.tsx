@@ -2,17 +2,22 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 
+import {
+  GhostNumeral,
+  NourMark,
+  PaperRuling,
+  Seal,
+  SectionMark,
+} from '@/components/marketing/identity';
 import { PreviewsSlot } from '@/components/marketing/previews-slot';
 import { SiteHeader } from '@/components/marketing/site-header';
 import {
   ExaminerFragment,
-  MarksLostFragment,
+  ExaminerShowcase,
   NextMoveFragment,
   NourFragment,
-  NourMark,
-  QuestionFragment,
-  ReadinessFragment,
-  Surface,
+  QuestionPlate,
+  ReadinessPlate,
 } from '@/components/marketing/surfaces';
 import { getSession } from '@/lib/auth/session';
 import { cn } from '@/lib/cn';
@@ -29,29 +34,21 @@ export async function generateMetadata(): Promise<Metadata> {
 /**
  * The front door.
  *
- * Two constraints carried over from the page this replaces, because neither is
- * visible from here and both are still true:
+ * Two constraints carried over and still true: a signed-in visitor is
+ * redirected to their dashboard, and the whole application is `noindex` at the
+ * root layout, so this page is shareable but not findable. Making only the
+ * marketing page indexable is a product decision that has not been taken.
  *
- *   A signed-in visitor is redirected. Someone already carrying a session
- *   wants their dashboard, not a sales pitch for a product they have bought
- *   into.
+ * THE IDENTITY IS THE EXAM PAPER. Not a flag, not a cedar, not a mortarboard on
+ * every surface — a Baccalaureate script has a ruled margin, a question number
+ * in it and the mark allocation printed beside each part, and a candidate has
+ * been reading that layout for years. So the page is built out of it: margins
+ * carry marks, sections are numbered like parts of a paper, and the one
+ * ornament is a struck seal used four times. See `identity.tsx`.
  *
- *   The whole application is `noindex` at the root layout, on the grounds that
- *   a study tool holding student work has no business in search results. This
- *   page inherits that and is therefore shareable but not findable. Making the
- *   marketing page — and only the marketing page — indexable is a product
- *   decision that has not been taken, so it is not taken here.
- *
- * WHAT THIS PAGE ARGUES, in order: this is for your exam specifically; here is
- * the corpus behind that claim; here is the product doing the four things that
- * matter; here is why the answers can be trusted; here is the loop they form.
- * Each section is one idea with one product surface beside it. There is no
- * feature grid, because a grid says "many things" where this product's case is
- * "the right things, connected".
- *
- * Every figure in the product fragments is illustrative and says so where it
- * could be mistaken for a real student's. The corpus numbers in the proof strip
- * are the ones measured in this repository.
+ * Every figure in a product fragment is illustrative and says so where it
+ * could be mistaken for a real student's. The corpus numbers in the proof
+ * strip are the ones measured in this repository.
  */
 export default async function RootPage() {
   const session = await getSession();
@@ -67,6 +64,28 @@ export default async function RootPage() {
     { href: '#pricing', label: m.navPricing },
   ];
 
+  const examinerLabels = {
+    title: m.examinerLabel,
+    nourNote: m.examinerNourNote,
+    note: m.examinerNote,
+    meta: [m.practiceSubject, m.practiceProvenance, m.examinerExercise],
+  };
+
+  const nourLabels = {
+    name: m.nourName,
+    question: m.nourQuestion,
+    answer: m.nourAnswer,
+    grounded: m.nourGrounded,
+  };
+
+  const nextMoveLabels = {
+    eyebrow: m.nextMoveEyebrow,
+    subject: m.nextMoveSubject,
+    chapter: m.nextMoveChapter,
+    reason: m.nextMoveReason,
+    cta: m.nextMoveCta,
+  };
+
   return (
     <div className="bg-paper">
       <SiteHeader
@@ -78,42 +97,31 @@ export default async function RootPage() {
       />
 
       <main>
-        {/* ================= HERO ================= */}
+        {/* ======================= HERO ======================= */}
         <section className="relative overflow-hidden border-b border-rule">
-          {/*
-            Atmosphere, not decoration. A single very pale mint wash off the
-            top-inline corner and a faint academic rule grid — enough to stop
-            the fold reading as a blank document, far short of a gradient.
-            Both are `aria-hidden` and neither moves.
-          */}
           <div
             aria-hidden
-            className="pointer-events-none absolute inset-0 bg-[radial-gradient(60%_50%_at_75%_0%,hsl(var(--primary-soft))_0%,transparent_70%)]"
+            className="pointer-events-none absolute inset-0 bg-[radial-gradient(65%_55%_at_78%_-5%,hsl(var(--primary-soft))_0%,transparent_70%)]"
           />
-          <div
-            aria-hidden
-            className="pointer-events-none absolute inset-0 opacity-[0.35] [background-image:linear-gradient(hsl(var(--rule))_1px,transparent_1px)] [background-size:100%_2.25rem]"
-          />
+          <PaperRuling />
 
-          <div className="relative mx-auto w-full max-w-[1180px] px-4 pb-16 pt-14 sm:px-6 sm:pb-20 sm:pt-20 lg:px-8">
-            <div className="grid items-center gap-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] lg:gap-16">
+          <div className="relative mx-auto w-full max-w-[1180px] px-4 pb-16 pt-12 sm:px-6 sm:pb-20 sm:pt-16 lg:px-8">
+            <div className="grid items-center gap-12 lg:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)] lg:gap-14">
               <div className="max-w-xl">
-                <p className="text-micro font-semibold uppercase tracking-[0.14em] text-primary">
-                  {m.eyebrow}
-                </p>
+                <div className="flex items-center gap-3">
+                  <Seal />
+                  <p className="text-micro font-semibold uppercase tracking-[0.14em] text-primary">
+                    {m.eyebrow}
+                  </p>
+                </div>
 
-                {/*
-                  The one place on the site with display type. Two short lines:
-                  the exam, then the promise. The second line carries the mint
-                  because that is the word the page is actually selling.
-                */}
-                <h1 className="mt-5 font-display text-[2.25rem] font-semibold leading-[1.08] tracking-[-0.03em] text-ink sm:text-[3rem] lg:text-[3.5rem]">
+                <h1 className="mt-6 font-display text-[2.35rem] font-semibold leading-[1.05] tracking-[-0.03em] text-ink sm:text-[3.1rem] lg:text-[3.6rem]">
                   {m.headline}
                   <br />
                   <span className="text-primary">{m.headlineAccent}</span>
                 </h1>
 
-                <p className="mt-5 max-w-prose text-lead leading-relaxed text-ink-muted">
+                <p className="mt-6 max-w-prose text-lead leading-relaxed text-ink-muted">
                   {m.subhead}
                 </p>
 
@@ -135,63 +143,43 @@ export default async function RootPage() {
               </div>
 
               {/*
-                THE PRODUCT IS THE HERO IMAGE.
+                ONE HERO OBJECT, TWO SUPPORTING.
 
-                Three real surfaces, overlapped rather than stacked, with the
-                marked paper in front because "it marks you like the exam" is
-                the claim that separates this from a chatbot. Depth comes from
-                the overlap and one hairline each — nothing glows.
+                The marked script is the foreground and is allowed to be
+                bigger than everything around it, because "it marks you the way
+                the exam marks you" is the claim the page rests on. Nour sits
+                behind and below it, offset so only its top edge and its
+                grounding line show — the way a second sheet shows under the
+                first. The next-move card is a small third plane.
 
-                On a phone the stack becomes one column in reading order: the
-                mark first, then Nour, and the next-move card is dropped
-                entirely rather than shrunk into an unreadable chip.
+                On a phone this becomes one column in reading order and the
+                third plane is dropped entirely rather than shrunk into
+                something unreadable.
               */}
               <div className="relative">
-                <div className="space-y-4 lg:space-y-0">
-                  <ExaminerFragment
-                    className="relative z-20 lg:max-w-[26rem]"
-                    labels={{
-                      title: m.examinerLabel,
-                      nourNote: m.examinerNourNote,
-                      note: m.examinerNote,
-                    }}
-                  />
+                <ExaminerFragment
+                  labels={examinerLabels}
+                  className="relative z-30 lg:max-w-[30rem]"
+                />
 
-                  <NourFragment
-                    className="relative z-10 lg:-mt-6 lg:ms-16 lg:max-w-[27rem]"
-                    labels={{
-                      name: m.nourName,
-                      question: m.nourQuestion,
-                      answer: m.nourAnswer,
-                      grounded: m.nourGrounded,
-                    }}
-                  />
+                <NourFragment
+                  labels={nourLabels}
+                  className="relative z-20 mt-4 lg:-mt-10 lg:ms-20 lg:max-w-[27rem]"
+                />
 
-                  <NextMoveFragment
-                    className="hidden lg:relative lg:z-20 lg:-mt-4 lg:block lg:max-w-[22rem]"
-                    labels={{
-                      eyebrow: m.nextMoveEyebrow,
-                      subject: m.nextMoveSubject,
-                      chapter: m.nextMoveChapter,
-                      reason: m.nextMoveReason,
-                      cta: m.nextMoveCta,
-                    }}
-                  />
-                </div>
+                <NextMoveFragment
+                  labels={nextMoveLabels}
+                  className="relative z-30 mt-4 hidden lg:-mt-6 lg:block lg:max-w-[21rem]"
+                />
               </div>
             </div>
           </div>
         </section>
 
-        {/* ================= PROOF ================= */}
-        {/*
-          Editorial, not four KPI cards. Large figures, thin rules between, and
-          the claim under each one in sentence case. These are the numbers this
-          repository actually measures.
-        */}
-        <section className="border-b border-rule">
+        {/* ======================= PROOF ======================= */}
+        <section className="border-b border-rule bg-paper-sunken/60">
           <div className="mx-auto w-full max-w-[1180px] px-4 py-12 sm:px-6 sm:py-14 lg:px-8">
-            <dl className="grid grid-cols-2 gap-x-6 gap-y-9 sm:gap-x-10 lg:grid-cols-4 lg:divide-x lg:divide-rule">
+            <dl className="grid grid-cols-2 gap-x-6 gap-y-9 sm:gap-x-10 lg:grid-cols-4 lg:divide-x lg:divide-rule-strong">
               {[
                 { v: m.proofYearsValue, l: m.proofYears },
                 { v: m.proofQuestionsValue, l: m.proofQuestions },
@@ -209,70 +197,71 @@ export default async function RootPage() {
           </div>
         </section>
 
-        {/* ================= PRACTICE ================= */}
-        <Story
-          id="features"
-          title={m.practiceTitle}
-          body={m.practiceBody}
-          surface={
-            <QuestionFragment
+        {/* ======================= 01 PRACTICE ======================= */}
+        {/*
+          The question is the artwork. No card — the metadata heads it the way
+          a paper heads an exercise, the margin carries the number and the
+          marks, and the question itself is set at reading size with room
+          around it.
+        */}
+        <section id="features" className="relative overflow-hidden border-b border-rule">
+          <GhostNumeral className="-top-4 end-2 sm:end-8">01</GhostNumeral>
+          <div className="relative mx-auto grid w-full max-w-[1180px] gap-10 px-4 py-16 sm:px-6 sm:py-20 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)] lg:gap-16 lg:px-8">
+            <div className="max-w-xl">
+              <SectionMark index="01" label={m.secPractice} />
+              <h2 className="mt-5 font-display text-heading font-semibold leading-tight tracking-tight text-ink sm:text-display">
+                {m.practiceTitle}
+              </h2>
+              <p className="mt-5 max-w-prose text-body leading-relaxed text-ink-muted">
+                {m.practiceBody}
+              </p>
+            </div>
+            <QuestionPlate
               labels={{
-                subject: m.practiceSubject,
-                chapter: m.practiceChapter,
-                provenance: m.practiceProvenance,
+                number: m.practiceNumber,
+                meta: [m.practiceSubject, m.practiceChapter, m.practiceProvenance],
                 marks: m.practiceMarks,
               }}
               body={m.practiceQuestion}
               bodyLang="en"
             />
-          }
-        />
+          </div>
+        </section>
 
-        {/* ================= EXAMINER ================= */}
+        {/* ======================= 02 EXAMINER ======================= */}
         {/*
-          The contrasting section. Warm near-black rather than pure black, mint
-          kept for the one accent, and the marked paper sitting on it at full
-          size — this is the feature the page is built around, so it is the
-          only section that changes the colour of the room.
+          The one section that changes the colour of the room, because it is
+          the feature the page is built around. A plate rather than a card: the
+          mark enormous and alone, criteria against a ruled margin beneath it,
+          Nour's note in the margin under those.
         */}
-        <section className="border-y border-rule bg-ink text-paper">
-          <div className="mx-auto grid w-full max-w-[1180px] items-center gap-10 px-4 py-16 sm:px-6 sm:py-20 lg:grid-cols-2 lg:gap-16 lg:px-8">
+        <section className="relative overflow-hidden border-y border-rule bg-ink text-paper">
+          <PaperRuling tone="dark" />
+          <div className="relative mx-auto grid w-full max-w-[1180px] gap-12 px-4 py-16 sm:px-6 sm:py-24 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] lg:gap-16 lg:px-8">
             <div className="max-w-xl">
-              <h2 className="font-display text-heading font-semibold leading-tight tracking-tight sm:text-display">
+              <SectionMark index="02" label={m.secExaminer} tone="dark" />
+              <h2 className="mt-5 font-display text-heading font-semibold leading-tight tracking-tight sm:text-display">
                 {m.examinerTitle}
                 <br />
                 <span className="text-correct-bright">{m.examinerTitleAccent}</span>
               </h2>
-              <p className="mt-5 max-w-prose text-body leading-relaxed text-paper/75">
+              <p className="mt-5 max-w-prose text-body leading-relaxed text-paper/70">
                 {m.examinerBody}
               </p>
             </div>
-            <ExaminerFragment
-              className="lg:justify-self-end lg:max-w-[28rem]"
-              labels={{
-                title: m.examinerLabel,
-                nourNote: m.examinerNourNote,
-                note: m.examinerNote,
-              }}
-            />
+            <ExaminerShowcase labels={examinerLabels} />
           </div>
         </section>
 
-        {/* ================= NOUR ================= */}
-        <section className="border-b border-rule bg-primary-soft/40">
-          <div className="mx-auto grid w-full max-w-[1180px] items-center gap-10 px-4 py-16 sm:px-6 sm:py-20 lg:grid-cols-2 lg:gap-16 lg:px-8">
-            <NourFragment
-              className="order-2 lg:order-1 lg:max-w-[30rem]"
-              labels={{
-                name: m.nourName,
-                question: m.nourQuestion,
-                answer: m.nourAnswer,
-                grounded: m.nourGrounded,
-              }}
-            />
+        {/* ======================= 03 NOUR ======================= */}
+        <section className="relative overflow-hidden border-b border-rule bg-primary-soft/40">
+          <GhostNumeral className="-top-4 start-2 sm:start-8">03</GhostNumeral>
+          <div className="relative mx-auto grid w-full max-w-[1180px] items-center gap-12 px-4 py-16 sm:px-6 sm:py-20 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:gap-16 lg:px-8">
+            <NourFragment labels={nourLabels} editorial className="order-2 lg:order-1" />
             <div className="order-1 max-w-xl lg:order-2">
-              <NourMark className="mb-5 size-9" />
-              <h2 className="font-display text-heading font-semibold leading-tight tracking-tight text-ink sm:text-display">
+              <SectionMark index="03" label={m.secNour} />
+              <NourMark className="mt-5 size-10" />
+              <h2 className="mt-5 font-display text-heading font-semibold leading-tight tracking-tight text-ink sm:text-display">
                 {m.nourTitle}
                 <br />
                 <span className="text-primary">{m.nourTitleAccent}</span>
@@ -287,219 +276,257 @@ export default async function RootPage() {
           </div>
         </section>
 
-        {/* ================= PROGRESS ================= */}
-        <Story
-          title={m.progressTitle}
-          titleAccent={m.progressTitleAccent}
-          body={m.progressBody}
-          reverse
-          surface={
-            <div className="space-y-4">
-              <ReadinessFragment
-                labels={{
-                  eyebrow: m.readinessEyebrow,
-                  readiness: m.readinessCaption,
-                  mastery: m.masteryLabel,
-                  practised: m.practisedLabel,
-                  evidence: m.evidenceLabel,
-                  evidenceValue: m.evidenceValue,
-                  illustrative: m.illustrative,
-                }}
-              />
-              <MarksLostFragment
-                labels={{
-                  eyebrow: m.marksLostEyebrow,
-                  rows: [
-                    { criterion: m.marksLost1, count: m.marksLost1Count },
-                    { criterion: m.marksLost2, count: m.marksLost2Count },
-                    { criterion: m.marksLost3, count: m.marksLost3Count },
-                  ],
-                  illustrative: m.illustrative,
-                }}
-              />
+        {/* ======================= 04 STANDING ======================= */}
+        {/*
+          An academic report, not a dashboard. The mark anchors it; Mastery,
+          Practised and Evidence read as a row of figures under a rule; where
+          marks go reads as examiner feedback. No boxes.
+        */}
+        <section className="relative overflow-hidden border-b border-rule">
+          <GhostNumeral className="-top-4 end-2 sm:end-8">04</GhostNumeral>
+          <div className="relative mx-auto grid w-full max-w-[1180px] gap-12 px-4 py-16 sm:px-6 sm:py-20 lg:grid-cols-2 lg:gap-16 lg:px-8">
+            <div className="max-w-xl">
+              <SectionMark index="04" label={m.secProgress} />
+              <h2 className="mt-5 font-display text-heading font-semibold leading-tight tracking-tight text-ink sm:text-display">
+                {m.progressTitle}
+                <br />
+                <span className="text-primary">{m.progressTitleAccent}</span>
+              </h2>
+              <p className="mt-5 max-w-prose text-body leading-relaxed text-ink-muted">
+                {m.progressBody}
+              </p>
             </div>
-          }
-        />
-
-        {/* ================= NEXT MOVE ================= */}
-        <Story
-          title={m.nextMoveTitle}
-          titleAccent={m.nextMoveTitleAccent}
-          body={m.nextMoveBody}
-          surface={
-            <NextMoveFragment
+            <ReadinessPlate
               labels={{
-                eyebrow: m.nextMoveEyebrow,
-                subject: m.nextMoveSubject,
-                chapter: m.nextMoveChapter,
-                reason: m.nextMoveReason,
-                cta: m.nextMoveCta,
+                eyebrow: m.readinessEyebrow,
+                readiness: m.readinessCaption,
+                mastery: m.masteryLabel,
+                practised: m.practisedLabel,
+                evidence: m.evidenceLabel,
+                evidenceValue: m.evidenceValue,
+                illustrative: m.illustrative,
+                marksLostEyebrow: m.marksLostEyebrow,
+                rows: [
+                  { criterion: m.marksLost1, count: m.marksLost1Count },
+                  { criterion: m.marksLost2, count: m.marksLost2Count },
+                  { criterion: m.marksLost3, count: m.marksLost3Count },
+                ],
               }}
             />
-          }
-        />
+          </div>
+        </section>
 
-        {/* ================= LEBANESE BAC IDENTITY ================= */}
+        {/* ======================= 05 NEXT MOVE ======================= */}
+        <section className="border-b border-rule bg-paper-sunken/60">
+          <div className="mx-auto grid w-full max-w-[1180px] items-center gap-10 px-4 py-14 sm:px-6 sm:py-16 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.8fr)] lg:gap-16 lg:px-8">
+            <div className="max-w-xl">
+              <SectionMark index="05" label={m.secNextMove} />
+              <h2 className="mt-5 font-display text-title font-semibold leading-tight tracking-tight text-ink sm:text-heading">
+                {m.nextMoveTitle}{' '}
+                <span className="text-primary">{m.nextMoveTitleAccent}</span>
+              </h2>
+              <p className="mt-4 max-w-prose text-body leading-relaxed text-ink-muted">
+                {m.nextMoveBody}
+              </p>
+            </div>
+            <NextMoveFragment labels={nextMoveLabels} />
+          </div>
+        </section>
+
+        {/* ======================= 06 YOUR BAC ======================= */}
         {/*
-          The section that earns the word "Lebanese". Not a flag — the tracks
-          by name, the three languages of instruction, and three real academic
-          lines each sitting in its own direction inside an interface that does
-          not move. That last part IS the argument.
+          The section that earns the word "Lebanese". No flag — the four tracks
+          set large, the three languages of instruction, and three real
+          academic lines each sitting in its own direction inside a grid that
+          does not move. That last part IS the argument.
         */}
-        <section id="bac" className="border-b border-rule bg-paper-sunken">
-          <div className="mx-auto w-full max-w-[1180px] px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
+        <section id="bac" className="relative overflow-hidden border-b border-rule bg-ink text-paper">
+          <PaperRuling tone="dark" />
+          <div className="relative mx-auto w-full max-w-[1180px] px-4 py-16 sm:px-6 sm:py-24 lg:px-8">
             <div className="max-w-2xl">
-              <h2 className="font-display text-heading font-semibold leading-tight tracking-tight text-ink sm:text-display">
+              <SectionMark index="06" label={m.secBac} tone="dark" />
+              <h2 className="mt-5 font-display text-heading font-semibold leading-tight tracking-tight sm:text-display">
                 {m.bacTitle}
                 <br />
-                <span className="text-primary">{m.bacTitleAccent}</span>
+                <span className="text-correct-bright">{m.bacTitleAccent}</span>
               </h2>
-              <p className="mt-5 max-w-prose text-body leading-relaxed text-ink-muted">{m.bacBody}</p>
+              <p className="mt-5 max-w-prose text-body leading-relaxed text-paper/70">{m.bacBody}</p>
             </div>
 
-            <div className="mt-10 flex flex-wrap items-baseline gap-x-10 gap-y-4 border-y border-rule py-5">
-              <p className="text-micro font-semibold uppercase tracking-[0.12em] text-ink-faint">
+            {/* The tracks, large and confident. This is the line a Lebanese
+                candidate recognises instantly and nobody else does. */}
+            <div className="mt-12 border-y border-paper/15 py-8">
+              <p className="text-micro font-semibold uppercase tracking-[0.14em] text-paper/50">
                 {m.tracksLabel}
               </p>
-              <p className="figure text-lead text-ink">GS · LS · SE · LH</p>
+              <p className="figure mt-4 text-[2rem] leading-none text-paper sm:text-[3rem]">
+                GS<span className="px-3 text-paper/30">·</span>LS
+                <span className="px-3 text-paper/30">·</span>SE
+                <span className="px-3 text-paper/30">·</span>LH
+              </p>
             </div>
 
-            <div className="mt-8 grid gap-4 md:grid-cols-3">
+            <p className="mt-10 text-micro font-semibold uppercase tracking-[0.14em] text-paper/50">
+              {m.languagesLabel}
+            </p>
+            <div className="mt-5 grid gap-px overflow-hidden rounded-lg bg-paper/15 md:grid-cols-3">
               {[
-                { subject: m.bacArabicSubject, sample: m.bacArabicSample, lang: 'ar', dir: 'rtl' as const },
-                { subject: m.bacFrenchSubject, sample: m.bacFrenchSample, lang: 'fr', dir: 'ltr' as const },
-                { subject: m.bacEnglishSubject, sample: m.bacEnglishSample, lang: 'en', dir: 'ltr' as const },
+                { subject: m.bacArabicSubject, sample: m.bacArabicSample, lang: 'ar', dir: 'rtl' as const, name: 'العربية' },
+                { subject: m.bacFrenchSubject, sample: m.bacFrenchSample, lang: 'fr', dir: 'ltr' as const, name: 'Français' },
+                { subject: m.bacEnglishSubject, sample: m.bacEnglishSample, lang: 'en', dir: 'ltr' as const, name: 'English' },
               ].map((item) => (
-                <Surface key={item.lang} className="p-5">
-                  <p className="text-micro font-semibold uppercase tracking-[0.12em] text-ink-faint">
+                <div key={item.lang} className="bg-ink p-6">
+                  <p
+                    dir={item.dir}
+                    lang={item.lang}
+                    className="font-display text-title font-semibold text-paper"
+                  >
+                    {item.name}
+                  </p>
+                  <p className="mt-1 text-micro uppercase tracking-[0.1em] text-paper/45">
                     {item.subject}
                   </p>
                   {/*
                     `dir` on the text and never on the card. The grid, the
                     padding and the label stay in the reader's direction while
-                    the academic line inside reads in its own — which is exactly
-                    how the product behaves.
+                    the academic line inside reads in its own.
                   */}
                   <p
                     dir={item.dir}
                     lang={item.lang}
                     className={cn(
-                      'mt-3 text-meta text-ink',
+                      'mt-5 border-t border-paper/15 pt-5 text-meta text-paper/80',
                       item.dir === 'rtl' ? 'leading-loose' : 'leading-relaxed',
                     )}
                   >
                     {item.sample}
                   </p>
-                </Surface>
+                </div>
               ))}
             </div>
           </div>
         </section>
 
-        {/* ================= MOCK ================= */}
-        <Story
-          title={m.mockTitle}
-          titleAccent={m.mockTitleAccent}
-          body={m.mockBody}
-          reverse
-          surface={
-            <QuestionFragment
+        {/* ======================= 07 MOCK ======================= */}
+        <section className="relative overflow-hidden border-b border-rule">
+          <GhostNumeral className="-top-4 start-2 sm:start-8">07</GhostNumeral>
+          <div className="relative mx-auto grid w-full max-w-[1180px] gap-10 px-4 py-16 sm:px-6 sm:py-20 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] lg:gap-16 lg:px-8">
+            <QuestionPlate
               labels={{
-                subject: m.practiceSubject,
-                chapter: m.practiceChapter,
-                provenance: m.practiceProvenance,
+                number: '01',
+                meta: [m.practiceSubject, m.practiceProvenance, m.examinerExercise],
                 marks: m.practiceMarks,
               }}
               body={m.practiceQuestion}
               bodyLang="en"
+              className="order-2 lg:order-1"
             />
-          }
-        />
+            <div className="order-1 max-w-xl lg:order-2">
+              <SectionMark index="07" label={m.secMock} />
+              <h2 className="mt-5 font-display text-heading font-semibold leading-tight tracking-tight text-ink sm:text-display">
+                {m.mockTitle}
+                <br />
+                <span className="text-primary">{m.mockTitleAccent}</span>
+              </h2>
+              <p className="mt-5 max-w-prose text-body leading-relaxed text-ink-muted">
+                {m.mockBody}
+              </p>
+            </div>
+          </div>
+        </section>
 
-        {/* ================= THE LOOP ================= */}
-        <section id="how" className="border-y border-rule">
-          <div className="mx-auto w-full max-w-[1180px] px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
-            <h2 className="max-w-2xl font-display text-heading font-semibold leading-tight tracking-tight text-ink sm:text-display">
+        {/* ======================= THE LOOP ======================= */}
+        {/*
+          Compact and horizontal — the page should be accelerating by now, not
+          presenting another full-height section.
+        */}
+        <section id="how" className="border-b border-rule bg-paper-sunken/60">
+          <div className="mx-auto w-full max-w-[1180px] px-4 py-12 sm:px-6 sm:py-14 lg:px-8">
+            <h2 className="font-display text-title font-semibold tracking-tight text-ink sm:text-heading">
               {m.loopTitle}
             </h2>
-
-            {/*
-              An ordered list, because it is one. The arrows are decoration and
-              hidden from assistive technology; the numbers carry the sequence.
-            */}
-            <ol className="mt-10 grid gap-px overflow-hidden rounded-lg border border-rule bg-rule md:grid-cols-5">
+            <ol className="mt-7 grid gap-x-6 gap-y-5 sm:grid-cols-5">
               {[m.loop1, m.loop2, m.loop3, m.loop4, m.loop5].map((step, i) => (
-                <li key={step} className="bg-paper-raised p-5">
+                <li key={step} className="border-t border-rule-strong pt-3">
                   <span className="figure text-micro text-primary">0{i + 1}</span>
-                  <p className="mt-2 text-meta font-medium leading-snug text-ink">{step}</p>
+                  <p className="mt-1.5 text-meta font-medium leading-snug text-ink">{step}</p>
                 </li>
               ))}
             </ol>
           </div>
         </section>
 
-        {/* ================= TRY IT ================= */}
+        {/* ======================= TRY IT ======================= */}
         <section className="border-b border-rule">
-          <div className="mx-auto w-full max-w-[1180px] px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
-            <div className="max-w-2xl">
-              <h2 className="font-display text-heading font-semibold leading-tight tracking-tight text-ink sm:text-display">
-                {m.previewTitle}
-              </h2>
-              <p className="mt-3 text-body text-ink-muted">{m.previewSubtitle}</p>
+          <div className="mx-auto w-full max-w-[1180px] px-4 py-14 sm:px-6 sm:py-16 lg:px-8">
+            <div className="flex flex-wrap items-end justify-between gap-4">
+              <div className="max-w-xl">
+                <h2 className="font-display text-title font-semibold tracking-tight text-ink sm:text-heading">
+                  {m.previewTitle}
+                </h2>
+                <p className="mt-2 text-body text-ink-muted">{m.previewSubtitle}</p>
+              </div>
+              <p className="text-caption text-ink-faint">{m.previewNothingSaved}</p>
             </div>
-            <div className="mt-10">
+            <div className="mt-8">
               <PreviewsSlot />
             </div>
-            <p className="mt-4 text-caption text-ink-faint">{m.previewNothingSaved}</p>
           </div>
         </section>
 
-        {/* ================= PRICING ================= */}
+        {/* ======================= PRICING ======================= */}
         <section id="pricing" className="border-b border-rule">
-          <div className="mx-auto w-full max-w-[1180px] px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
-            <div className="flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between">
-              <div className="max-w-xl">
-                <h2 className="font-display text-heading font-semibold leading-tight tracking-tight text-ink sm:text-display">
-                  {m.pricingTitle}
-                </h2>
-                <p className="mt-4 text-lead font-medium text-ink">{m.pricingHeading}</p>
-                <p className="mt-2 max-w-prose text-body leading-relaxed text-ink-muted">
-                  {m.pricingBody}
-                </p>
-              </div>
-              <Link
-                href="/signup"
-                className="inline-flex min-h-12 shrink-0 items-center gap-2 rounded-sm bg-primary px-6 text-body font-semibold text-on-primary transition-colors hover:bg-primary-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
-              >
-                {m.pricingCta}
-                <span aria-hidden>→</span>
-              </Link>
+          <div className="mx-auto flex w-full max-w-[1180px] flex-col gap-6 px-4 py-12 sm:px-6 sm:py-14 lg:flex-row lg:items-center lg:justify-between lg:px-8">
+            <div className="max-w-xl">
+              <p className="text-micro font-semibold uppercase tracking-[0.14em] text-primary">
+                {m.pricingTitle}
+              </p>
+              <p className="mt-3 font-display text-title font-semibold text-ink">
+                {m.pricingHeading}
+              </p>
+              <p className="mt-2 max-w-prose text-meta leading-relaxed text-ink-muted">
+                {m.pricingBody}
+              </p>
             </div>
+            <Link
+              href="/signup"
+              className="inline-flex min-h-12 shrink-0 items-center gap-2 self-start rounded-sm bg-primary px-6 text-body font-semibold text-on-primary transition-colors hover:bg-primary-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus lg:self-auto"
+            >
+              {m.pricingCta}
+              <span aria-hidden>→</span>
+            </Link>
           </div>
         </section>
 
-        {/* ================= FINAL ================= */}
-        <section className="bg-ink text-paper">
-          <div className="mx-auto w-full max-w-[1180px] px-4 py-20 text-center sm:px-6 sm:py-28 lg:px-8">
-            <h2 className="mx-auto max-w-3xl font-display text-heading font-semibold leading-tight tracking-tight sm:text-display lg:text-hero">
+        {/* ======================= CLOSE ======================= */}
+        {/*
+          The cover closing on an academic publication. The seal returns, the
+          ruling returns, the type is the largest on the page, and there is one
+          action.
+        */}
+        <section className="relative overflow-hidden bg-ink text-paper">
+          <PaperRuling tone="dark" />
+          <div className="relative mx-auto w-full max-w-[1180px] px-4 py-24 text-center sm:px-6 sm:py-32 lg:px-8">
+            <Seal tone="paper" className="mx-auto size-11" />
+            <h2 className="mx-auto mt-10 max-w-3xl font-display text-heading font-semibold leading-[1.12] tracking-tight sm:text-display lg:text-hero">
               {m.finalTitle}
               <br />
               <span className="text-correct-bright">{m.finalTitleAccent}</span>
             </h2>
-            <p className="mx-auto mt-6 max-w-xl text-body leading-relaxed text-paper/75">
+            <p className="mx-auto mt-7 max-w-xl text-body leading-relaxed text-paper/70">
               {m.finalBody}
             </p>
-            <div className="mt-9 flex flex-col items-center gap-4">
+            <div className="mt-10 flex flex-col items-center gap-5">
               <Link
                 href="/signup"
-                className="inline-flex min-h-12 items-center gap-2 rounded-sm bg-paper px-7 text-body font-semibold text-ink transition-colors hover:bg-paper-sunken focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-paper"
+                className="inline-flex min-h-12 items-center gap-2 rounded-sm bg-paper px-8 text-body font-semibold text-ink transition-colors hover:bg-paper-sunken focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-paper"
               >
                 {m.finalCta}
                 <span aria-hidden>→</span>
               </Link>
               <Link
                 href="/login"
-                className="rounded-sm text-meta text-paper/70 underline-offset-4 transition-colors hover:text-paper hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-paper"
+                className="rounded-sm text-meta text-paper/60 underline-offset-4 transition-colors hover:text-paper hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-paper"
               >
                 {m.finalSignIn}
               </Link>
@@ -510,56 +537,15 @@ export default async function RootPage() {
 
       <footer className="border-t border-rule">
         <div className="mx-auto flex w-full max-w-[1180px] flex-wrap items-center justify-between gap-4 px-4 py-8 sm:px-6 lg:px-8">
-          <p className="text-lead font-semibold tracking-tight text-ink">
-            BAC<span className="text-primary">²</span>
-          </p>
+          <div className="flex items-center gap-3">
+            <Seal className="size-7 [clip-path:polygon(0_0,calc(100%-5px)_0,100%_5px,100%_100%,0_100%)]" />
+            <p className="text-lead font-semibold tracking-tight text-ink">
+              BAC<span className="text-primary">²</span>
+            </p>
+          </div>
           <p className="text-caption text-ink-faint">{m.footerNote}</p>
         </div>
       </footer>
     </div>
-  );
-}
-
-/**
- * One idea, one product surface, alternating sides.
- *
- * The rhythm the page depends on. Every narrative section is this shape, so
- * scrolling has a beat instead of a list of cards, and `reverse` is the only
- * variation — enough to stop the eye settling, far short of a different layout
- * each time.
- */
-function Story({
-  id,
-  title,
-  titleAccent,
-  body,
-  surface,
-  reverse = false,
-}: {
-  id?: string;
-  title: string;
-  titleAccent?: string;
-  body: string;
-  surface: React.ReactNode;
-  reverse?: boolean;
-}) {
-  return (
-    <section id={id} className="border-b border-rule">
-      <div className="mx-auto grid w-full max-w-[1180px] items-center gap-10 px-4 py-16 sm:px-6 sm:py-20 lg:grid-cols-2 lg:gap-16 lg:px-8">
-        <div className={cn('max-w-xl', reverse && 'lg:order-2')}>
-          <h2 className="font-display text-heading font-semibold leading-tight tracking-tight text-ink sm:text-display">
-            {title}
-            {titleAccent && (
-              <>
-                <br />
-                <span className="text-primary">{titleAccent}</span>
-              </>
-            )}
-          </h2>
-          <p className="mt-5 max-w-prose text-body leading-relaxed text-ink-muted">{body}</p>
-        </div>
-        <div className={cn('min-w-0', reverse && 'lg:order-1')}>{surface}</div>
-      </div>
-    </section>
   );
 }
