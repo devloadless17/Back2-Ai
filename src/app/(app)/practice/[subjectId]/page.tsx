@@ -68,7 +68,17 @@ export default async function SubjectChaptersPage({
       */}
       {/* So the tutor knows which subject the student is standing in. */}
       <TutorAnchor label={subject.name} />
-      <BackLink href="/practice" label={t.nav.practice} />
+      {/*
+        Up to the dashboard, not across to the subject list.
+        
+        `/practice` is the subject index, and it is the parent by URL and the
+        wrong answer by use. A student reaches a subject hub from the dashboard,
+        from a next-move card, from a chapter, or from a link a classmate sent,
+        and the one place they always mean by "out of here" is the top. The
+        subject list is a picker they passed through once, not somewhere to
+        return to.
+      */}
+      <BackLink href="/dashboard" label={t.nav.dashboard} />
 
       <SubjectHub subjectId={subject.id} subjectName={subject.name} counts={hub} />
 

@@ -101,7 +101,7 @@ export function ReadinessPanel({
           "/ 20" is deliberately quiet — the mark is the fact, the denominator
           is the unit, and printing both at the same weight makes neither read.
         */}
-        <span className="text-4xl font-semibold leading-none tabular-nums text-ink">
+        <span className="figure text-display leading-none sm:text-hero text-ink">
           {mark.toFixed(1)}
         </span>
         <span className="text-base text-ink-faint">{labels.outOf}</span>

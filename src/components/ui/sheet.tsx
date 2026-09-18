@@ -133,9 +133,24 @@ export function PageHeader({
         className,
       )}
     >
-      <div className="min-w-0 space-y-1">
-        <h1 className="text-title font-semibold sm:text-heading">{title}</h1>
-        {description && <p className="max-w-2xl text-sm leading-relaxed text-ink-muted">{description}</p>}
+      <div className="min-w-0 space-y-1.5">
+        {/*
+          The page name carries the page, so it is allowed to be a size nothing
+          else on the screen is. It was a step above a section heading; at
+          `display` it is unmistakably the top of the hierarchy and nothing
+          below it needs a box to be told apart from it.
+        */}
+        <h1 className="text-heading font-semibold tracking-tight sm:text-display">{title}</h1>
+        {/*
+          `max-w-prose` rather than a fixed 2xl: the comfortable measure for a
+          sentence depends on the size of the type in it, and this line is set
+          in the interface language while the page below may be Arabic.
+        */}
+        {description && (
+          <p className="max-w-prose text-meta leading-relaxed text-ink-muted sm:text-body">
+            {description}
+          </p>
+        )}
       </div>
       {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}
     </div>
