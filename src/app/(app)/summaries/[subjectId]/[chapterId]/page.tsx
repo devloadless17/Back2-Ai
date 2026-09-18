@@ -1,5 +1,4 @@
 import type { Metadata } from 'next';
-import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
 import { TutorAnchor } from '@/components/chat/tutor-context';
@@ -63,13 +62,6 @@ export default async function ChapterSummaryPage({
       <BackLink href={`/summaries/${chapter.subject.id}`} label={chapter.subject.name} />
 
       <PageHeader title={chapter.name} description={chapter.subject.name} />
-
-      <Link
-        href={`/summaries/${chapter.subject.id}`}
-        className="mb-5 inline-block text-meta text-ink-faint underline-offset-2 hover:underline"
-      >
-        ← {chapter.subject.name}
-      </Link>
 
       {summary.status !== 'ok' ? (
         <EmptyState

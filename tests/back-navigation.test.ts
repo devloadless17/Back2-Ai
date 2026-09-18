@@ -70,6 +70,17 @@ describe('the parent of each nested page', () => {
     );
   });
 
+  it('sends a summaries subject hub to the dashboard, like practice', () => {
+    const hub = page('summaries', '[subjectId]');
+    expect(hub).toContain('<BackLink href="/dashboard"');
+  });
+
+  it('sends a summary chapter to its own subject hub', () => {
+    expect(page('summaries', '[subjectId]', '[chapterId]')).toContain(
+      'href={`/summaries/${chapter.subject.id}`}',
+    );
+  });
+
   it('sends a worksheet to a parent it can actually name', () => {
     /*
      * A worksheet can span several chapters (`?chapters=a,b,c`), so "the
@@ -80,4 +91,31 @@ describe('the parent of each nested page', () => {
     expect(worksheet).toContain('parentHref');
     expect(worksheet).toContain('chapterIds.length === 1');
   });
+});
+
+describe('no page carries two back links', () => {
+  /*
+   * Both summaries pages did. A hand-rolled `← Subject` link sat three lines
+   * below the real `BackLink`, pointing at the same place, in the middle of
+   * the content — it predates the shared component and was never removed. A
+   * student reading the page met the same control twice and neither looked
+   * like the other.
+   */
+  const NESTED = [
+    ['practice', '[subjectId]'],
+    ['practice', '[subjectId]', '[chapterId]'],
+    ['summaries', '[subjectId]'],
+    ['summaries', '[subjectId]', '[chapterId]'],
+    ['old-cycles', '[examCycleId]'],
+    ['exam-sim', '[examSimulationId]', 'results'],
+  ] as const;
+
+  for (const parts of NESTED) {
+    it(`${parts.join('/')} has exactly one`, () => {
+      const source = page(...parts);
+      expect(source.match(/<BackLink/g) ?? []).toHaveLength(1);
+      // The hand-rolled shape: a link whose visible text begins with an arrow.
+      expect(source).not.toMatch(/>\s*←/);
+    });
+  }
 });

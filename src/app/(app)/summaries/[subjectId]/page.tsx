@@ -91,7 +91,16 @@ export default async function SubjectSummaryPage({
 
   return (
     <>
-      <BackLink href="/summaries" label={t.nav.summaries} />
+      {/*
+        Up to the dashboard, not across to the subject list — the same rule the
+        practice subject hub follows. `/summaries` is a picker a student passes
+        through once; the place they mean by "out of here" is the top.
+
+        This page also carried a SECOND back link three lines below this one,
+        hand-rolled, pointing at the same place and sitting in the middle of the
+        content. It predates `BackLink` and was never removed.
+      */}
+      <BackLink href="/dashboard" label={t.nav.dashboard} />
       <PageHeader title={subject.name} description={t.summaries.subtitle} />
 
       {overview?.status === 'ok' && overview.overview ? (
@@ -102,13 +111,6 @@ export default async function SubjectSummaryPage({
           </SheetBody>
         </Sheet>
       ) : null}
-
-      <Link
-        href="/summaries"
-        className="mb-5 inline-block text-meta text-ink-faint underline-offset-2 hover:underline"
-      >
-        ← {t.nav.summaries}
-      </Link>
 
       {readable.length === 0 ? (
         <EmptyState tone="pending" title={t.summaries.empty} body={t.summaries.emptyHint} />
