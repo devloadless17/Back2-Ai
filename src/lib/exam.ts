@@ -724,6 +724,26 @@ export async function loadSimulation(simulationId: string, userId: string): Prom
   });
 }
 
+/**
+ * Whether a sitting is genuinely under way, as opposed to merely unfinished.
+ *
+ * `status` alone is the wrong test and the difference is not academic: a paper
+ * whose deadline has passed keeps `in_progress` until the sweep reaches it.
+ * `startSimulation` already knows this — it refuses a second paper only while
+ * the first is live, and auto-submits a stale one before starting the next —
+ * but the index page was reading status on its own, hiding "new simulation"
+ * and offering Resume against a timer at zero. Two places deciding the same
+ * thing differently is how a UI ends up withholding an action the server would
+ * have allowed.
+ */
+export function isLiveSitting(
+  simulation: { expiresAt: Date; status: string } | null,
+  now: Date = new Date(),
+): boolean {
+  if (!simulation) return false;
+  return simulation.status === 'in_progress' && simulation.expiresAt.getTime() > now.getTime();
+}
+
 export function remainingSeconds(simulation: { expiresAt: Date; status: string }): number {
   if (simulation.status !== 'in_progress') return 0;
   return Math.max(0, Math.floor((simulation.expiresAt.getTime() - Date.now()) / 1000));

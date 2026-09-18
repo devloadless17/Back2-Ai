@@ -6,7 +6,7 @@ import { Alert, Badge, EmptyState } from '@/components/ui/feedback';
 import { PageHeader, Sheet, SheetBody, SheetHeader } from '@/components/ui/sheet';
 import { requireUser } from '@/lib/auth/guards';
 import { db } from '@/lib/db';
-import { remainingSeconds } from '@/lib/exam';
+import { isLiveSitting, remainingSeconds } from '@/lib/exam';
 import { getTranslations } from '@/lib/i18n';
 import { formatDate, formatDuration } from '@/lib/i18n/format';
 
@@ -50,13 +50,28 @@ export default async function ExamSimIndexPage() {
     }),
   ]);
 
+  /*
+   * LIVE, not merely unfinished.
+   *
+   * `status` alone is the wrong test. A paper whose deadline has passed keeps
+   * `in_progress` until the sweep reaches it, and this page was reading that
+   * as a sitting still under way: it hid the "new simulation" button and
+   * offered Resume against a timer already at zero.
+   *
+   * `startSimulation` does not agree. It refuses a second paper only while the
+   * first is genuinely live, and auto-submits a stale one before starting the
+   * next — so the server would have allowed exactly the action the UI was
+   * withholding. Same rule in both places now.
+   */
+  const live = isLiveSitting(inProgress) ? inProgress : null;
+
   return (
     <>
       <PageHeader
         title={t.examSim.title}
         description={t.examSim.subtitle}
         actions={
-          inProgress ? null : (
+          live ? null : (
             <LinkButton href="/exam-sim/new" variant="primary">
               {t.examSim.newTitle}
             </LinkButton>
@@ -64,13 +79,13 @@ export default async function ExamSimIndexPage() {
         }
       />
 
-      {inProgress && (
+      {live && (
         <Alert tone="warning" title={t.examSim.inProgressNotice} className="mb-5">
           <div className="mt-2 flex flex-wrap items-center gap-3">
             <span className="font-mono text-sm tabular-nums">
-              {formatDuration(remainingSeconds(inProgress))}
+              {formatDuration(remainingSeconds(live))}
             </span>
-            <LinkButton href={`/exam-sim/${inProgress.id}`} variant="mark" size="sm">
+            <LinkButton href={`/exam-sim/${live.id}`} variant="mark" size="sm">
               {t.examSim.resume}
             </LinkButton>
           </div>
@@ -83,10 +98,18 @@ export default async function ExamSimIndexPage() {
           title={t.examSim.noSimulations}
           body={t.examSim.subtitle}
           action={
-            inProgress ? null : (
-              <LinkButton href="/exam-sim/new" variant="primary">
-                {t.examSim.newTitle}
-              </LinkButton>
+            live ? null : (
+              <div className="flex flex-wrap items-center justify-center gap-3">
+                <LinkButton href="/exam-sim/new" variant="primary">
+                  {t.examSim.newTitle}
+                </LinkButton>
+                {/* The other real route in. A student with no sittings yet may
+                    not know a real paper is sittable, and past papers is where
+                    they are already browsing. */}
+                <LinkButton href="/old-cycles" variant="secondary">
+                  {t.nav.oldCycles}
+                </LinkButton>
+              </div>
             )
           }
         />

@@ -440,10 +440,51 @@ screen reader.
 
 # MOCK EXAM / EXAM SIMULATION
 
+## IMPLEMENTATION DEBT — not built
+
+Distinct from everything else in this file, which is built but unseen. These
+are things that do not exist yet.
+
+- **Desktop `lg+` navigator sidebar.** The question navigator is a horizontal
+  strip at every width; on a wide screen it should be a vertical list beside
+  the paper. **Deferred due to active concurrent ownership** —
+  `exam-runner.tsx` carries the colleague's uncommitted RTL paper-direction
+  work, and a layout change means interleaving substantial edits with their
+  hunks. The near-miss earlier in this phase, where their work was nearly
+  committed under my name, is the evidence that line-level surgery here has
+  reached diminishing returns. To implement later: a `lg:` two-column shell
+  with a vertical navigator, controlled reading measure for the question, the
+  existing identity and timer preserved, and mobile/tablet unchanged.
+- **Exam history beyond the last ten sittings.** `/exam-sim` lists ten, newest
+  first, with score and date. There is no trend and there should not be one
+  until normalisation across different papers is shown to be valid. Deferred
+  as product work, not as a defect.
+- **Official durations for the corpus.** See the limitations below — a
+  corpus-data task needing an authoritative source.
+
+## Existing implementation judged sufficient
+
+Audited this pass and deliberately NOT changed:
+
+- **Autosave presentation.** Debounce, retry with backoff, an `unsaved` set, a
+  `saving` indicator, `saveRetrying` and `saveFailed` notices, and a
+  `sendBeacon` flush on `visibilitychange`/`pagehide` that catches a retry
+  still in flight when the tab goes away. Quiet on success — no permanent
+  "Saved" badge. It already communicates saving, failure and unsaved
+  truthfully.
+- **Submission.** Explicit confirm dialog with a focus trap, Escape to cancel,
+  focus restored afterwards, the unanswered count stated factually, and the
+  cancel path disabled while submitting.
+- **Active-exam behaviour.** The index hides "new simulation" while a paper is
+  live and offers Resume with the remaining time.
+
+
 Partially addressed. The audit is in `EXAM-AUDIT.md`; most of this surface was
 already correct, and what changed is listed in the commits.
 
-## DATA QA
+## RUNTIME QA — built, unseen
+
+### DATA QA
 
 - [ ] an official paper ingested **without** a duration — the sitting runs our
       standard length and both the setup screen and the header say so
@@ -476,6 +517,12 @@ already correct, and what changed is listed in the commits.
 
 ## ROUTING / ACTION QA
 
+- [ ] an **expired but unswept** sitting — the index offers "new simulation"
+      rather than Resume against a zero timer. This was wrong: the UI withheld
+      an action `startSimulation` would have allowed
+- [ ] a genuinely live sitting — Resume is offered and starting another is not
+- [ ] the empty state offers both a new simulation and Past Papers
+- [ ] the setup picker on a full track — four queries, not three per subject
 - [ ] **Sit this paper** from a past paper lands on setup with that paper and
       its subject already chosen
 - [ ] the same link when the cycle belongs to a different subject than the
