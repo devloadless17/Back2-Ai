@@ -52,6 +52,7 @@ const RETRY_DELAYS_MS = [2_000, 5_000, 15_000];
 export function ExamRunner({
   simulationId,
   subjectName,
+  paperDir,
   durationIsOfficial,
   title,
   slots,
@@ -59,6 +60,14 @@ export function ExamRunner({
 }: {
   simulationId: string;
   subjectName: string;
+  /**
+   * The direction the PAPER reads in, which is not the interface's.
+   *
+   * A candidate sits Arabic history through a French interface. Reading an
+   * Arabic question laid out left-to-right, against a clock, is the worst
+   * place in the product to make somebody work out where a line starts.
+   */
+  paperDir: 'ltr' | 'rtl';
   /** Whether the countdown is the paper's own limit or our fallback. */
   durationIsOfficial: boolean;
   title: string;
@@ -420,6 +429,7 @@ export function ExamRunner({
             contentText={slot.contentText}
             contentLatex={slot.contentLatex}
             images={slot.contentImages}
+            dir={paperDir}
           />
         </SheetBody>
 

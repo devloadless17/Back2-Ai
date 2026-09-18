@@ -38,6 +38,8 @@ export type WorksheetQuestion = {
 
 export type Worksheet = {
   subjectName: string;
+  /** What the paper was printed in, so the sheet sets in the right direction. */
+  subjectLanguage: string;
   chapterNames: string[];
   questions: WorksheetQuestion[];
   /** How many were available before the cap, so the form can say "of 47". */
@@ -60,7 +62,7 @@ export async function buildWorksheet(input: {
   // follows here.
   const subject = await db.subject.findFirst({
     where: { id: input.subjectId, trackId: input.trackId ?? undefined },
-    select: { id: true, name: true },
+    select: { id: true, name: true, language: true },
   });
   if (!subject) return null;
 
@@ -106,6 +108,7 @@ export async function buildWorksheet(input: {
 
   return {
     subjectName: subject.name,
+    subjectLanguage: String(subject.language),
     chapterNames,
     available: rows.length > 0 ? Number(rows[0]!.total) : 0,
     questions: rows.map((row) => {

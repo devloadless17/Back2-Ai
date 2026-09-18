@@ -7,6 +7,7 @@ import { requireUser } from '@/lib/auth/guards';
 import { getTranslations } from '@/lib/i18n';
 import { listChapters, listSubjectsForStudent } from '@/lib/queries/taxonomy';
 import { MAX_QUESTIONS, buildWorksheet } from '@/lib/queries/worksheet';
+import { dirForLanguage } from '@/lib/i18n/config';
 
 export const metadata: Metadata = { title: 'Worksheet' };
 
@@ -51,6 +52,7 @@ export default async function WorksheetPage({
   const showKey = one('key') === '1';
 
   const chapters = subjectId ? await listChapters(subjectId, user.id) : [];
+
   const worksheet = subjectId
     ? await buildWorksheet({
         subjectId,
@@ -60,6 +62,15 @@ export default async function WorksheetPage({
         trackId: user.trackId,
       })
     : null;
+
+  /*
+   * The sheet is printed and handed to a student, so its direction is the
+   * paper's and not the teacher's interface. Resolved once from the subject
+   * rather than per question: a maths worksheet set in Arabic carries more
+   * Latin symbols than Arabic words, so counting characters question by
+   * question would set half the sheet one way and half the other.
+   */
+  const sheetDir = dirForLanguage(worksheet?.subjectLanguage);
 
   return (
     <>
@@ -167,7 +178,7 @@ export default async function WorksheetPage({
                     {q.totalMarks ? ` · ${q.totalMarks} ${t.common.points}` : ''}
                   </span>
                 </div>
-                <QuestionBody contentText={q.contentText} contentLatex={q.contentLatex} />
+                <QuestionBody contentText={q.contentText} contentLatex={q.contentLatex} dir={sheetDir} />
               </li>
             ))}
           </ol>
@@ -200,7 +211,7 @@ export default async function WorksheetPage({
 
                       {q.officialSolution && (
                         <div className="mt-2 text-sm text-ink-muted">
-                          <QuestionBody contentText={q.officialSolution} />
+                          <QuestionBody contentText={q.officialSolution} dir={sheetDir} />
                         </div>
                       )}
 

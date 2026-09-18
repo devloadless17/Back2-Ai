@@ -4,6 +4,7 @@ import { notFound, redirect } from 'next/navigation';
 import { ExamRunner, type ExamSlot } from '@/components/exam/exam-runner';
 import { requireUser } from '@/lib/auth/guards';
 import { loadSimulation, remainingSeconds, slotContent } from '@/lib/exam';
+import { dirForLanguage } from '@/lib/i18n/config';
 
 export const metadata: Metadata = { title: 'Examination' };
 
@@ -49,6 +50,7 @@ export default async function ExamSittingPage({
 
   return (
     <ExamRunner
+      paperDir={dirForLanguage(simulation.subject.language)}
       simulationId={simulation.id}
       subjectName={simulation.subject.name}
       /*

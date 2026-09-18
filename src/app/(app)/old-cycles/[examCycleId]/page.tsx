@@ -15,6 +15,7 @@ import { requireUser } from '@/lib/auth/guards';
 import { db } from '@/lib/db';
 import { getTranslations } from '@/lib/i18n';
 import { format } from '@/lib/i18n/format';
+import { dirForLanguage } from '@/lib/i18n/config';
 
 export const metadata: Metadata = { title: 'Past paper' };
 
@@ -60,7 +61,7 @@ export default async function ExamCyclePage({
       session: true,
       durationMinutes: true,
       durationIsOfficial: true,
-      subject: { select: { id: true, name: true } },
+      subject: { select: { id: true, name: true, language: true } },
       questions: {
         where: { verifiedStatus: { not: 'rejected' } },
         select: {
@@ -79,6 +80,23 @@ export default async function ExamCyclePage({
   });
 
   if (!cycle) notFound();
+
+  /*
+   * THE PAPER'S DIRECTION, NOT THE STUDENT'S.
+   *
+   * A Lebanese candidate sits Arabic history and French maths off one
+   * timetable, so the interface language says nothing about the paper on the
+   * screen. This page rendered every paper left-to-right: an Arabic history
+   * exercise arrived with its numbering, its brackets and its full stops on
+   * the wrong side of each line, and fell back to a Latin font with
+   * substituted glyphs.
+   *
+   * Taken from `subjects.language` rather than sniffed from the text, because
+   * this is the one place that knows for certain what the paper was printed
+   * in — a maths paper set in Arabic carries more Latin symbols than Arabic
+   * words, and counting characters would call it French.
+   */
+  const paperDir = dirForLanguage(cycle.subject.language);
 
   return (
     <>
@@ -158,6 +176,7 @@ export default async function ExamCyclePage({
                   contentText={question.contentText}
                   contentLatex={question.contentLatex}
                   images={question.contentImages}
+                  dir={paperDir}
                 />
 
                 <div className="mt-3 flex flex-wrap items-center justify-end gap-3">
@@ -171,6 +190,7 @@ export default async function ExamCyclePage({
 
                 <RevealableSolution
                   solution={question.officialSolutionLatex || question.officialSolution}
+                  dir={paperDir}
                 />
               </section>
             ))}

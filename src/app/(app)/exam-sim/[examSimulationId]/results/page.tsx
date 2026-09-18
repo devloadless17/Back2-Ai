@@ -20,6 +20,7 @@ import { loadSimulation, slotContent } from '@/lib/exam';
 import { parseBaremeResult } from '@/lib/grading';
 import { getTranslations } from '@/lib/i18n';
 import { format } from '@/lib/i18n/format';
+import { dirForLanguage } from '@/lib/i18n/config';
 
 export const metadata: Metadata = { title: 'Results' };
 
@@ -52,6 +53,14 @@ export default async function ExamResultsPage({
   if (simulation.status === 'in_progress') {
     redirect(`/exam-sim/${simulation.id}`);
   }
+
+  /*
+   * The paper's direction, not the student's. The sitting has always carried
+   * `subjects.language` — `SIMULATION_INCLUDE` selects it — and only the
+   * rendering ignored it, so an Arabic paper was marked up left-to-right on
+   * the screen where the student reads why they lost marks.
+   */
+  const paperDir = dirForLanguage(simulation.subject.language);
 
   const total = simulation.totalScore === null ? null : Number(simulation.totalScore);
   const max = simulation.maxScore === null ? null : Number(simulation.maxScore);
@@ -290,6 +299,7 @@ export default async function ExamResultsPage({
                     contentText={content.contentText}
                     contentLatex={content.contentLatex}
                     images={content.contentImages}
+                    dir={paperDir}
                   />
                 </SheetBody>
 
@@ -371,7 +381,7 @@ export default async function ExamResultsPage({
                       className="border-t"
                     />
                     <SheetBody>
-                      <MathText>{content.officialSolution}</MathText>
+                      <MathText dir={paperDir}>{content.officialSolution}</MathText>
                     </SheetBody>
                   </>
                 )}

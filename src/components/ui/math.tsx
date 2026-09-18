@@ -7,6 +7,7 @@ import remarkMath from 'remark-math';
 
 import { cn } from '@/lib/cn';
 import { repairSymbolFont } from '@/lib/symbol-font';
+import { dirForText } from '@/lib/i18n/config';
 
 /**
  * Question, solution and explanation bodies.
@@ -69,15 +70,50 @@ export function MathText({
   children,
   className,
   compact = false,
+  dir,
 }: {
   children: string;
   className?: string;
   compact?: boolean;
+  /**
+   * The direction this text reads in. Omit it and the direction is read from
+   * the text itself, which is right wherever the caller does not know the
+   * subject — a chat message, a flagged fragment, a student's own note.
+   *
+   * Pass it wherever the subject IS known: `subjects.language` is what the
+   * paper was printed in and beats counting characters on a formula-heavy
+   * Arabic page that happens to hold more Latin symbols than words.
+   */
+  dir?: 'ltr' | 'rtl';
 }) {
+  const body = repairSymbolFont(children);
+  const direction = dir ?? dirForText(body);
+
   return (
-    <div className={cn(compact ? 'text-sm leading-relaxed' : 'prose-exam', 'scroll-x', className)}>
+    <div
+      /*
+       * `dir` sits on the text, never on the layout around it. That is the
+       * house rule and it is also what makes a trilingual screen work: the
+       * sidebar, the controls and the page keep the student's own interface
+       * direction while an Arabic paper inside them reads right to left.
+       *
+       * It carries the typography too. `[dir='rtl']` in globals.css swaps the
+       * font stacks to the Arabic cuts, so a paper that was silently falling
+       * back to a Latin face with substituted glyphs now gets Cairo.
+       */
+      dir={direction}
+      lang={direction === 'rtl' ? 'ar' : undefined}
+      className={cn(
+        compact ? 'text-sm leading-relaxed' : 'prose-exam',
+        // Arabic sets tighter than Latin at the same size and needs the room
+        // back, or a paper reads as a wall.
+        direction === 'rtl' && 'leading-loose',
+        'scroll-x',
+        className,
+      )}
+    >
       <ReactMarkdown remarkPlugins={REMARK} rehypePlugins={REHYPE} skipHtml>
-        {repairSymbolFont(children)}
+        {body}
       </ReactMarkdown>
     </div>
   );
@@ -99,15 +135,18 @@ export function QuestionBody({
   contentLatex,
   images,
   className,
+  dir,
 }: {
   contentText: string;
   contentLatex?: string | null;
   images?: string[] | null;
   className?: string;
+  /** The subject's own direction, where the caller knows it. See `MathText`. */
+  dir?: 'ltr' | 'rtl';
 }) {
   return (
     <div className={className}>
-      <MathText>{contentLatex || contentText}</MathText>
+      <MathText dir={dir}>{contentLatex || contentText}</MathText>
 
       {images && images.length > 0 && (
         <div className="mt-4 flex flex-wrap gap-3">

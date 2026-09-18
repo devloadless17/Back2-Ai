@@ -16,7 +16,14 @@ import { useI18n } from '@/lib/i18n/client';
  * container is marked `aria-hidden` until revealed: a screen reader announcing
  * the answer to a "hidden" solution would defeat the whole interaction.
  */
-export function RevealableSolution({ solution }: { solution: string | null }) {
+export function RevealableSolution({
+  solution,
+  dir,
+}: {
+  solution: string | null;
+  /** The paper's direction, where the caller knows the subject. */
+  dir?: 'ltr' | 'rtl';
+}) {
   const { t } = useI18n();
   const [pinned, setPinned] = useState(false);
   const [hovered, setHovered] = useState(false);
@@ -55,7 +62,7 @@ export function RevealableSolution({ solution }: { solution: string | null }) {
           )}
           aria-hidden={!revealed}
         >
-          <MathText>{solution}</MathText>
+          <MathText dir={dir}>{solution}</MathText>
         </div>
 
         {!revealed && (
