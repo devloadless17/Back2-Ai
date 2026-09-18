@@ -267,6 +267,30 @@ export function ExamRunner({
     (s) => (answers[s.id] ?? '').trim().length === 0 && photoState[s.id] !== 'ok',
   ).length;
 
+  /*
+   * Changing question moves focus to the new question's heading.
+   *
+   * It did not move at all: Next left focus on the button, so a screen-reader
+   * user heard nothing change, and a student scrolled halfway down a long
+   * answer stayed there while the question above them was replaced.
+   *
+   * The heading, deliberately, and not the textarea — focusing the answer
+   * field would raise the mobile keyboard on every single transition and bury
+   * the question the student is trying to read. `skipFirstFocus` keeps it from
+   * stealing focus on the initial render, where nothing has changed yet.
+   */
+  const headingRef = useRef<HTMLDivElement | null>(null);
+  const skipFirstFocus = useRef(true);
+
+  useEffect(() => {
+    if (skipFirstFocus.current) {
+      skipFirstFocus.current = false;
+      return;
+    }
+    headingRef.current?.focus();
+    headingRef.current?.scrollIntoView({ block: 'start', behavior: 'auto' });
+  }, [index]);
+
   const urgent = remaining <= 300;
 
   if (!slot) return null;
@@ -343,6 +367,21 @@ export function ExamRunner({
               type="button"
               onClick={() => setIndex(i)}
               aria-current={i === index ? 'step' : undefined}
+              /*
+               * Answered is carried visually by fill and ink weight, which a
+               * screen reader cannot see — the chip announced "3 8pt" and
+               * nothing about whether it had been done. The state that matters
+               * most when triaging a paper was the one state not available to
+               * anyone not looking at it.
+               */
+              aria-label={format(
+                s.maxScore !== null ? t.examSim.navChipMarks : t.examSim.navChip,
+                {
+                  number: i + 1,
+                  marks: s.maxScore ?? 0,
+                  state: answered ? t.examSim.navAnswered : t.examSim.navUnanswered,
+                },
+              )}
               className={cn(
                 'flex h-11 w-10 shrink-0 flex-col items-center justify-center gap-0 rounded leading-none transition-colors duration-150',
                 i === index
@@ -363,6 +402,7 @@ export function ExamRunner({
 
       {/* --- The question --- */}
       <Sheet>
+        <div ref={headingRef} tabIndex={-1} className="outline-none">
         <SheetHeader
           title={format(t.examSim.questionOf, { current: index + 1, total: slots.length })}
           description={slot.chapterName ?? undefined}
@@ -431,6 +471,8 @@ export function ExamRunner({
 
           {notice && <Alert tone="error">{notice}</Alert>}
         </SheetBody>
+
+        </div>
 
         <SheetFooter className="justify-between">
           <Button

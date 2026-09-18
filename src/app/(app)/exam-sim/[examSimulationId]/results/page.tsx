@@ -1,9 +1,10 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 
 import { TutorAnchor } from '@/components/chat/tutor-context';
 import { TutorButton } from '@/components/chat/tutor-button';
-import { MarkExplanation } from '@/components/exam/mark-explanation';
+import { ExaminerMark } from '@/components/practice/examiner-mark';
 import { NextUpCard } from '@/components/progress/next-up-card';
 import { LinkButton } from '@/components/ui/button';
 import { Alert, Badge, EmptyState } from '@/components/ui/feedback';
@@ -117,6 +118,8 @@ export default async function ExamResultsPage({
 
   return (
     <>
+      {/* The paper's own direction. The sitting already carried
+          `subjects.language`; only the rendering ignored it. */}
       <TutorAnchor label={simulation.subject.name} />
 
       <BackLink href="/exam-sim" label={t.nav.examSim} />
@@ -131,16 +134,6 @@ export default async function ExamResultsPage({
         }
       />
 
-      {/* --- What to do with this ------------------------------------------
-          A paper sat and marked is the best evidence this product ever gets,
-          and the page ended with a back button. The recommendation is the same
-          `getNextUp` the Dashboard, Progress and the plan all read — this
-          answer must not become a fourth one, and the attempts this sitting
-          just wrote are already inside it. */}
-      <div className="mb-5">
-        <NextUpCard next={next} />
-      </div>
-
       {expired === '1' && (
         <Alert tone="warning" className="mb-5">
           {t.examSim.expired}
@@ -151,9 +144,27 @@ export default async function ExamResultsPage({
         <EmptyState tone="pending" title={t.examSim.grading} body={t.examSim.gradingHint} />
       ) : (
         <div className="space-y-5">
-          {/* --- Total --- */}
-          <Sheet>
-            <SheetHeader title={t.examSim.totalScore} />
+          {/* --- How I did ---------------------------------------------------
+              The paper's own mark on the paper's own scale. A /20 appears only
+              when every question was markable: the denominator excludes
+              questions still waiting on a human, so scaling a partial paper to
+              20 would hand the student a familiar-looking figure computed from
+              an unfamiliar denominator. When something is unmarked they get
+              the raw fraction and a count, which is the true shape of what we
+              know. */}
+          <Sheet hero>
+            <SheetHeader
+              title={t.examSim.totalScore}
+              description={
+                /* What was actually sat. The student should not have to infer
+                   whether this was a real paper or one we composed. */
+                simulation.sourceMode === 'real_cycle'
+                  ? t.examSim.modeRealCycle
+                  : simulation.sourceMode === 'real_mixed'
+                    ? t.examSim.modeRealMixed
+                    : t.examSim.modeAiGenerated
+              }
+            />
             <SheetBody className="space-y-3">
               {max === null || max === 0 ? (
                 <p className="text-2xl font-semibold text-ink-faint">
@@ -161,14 +172,42 @@ export default async function ExamResultsPage({
                 </p>
               ) : (
                 <>
-                  <p className="text-5xl font-semibold tabular-nums leading-none">
+                  <p className="figure text-5xl font-semibold tabular-nums leading-none text-ink">
                     {total === null ? '—' : total}
                     <span className="text-2xl font-normal text-ink-faint">
                       {' / '}
                       {max}
                     </span>
                   </p>
+
+                  {total !== null && awaitingMarking === 0 && (
+                    <p className="figure text-body text-ink-muted">
+                      {format(t.standing.outOf, {
+                        mark: Math.round((total / max) * 20 * 10) / 10,
+                        scale: 20,
+                      })}
+                      <span className="ms-2 text-meta text-ink-faint">
+                        {t.examSim.outOf20Hint}
+                      </span>
+                    </p>
+                  )}
+
                   <Meter value={ratio} />
+
+                  {/* Grading completeness, always — not a footnote that only
+                      appears when something is wrong. */}
+                  <p className="text-meta text-ink-muted">
+                    {format(t.examSim.gradedOf, {
+                      graded: simulation.questions.length - awaitingMarking,
+                      total: simulation.questions.length,
+                    })}
+                    {awaitingMarking > 0 && (
+                      <>
+                        {' · '}
+                        {format(t.examSim.awaitingHuman, { count: awaitingMarking })}
+                      </>
+                    )}
+                  </p>
                 </>
               )}
 
@@ -230,6 +269,22 @@ export default async function ExamResultsPage({
                   }
                 />
 
+                {/* --- Progressive disclosure -----------------------------
+                    Twelve papers' worth of question, answer, barème and model
+                    solution expanded at once is a wall nobody reads, and on a
+                    390px screen it is several minutes of scrolling before the
+                    second question. The mark is in the header, so the whole
+                    paper can be scanned closed; the first question that lost
+                    marks opens, because that is the one the student came for.
+
+                    `<details>` rather than state: it works before hydration,
+                    it is keyboard- and screen-reader-operable with no ARIA,
+                    and find-in-page reaches inside a closed section. */}
+                <details open={slot.id === firstLostMarks?.id} className="group">
+                  <summary className="cursor-pointer list-none border-t border-rule px-5 py-2.5 text-meta font-medium text-primary hover:bg-paper-sunken">
+                    {t.examSim.reviewQuestion}
+                  </summary>
+
                 <SheetBody>
                   <QuestionBody
                     contentText={content.contentText}
@@ -258,17 +313,20 @@ export default async function ExamResultsPage({
                   )}
                 </SheetBody>
 
-                {/* Barème */}
+                {/* --- The marking, in the product's one grammar -----------
+                    This rendered `MarkExplanation`, which predates the
+                    `ExaminerMark` built for Practice. Two components for one
+                    idea, and the exam's was the poorer of the two: no ✓ ◐ ×
+                    glyph, no Nour's note, no per-criterion provisional state.
+                    They were kept apart only because one was written first.
+
+                    The shapes turned out to be identical — `bareme_result` is
+                    already `{ criterion, points_awarded, points_possible,
+                    justification, explanation, provisional }`, which is
+                    `MarkedCriterion` exactly — so nothing had to be invented
+                    or dropped to move across. */}
                 {results.length > 0 && (
-                  <>
-                    <SheetHeader
-                      title={
-                        results.some((item) => item.provisional)
-                          ? t.examSim.provisionalMarking
-                          : t.examSim.baremeBreakdown
-                      }
-                      className="border-t"
-                    />
+                  <div className="border-t border-rule">
                     {/*
                      * Said before the marks, not after them. A student who has
                      * already read a score has already believed it, and a
@@ -280,20 +338,20 @@ export default async function ExamResultsPage({
                         <Alert tone="warning">{t.examSim.provisionalNotice}</Alert>
                       </SheetBody>
                     )}
-                    <SheetBody className="p-0">
-                      <div className="ruled">
-                        {results.map((item, i) => (
-                          <MarkExplanation
-                            key={`${item.criterion}-${i}`}
-                            criterion={item.criterion}
-                            awarded={item.points_awarded}
-                            possible={item.points_possible}
-                            justification={item.justification}
-                          />
-                        ))}
-                      </div>
-                    </SheetBody>
-                  </>
+                    <ExaminerMark
+                      total={slotTotal ?? 0}
+                      max={slotMax ?? 0}
+                      criteria={results}
+                      labels={{
+                        title: results.some((item) => item.provisional)
+                          ? t.examSim.provisionalMarking
+                          : t.practice.examinerTitle,
+                        nourNote: t.practice.nourNote,
+                        provisional: t.practice.criterionProvisional,
+                        repeated: t.practice.repeatedLoss,
+                      }}
+                    />
+                  </div>
                 )}
 
                 {/* Official solution */}
@@ -330,9 +388,30 @@ export default async function ExamResultsPage({
                     />
                   </SheetFooter>
                 )}
+                </details>
               </Sheet>
             );
           })}
+
+          {/* --- What next ------------------------------------------------
+              The end of the story, after the mark and the review — not before
+              them, where it was competing with the score for the first thing
+              the student read.
+
+              The same `getNextUp` the Dashboard, Progress and the plan read.
+              The attempts this sitting wrote are already inside it, so the
+              recommendation reflects the paper that was just marked without a
+              second engine being asked. Progress sits beside it because a sat
+              paper is the largest piece of evidence this product ever collects
+              and the student may reasonably want to see what it moved. */}
+          <div className="space-y-3">
+            <NextUpCard next={next} />
+            <p className="text-meta text-ink-muted">
+              <Link href="/progress" className="text-primary underline-offset-2 hover:underline">
+                {t.standing.title}
+              </Link>
+            </p>
+          </div>
         </div>
       )}
     </>

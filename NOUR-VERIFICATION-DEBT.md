@@ -496,16 +496,55 @@ already correct, and what changed is listed in the commits.
 - [ ] dark mode across the desk, the navigator and the result
 - [ ] keyboard navigation through the question navigator
 
+## RESULT / MARKING QA
+
+- [ ] a fully graded paper — the `/20` appears beside the raw score
+- [ ] a paper with **any** question awaiting a human — NO `/20`, and the count
+      is stated. This is the rule: the denominator excludes unmarked questions,
+      so scaling a partial paper to 20 would be a familiar number from an
+      unfamiliar denominator
+- [ ] the grading-completeness line on a whole paper ("12 of 12 marked")
+- [ ] a provisional paper — the caveat appears BEFORE the marks, not under them
+- [ ] a mixed paper: some criteria provisional, some not
+- [ ] `ExaminerMark` rendering exam criteria — ✓ ◐ × glyphs, Nour's note only
+      where marks were lost, per-criterion provisional
+- [ ] the same criterion rendered in Practice and in a mock result — they must
+      look identical, because they are now one component
+- [ ] the result hero's provenance line for each of the three source modes
+- [ ] question review collapsed by default, with the first mark-losing question
+      open
+- [ ] a paper where nothing lost marks — nothing auto-opens, and that reads as
+      success rather than as a bug
+- [ ] twelve questions at 390px — the page is scannable without expanding
+
+## ACCESSIBILITY QA (exam)
+
+- [ ] a navigator chip announces its number, marks AND whether it is answered.
+      It announced only the number and the marks; answered was visual-only
+- [ ] moving Next/Previous moves focus to the new question's heading, and a
+      screen reader announces the change
+- [ ] focus does NOT land in the textarea on transition — the mobile keyboard
+      must not open on every question
+- [ ] the initial page load does not steal focus to the heading
+- [ ] the timer still announces only under five minutes
+- [ ] the review `<details>` are keyboard-operable and announce expanded state
+
 ## Known limitations, recorded not fixed
 
-- **Two grading UIs exist.** The result renders `MarkExplanation`, which
-  predates the `ExaminerMark` component built for Practice. They do not
-  currently disagree, but they are two implementations of one idea and will
-  drift. Not swapped here — it is a real change to a working marked-paper
-  surface and deserves its own pass.
-- **The exam desk and result layouts have not been audited** for mobile,
-  desktop, RTL or dark mode this phase. They were not obviously wrong; they
-  were not examined.
+- **RESOLVED: the second grading UI is gone.** The result renders
+  `ExaminerMark`, and `mark-explanation.tsx` is deleted rather than left
+  unused — a component with no call sites is one somebody reaches for later.
+  The shapes were already identical, so nothing was dropped in the move.
+- **Official durations are still unrecorded for the whole corpus.** Existing
+  historical papers use BAC2 standard sitting durations unless an official
+  duration has been explicitly ingested. Populating them is a corpus-data task
+  needing an authoritative source; it must not be inferred from subject
+  convention. When real data arrives, set `duration_minutes` with
+  `duration_is_official = true` per paper — never a global flip.
+- **The exam desk and result were audited in source this pass** for RTL
+  (no physical-direction classes), dark mode (tokens only, no hardcoded
+  colours) and accessibility (two defects found and fixed). Nothing has been
+  seen rendered, and a static audit cannot substitute for that.
 - **No pause, and no flag-for-review.** Neither exists. The navigator can
   therefore only show answered / unanswered / current, which is what it should
   show anyway.
