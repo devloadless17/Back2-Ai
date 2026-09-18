@@ -17,8 +17,100 @@ export type GradeEntry = {
   grade: number | null;
   maxGrade: number | null;
   date: string | null;
+  subjectId: string | null;
   subjectName: string | null;
 };
+
+type SubjectOption = { id: string; name: string };
+
+/**
+ * The fields of one mark, shared by the add form and the inline edit form.
+ *
+ * Written once because the two must not drift: the day the edit form stops
+ * offering a date, a student correcting a typo silently loses the date they
+ * filed the mark under.
+ */
+function GradeFields({
+  subjects,
+  entry,
+  idPrefix,
+}: {
+  subjects: SubjectOption[];
+  /** Prefills for an edit. Absent means a blank add form. */
+  entry?: GradeEntry;
+  /** Keeps the generated input ids unique when several forms are on screen. */
+  idPrefix: string;
+}) {
+  const { t } = useI18n();
+
+  return (
+    <>
+      <Field label={t.settings.gradeLabel}>
+        {({ id }) => (
+          <Input
+            id={`${idPrefix}-${id}`}
+            name="label"
+            maxLength={120}
+            defaultValue={entry?.label ?? ''}
+          />
+        )}
+      </Field>
+
+      <Field label={t.admin.targetSubject}>
+        {({ id }) => (
+          <Select id={`${idPrefix}-${id}`} name="subjectId" defaultValue={entry?.subjectId ?? ''}>
+            <option value="">{t.admin.allSubjects}</option>
+            {subjects.map((subject) => (
+              <option key={subject.id} value={subject.id}>
+                {subject.name}
+              </option>
+            ))}
+          </Select>
+        )}
+      </Field>
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label={t.settings.gradeValue} required>
+          {({ id }) => (
+            <Input
+              id={`${idPrefix}-${id}`}
+              name="grade"
+              type="number"
+              step="0.25"
+              min="0"
+              required
+              defaultValue={entry?.grade ?? ''}
+            />
+          )}
+        </Field>
+        <Field label={t.settings.gradeMax} required>
+          {({ id }) => (
+            <Input
+              id={`${idPrefix}-${id}`}
+              name="maxGrade"
+              type="number"
+              step="1"
+              min="1"
+              required
+              defaultValue={entry?.maxGrade ?? 20}
+            />
+          )}
+        </Field>
+      </div>
+
+      <Field label={t.settings.gradeDate}>
+        {({ id }) => (
+          <Input
+            id={`${idPrefix}-${id}`}
+            name="date"
+            type="date"
+            defaultValue={entry?.date ?? ''}
+          />
+        )}
+      </Field>
+    </>
+  );
+}
 
 /**
  * Private grade log.
@@ -26,44 +118,82 @@ export type GradeEntry = {
  * Each row shows its own proportion as a bar so the log reads at a glance —
  * 14/20 and 7/10 are the same result and a column of raw numbers hides that.
  * Nothing here feeds mastery or readiness, which the page says out loud.
+ *
+ * EDITING HAPPENS IN THE ROW, not in the panel on the right. A student on a
+ * phone has the list under their thumb and the panel a scroll away, and an edit
+ * that moves the answer off screen is one they cannot check against what they
+ * are correcting. Delete-and-retype was the only route before this; it worked,
+ * and it threw away the row's date every time.
  */
 export function GradeLog({
   grades,
   subjects,
 }: {
   grades: GradeEntry[];
-  subjects: { id: string; name: string }[];
+  subjects: SubjectOption[];
 }) {
   const { t, formatScore, formatDate } = useI18n();
   const router = useRouter();
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [editing, setEditing] = useState<string | null>(null);
+
+  /** The numbers off a grade form, or null when they do not describe a mark. */
+  function readForm(form: HTMLFormElement) {
+    const data = new FormData(form);
+    const grade = Number(data.get('grade'));
+    const maxGrade = Number(data.get('maxGrade'));
+
+    if (!Number.isFinite(grade) || !Number.isFinite(maxGrade) || maxGrade <= 0) return null;
+    if (grade > maxGrade) return null;
+
+    return {
+      label: String(data.get('label') ?? '') || null,
+      subjectId: String(data.get('subjectId') ?? '') || null,
+      grade,
+      maxGrade,
+      date: String(data.get('date') ?? '') || null,
+    };
+  }
 
   async function add(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
-    setSaving(true);
 
-    const form = new FormData(event.currentTarget);
-    const grade = Number(form.get('grade'));
-    const maxGrade = Number(form.get('maxGrade'));
-
-    if (!Number.isFinite(grade) || !Number.isFinite(maxGrade) || maxGrade <= 0 || grade > maxGrade) {
-      setError(t.common.unknownError);
-      setSaving(false);
+    const form = event.currentTarget;
+    const payload = readForm(form);
+    if (!payload) {
+      setError(t.settings.gradeInvalid);
       return;
     }
 
+    setSaving(true);
     try {
-      await sendJson('/api/grades', 'POST', {
-        label: String(form.get('label') ?? '') || null,
-        subjectId: String(form.get('subjectId') ?? '') || null,
-        grade,
-        maxGrade,
-        date: String(form.get('date') ?? '') || null,
-      });
-      event.currentTarget.reset();
+      await sendJson('/api/grades', 'POST', payload);
+      form.reset();
+      router.refresh();
+    } catch {
+      setError(t.common.unknownError);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function save(id: string, event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError(null);
+
+    const payload = readForm(event.currentTarget);
+    if (!payload) {
+      setError(t.settings.gradeInvalid);
+      return;
+    }
+
+    setSaving(true);
+    try {
+      await sendJson('/api/grades', 'PATCH', { id, ...payload });
+      setEditing(null);
       router.refresh();
     } catch {
       setError(t.common.unknownError);
@@ -75,6 +205,7 @@ export function GradeLog({
   async function remove(id: string) {
     try {
       await sendJson('/api/grades', 'DELETE', { id });
+      if (editing === id) setEditing(null);
       router.refresh();
     } catch {
       setError(t.common.unknownError);
@@ -105,6 +236,37 @@ export function GradeLog({
                 const ratio =
                   entry.grade !== null && entry.maxGrade ? entry.grade / entry.maxGrade : 0;
 
+                if (editing === entry.id) {
+                  return (
+                    <li key={entry.id} className="bg-paper-sunken px-5 py-4">
+                      <form onSubmit={(event) => save(entry.id, event)} className="space-y-3">
+                        <GradeFields
+                          subjects={subjects}
+                          entry={entry}
+                          idPrefix={`edit-${entry.id}`}
+                        />
+
+                        <div className="flex items-center justify-end gap-2">
+                          <Button
+                            type="button"
+                            variant="quiet"
+                            size="sm"
+                            onClick={() => {
+                              setEditing(null);
+                              setError(null);
+                            }}
+                          >
+                            {t.common.cancel}
+                          </Button>
+                          <Button type="submit" variant="primary" size="sm" loading={saving}>
+                            {t.common.save}
+                          </Button>
+                        </div>
+                      </form>
+                    </li>
+                  );
+                }
+
                 return (
                   <li key={entry.id} className="px-5 py-3">
                     <div className="mb-1.5 flex items-baseline justify-between gap-3">
@@ -129,6 +291,16 @@ export function GradeLog({
                         </p>
                         <button
                           type="button"
+                          onClick={() => {
+                            setEditing(entry.id);
+                            setError(null);
+                          }}
+                          className="text-caption text-ink-faint transition-colors hover:text-primary"
+                        >
+                          {t.common.edit}
+                        </button>
+                        <button
+                          type="button"
                           onClick={() => remove(entry.id)}
                           className="text-caption text-ink-faint transition-colors hover:text-mark"
                         >
@@ -150,39 +322,7 @@ export function GradeLog({
         <SheetHeader title={t.settings.addGrade} />
         <form onSubmit={add}>
           <SheetBody className="space-y-3">
-            <Field label={t.settings.gradeLabel}>
-              {({ id }) => <Input id={id} name="label" maxLength={120} />}
-            </Field>
-
-            <Field label={t.admin.targetSubject}>
-              {({ id }) => (
-                <Select id={id} name="subjectId">
-                  <option value="">{t.admin.allSubjects}</option>
-                  {subjects.map((subject) => (
-                    <option key={subject.id} value={subject.id}>
-                      {subject.name}
-                    </option>
-                  ))}
-                </Select>
-              )}
-            </Field>
-
-            <div className="grid gap-3 sm:grid-cols-2">
-              <Field label={t.settings.gradeValue} required>
-                {({ id }) => (
-                  <Input id={id} name="grade" type="number" step="0.25" min="0" required />
-                )}
-              </Field>
-              <Field label={t.settings.gradeMax} required>
-                {({ id }) => (
-                  <Input id={id} name="maxGrade" type="number" step="1" min="1" defaultValue={20} required />
-                )}
-              </Field>
-            </div>
-
-            <Field label={t.settings.gradeDate}>
-              {({ id }) => <Input id={id} name="date" type="date" />}
-            </Field>
+            <GradeFields subjects={subjects} idPrefix="add" />
           </SheetBody>
 
           <SheetFooter className="justify-end">

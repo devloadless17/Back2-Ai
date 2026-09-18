@@ -967,6 +967,7 @@ export const ar: Dictionary = {
     gradeValue: 'العلامة',
     gradeMax: 'من',
     gradeDate: 'التاريخ',
+    gradeInvalid: 'تأكّد من الرقمين: العلامة لا تكون أكبر من العلامة الكاملة.',
     gradesEmpty: 'لا توجد علامات مسجّلة.',
     gradesEmptyHint: 'سجّل علامة لتحتفظ بمتابعتك الخاصة إلى جانب تمارينك.',
     saved: 'تم الحفظ.',

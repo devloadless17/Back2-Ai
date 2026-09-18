@@ -958,6 +958,7 @@ export const fr: Dictionary = {
     gradeValue: 'Note',
     gradeMax: 'Sur',
     gradeDate: 'Date',
+    gradeInvalid: 'Vérifiez les deux nombres : une note ne peut pas dépasser le total sur lequel elle est calculée.',
     gradesEmpty: 'Aucune note enregistrée.',
     gradesEmptyHint: 'Enregistrez une note pour garder votre propre suivi à côté de votre entraînement.',
     saved: 'Enregistré.',

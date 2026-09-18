@@ -969,6 +969,7 @@ export const en = {
     gradeValue: 'Grade',
     gradeMax: 'Out of',
     gradeDate: 'Date',
+    gradeInvalid: 'Check the two numbers — a mark cannot be higher than what it is out of.',
     gradesEmpty: 'No grades logged.',
     gradesEmptyHint: 'Log a grade to keep your own record alongside your practice.',
     saved: 'Saved.',
