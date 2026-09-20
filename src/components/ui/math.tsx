@@ -6,6 +6,7 @@ import remarkBreaks from 'remark-breaks';
 import remarkMath from 'remark-math';
 
 import { cn } from '@/lib/cn';
+import { normalizeMathDelimiters } from '@/lib/math-delimiters';
 import { repairSymbolFont } from '@/lib/symbol-font';
 import { dirForText } from '@/lib/i18n/config';
 
@@ -86,7 +87,10 @@ export function MathText({
    */
   dir?: 'ltr' | 'rtl';
 }) {
-  const body = repairSymbolFont(children);
+  // Delimiters first, then the font repair: a symbol sitting inside a `\[ … \]`
+  // block has to be inside `$$ … $$` before anything reasons about whether it
+  // is in maths.
+  const body = repairSymbolFont(normalizeMathDelimiters(children));
   const direction = dir ?? dirForText(body);
 
   return (

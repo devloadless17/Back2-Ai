@@ -375,7 +375,13 @@ export function systemPrompt(
         'or a question about a word in another language, is a reason to leave it.'
       : `Reply in the language the student wrote their message in. If that is unclear, reply in ${LANGUAGE_NAME[locale]}.`,
     'Use the notation and vocabulary of the Lebanese programme.',
-    'Mathematics in LaTeX: $...$ inline, $$...$$ displayed.',
+    // Dollars only. The renderer parses `$...$` and `$$...$$` and nothing
+    // else, so a `\[ ... \]` block is left as text and every dollar after it
+    // pairs one step out of phase — the answer renders correctly to that
+    // point and then collapses into source. Normalised at render too, but
+    // not emitting it in the first place is cheaper and safer.
+    'Mathematics in LaTeX, dollars only: $...$ inline, $$...$$ on its own lines for display.',
+    'Never use \[ \] or \( \) as maths delimiters. Do not put $$...$$ inside a sentence.',
     '',
     'Hard rules:',
     /*
