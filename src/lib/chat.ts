@@ -139,6 +139,25 @@ const GENERAL_KNOWLEDGE_NOTICE: Record<Locale, string> = {
  * an exact match hands over the official solution — withholding it would help
  * nobody. It says what is missing and how to supply it, then answers.
  */
+/**
+ * What the answer actually has to look at.
+ *
+ * `attached` — the original image is in the request.
+ * `described-only` — no image, but a transcription of one is in the text.
+ * `absent` — neither.
+ *
+ * Pulled out as a function because the distinction is the whole point and it
+ * was previously a clause inside a generator, where it could not be tested and
+ * quietly conflated the first two. A description is evidence; it is not a
+ * sighting, and the difference has to survive into the prompt.
+ */
+export type VisualEvidence = 'attached' | 'described-only' | 'absent';
+
+export function visualEvidenceState(hasImages: boolean, questionText: string): VisualEvidence {
+  if (hasImages) return 'attached';
+  return hasDescribedFigure(questionText) ? 'described-only' : 'absent';
+}
+
 const MISSING_VISUAL_NOTICE: Record<Locale, (ref: string) => string> = {
   fr: (ref) =>
     `Cette question renvoie à « ${ref} », que je n'ai pas sous les yeux : les figures ne sont pas ` +
@@ -866,8 +885,31 @@ export async function* runChatTurn(input: ChatTurnInput): AsyncGenerator<ChatEve
   // question needs — and the tutor opened by saying it did not have the
   // figure. That is false, and it talks the student out of an answer that was
   // sitting in front of both of them.
+  /*
+   * THREE EVIDENCE STATES, and they are not two.
+   *
+   * The condition above collapsed "the figure is attached" and "someone wrote
+   * down what the figure showed" into one. They are not the same thing, and
+   * the difference matters most exactly when it is invisible: a student
+   * photographs a page, the transcription carries `[figure: …]`, the photo
+   * then fails to load — and the old rule suppressed the notice because a
+   * description existed. The model answered from prose about a picture while
+   * nothing, on screen or in the prompt, said it had never seen the picture.
+   *
+   *   attached        the original image is in the request
+   *   described-only  no image; a transcription of one is in the text
+   *   absent          neither
+   *
+   * `described-only` is NOT a refusal. A good description often carries the
+   * whole answer — "[figure: curve peaks near 10000 rad/s at about 40 W]" is
+   * the reading the question wanted. What it must not do is let the model
+   * speak as though it had looked. So the state is named to the model instead
+   * of hidden from it.
+   */
+  const visualEvidence = visualEvidenceState(images.length > 0, input.question);
+
   const visualNotice =
-    absentVisual && images.length === 0 && !hasDescribedFigure(input.question)
+    absentVisual && visualEvidence === 'absent'
       ? MISSING_VISUAL_NOTICE[input.locale](absentVisual)
       : '';
   if (visualNotice) {
@@ -895,10 +937,29 @@ export async function* runChatTurn(input: ChatTurnInput): AsyncGenerator<ChatEve
       'genuinely unreadable, say which part.'
     : null;
 
+  /*
+   * A DESCRIPTION IS NOT A SIGHTING, and the model is told which it has.
+   *
+   * Reached only in the `described-only` state: the question points at a
+   * figure, no image is attached, and a transcription of one is in the text.
+   * Without this the model reads `[figure: …]` as part of the question and
+   * writes as though it had looked at the thing — which is the same confident
+   * wrong answer the missing-visual notice exists to prevent, arriving by a
+   * route that notice no longer covers.
+   */
+  const describedOnlyNote =
+    visualEvidence === 'described-only'
+      ? 'The figure this question refers to is NOT attached. What you have is a written ' +
+        'transcription of it, marked `[figure: …]` in the text above — a description made by ' +
+        'someone else, not something you can see. Answer as far as that description actually ' +
+        'supports, and say plainly which step would need the original figure.'
+      : null;
+
   const userContent = [
     '# Course material you may use',
     grounding.context,
     ...(uploadedNote ? ['', '# The page the student uploaded', uploadedNote] : []),
+    ...(describedOnlyNote ? ['', '# You have a description, not the figure', describedOnlyNote] : []),
     ...(figureManifest ? ['', figureManifest] : []),
     ...(input.anchorAttempt ? ['', formatAttempt(input.anchorAttempt)] : []),
     '',
