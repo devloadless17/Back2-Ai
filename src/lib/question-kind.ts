@@ -404,6 +404,37 @@ export function isSuppliedProblem(text: string): boolean {
   return PART_LABELS.test(text) || HAS_GIVENS.test(text);
 }
 
+/**
+ * Has the figure already been described in words?
+ *
+ * `transcribeImage` is told: "Where a diagram or figure appears, write a line:
+ * [figure: short description of what it shows]." So a photographed page
+ * arrives with its diagrams described, and the description is frequently all
+ * the question needs — "curve peaks near 10000 rad/s at about 40 W, with point
+ * S(5000; 13)" is enough to read a resonance frequency off, prove a resistance
+ * and find L and C.
+ *
+ * Saying "I do not have that figure" over a transcript that describes it is
+ * wrong twice: the claim is false, and it talks the student out of an answer
+ * that was available. The notice exists for a question naming a figure NOBODY
+ * has — a corpus question whose diagram was never extracted — and that is the
+ * only case it should still fire on.
+ *
+ * `[illegible]` is deliberately not treated as a description. OCR writes it
+ * where it could not read the page, which is exactly when the student does
+ * need to be told something is missing.
+ */
+//
+// The first character after the colon must be non-space, and only what follows
+// it counts toward the length. Written as `\s*[^\]]{3,}` the separating space
+// backtracks into the quantifier and pays for a third character, so the stub
+// `[figure: ab]` satisfies a rule meant to reject it.
+const DESCRIBED_FIGURE = /\[figure\s*:[ \t]*[^\s\]][^\]]{2,}\]/i;
+
+export function hasDescribedFigure(text: string): boolean {
+  return DESCRIBED_FIGURE.test(text);
+}
+
 /** The reference itself, so the student is told which one is missing. */
 export function missingVisual(text: string): string | null {
   const m = VISUAL_REFERENCE.exec(text);

@@ -6,7 +6,12 @@ import { ai } from '@/lib/ai';
 import { db } from '@/lib/db';
 import type { Locale } from '@/lib/i18n/config';
 import { classifyChatIntent, type IntentClassification } from '@/lib/chat-intent';
-import { isSuppliedProblem, missingVisual, type QuestionClassification } from '@/lib/question-kind';
+import {
+  hasDescribedFigure,
+  isSuppliedProblem,
+  missingVisual,
+  type QuestionClassification,
+} from '@/lib/question-kind';
 import {
   retrieveGrounding,
   type GroundingResult,
@@ -430,9 +435,13 @@ export function systemPrompt(
           '  and stop there rather than choosing a plausible value.',
           '- Do not invent a barème, a mark allocation, or an exam convention. Those come only from the',
           '  material, exactly as before.',
-          '- If a part depends on a figure or a graph you cannot see, carry the reasoning as far as the',
-          '  stated data allows, then say precisely which reading off the figure you would need. Do not',
-          '  claim what an unseen figure shows.',
+          '- A line like [figure: a graph of P against w, peaking near 10000 rad/s at about 40 W] is a',
+          '  DESCRIPTION OF THE FIGURE, transcribed from the page the student photographed. Read the',
+          '  values off it and use them. Do not say you cannot see the figure when it has been described',
+          '  to you — the description is what you have been given instead of the picture.',
+          '- If a part depends on a figure that is neither attached nor described, carry the reasoning as',
+          '  far as the stated data allows, then say precisely which reading you would need. Do not claim',
+          '  what an unseen figure shows.',
         ]
       : [
           '- Answer ONLY from the material given below. It is the entire basis you are permitted to use.',
@@ -843,8 +852,24 @@ export async function* runChatTurn(input: ChatTurnInput): AsyncGenerator<ChatEve
   // `generalKnowledgeTurn` already persists `notice + answer` for exactly this
   // reason; this path did not.
   const absentVisual = missingVisual(input.question);
+  //
+  // THREE WAYS THE FIGURE CAN ALREADY BE PRESENT, and the notice must stand
+  // down for all of them.
+  //
+  //   the student attached a photo          → `images`
+  //   the corpus question carries diagrams  → `images`
+  //   OCR transcribed and DESCRIBED it      → `hasDescribedFigure`
+  //
+  // The third was the one being missed, and it is the common case: a
+  // photographed page arrives as a transcript with "[figure: curve peaks near
+  // 10000 rad/s at about 40 W, with point S(5000; 13)]" in it — everything the
+  // question needs — and the tutor opened by saying it did not have the
+  // figure. That is false, and it talks the student out of an answer that was
+  // sitting in front of both of them.
   const visualNotice =
-    absentVisual && images.length === 0 ? MISSING_VISUAL_NOTICE[input.locale](absentVisual) : '';
+    absentVisual && images.length === 0 && !hasDescribedFigure(input.question)
+      ? MISSING_VISUAL_NOTICE[input.locale](absentVisual)
+      : '';
   if (visualNotice) {
     yield { type: 'delta', text: visualNotice };
   }

@@ -106,7 +106,10 @@ describe('which hard rules reach the model', () => {
     expect(prompt).toContain('Do not invent DATA');
     expect(prompt).toContain('Do not invent a barème');
     // The prompt is assembled from wrapped lines, so assert within one line.
-    expect(prompt).toContain('claim what an unseen figure shows');
+    expect(prompt).toContain('what an unseen figure shows');
+    // A described figure is not an unseen one: the tutor must read the values
+    // out of the transcription rather than declaring the graph unavailable.
+    expect(prompt).toContain('DESCRIPTION OF THE FIGURE');
   });
 
   it('leaves a topic question under the strict rule', () => {
