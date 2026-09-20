@@ -41,3 +41,15 @@ LAUNCH-PLAN.md
 UPDATE-*.md
 NOTES.md
 *-credentials.md
+
+# Internal audits, handover notes and planning documents. The README is the
+# only documentation this repository ships; everything else was a working
+# artefact for one person and goes stale the week it is written.
+/docs/
+*-AUDIT.md
+*_AUDIT.md
+HANDOVER.md
+PRODUCTION-RUNBOOK.md
+LAUNCH-QA.md
+SYSTEM-BRIEF.md
+NOUR-VERIFICATION-DEBT.md
