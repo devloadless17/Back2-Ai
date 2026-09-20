@@ -109,6 +109,16 @@ export type QuestionHit = SimilarityHit & {
   contentLatex: string | null;
   officialSolution: string | null;
   officialSolutionLatex: string | null;
+  /**
+   * The figures printed with this question, in the order the paper prints them.
+   *
+   * Selected here because this is where a question stops being a row and starts
+   * being evidence. It was not selected before, so a diagram reached the
+   * student's screen and never reached the model — the tutor answered a
+   * circuit question from its caption. Order is the column's own order and is
+   * load-bearing: "the figure below" means the first one.
+   */
+  contentImages: string[];
   /*
    * PROVENANCE. Carried so the tutor can show a student WHERE an answer came
    * from — "Official Exam · 2019 · Session 1 · 4 marks" — rather than a bare
@@ -189,6 +199,9 @@ export async function searchQuestions(
       q.content_latex            AS "contentLatex",
       q.official_solution        AS "officialSolution",
       q.official_solution_latex  AS "officialSolutionLatex",
+      -- coalesce, so a null column arrives as [] rather than null and every
+      -- consumer can treat it as a list without a guard.
+      coalesce(q.content_images, ARRAY[]::text[]) AS "contentImages",
       ec.year                    AS "examYear",
       ec.session::text           AS "examSession",
       -- Summed from the criteria rather than read from a column: these papers

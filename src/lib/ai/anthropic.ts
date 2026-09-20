@@ -59,7 +59,9 @@ function imageBlock(image: AiImage): Anthropic.ImageBlockParam {
  * Images are attached to the first user message. Claude reads images better
  * when they precede the text that asks about them.
  */
-function buildMessages(request: AiRequest): Anthropic.MessageParam[] {
+// Exported for the multimodal payload tests: the shape a provider receives
+// is the thing worth pinning, and it cannot be seen from outside otherwise.
+export function buildMessages(request: AiRequest): Anthropic.MessageParam[] {
   const messages: Anthropic.MessageParam[] = request.messages.map((m) => ({
     role: m.role,
     content: m.content,

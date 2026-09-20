@@ -571,6 +571,20 @@ export type RetrievalSource = {
   similarity: number;
   text: string;
   /**
+   * Storage keys for the figures printed with this source, in paper order.
+   *
+   * CARRIED ON THE SOURCE, NOT COLLECTED GLOBALLY. A grounded answer can be
+   * built from several sources, and an image that arrives detached from the
+   * question it belongs to is worse than no image: the model sees a circuit and
+   * a titration curve with nothing saying which question either answers, and
+   * confidently reads one against the other. The chat boundary loads these and
+   * labels them with this source's own index — see `figureLabel`.
+   *
+   * Keys, not bytes. Retrieval runs on every message and most answers need no
+   * image at all; loading them here would read files nobody asked for.
+   */
+  images?: string[];
+  /**
    * What the student is entitled to be told about where this came from.
    *
    * STRUCTURED, NOT A SENTENCE. The label above is one string assembled here,
@@ -1388,6 +1402,7 @@ function questionSource(hit: QuestionHit): RetrievalSource {
     label: `${hit.chapterName} — past question`,
     similarity: hit.similarity,
     text: readable(hit),
+    images: hit.contentImages ?? [],
     provenance: {
       // A year is what makes it an exam paper. Textbook questions have none,
       // and calling those "official" would be the one claim in this product
