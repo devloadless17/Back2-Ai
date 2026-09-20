@@ -53,6 +53,23 @@ export default async function WorksheetPage({
 
   const chapters = subjectId ? await listChapters(subjectId, user.id) : [];
 
+  /*
+   * Where "out of here" goes, decided from what the sheet is actually of.
+   *
+   * A worksheet can span several chapters — `?chapters=a,b,c` — so "the chapter
+   * page" only exists when exactly one was chosen. With several, or none, the
+   * honest parent is the subject; with no subject at all, the dashboard. Stated
+   * rather than remembered, like every other back link in the app.
+   */
+  const soleChapter =
+    chapterIds.length === 1 ? chapters.find((c) => c.id === chapterIds[0]) : undefined;
+  const parentHref = soleChapter
+    ? `/practice/${subjectId}/${soleChapter.id}`
+    : subjectId
+      ? `/practice/${subjectId}`
+      : '/dashboard';
+  const parentLabel = soleChapter ? soleChapter.name : subjectId ? t.nav.practice : t.nav.dashboard;
+
   const worksheet = subjectId
     ? await buildWorksheet({
         subjectId,
@@ -75,7 +92,7 @@ export default async function WorksheetPage({
   return (
     <>
       <div className="print:hidden">
-        <BackLink href="/dashboard" label={t.nav.dashboard} />
+        <BackLink href={parentHref} label={parentLabel} />
 
         <h1 className="mb-1 text-xl font-semibold text-ink">{t.worksheet.title}</h1>
         <p className="mb-5 max-w-prose text-caption text-ink-faint">{t.worksheet.subtitle}</p>

@@ -96,7 +96,21 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             improve — and this product's pages end in the action a student came
             to take.
           */}
-          <div className="w-full px-3 pb-20 pt-5 sm:px-6 sm:py-6 lg:px-8 lg:py-8 lg:pb-8">
+          {/*
+            A MEASURE, NOT THE WHOLE MONITOR.
+            
+            Content had no ceiling, so on a 1440 or wider screen a subject
+            table, a marked answer and a page of Arabic prose all ran the full
+            width of the glass. Long text at that measure is genuinely harder
+            to read — the eye loses the line return — and a dashboard stretched
+            across it reads as an admin console rather than as something made
+            for one student.
+            
+            The cap sits above the widest thing here (the seven-day week board
+            and the five-column subject table) and below the width at which
+            prose stops being comfortable.
+          */}
+          <div className="mx-auto w-full max-w-[1180px] px-3 pb-20 pt-5 sm:px-6 sm:py-6 lg:px-8 lg:py-8 lg:pb-8">
             {children}
           </div>
         </main>

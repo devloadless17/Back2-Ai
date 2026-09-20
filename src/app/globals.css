@@ -134,22 +134,35 @@
    * "a different subject from the one above it", which is the only thing they
    * are asked to say. Reds and ambers are left out of the set on purpose.
    *
-   * These are saturated, and nothing is ever printed on them. The first version
-   * was pale — 92 to 96% lightness — because the subject card prints five
-   * different band colours and a faint count on its own face, so a ground all
-   * six had to clear could only be very nearly white. Six shades of almost
-   * nothing, which is what they looked like.
+   * MUTED, AND OUT OF THE SEMANTIC BANDS. They were indigo, violet, cyan,
+   * azure, green and magenta at 48-78% saturation, which against a warm
+   * off-white canvas and a deep mint primary read as a different product
+   * bolted onto this one — six loud hues from outside the system. They are now
+   * 20-30% saturation and sit in one cool family, the way book cloth does on
+   * cream.
+   *
+   * Every hue stays clear of `--correct` (172), `--partial` (30) and `--mark`
+   * (343), which is the rule above enforced in numbers. A first pass at this
+   * used terracotta and ochre and had to be pulled: at hue 18 and 45 they sat
+   * beside the amber that means partial credit, and a mint at 168 sat on top
+   * of the teal that means a mark was earned.
+   *
+   * Nothing is ever printed on them. The first version was pale — 92 to 96%
+   * lightness — because the subject card printed five different band colours
+   * and a faint count on its own face, so a ground all six had to clear could
+   * only be very nearly white. Six shades of almost nothing, which is what
+   * they looked like.
    *
    * So the card stopped printing on the colour: a coloured cap, a white plate,
    * every word on the plate. The colour is then free to be a colour. See
    * `.subject-cap`.
    */
-  --subject-1: 245 72% 63%;
-  --subject-2: 278 60% 62%;
-  --subject-3: 187 68% 42%;
-  --subject-4: 205 78% 52%;
-  --subject-5: 152 48% 44%;
-  --subject-6: 322 52% 58%;
+  --subject-1: 196 30% 36%;  /* slate teal */
+  --subject-2: 214 26% 40%;  /* steel */
+  --subject-3: 234 22% 44%;  /* indigo slate */
+  --subject-4: 264 20% 46%;  /* muted violet */
+  --subject-5: 302 20% 43%;  /* muted plum */
+  --subject-6: 96 22% 34%;   /* moss */
 
   --radius-sm: 8px;
   --radius: 14px;
@@ -289,12 +302,12 @@
      * dark surface in this file works. */
     /* The same six a shade deeper, so a saturated cap does not glare on a dark
      page. Still nothing prints on them. */
-    --subject-1: 245 55% 52%;
-    --subject-2: 278 45% 52%;
-    --subject-3: 187 60% 35%;
-    --subject-4: 205 65% 43%;
-    --subject-5: 152 42% 36%;
-    --subject-6: 322 42% 48%;
+    --subject-1: 196 28% 31%;
+    --subject-2: 214 24% 34%;
+    --subject-3: 234 20% 38%;
+    --subject-4: 264 18% 40%;
+    --subject-5: 302 18% 37%;
+    --subject-6: 96 20% 29%;
     --bubble-face: hsl(var(--paper-raised));
     --bubble-shadow: 0 2px 6px hsl(250 40% 3% / 0.5), 0 18px 40px hsl(250 40% 3% / 0.45);
     /* Deeper black, not a brighter indigo — on a dark ground the light theme's
@@ -366,12 +379,12 @@
    * dark surface in this file works. */
   /* The same six a shade deeper, so a saturated cap does not glare on a dark
      page. Still nothing prints on them. */
-  --subject-1: 245 55% 52%;
-  --subject-2: 278 45% 52%;
-  --subject-3: 187 60% 35%;
-  --subject-4: 205 65% 43%;
-  --subject-5: 152 42% 36%;
-  --subject-6: 322 42% 48%;
+  --subject-1: 196 28% 31%;
+  --subject-2: 214 24% 34%;
+  --subject-3: 234 20% 38%;
+  --subject-4: 264 18% 40%;
+  --subject-5: 302 18% 37%;
+  --subject-6: 96 20% 29%;
   --bubble-face: hsl(var(--paper-raised));
   --bubble-shadow: 0 2px 6px hsl(250 40% 3% / 0.5), 0 18px 40px hsl(250 40% 3% / 0.45);
   /* Deeper black, not a brighter indigo — on a dark ground the light theme's

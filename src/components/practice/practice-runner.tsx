@@ -580,7 +580,7 @@ export function PracticeRunner({
       <Sheet>
         <SheetHeader title={t.practice.mastery} description={name} />
         <SheetBody className="space-y-3">
-          <p className="text-3xl font-semibold tabular-nums leading-none">
+          <p className="figure text-display leading-none">
             {formatPercent(score)}
           </p>
           <Meter value={score} caption={`${attempts} ${t.practice.attempts}`} />

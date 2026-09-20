@@ -91,7 +91,20 @@ export default async function SubjectSummaryPage({
 
   return (
     <>
-      <BackLink href="/summaries" label={t.nav.summaries} />
+      {/*
+        Back to the subject, not to the dashboard and not to the summary list.
+        
+        This page is Chemistry's summaries; its parent is Chemistry. Only the
+        subject hub itself is a top-level destination — everything hanging off
+        a subject returns to that subject, so a student reading a summary goes
+        back to the place that holds the practice, the papers and the rest of
+        it rather than being thrown to the top.
+
+        `/summaries` was the old target and was wrong twice over: it is a picker
+        passed through once, and a second hand-rolled copy of this same link
+        sat three lines below, pointing at it too.
+      */}
+      <BackLink href={`/practice/${subject.id}`} label={subject.name} />
       <PageHeader title={subject.name} description={t.summaries.subtitle} />
 
       {overview?.status === 'ok' && overview.overview ? (
@@ -102,13 +115,6 @@ export default async function SubjectSummaryPage({
           </SheetBody>
         </Sheet>
       ) : null}
-
-      <Link
-        href="/summaries"
-        className="mb-5 inline-block text-meta text-ink-faint underline-offset-2 hover:underline"
-      >
-        ← {t.nav.summaries}
-      </Link>
 
       {readable.length === 0 ? (
         <EmptyState tone="pending" title={t.summaries.empty} body={t.summaries.emptyHint} />

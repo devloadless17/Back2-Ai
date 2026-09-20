@@ -1028,11 +1028,165 @@ export const ar: Dictionary = {
   },
 
   marketing: {
+    ctaSeeHow: 'شاهد كيف يعمل BAC2',
+    examinerHeadA: 'انظر بالضبط أين',
+    examinerHeadB: 'ذهبت العلامات.',
+    examinerLead:
+      'تُقرأ إجابتك معيارًا معيارًا على سلّم تصحيح المسابقة، فترى ما استحقّ علامة، وما استحقّ جزءًا منها، وما كان ناقصًا.',
+    examinerTrust: 'سلّم التصحيح الرسمي · معيارًا معيارًا',
+
+    scriptSubject: 'الكيمياء',
+    scriptSession: '2021 · الدورة الأولى',
+    scriptExercise: 'التمرين 3',
+    scriptTotal: '5 علامات',
+    scriptQuestion: 'Q3. Show that the reaction is complete.',
+    scriptAnswerLabel: 'إجابتك',
+
+    scriptLine1:
+      'We determine the maximum advancement from the limiting reactant, H₃O⁺, which gives x_max = 2.0 × 10⁻³ mol.',
+    scriptCrit1: 'B1 · الطريقة صحيحة',
+    scriptMark1: '+4',
+
+    scriptLine2:
+      'The final advancement measured in the experiment is x_f = 2.0 × 10⁻³ mol, so x_f = x_max.',
+    scriptCrit2: 'B2 · المقارنة مذكورة دون تفسير',
+    scriptMark2: '+2 / 3',
+
+    scriptMissingLabel: 'ما يطلبه سلّم التصحيح',
+    scriptMissing: '“…therefore the reaction is complete.”',
+    scriptCrit3: 'B3 · التبرير ناقص',
+    scriptMark3: '0 / 2',
+
+    scriptNourNote:
+      'أنت تعرف الكيمياء. ذهبت العلامتان على الجملة التي يطلبها سلّم التصحيح — قل إنّ x_f = x_max تعني أنّ التفاعل تامّ، وتصبحان لك.',
+
+    secPractice: 'التدرّب',
+    secExaminer: 'وضع التصحيح',
+    secNour: 'نور',
+    secProgress: 'مستواك',
+    secNextMove: 'خطوتك التالية',
+    secBac: 'بكالورياك',
+    secMock: 'مسابقات تجريبية',
+    examinerExercise: 'التمرين 3',
+    practiceNumber: '04',
+
+    navHow: 'كيف يعمل',
+    navFeatures: 'الميزات',
+    navBac: 'بكالورياك',
+    navPricing: 'الأسعار',
+    navMenu: 'القائمة',
+
+    proofYearsValue: '٢٠٠٤—٢٠٢٤',
+    proofYears: 'من مسابقات البكالوريا اللبنانية',
+    proofQuestionsValue: '5,297',
+    proofQuestions: 'سؤالًا من دورات سابقة',
+    proofChaptersValue: '1,193',
+    proofChapters: 'فصلًا من المنهج',
+    proofOfficialValue: 'رسمية',
+    proofOfficial: 'سلالم تصحيح وحلول، حيث توفّرها المسابقة',
+
+    storyTitle: 'كل ما تطلبه منك البكالوريا.',
+    storyTitleAccent: 'في مكان واحد.',
+
+    practiceTitle: 'تدرّب على الأسئلة التي تأتي فعلًا.',
+    practiceBody:
+      'أسئلة حقيقية من مسابقات حقيقية، مرتّبة بحسب فصول منهجك. لا شيء في المكتبة كتبه نموذج.',
+    practiceSubject: 'الكيمياء',
+    practiceChapter: 'التوازن الكيميائي',
+    practiceProvenance: '2021 · الدورة الأولى',
+    practiceMarks: '4 علامات',
+    practiceQuestion:
+      'A closed vessel contains an equilibrium mixture at 25 °C. Explain, with justification, how the position of equilibrium responds when the volume is halved at constant temperature.',
+
+    examinerTitle: 'لا تكتفِ بالتحقق من جوابك.',
+    examinerTitleAccent: 'انظر أين ذهبت العلامات.',
+    examinerBody:
+      'يُقرأ جوابك على سلّم تصحيح المسابقة نفسه، معيارًا معيارًا: ما استحققته، وما استحققته جزئيًا، وما كان المصحّح ليمنعه عنك.',
+    examinerLabel: 'التصحيح',
+    examinerNourNote: 'ملاحظة نور',
+    examinerNote: 'حدّدت العلاقة الصحيحة، لكن التبرير الذي يطلبه سلّم التصحيح غير موجود في جوابك.',
+
+    nourTitle: 'تعرّف إلى نور.',
+    nourTitleAccent: 'المعلّم الذي يعرف بكالورياك.',
+    nourBody:
+      'اسأل بالعربية أو الفرنسية أو الإنكليزية. تجيب نور من منهجك وتُظهر المسابقة أو النص الذي جاءت منه — وتقول بوضوح حين لا يغطّي منهجك السؤال.',
+    nourName: 'نور',
+    nourQuestion: 'Pourquoi utilise-t-on cette relation ici ?',
+    nourAnswer:
+      'Because the system is isolated during this stage, no work is exchanged with the surroundings — so the total energy is conserved and the relation applies unchanged.',
+    nourGrounded: 'مستند إلى بكالورياك',
+
+    evidenceTitle: 'أجوبة يمكنك تتبّع مصدرها.',
+    evidenceBody:
+      'كل جواب يحمل ما بُني عليه: المسابقة، الدورة، سلّم التصحيح، الفصل. وإن تعذّر إسناده، تقول نور ذلك بدل أن تخترعه.',
+
+    progressTitle: 'اعرف أين أنت.',
+    progressTitleAccent: 'واعرف ما يجب إصلاحه.',
+    progressBody:
+      'ليست علامة من العدم. مستواك فيما تدرّبت عليه، ومقدار ما قطعته من المنهج، وكمّ العمل المصحّح خلف الاثنين.',
+    readinessEyebrow: 'بكالورياك',
+    readinessCaption: 'الجاهزية، من عملك المصحّح',
+    masteryLabel: 'المستوى',
+    practisedLabel: 'ما تدرّبت عليه',
+    evidenceLabel: 'الأدلة',
+    evidenceValue: '36 إجابة',
+    illustrative: 'أرقام توضيحية لعرض الواجهة.',
+
+    marksLostEyebrow: 'أين تذهب العلامات',
+    marksLost1: 'تبرير ناقص',
+    marksLost1Count: '4 مرات',
+    marksLost2: 'خاتمة غير مكتملة',
+    marksLost2Count: '3 مرات',
+    marksLost3: 'وحدة مهملة',
+    marksLost3Count: 'مرتان',
+
+    nextMoveTitle: 'تردّد أقل.',
+    nextMoveTitleAccent: 'ومعرفة أوضح بما ستفعله تاليًا.',
+    nextMoveBody: 'خطوة واحدة في كل مرة، مأخوذة من علاماتك أنت — لا قائمة بكل ما يمكنك فعله نظريًا.',
+    nextMoveEyebrow: 'خطوتك التالية',
+    nextMoveSubject: 'الكيمياء',
+    nextMoveChapter: 'التوازن الكيميائي',
+    nextMoveReason: 'تدرّبت على هذا الفصل، لكن أجوبتك الأخيرة ما زالت تخسر علامات على التبرير.',
+    nextMoveCta: 'تدرّب على 3 أسئلة',
+
+    bacTitle: 'مبنيّ حول بكالورياك.',
+    bacTitleAccent: 'لا مُكيَّف عليها.',
+    bacBody:
+      'أربعة فروع، ثلاث لغات تدريس، منهج واحد. تصلك موادّك باللغة التي تُمتحن بها، وتبقى الواجهة بلغتك.',
+    tracksLabel: 'الفروع',
+    languagesLabel: 'لغات التدريس',
+    bacArabicSubject: 'التاريخ · عربي',
+    bacFrenchSubject: 'الرياضيات · فرنسي',
+    bacEnglishSubject: 'علوم الحياة · إنكليزي',
+    bacArabicSample: 'علّل أسباب اندلاع الحرب العالمية الأولى، مستندًا إلى الوثائق المرفقة.',
+    bacFrenchSample: 'Déterminer la limite de la fonction f en +∞, puis interpréter graphiquement.',
+    bacEnglishSample: 'Explain how the structure of the nephron supports selective reabsorption.',
+
+    mockTitle: 'حين تصبح جاهزًا،',
+    mockTitleAccent: 'اجلس للمسابقة.',
+    mockBody:
+      'مسابقة حقيقية من دورة سابقة، أو مسابقة مركّبة من أسئلة حقيقية، بتوقيت وتصحيح في النهاية. المدّة هي مدّة المسابقة حين نملكها، ومدّتنا حين لا نملكها — والصفحة تقول لك أيّهما.',
+
+    loopTitle: 'حلقة واحدة، لا سبع أدوات.',
+    loop1: 'تدرّب',
+    loop2: 'خذ التصحيح',
+    loop3: 'اعرف الكلفة',
+    loop4: 'اعرف ما تدرسه',
+    loop5: 'أعد المحاولة',
+
+    finalTitle: 'البكالوريا معقّدة أصلًا.',
+    finalTitleAccent: 'التحضير لها لا ينبغي أن يكون كذلك.',
+    finalBody:
+      'كل ما تحتاجه للتدرّب وفهم أخطائك والدخول إلى القاعة مستعدًّا — مبنيّ حول البكالوريا اللبنانية.',
+    finalCta: 'ابدأ التحضير',
+    finalSignIn: 'تستخدم BAC2؟ سجّل الدخول',
+    footerNote: 'صُمّم لمرشّحي البكالوريا اللبنانية.',
+
     navLogin: 'تسجيل الدخول',
     navSignup: 'أنشئ حسابًا مجانيًا',
     eyebrow: 'لطلاب البكالوريا اللبنانية — GS · LS · SE · LH',
-    headline: 'كفى تخمينًا لما يجب أن تدرسه.',
-    headlineAccent: 'اعرف تمامًا.',
+    headline: 'بكالوريا لبنان.',
+    headlineAccent: 'تحت السيطرة.',
     subhead:
       'كل اختبار وبطاقة وورقة امتحان سابقة تتحوّل إلى خطة مبنية على علاماتك أنت — من المنهج الرسمي، لا من التخمين.',
     ctaStart: 'ابدأ مجانًا',

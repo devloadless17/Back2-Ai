@@ -1019,11 +1019,168 @@ export const fr: Dictionary = {
   },
 
   marketing: {
+    ctaSeeHow: 'Voir comment BAC2 fonctionne',
+    examinerHeadA: 'Voyez exactement où',
+    examinerHeadB: 'les points sont partis.',
+    examinerLead:
+      'Votre copie est lue critère par critère au barème du sujet : vous voyez ce qui a rapporté des points, ce qui n’en a rapporté qu’une partie, et ce qui manquait.',
+    examinerTrust: 'Barème officiel · critère par critère',
+
+    scriptSubject: 'Chimie',
+    scriptSession: '2021 · Première session',
+    scriptExercise: 'Exercice 3',
+    scriptTotal: '5 points',
+    scriptQuestion: 'Q3. Montrer que la réaction est totale.',
+    scriptAnswerLabel: 'Votre réponse',
+
+    scriptLine1:
+      'On détermine l’avancement maximal à partir du réactif limitant, H₃O⁺, ce qui donne x_max = 2,0 × 10⁻³ mol.',
+    scriptCrit1: 'B1 · Méthode correcte',
+    scriptMark1: '+4',
+
+    scriptLine2:
+      'L’avancement final mesuré lors de l’expérience est x_f = 2,0 × 10⁻³ mol, donc x_f = x_max.',
+    scriptCrit2: 'B2 · Comparaison énoncée, non expliquée',
+    scriptMark2: '+2 / 3',
+
+    scriptMissingLabel: 'Attendu par le barème',
+    scriptMissing: '« …donc la réaction est totale. »',
+    scriptCrit3: 'B3 · Justification manquante',
+    scriptMark3: '0 / 2',
+
+    scriptNourNote:
+      'Vous maîtrisiez la chimie. Les deux points sont partis sur la phrase qu’exige le barème : dites que x_f = x_max signifie que la réaction est totale, et ils sont à vous.',
+
+    secPractice: 'Entraînement',
+    secExaminer: 'Mode correcteur',
+    secNour: 'Nour',
+    secProgress: 'Votre niveau',
+    secNextMove: 'Prochaine étape',
+    secBac: 'Votre Bac',
+    secMock: 'Épreuves blanches',
+    examinerExercise: 'Exercice 3',
+    practiceNumber: '04',
+
+    navHow: 'Comment ça marche',
+    navFeatures: 'Fonctionnalités',
+    navBac: 'Votre Bac',
+    navPricing: 'Tarifs',
+    navMenu: 'Menu',
+
+    proofYearsValue: '2004—2024',
+    proofYears: 'd’épreuves du Bac libanais',
+    proofQuestionsValue: '5 297',
+    proofQuestions: 'questions d’annales',
+    proofChaptersValue: '1 193',
+    proofChapters: 'chapitres du programme',
+    proofOfficialValue: 'Officiels',
+    proofOfficial: 'barèmes et corrigés, là où le sujet les porte',
+
+    storyTitle: 'Tout ce que le Bac exige de vous.',
+    storyTitleAccent: 'Au même endroit.',
+
+    practiceTitle: 'Travaillez les questions qui tombent vraiment.',
+    practiceBody:
+      'De vraies questions issues de vrais sujets, classées par chapitre selon votre programme. Rien dans la bibliothèque n’a été écrit par un modèle.',
+    practiceSubject: 'Chimie',
+    practiceChapter: 'Équilibre chimique',
+    practiceProvenance: '2021 · Première session',
+    practiceMarks: '4 points',
+    practiceQuestion:
+      'Un récipient fermé contient un mélange à l’équilibre à 25 °C. Expliquer, en justifiant, comment l’équilibre se déplace lorsque le volume est divisé par deux à température constante.',
+
+    examinerTitle: 'Ne vérifiez pas seulement votre réponse.',
+    examinerTitleAccent: 'Voyez où sont partis les points.',
+    examinerBody:
+      'Votre copie est lue au barème du sujet, critère par critère : ce que vous avez obtenu, ce que vous avez à moitié obtenu, et ce que le correcteur ne vous aurait pas accordé.',
+    examinerLabel: 'Correction',
+    examinerNourNote: 'Note de Nour',
+    examinerNote:
+      'Vous avez identifié la bonne relation, mais la justification exigée par le barème ne figure pas dans votre réponse.',
+
+    nourTitle: 'Voici Nour.',
+    nourTitleAccent: 'Le tuteur qui connaît votre Bac.',
+    nourBody:
+      'Posez vos questions en arabe, en français ou en anglais. Nour répond à partir de votre programme et montre le sujet ou le passage d’où cela vient — et le dit clairement quand votre programme ne le couvre pas.',
+    nourName: 'Nour',
+    nourQuestion: 'Pourquoi utilise-t-on cette relation ici ?',
+    nourAnswer:
+      'Parce que le système est isolé pendant cette étape : aucun travail n’est échangé avec l’extérieur, donc l’énergie totale se conserve et la relation s’applique telle quelle.',
+    nourGrounded: 'Appuyé sur votre Bac',
+
+    evidenceTitle: 'Des réponses que vous pouvez remonter.',
+    evidenceBody:
+      'Chaque réponse porte ce sur quoi elle s’appuie : le sujet, la session, le barème, le chapitre. Si rien ne peut l’étayer, Nour le dit au lieu de l’inventer.',
+
+    progressTitle: 'Sachez où vous en êtes.',
+    progressTitleAccent: 'Sachez quoi corriger.',
+    progressBody:
+      'Pas une note sortie de nulle part. Votre niveau sur ce que vous avez travaillé, la part du programme parcourue, et la quantité de copies corrigées derrière les deux.',
+    readinessEyebrow: 'Votre Bac',
+    readinessCaption: 'Préparation, d’après vos copies corrigées',
+    masteryLabel: 'Niveau',
+    practisedLabel: 'Parcouru',
+    evidenceLabel: 'Éléments',
+    evidenceValue: '36 réponses',
+    illustrative: 'Chiffres d’exemple, pour illustrer l’interface.',
+
+    marksLostEyebrow: 'Où partent les points',
+    marksLost1: 'Justification manquante',
+    marksLost1Count: '4 fois',
+    marksLost2: 'Conclusion incomplète',
+    marksLost2Count: '3 fois',
+    marksLost3: 'Unité omise',
+    marksLost3Count: '2 fois',
+
+    nextMoveTitle: 'Moins d’hésitation.',
+    nextMoveTitleAccent: 'Vous savez quoi faire ensuite.',
+    nextMoveBody:
+      'Une consigne à la fois, tirée de vos propres notes — pas un flux de tout ce que vous pourriez théoriquement faire.',
+    nextMoveEyebrow: 'Votre prochaine étape',
+    nextMoveSubject: 'Chimie',
+    nextMoveChapter: 'Équilibre chimique',
+    nextMoveReason:
+      'Vous avez travaillé ce chapitre, mais vos copies récentes perdent encore des points sur la justification.',
+    nextMoveCta: 'Travailler 3 questions',
+
+    bacTitle: 'Conçu autour de votre Bac.',
+    bacTitleAccent: 'Pas adapté à lui.',
+    bacBody:
+      'Quatre séries, trois langues d’enseignement, un programme. Vos matières arrivent dans la langue où elles sont examinées, et l’interface reste dans la vôtre.',
+    tracksLabel: 'Séries',
+    languagesLabel: 'Langues d’enseignement',
+    bacArabicSubject: 'Histoire · arabe',
+    bacFrenchSubject: 'Mathématiques · français',
+    bacEnglishSubject: 'Biologie · anglais',
+    bacArabicSample: 'علّل أسباب اندلاع الحرب العالمية الأولى، مستندًا إلى الوثائق المرفقة.',
+    bacFrenchSample: 'Déterminer la limite de la fonction f en +∞, puis interpréter graphiquement.',
+    bacEnglishSample: 'Explain how the structure of the nephron supports selective reabsorption.',
+
+    mockTitle: 'Quand vous êtes prêt,',
+    mockTitleAccent: 'passez l’épreuve.',
+    mockBody:
+      'Un vrai sujet d’annales, ou un sujet composé de vraies questions, chronométré et corrigé à la fin. La durée est celle du sujet quand nous l’avons, la nôtre sinon — et la page vous dit laquelle.',
+
+    loopTitle: 'Une seule boucle, pas sept outils.',
+    loop1: 'Travailler',
+    loop2: 'Être corrigé',
+    loop3: 'Voir ce que ça coûte',
+    loop4: 'Savoir quoi réviser',
+    loop5: 'Recommencer',
+
+    finalTitle: 'Le Bac est déjà compliqué.',
+    finalTitleAccent: 'S’y préparer ne devrait pas l’être.',
+    finalBody:
+      'Tout ce qu’il faut pour travailler, comprendre vos erreurs et vous présenter préparé — conçu autour du Baccalauréat libanais.',
+    finalCta: 'Commencer',
+    finalSignIn: 'Déjà sur BAC2 ? Se connecter',
+    footerNote: 'Conçu pour les candidats au Baccalauréat libanais.',
+
     navLogin: 'Se connecter',
     navSignup: 'Créer un compte gratuit',
     eyebrow: 'Pour les candidats au Baccalauréat libanais — GS · LS · SE · LH',
-    headline: 'Arrêtez de deviner quoi réviser.',
-    headlineAccent: 'Sachez enfin.',
+    headline: 'Votre Bac libanais.',
+    headlineAccent: 'Sous contrôle.',
     subhead:
       'Chaque quiz, carte et épreuve passée devient un plan construit à partir de vos propres notes — tiré du programme officiel, jamais inventé.',
     ctaStart: 'Commencer gratuitement',

@@ -74,7 +74,7 @@ export default async function ReadinessReportPage() {
         {report.overallMark === null ? (
           <p className="mt-1 text-sm text-ink-muted">{t.report.notEnough}</p>
         ) : (
-          <p className="mt-1 text-2xl font-semibold text-ink">
+          <p className="mt-1 figure text-title">
             {report.overallMark.toFixed(1)} <span className="text-base text-ink-faint">/ 20</span>
           </p>
         )}

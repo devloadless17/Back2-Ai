@@ -1030,13 +1030,170 @@ export const en = {
   },
 
   marketing: {
+    ctaSeeHow: 'See how BAC2 works',
+    examinerHeadA: 'See exactly where the',
+    examinerHeadB: 'marks went.',
+    examinerLead:
+      'Your answer is read criterion by criterion against the paper’s barème — so you see what earned marks, what was partial, and what was missing.',
+    examinerTrust: 'Official barème · criterion by criterion',
+
+    scriptSubject: 'Chemistry',
+    scriptSession: '2021 · First session',
+    scriptExercise: 'Exercise 3',
+    scriptTotal: '5 marks',
+    scriptQuestion: 'Q3. Show that the reaction is complete.',
+    scriptAnswerLabel: 'Your answer',
+
+    scriptLine1:
+      'We determine the maximum advancement from the limiting reactant, H₃O⁺, which gives x_max = 2.0 × 10⁻³ mol.',
+    scriptCrit1: 'B1 · Correct method',
+    scriptMark1: '+4',
+
+    scriptLine2:
+      'The final advancement measured in the experiment is x_f = 2.0 × 10⁻³ mol, so x_f = x_max.',
+    scriptCrit2: 'B2 · Comparison stated, not explained',
+    scriptMark2: '+2 / 3',
+
+    scriptMissingLabel: 'Expected by the barème',
+    scriptMissing: '“…therefore the reaction is complete.”',
+    scriptCrit3: 'B3 · Missing justification',
+    scriptMark3: '0 / 2',
+
+    scriptNourNote:
+      'You knew the chemistry. The two marks went on the sentence the barème asks for — say that x_f = x_max means the reaction is complete, and they are yours.',
+
+    secPractice: 'Practice',
+    secExaminer: 'Examiner mode',
+    secNour: 'Nour',
+    secProgress: 'Your standing',
+    secNextMove: 'Next move',
+    secBac: 'Your Bac',
+    secMock: 'Mock exams',
+    examinerExercise: 'Exercise 3',
+    practiceNumber: '04',
+
+    navHow: 'How it works',
+    navFeatures: 'Features',
+    navBac: 'Your Bac',
+    navPricing: 'Pricing',
+    navMenu: 'Menu',
+
+    proofYearsValue: '2004—2024',
+    proofYears: 'of Lebanese Bac papers',
+    proofQuestionsValue: '5,297',
+    proofQuestions: 'past-exam questions',
+    proofChaptersValue: '1,193',
+    proofChapters: 'programme chapters',
+    proofOfficialValue: 'Official',
+    proofOfficial: 'barèmes and solutions, where the paper carries them',
+
+    storyTitle: 'Everything the Bac asks of you.',
+    storyTitleAccent: 'In one place.',
+
+    practiceTitle: 'Practise the questions that actually come up.',
+    practiceBody:
+      'Real questions off real papers, filed by chapter against your own programme. Nothing in the library was written by a model.',
+    practiceSubject: 'Chemistry',
+    practiceChapter: 'Chemical equilibrium',
+    practiceProvenance: '2021 · First Session',
+    practiceMarks: '4 marks',
+    practiceQuestion:
+      'A closed vessel contains an equilibrium mixture at 25 °C. Explain, with justification, how the position of equilibrium responds when the volume is halved at constant temperature.',
+
+    examinerTitle: 'Don’t just check your answer.',
+    examinerTitleAccent: 'See where the marks went.',
+    examinerBody:
+      'Your answer is read against the paper’s own barème, criterion by criterion — what you earned, what you half-earned, and what the examiner would not have given you.',
+    examinerLabel: 'Examiner',
+    examinerNourNote: 'Nour’s note',
+    examinerNote:
+      'You identified the correct relationship, but the justification the barème asks for is not in your answer.',
+
+    nourTitle: 'Meet Nour.',
+    nourTitleAccent: 'The tutor that knows your Bac.',
+    nourBody:
+      'Ask in Arabic, French or English. Nour answers from your programme and shows you the paper or the passage it came from — and says so plainly when your programme does not cover it.',
+    nourName: 'Nour',
+    nourQuestion: 'Pourquoi utilise-t-on cette relation ici ?',
+    nourAnswer:
+      'Because the system is isolated during this stage, no work is exchanged with the surroundings — so the total energy is conserved and the relation applies unchanged.',
+    nourGrounded: 'Grounded in your Bac',
+
+    evidenceTitle: 'Answers you can trace back.',
+    evidenceBody:
+      'Every answer carries what it was built from: the paper, the session, the marking scheme, the chapter. If it cannot be traced, Nour says so instead of inventing it.',
+
+    progressTitle: 'Know where you stand.',
+    progressTitleAccent: 'Know what to fix.',
+    progressBody:
+      'Not a score out of nowhere. How well you do on what you have practised, how much of the programme you have covered, and how much marked work is behind both.',
+    readinessEyebrow: 'Your Bac',
+    readinessCaption: 'Readiness, from marked work',
+    masteryLabel: 'Mastery',
+    practisedLabel: 'Practised',
+    evidenceLabel: 'Evidence',
+    evidenceValue: '36 answers',
+    illustrative: 'Sample figures, shown to illustrate the interface.',
+
+    marksLostEyebrow: 'Where marks go',
+    marksLost1: 'Missing justification',
+    marksLost1Count: '4 times',
+    marksLost2: 'Incomplete conclusion',
+    marksLost2Count: '3 times',
+    marksLost3: 'Unit omitted',
+    marksLost3Count: '2 times',
+
+    nextMoveTitle: 'Less wondering.',
+    nextMoveTitleAccent: 'More knowing what to do next.',
+    nextMoveBody:
+      'One instruction at a time, drawn from your own marks — not a feed of everything you could theoretically be doing.',
+    nextMoveEyebrow: 'Your next move',
+    nextMoveSubject: 'Chemistry',
+    nextMoveChapter: 'Chemical equilibrium',
+    nextMoveReason:
+      'You have practised this chapter, but recent answers are still losing marks on justification.',
+    nextMoveCta: 'Practise 3 questions',
+
+    bacTitle: 'Built around your Bac.',
+    bacTitleAccent: 'Not adapted to it.',
+    bacBody:
+      'Four tracks, three languages of instruction, one programme. Your subjects arrive in the language they are examined in, and the interface stays in yours.',
+    tracksLabel: 'Tracks',
+    languagesLabel: 'Languages of instruction',
+    bacArabicSubject: 'History · Arabic',
+    bacFrenchSubject: 'Mathematics · French',
+    bacEnglishSubject: 'Biology · English',
+    bacArabicSample: 'علّل أسباب اندلاع الحرب العالمية الأولى، مستندًا إلى الوثائق المرفقة.',
+    bacFrenchSample: 'Déterminer la limite de la fonction f en +∞, puis interpréter graphiquement.',
+    bacEnglishSample: 'Explain how the structure of the nephron supports selective reabsorption.',
+
+    mockTitle: 'When you’re ready,',
+    mockTitleAccent: 'sit the paper.',
+    mockBody:
+      'A real past paper or one assembled from real questions, on a clock, marked at the end. The timing is the paper’s own where we hold it, and ours where we do not — and the page tells you which.',
+
+    loopTitle: 'It’s one loop, not seven tools.',
+    loop1: 'Practise',
+    loop2: 'Get marked',
+    loop3: 'See what it cost',
+    loop4: 'Know what to study',
+    loop5: 'Sit it again',
+
+    finalTitle: 'The Bac is already complicated.',
+    finalTitleAccent: 'Preparing for it shouldn’t be.',
+    finalBody:
+      'Everything you need to practise, understand your mistakes and walk in prepared — built around the Lebanese Baccalaureate.',
+    finalCta: 'Start preparing',
+    finalSignIn: 'Already using BAC2? Sign in',
+    footerNote: 'Built for Lebanese Baccalaureate candidates.',
+
     navLogin: 'Sign in',
     navSignup: 'Create a free account',
     eyebrow: 'For Lebanese Baccalaureate candidates — GS · LS · SE · LH',
-    headline: 'Stop guessing what to study.',
-    headlineAccent: 'Start knowing.',
+    headline: 'Your Lebanese Bac.',
+    headlineAccent: 'Under control.',
     subhead:
-      'Every quiz, card and past paper you sit becomes a plan built from your own marks — drawn from the official programme, never invented.',
+      'Practise real Bac questions, get marked the way the exam marks you, ask Nour when you are stuck, and know exactly what to work on next.',
     ctaStart: 'Start free',
     ctaHaveAccount: 'I already have an account',
     previewTitle: 'Try it before you sign up',
