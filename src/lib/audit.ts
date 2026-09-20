@@ -52,6 +52,18 @@ export const AuditAction = {
   ANNOUNCEMENT_UPDATED: 'admin.announcement.updated',
   ANNOUNCEMENT_DELETED: 'admin.announcement.deleted',
   INGESTION_JOB_TRIGGERED: 'admin.ingestion.triggered',
+  /*
+   * A chapter taken out of, or put back into, the programme.
+   *
+   * Audited because it is the widest-reaching action an administrator can take
+   * on the student side: it changes what every student in a track can practise,
+   * and it moves the denominator of "programme covered" on all of their
+   * dashboards at once. The record carries how many questions and attempts sat
+   * behind the chapter at the moment of the decision, so the call can be
+   * reviewed against what was true then.
+   */
+  CHAPTER_CANCELLED: 'admin.chapter.cancelled',
+  CHAPTER_RESTORED: 'admin.chapter.restored',
 
   // Billing. Logged even while no processor is connected: a change to what a
   // student believes they have agreed to pay is exactly the kind of event that

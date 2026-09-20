@@ -1,7 +1,7 @@
 import 'server-only';
 
 import { db } from '@/lib/db';
-import { subjectLanguagesFor } from '@/lib/queries/taxonomy';
+import { LIVE_CHAPTER, subjectLanguagesFor } from '@/lib/queries/taxonomy';
 import { computeMastery, weakestChapter, type ScorableAttempt } from '@/lib/scoring/mastery';
 import { computeReadiness, type ChapterMasterySnapshot, type ReadinessResult } from '@/lib/scoring/readiness';
 
@@ -93,7 +93,10 @@ export async function getProgressForUser(
    * needs to re-run the formula against a past cutoff.
    */
   const chapters = await db.chapter.findMany({
-    where: { subjectId: { in: subjectIds } },
+    // A cancelled chapter is out of the programme, so it is out of the
+    // denominator too: leaving it in would report every student as further
+    // behind than they are on a syllabus nobody is sitting.
+    where: { subjectId: { in: subjectIds }, ...LIVE_CHAPTER },
     select: {
       id: true,
       name: true,

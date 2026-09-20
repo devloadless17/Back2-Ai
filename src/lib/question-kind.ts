@@ -348,7 +348,61 @@ const VISUAL_REFERENCE =
   // `new RegExp('\b...')` is one backslash away from `\b` meaning a backspace
   // character, which is exactly what it meant here on the first attempt and the
   // pattern silently matched nothing.
-  /\b(?:document|doc\.|figure|fig\.|sch[ée]ma|graphe|graphique|diagram)\s*\.?\s*[0-9]|\b(?:shown|represented|given|see|refer to)\s+(?:in\s+)?(?:the\s+)?(?:adjacent\s+)?(?:document|figure|diagram|graph|curve)|\bd['’]apr[eè]s\s+(?:le|la|les)\s+(?:document|figure|sch[ée]ma|graphique)|\b(?:ci-contre|ci-dessous|adjacent)\b|ال?مستند\s*[0-9٠-٩]|ال?شكل\s*[0-9٠-٩]|ال?وثيقة\s*[0-9٠-٩]/i;
+  //
+  // THE NOUN-PHRASE ALTERNATIVES COME BEFORE THE BARE ONE, and that order is
+  // load-bearing. `\b(?:ci-contre|ci-dessous|adjacent)\b` on its own matched
+  // the adjective and nothing else, so a physics question reading "the
+  // adjacent figure represents the resonance curve" told the student:
+  //
+  //     This question refers to “adjacent”, which I do not have in front of me
+  //
+  // The detection was right — there IS a missing figure — only the quoted span
+  // was wrong. Narrowing the pattern would have been the wrong repair: it
+  // would bring back the question answered as though the graph were visible.
+  // So the phrase is widened to take the noun with it, in both word orders:
+  // English puts the adjective first ("adjacent figure"), French puts it last
+  // ("courbe ci-contre"). The bare word stays last as a detector of final
+  // resort, because failing to notice a figure is worse than quoting it badly.
+  /\b(?:document|doc\.|figure|fig\.|sch[ée]ma|graphe|graphique|diagram)\s*\.?\s*[0-9]|\b(?:shown|represented|given|see|refer to)\s+(?:in\s+)?(?:the\s+)?(?:adjacent\s+)?(?:document|figure|diagram|graph|curve)|\bd['’]apr[eè]s\s+(?:le|la|les)\s+(?:document|figure|sch[ée]ma|graphique)|\badjacent\s+(?:figure|graph|diagram|circuit|curve|document|sketch|table)\b|\b(?:figure|graphe|graphique|sch[ée]ma|document|courbe|tableau)\s+ci-(?:contre|dessous)\b|\b(?:ci-contre|ci-dessous|adjacent)\b|ال?مستند\s*[0-9٠-٩]|ال?شكل\s*[0-9٠-٩]|ال?وثيقة\s*[0-9٠-٩]/i;
+
+/**
+ * Has the student handed over a problem to be solved, with its own data?
+ *
+ * This is not one of the three `QuestionKind`s and deliberately so: it is not
+ * about what the question is ABOUT, it is about what the student is asking for.
+ * "Explain photosynthesis" and "Determine the differential equation governing
+ * i in this circuit" are both concept questions by kind, and only one of them
+ * is a problem with givens attached.
+ *
+ * WHY IT EXISTS. The grounded prompt's first hard rule is "answer ONLY from
+ * the material given below", which is what stops the tutor inventing a barème
+ * or an exam convention it cannot possibly know. But a student pasting a
+ * workbook exercise gets retrieval over the chapter corpus, which does not
+ * contain that exercise, and the tutor was therefore forbidden from deriving a
+ * series RLC differential equation — bookwork in the Lebanese programme, and
+ * the entire reason the student asked. The rule was written for "explain this
+ * chapter" and silently applied to "solve this".
+ *
+ * Detection is conservative in the direction that matters: a false positive
+ * lets the tutor use programme physics it was always safe to use, because the
+ * bans on inventing DATA, a barème or an exam convention are kept either way.
+ * A false negative is the failure being fixed.
+ */
+const SOLVE_IMPERATIVE =
+  /\b(?:determine|prove|deduce|calculate|compute|show\s+that|derive|establish|evaluate|express)\b|\b(?:d[ée]termine[rz]?|montre[rz]?\s+que|d[ée]dui(?:re|sez)|calcule[rz]?|[ée]tabli(?:r|ssez)|exprime[rz]?)\b|أثبت|احسب|استنتج|عيّن|بيّن/i;
+
+/** Lettered or numbered parts: "a)", "1.", "iii." at the head of a line. */
+const PART_LABELS = /(?:^|\n)[ \t]*(?:[a-eA-E][).]|\d{1,2}[).]|[ivx]{1,3}[).])\s+\S/m;
+
+/** Something to compute with: an equation, LaTeX, f(x), or a quantity with a unit. */
+const HAS_GIVENS =
+  /[=$]|\b[a-zA-Z]\s*\(\s*[a-zA-Z]\s*\)|\d\s*(?:V|A|W|J|Hz|F|H|mol|g|kg|cm|mm|km|ms|rad\/s|°C|Ω|ohms?)\b/;
+
+
+export function isSuppliedProblem(text: string): boolean {
+  if (!SOLVE_IMPERATIVE.test(text)) return false;
+  return PART_LABELS.test(text) || HAS_GIVENS.test(text);
+}
 
 /** The reference itself, so the student is told which one is missing. */
 export function missingVisual(text: string): string | null {

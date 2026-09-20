@@ -1326,9 +1326,21 @@ def ocr_pages(pdf: Path) -> list | None:
     if not OCR_TEXT.exists():
         return None
     digest = hashlib.sha256(pdf.read_bytes()).hexdigest()
-    folder = next(OCR_TEXT.glob(f"*__{digest[:8]}"), None)
-    if folder is None:
+
+    # TWO LAYOUTS, because two readers wrote them.
+    #
+    # `ocr_pdf.py` names its folder `<something>__<first 8 of sha>`; `mathpix.ts`
+    # names its folder the full sha. Only the first was looked for, so every
+    # paper read by Mathpix was invisible here — 816 papers, read and paid for,
+    # that this function reported as "not transcribed". Nothing failed and no
+    # count changed, which is why it would have gone unnoticed: a paper with a
+    # broken text layer simply carried on extracting nothing.
+    folder = OCR_TEXT / digest
+    if not folder.is_dir():
+        folder = next(OCR_TEXT.glob(f"*__{digest[:8]}"), None)
+    if folder is None or not folder.is_dir():
         return None
+
     pages = sorted(folder.glob("page-*.md"))
     if not pages:
         return None

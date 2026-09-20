@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import { GradeLog, type GradeEntry } from '@/components/settings/grade-log';
 import { Alert } from '@/components/ui/feedback';
 import { requireUser } from '@/lib/auth/guards';
+import { dayOf } from '@/lib/calendar';
 import { db } from '@/lib/db';
 import { getTranslations } from '@/lib/i18n';
 import { listSubjects } from '@/lib/queries/taxonomy';
@@ -34,7 +35,11 @@ export default async function GradesSettingsPage() {
     label: grade.label,
     grade: grade.grade === null ? null : Number(grade.grade),
     maxGrade: grade.maxGrade === null ? null : Number(grade.maxGrade),
-    date: grade.date ? grade.date.toISOString().slice(0, 10) : null,
+    date: grade.date ? dayOf(grade.date) : null,
+    // The id as well as the name: the inline edit form needs to preselect the
+    // subject, and a name cannot be matched back to an option reliably once two
+    // tracks share a subject title.
+    subjectId: grade.subject?.id ?? null,
     subjectName: grade.subject?.name ?? null,
   }));
 

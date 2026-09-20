@@ -25,6 +25,20 @@ import { PDFDocument } from 'pdf-lib';
 const API = 'https://api.mathpix.com/v3/pdf';
 const POLL_INTERVAL_MS = 5_000;
 const POLL_TIMEOUT_MS = 45 * 60_000;
+
+/*
+ * A CEILING ON EACH REQUEST, not only on the job.
+ *
+ * `POLL_TIMEOUT_MS` is checked after the status fetch returns, and node's
+ * `fetch` has no default timeout — so a connection that hangs open never lets
+ * the loop iterate and the 45-minute guard never fires. Observed: one paper
+ * held a batch run for 54 minutes and would have held it indefinitely.
+ *
+ * Upload gets longer than the status and download calls because it is pushing
+ * a file; a status check that has not answered in a minute is not going to.
+ */
+const SUBMIT_TIMEOUT_MS = 5 * 60_000;
+const REQUEST_TIMEOUT_MS = 60_000;
 const LOW_CONFIDENCE = 0.7;
 
 type Args = Record<string, string | boolean>;
@@ -91,7 +105,12 @@ async function submit(bytes: Buffer, fileName: string): Promise<string> {
     }),
   );
 
-  const response = await fetch(API, { method: 'POST', headers: headers(), body: form });
+  const response = await fetch(API, {
+    method: 'POST',
+    headers: headers(),
+    body: form,
+    signal: AbortSignal.timeout(SUBMIT_TIMEOUT_MS),
+  });
   const body = await response.text();
   if (!response.ok) throw new Error(`Submit failed (${response.status}): ${body}`);
 
@@ -112,9 +131,38 @@ async function waitForCompletion(pdfId: string): Promise<void> {
   let lastPercent = -1;
 
   for (;;) {
-    const response = await fetch(`${API}/${pdfId}`, { headers: headers() });
-    const body = await response.text();
-    if (!response.ok) throw new Error(`Status check failed (${response.status}): ${body}`);
+    /*
+     * A FAILED STATUS CHECK IS NOT A FAILED JOB.
+     *
+     * The work is happening on Mathpix's side; this loop is only asking after
+     * it. A timed-out or refused poll means the question did not arrive, not
+     * that the conversion died — and throwing here would abandon a paper that
+     * is about to finish, and that we have already paid for.
+     *
+     * So a poll that fails is swallowed and retried, and the only thing that
+     * ends the wait is the job completing, the job erroring, or the 45-minute
+     * ceiling below. That ceiling is now reachable: before the request had a
+     * timeout, a hung connection simply never returned and the loop never came
+     * back round to check it.
+     */
+    let body: string;
+    let ok: boolean;
+    try {
+      const response = await fetch(`${API}/${pdfId}`, {
+        headers: headers(),
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      });
+      body = await response.text();
+      ok = response.ok;
+    } catch {
+      if (Date.now() - startedAt > POLL_TIMEOUT_MS) {
+        throw new Error(`Gave up after 45 minutes. The job may still finish — pdf_id ${pdfId}`);
+      }
+      await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+      continue;
+    }
+
+    if (!ok) throw new Error(`Status check failed: ${body}`);
 
     const parsed = JSON.parse(body);
     const status = String(parsed.status ?? '');
@@ -141,7 +189,10 @@ async function waitForCompletion(pdfId: string): Promise<void> {
 }
 
 async function download(pdfId: string, ext: string): Promise<string | null> {
-  const response = await fetch(`${API}/${pdfId}.${ext}`, { headers: headers() });
+  const response = await fetch(`${API}/${pdfId}.${ext}`, {
+    headers: headers(),
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+  });
   if (!response.ok) return null;
   return response.text();
 }

@@ -325,7 +325,7 @@ async function main() {
       body:
         'Cette instance contient un contenu de démonstration. Le programme officiel sera chargé ' +
         'par le processus d’ingestion avant la mise en service.',
-      targetTrackId: null,
+      // No track rows: this one is for the whole cohort.
       targetSubjectId: null,
     },
   });

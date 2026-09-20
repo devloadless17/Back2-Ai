@@ -74,11 +74,21 @@ export default async function DashboardPage() {
        *
        * A subject-targeted announcement is implicitly track-targeted — subjects
        * belong to tracks — so it must not reach a student from another track
-       * just because its `target_track_id` happens to be null.
+       * just because no track was named on the announcement itself.
+       *
+       * NO TRACK ROWS MEANS EVERY TRACK, which is why `none` is the permissive
+       * half of that OR rather than a missing case. Reading it as "targets
+       * nothing, show nobody" would silently hide every cohort-wide
+       * announcement ever posted.
        */
       where: {
         AND: [
-          { OR: [{ targetTrackId: null }, { targetTrackId: user.trackId }] },
+          {
+            OR: [
+              { tracks: { none: {} } },
+              ...(user.trackId ? [{ tracks: { some: { trackId: user.trackId } } }] : []),
+            ],
+          },
           {
             OR: [
               { targetSubjectId: null },

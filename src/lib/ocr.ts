@@ -2,6 +2,7 @@ import 'server-only';
 
 import { ai, type AiImage } from '@/lib/ai';
 import { AiError } from '@/lib/ai/types';
+import { repairSymbolFont } from '@/lib/symbol-font';
 
 /**
  * OCR / document understanding.
@@ -112,16 +113,37 @@ export const DOCX_TYPE =
  * is an image and goes to the model.
  */
 export async function extractDocumentText(bytes: Buffer, contentType: string): Promise<string> {
-  if (contentType === 'text/plain') {
-    return bytes.toString('utf8').slice(0, 200_000);
-  }
+  if (
+    contentType === 'text/plain' ||
+    contentType === 'application/pdf' ||
+    contentType === DOCX_TYPE
+  ) {
+    const parsed =
+      contentType === 'text/plain'
+        ? bytes.toString('utf8').slice(0, 200_000)
+        : contentType === 'application/pdf'
+          ? await extractPdfText(bytes)
+          : await extractDocxText(bytes);
 
-  if (contentType === 'application/pdf') {
-    return extractPdfText(bytes);
-  }
+    /*
+     * A PARSE THAT PRODUCED BYTES IS NOT A PARSE THAT PRODUCED A DOCUMENT.
+     *
+     * Applied here rather than in the two routes so they cannot drift, and so
+     * the existing contract holds: empty already means "could not read", and
+     * both callers know how to report that. What changes is that a reader
+     * returning the inside of the file — font names, locale tags, binary — now
+     * counts as not having read it, instead of being stored and embedded as the
+     * student's own material. See `looksLikeText`.
+     */
+    if (parsed.length > 0 && !looksLikeText(parsed)) {
+      console.error(
+        `[ocr] discarded ${contentType} output: ${parsed.length} chars at ` +
+          `language ratio ${languageRatio(parsed).toFixed(3)} (floor ${MIN_LANGUAGE_RATIO})`,
+      );
+      return '';
+    }
 
-  if (contentType === DOCX_TYPE) {
-    return extractDocxText(bytes);
+    return parsed;
   }
 
   const result = await transcribeImage(toAiImage(bytes, contentType));
@@ -143,9 +165,16 @@ export async function extractDocumentText(bytes: Buffer, contentType: string): P
  * than guessing. Empty means "could not read", which the caller already knows
  * how to report — the same contract `extractPdfText` has for a scan.
  *
- * Hand-rolled for the same reason the PDF reader and the password hashing are:
- * one more npm package in the dependency tree of a product that handles
- * students' own documents is a cost, and this is forty lines.
+ * Hand-rolled for the same reason the password hashing is: one more npm package
+ * in the dependency tree of a product that handles students' own documents is a
+ * cost, and this is forty lines.
+ *
+ * The PDF reader used to be hand-rolled on the same argument and is not any
+ * more — see `extractPdfText`. The difference is that a .docx is a ZIP holding
+ * UTF-8 XML, so reading it needs no font or encoding knowledge, while a PDF's
+ * text is meaningless without its ToUnicode CMap. Forty lines is enough for one
+ * and cannot be enough for the other. Measured, not assumed: this reader was
+ * never the one failing.
  */
 async function extractDocxText(bytes: Buffer): Promise<string> {
   const { inflateRawSync } = await import('node:zlib');
@@ -212,49 +241,110 @@ function docxXmlToText(xml: string): string {
 }
 
 /**
- * Minimal PDF text-layer extraction.
+ * PDF text-layer extraction, via pdfjs (bundled by `unpdf`).
  *
- * Pulls text from uncompressed and Flate-compressed content streams. This is
- * intentionally simple: it handles the digitally-produced PDFs students upload
- * from their school portals, and returns an empty string for scanned PDFs
- * rather than pretending to succeed. The caller treats an empty result as
- * "needs OCR" and says so, instead of silently storing a blank document.
+ * THIS REPLACED A HAND-ROLLED READER, and the measurement is the reason.
+ * Both were run over the same 60 real Lebanese exam PDFs and compared against
+ * an independent reader (pdfplumber):
+ *
+ *     hand-rolled   0 / 60 readable
+ *     pdfjs        60 / 60 readable
+ *
+ * The old one scraped `(...)` literals out of every stream in the file, so it
+ * had three unfixable problems. It had no font encoding or ToUnicode CMap, so
+ * Identity-H — the standard encoding for Arabic and for any subset font — came
+ * out as latin1 noise. It scraped font programs and metadata alongside content,
+ * so documents arrived as "IdentityAdobeTimes New Roman" and "fr-FRar-SA". And
+ * when `inflateSync` failed on an image stream it fell back to reading raw
+ * binary as text. Worse than failing: 44 of those 60 produced enough bytes to
+ * clear the caller's length check, so they were stored and embedded as the
+ * student's own handout.
+ *
+ * A dependency was accepted here against this codebase's usual preference
+ * because the missing piece is CMap and font-encoding support. That is not
+ * forty lines, and without it Arabic PDFs cannot work at all — which rules out
+ * the format teachers most often circulate.
+ *
+ * Still returns empty for a scanned PDF with no text layer. The caller treats
+ * empty as "needs OCR" and tells the student to photograph the page.
  */
 async function extractPdfText(bytes: Buffer): Promise<string> {
-  const { inflateSync } = await import('node:zlib');
-  const raw = bytes.toString('latin1');
-  const pieces: string[] = [];
+  const { extractText, getDocumentProxy } = await import('unpdf');
 
-  const streamPattern = /stream\r?\n([\s\S]*?)\r?\nendstream/g;
-  let match: RegExpExecArray | null;
+  /*
+   * `verbosity: 0` keeps pdfjs's font diagnostics out of the logs. It prints
+   * "Warning: TT: undefined function" per glyph on these papers — hundreds of
+   * lines for one upload that read perfectly — and a log nobody can scan is a
+   * log that hides the next real error.
+   */
+  const pdf = await getDocumentProxy(new Uint8Array(bytes), { verbosity: 0 });
+  const { text } = await extractText(pdf, { mergePages: true });
+  const merged = Array.isArray(text) ? text.join('\n') : text;
 
-  while ((match = streamPattern.exec(raw)) !== null) {
-    const chunk = Buffer.from(match[1] ?? '', 'latin1');
-    let text: string;
+  /*
+   * THE SYMBOL-FONT REPAIR THE CORPUS PIPELINE ALREADY DOES, applied here too.
+   *
+   * Lebanese papers set their mathematics in Adobe Symbol, which a PDF embeds
+   * at `0xF000 + byte` — inside the Private Use Area, where nothing downstream
+   * can read it. Measured on one GS maths paper uploaded through this route:
+   * 625 such codepoints, every one of them a Δ, √, ∑ or = that reached the
+   * student as a blank box and the embedding as noise.
+   *
+   * `repairSymbolFont` was written for the corpus loader and nothing on the
+   * upload path called it, so a student attaching the same paper their school
+   * circulates got the damaged copy while the library held the repaired one.
+   */
+  const repaired = repairSymbolFont(merged);
 
-    try {
-      text = inflateSync(chunk).toString('latin1');
-    } catch {
-      text = chunk.toString('latin1');
-    }
+  return repaired
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+    .slice(0, 200_000);
+}
 
-    // Text-showing operators: (literal) Tj  and  [(a) -2 (b)] TJ
-    const showPattern = /\((?:\\.|[^\\()])*\)/g;
-    let show: RegExpExecArray | null;
-    const line: string[] = [];
+/**
+ * Whether extracted text is running text rather than the inside of a file.
+ *
+ * WHY A RATIO AND NOT A LENGTH. The callers used to accept anything over ten
+ * or twenty characters, and a broken reader clears that trivially: font names,
+ * locale tags and raw binary are all long. A document that fails this is not
+ * merely useless — it is stored in the student's list looking usable, embedded
+ * into tier-3 retrieval, and searched against when they ask a question.
+ *
+ * THE THRESHOLD IS MEASURED, not chosen. Over 60 real PDFs read correctly and
+ * the same 60 read by the old extractor:
+ *
+ *     real documents      lowest 0.798   median 0.992
+ *     extractor garbage   p10    0.186   median 0.356
+ *
+ * 0.70 sits in the gap. It kept all 60 real documents and rejected 40 of the
+ * 44 garbage ones. Raising it starts discarding real Arabic papers, which carry
+ * more bracket and punctuation characters than French or English ones, for very
+ * little extra reach.
+ *
+ * Deliberately NOT a printable-character test: "IdentityAdobeTimes New Roman"
+ * is entirely printable and entirely not somebody's handout.
+ */
+const TEXT_PUNCTUATION = new Set(
+  ".,;:!?()[]{}'\"-+=*/%<>@#&_|~^$–—‘’“”°±×÷€£",
+);
 
-    while ((show = showPattern.exec(text)) !== null) {
-      const literal = show[0]
-        .slice(1, -1)
-        .replace(/\\([()\\])/g, '$1')
-        .replace(/\\n/g, '\n')
-        .replace(/\\r/g, '')
-        .replace(/\\t/g, ' ');
-      if (literal.trim().length > 0) line.push(literal);
-    }
+export const MIN_LANGUAGE_RATIO = 0.7;
 
-    if (line.length > 0) pieces.push(line.join(''));
+export function languageRatio(text: string): number {
+  if (text.length === 0) return 0;
+  let ok = 0;
+  for (const char of text) {
+    const code = char.codePointAt(0) ?? 0;
+    // Private-use codepoints are the signature of a subset font read as bytes,
+    // and control characters never belong to a document's prose.
+    if ((code >= 0xe000 && code <= 0xf8ff) || code < 9) continue;
+    if (/\p{L}|\p{N}/u.test(char) || /\s/.test(char) || TEXT_PUNCTUATION.has(char)) ok += 1;
   }
+  return ok / text.length;
+}
 
-  return pieces.join('\n').replace(/\n{3,}/g, '\n\n').trim().slice(0, 200_000);
+export function looksLikeText(text: string): boolean {
+  return languageRatio(text) >= MIN_LANGUAGE_RATIO;
 }

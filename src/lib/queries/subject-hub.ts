@@ -1,7 +1,7 @@
 import 'server-only';
 
 import { db } from '@/lib/db';
-import { subjectLanguagesFor } from '@/lib/queries/taxonomy';
+import { LIVE_CHAPTER, subjectLanguagesFor } from '@/lib/queries/taxonomy';
 import { MIN_ATTEMPTS_FOR_WEAKNESS } from '@/lib/scoring/mastery';
 import { WEAKNESS_MASTERY_CEILING } from '@/lib/queries/flashcards';
 
@@ -45,9 +45,11 @@ export async function getSubjectHub(
 ): Promise<SubjectHub> {
   const [chapters, chaptersWithMaterial, questions, papers, cardsDue, cardsTotal, weak, attempts, markable] =
     await Promise.all([
-      db.chapter.count({ where: { subjectId } }),
+      db.chapter.count({ where: { subjectId, ...LIVE_CHAPTER } }),
 
-      db.chapter.count({ where: { subjectId, contentChunks: { some: {} } } }),
+      db.chapter.count({
+        where: { subjectId, contentChunks: { some: {} }, ...LIVE_CHAPTER },
+      }),
 
       db.question.count({
         where: { chapter: { subjectId }, verifiedStatus: { not: 'rejected' } },

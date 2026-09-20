@@ -10,11 +10,22 @@ import { db } from '@/lib/db';
  *
  * Every handler under /api/admin re-checks the role for itself. The sidebar
  * hiding the link and the page guard redirecting are UX; this is the boundary.
+ *
+ * TARGETING IS A SET OF TRACKS, and an empty set means the whole cohort. It was
+ * one nullable track, which forced an admin announcing a changed exam date to
+ * GS and LS to post it twice — and two posts drift, because one gets edited and
+ * one does not.
  */
 const createSchema = z.object({
   title: z.string().trim().min(1).max(200),
   body: z.string().trim().min(1).max(5000),
-  targetTrackId: z.string().uuid().nullish(),
+  /**
+   * Empty (or absent) reaches every track. Duplicates are harmless in the
+   * request but would violate the join table's primary key, so they are
+   * collapsed before the write rather than rejected — an admin ticking a box
+   * twice through a resubmit has not made a mistake worth an error page.
+   */
+  targetTrackIds: z.array(z.string().uuid()).max(32).optional(),
   targetSubjectId: z.string().uuid().nullish(),
 });
 
@@ -28,7 +39,7 @@ export const GET = route(async () => {
       title: true,
       body: true,
       createdAt: true,
-      targetTrack: { select: { id: true, code: true, name: true } },
+      tracks: { select: { track: { select: { id: true, code: true, name: true } } } },
       targetSubject: { select: { id: true, name: true } },
       author: { select: { id: true, displayName: true, email: true } },
     },
@@ -37,7 +48,11 @@ export const GET = route(async () => {
   });
 
   return ok({
-    announcements: announcements.map((a) => ({ ...a, createdAt: a.createdAt.toISOString() })),
+    announcements: announcements.map((a) => ({
+      ...a,
+      tracks: a.tracks.map((t) => t.track),
+      createdAt: a.createdAt.toISOString(),
+    })),
   });
 });
 
@@ -49,13 +64,56 @@ export const POST = route(async (request) => {
 
   const body = await parseBody(request, createSchema);
 
+  const trackIds = [...new Set(body.targetTrackIds ?? [])];
+
+  /*
+   * Every named track has to exist.
+   *
+   * The form only ever submits ids it was handed, so this is not defending
+   * against the UI. It is defending against a stale tab: a track deleted by
+   * `db:prune` between page load and submit would otherwise fail on the
+   * foreign key, and a constraint violation is a 500 where this is a 404.
+   */
+  if (trackIds.length > 0) {
+    const found = await db.track.count({ where: { id: { in: trackIds } } });
+    if (found !== trackIds.length) return fail(404, 'TRACK_NOT_FOUND');
+  }
+
+  /*
+   * A subject-targeted announcement narrows to that subject's track, so the
+   * notification audience matches what the dashboard will actually show.
+   */
+  const subjectTrackId = body.targetSubjectId
+    ? (
+        await db.subject.findUnique({
+          where: { id: body.targetSubjectId },
+          select: { trackId: true },
+        })
+      )?.trackId ?? null
+    : null;
+
+  if (body.targetSubjectId && subjectTrackId === null) return fail(404, 'SUBJECT_NOT_FOUND');
+
+  /*
+   * A CONTRADICTION IS REFUSED RATHER THAN SILENTLY NARROWED.
+   *
+   * "GS and LS" plus a subject that belongs to LH addresses nobody: the
+   * dashboard applies both filters with AND, so the row would be written,
+   * notify nobody, and appear on no dashboard. Picking the subject's track for
+   * them would be a guess at which half of the form they meant. Saying so is
+   * the only option that cannot be wrong.
+   */
+  if (subjectTrackId && trackIds.length > 0 && !trackIds.includes(subjectTrackId)) {
+    return fail(422, 'TARGET_CONFLICT');
+  }
+
   const announcement = await db.announcement.create({
     data: {
       title: body.title,
       body: body.body,
-      targetTrackId: body.targetTrackId ?? null,
       targetSubjectId: body.targetSubjectId ?? null,
       createdBy: auth.user.id,
+      tracks: { createMany: { data: trackIds.map((trackId) => ({ trackId })) } },
     },
     select: { id: true },
   });
@@ -73,23 +131,14 @@ export const POST = route(async (request) => {
    * one. Inactive accounts are skipped — nobody needs an unread badge waiting
    * on a suspended account.
    */
-  // A subject-targeted announcement narrows to that subject's track, so the
-  // notification audience matches what the dashboard will actually show.
-  const subjectTrackId = body.targetSubjectId
-    ? (
-        await db.subject.findUnique({
-          where: { id: body.targetSubjectId },
-          select: { trackId: true },
-        })
-      )?.trackId ?? null
-    : null;
-
-  const effectiveTrackId = body.targetTrackId ?? subjectTrackId;
+  // The subject's own track counts as a target even when no box was ticked,
+  // which is what keeps the notified set equal to the set that can see it.
+  const effectiveTrackIds = trackIds.length > 0 ? trackIds : subjectTrackId ? [subjectTrackId] : [];
 
   const audience = await db.user.findMany({
     where: {
       isActive: true,
-      ...(effectiveTrackId ? { trackId: effectiveTrackId } : {}),
+      ...(effectiveTrackIds.length > 0 ? { trackId: { in: effectiveTrackIds } } : {}),
     },
     select: { id: true },
   });
@@ -112,9 +161,9 @@ export const POST = route(async (request) => {
     targetId: announcement.id,
     metadata: {
       title: body.title,
-      targetTrackId: body.targetTrackId ?? null,
+      targetTrackIds: trackIds,
       targetSubjectId: body.targetSubjectId ?? null,
-      effectiveTrackId,
+      effectiveTrackIds,
       notified: audience.length,
     },
   });

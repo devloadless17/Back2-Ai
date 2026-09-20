@@ -287,9 +287,9 @@ model Track {
   code String @unique
   name String
 
-  subjects      Subject[]
-  users         User[]
-  announcements Announcement[]
+  subjects             Subject[]
+  users                User[]
+  announcementTargets  AnnouncementTrack[]
 
   @@map("tracks")
 }
@@ -379,6 +379,20 @@ model Chapter {
   name       String
   orderIndex Int     @map("order_index")
 
+  /// Set when an administrator cancels this chapter. Null means it is live.
+  ///
+  /// WHY A TIMESTAMP AND NOT A DELETE. The ministry cuts chapters from the
+  /// programme some years — a reduced syllabus is an ordinary event here, not
+  /// an exception — and the cut is reversed or revised the following year.
+  /// Deleting would take the chapter's questions, passages, attempts and
+  /// mastery with it, so a student who studied it before the cut would lose the
+  /// record that they did. Everything stays; the chapter stops being offered.
+  ///
+  /// Who did it is in `audit_events`, which is the trail that matters and the
+  /// one nothing else can overwrite. The reason is here because it is shown.
+  cancelledAt     DateTime? @map("cancelled_at") @db.Timestamptz(6)
+  cancelledReason String?   @map("cancelled_reason")
+
   subject Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
   unit    Unit?   @relation(fields: [unitId], references: [id], onDelete: SetNull)
 
@@ -395,6 +409,8 @@ model Chapter {
 
   @@unique([subjectId, orderIndex])
   @@index([unitId])
+  // Every student-facing chapter query filters on this, so it earns its index.
+  @@index([subjectId, cancelledAt])
   @@map("chapters")
 }
 
@@ -1229,19 +1245,41 @@ model Announcement {
   id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   title           String
   body            String
-  /// Null = all tracks.
-  targetTrackId   String?  @map("target_track_id") @db.Uuid
   /// Null = all subjects.
   targetSubjectId String?  @map("target_subject_id") @db.Uuid
   createdBy       String?  @map("created_by") @db.Uuid
   createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  targetTrack   Track?   @relation(fields: [targetTrackId], references: [id], onDelete: SetNull)
-  targetSubject Subject? @relation(fields: [targetSubjectId], references: [id], onDelete: SetNull)
-  author        User?    @relation("AnnouncementAuthor", fields: [createdBy], references: [id], onDelete: SetNull)
+  /// NO ROWS MEANS EVERY TRACK. This replaced a single nullable
+  /// `target_track_id`, where null carried the same meaning: an admin
+  /// announcing one changed exam date to GS and LS had to post it twice, and
+  /// two posts drift. Empty is the default because the commonest announcement
+  /// is for the whole cohort.
+  tracks        AnnouncementTrack[]
+  targetSubject Subject?            @relation(fields: [targetSubjectId], references: [id], onDelete: SetNull)
+  author        User?               @relation("AnnouncementAuthor", fields: [createdBy], references: [id], onDelete: SetNull)
 
   @@index([createdAt])
   @@map("announcements")
+}
+
+/// Which tracks an announcement is addressed to.
+///
+/// `onDelete: Cascade` on the track widens the audience rather than orphaning
+/// the row — a deleted track leaves the announcement addressed to everyone.
+/// That is exactly what the old `SetNull` on `target_track_id` did, so this is
+/// not a new hazard; it is worth knowing before anyone deletes a track, which
+/// `db:prune` can do when migrating the retired French branch codes.
+model AnnouncementTrack {
+  announcementId String @map("announcement_id") @db.Uuid
+  trackId        String @map("track_id") @db.Uuid
+
+  announcement Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  track        Track        @relation(fields: [trackId], references: [id], onDelete: Cascade)
+
+  @@id([announcementId, trackId])
+  @@index([trackId])
+  @@map("announcement_tracks")
 }
 
 model ReviewQueueItem {

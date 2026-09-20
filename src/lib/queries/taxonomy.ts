@@ -215,6 +215,28 @@ export async function getSubjectForTrack(subjectId: string, trackId: string | nu
   });
 }
 
+/**
+ * The filter every student-facing chapter query carries.
+ *
+ * An administrator can cancel a chapter when the ministry cuts it from the
+ * year's programme. Cancelling does not delete anything — the questions, the
+ * passages, and any attempts and mastery a student already earned all stay —
+ * so a chapter is hidden by a WHERE rather than by its absence, and restoring
+ * it is one click with nothing to rebuild.
+ *
+ * WRITTEN ONCE because the places that must agree are not obvious: the practice
+ * index, the Bac Map, the subject counts, the progress denominators and the
+ * planner. A chapter hidden from the index but still counted in "programme
+ * covered" understates every student's progress, and one hidden from the index
+ * but still reachable by the planner schedules work nobody can open.
+ *
+ * DELIBERATELY NOT APPLIED to retrieval. A student who asks a question about a
+ * cancelled chapter still gets an answer: the material is still true, and the
+ * cut is about what the examiners will set, not about what is safe to say.
+ * Refusing there would turn a syllabus decision into a gap in the tutor.
+ */
+export const LIVE_CHAPTER = { cancelledAt: null } as const;
+
 export type ChapterSummary = {
   id: string;
   name: string;
@@ -287,7 +309,7 @@ async function loadChapters(
 ): Promise<ChapterSummary[]> {
   const byTrack = 'subject' in where;
   const chapters = await db.chapter.findMany({
-    where,
+    where: { ...where, ...LIVE_CHAPTER },
     select: {
       id: true,
       name: true,
@@ -362,7 +384,7 @@ async function loadChapters(
 export async function getChapterForTrack(chapterId: string, trackId: string | null) {
   if (!trackId) return null;
   return db.chapter.findFirst({
-    where: { id: chapterId, subject: { trackId } },
+    where: { id: chapterId, subject: { trackId }, ...LIVE_CHAPTER },
     select: {
       id: true,
       name: true,

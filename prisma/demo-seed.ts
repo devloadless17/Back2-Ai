@@ -1031,17 +1031,23 @@ async function seedPlanning(
 
   // The demo notice, and one ordinary announcement so the card is not obviously
   // a single-purpose banner.
-  await db.announcement.createMany({
-    data: [
-      { title: DEMO_NOTICE_TITLE, body: DEMO_NOTICE_BODY, targetTrackId: trackId, createdAt: daysAgo(0, 7) },
-      {
-        title: 'Official exam dates published',
-        body: 'The ministry calendar for the June session is out. Your countdown on the dashboard is already set to it.',
-        targetTrackId: trackId,
-        createdAt: daysAgo(4, 9),
+  // One create per announcement rather than `createMany`: the audience now
+  // lives in `announcement_tracks`, and nested writes are what carry it.
+  for (const announcement of [
+    { title: DEMO_NOTICE_TITLE, body: DEMO_NOTICE_BODY, createdAt: daysAgo(0, 7) },
+    {
+      title: 'Official exam dates published',
+      body: 'The ministry calendar for the June session is out. Your countdown on the dashboard is already set to it.',
+      createdAt: daysAgo(4, 9),
+    },
+  ]) {
+    await db.announcement.create({
+      data: {
+        ...announcement,
+        tracks: { create: { trackId } },
       },
-    ],
-  });
+    });
+  }
 
   await db.notification.createMany({
     data: [

@@ -16,7 +16,7 @@ export default async function AdminAnnouncementsPage() {
         title: true,
         body: true,
         createdAt: true,
-        targetTrack: { select: { code: true } },
+        tracks: { select: { track: { select: { code: true } } } },
         targetSubject: { select: { name: true } },
         author: { select: { displayName: true, email: true } },
       },
@@ -35,7 +35,9 @@ export default async function AdminAnnouncementsPage() {
     title: announcement.title,
     body: announcement.body,
     createdAt: announcement.createdAt.toISOString(),
-    targetTrack: announcement.targetTrack?.code ?? null,
+    // Empty means the whole cohort, and the manager renders that as one
+    // "all tracks" badge rather than four.
+    targetTracks: announcement.tracks.map((link) => link.track.code),
     targetSubject: announcement.targetSubject?.name ?? null,
     author: announcement.author?.displayName ?? announcement.author?.email ?? null,
   }));
@@ -43,7 +45,7 @@ export default async function AdminAnnouncementsPage() {
   return (
     <AnnouncementManager
       announcements={items}
-      tracks={tracks.map((track) => ({ id: track.id, label: `${track.name} (${track.code})` }))}
+      tracks={tracks.map((track) => ({ id: track.id, code: track.code, label: track.name }))}
       subjects={subjects.map((subject) => ({
         id: subject.id,
         label: `${subject.track?.code ?? '—'} · ${subject.name}`,

@@ -7,6 +7,7 @@ import { db } from '@/lib/db';
 import { isAiConfigured } from '@/lib/env';
 import type { Locale } from '@/lib/i18n/config';
 import { MIN_ATTEMPTS_FOR_WEAKNESS } from '@/lib/scoring/mastery';
+import { LIVE_CHAPTER } from '@/lib/queries/taxonomy';
 
 /**
  * Suggested revision plan for one upcoming exam.
@@ -333,7 +334,9 @@ export async function suggestSchedule(
     : { track: { users: { some: { id: userId } } } };
 
   const chapters = await db.chapter.findMany({
-    where: { subject: subjectFilter },
+    // Scheduling a cancelled chapter would put a task on a student's plan that
+    // opens on a 404.
+    where: { subject: subjectFilter, ...LIVE_CHAPTER },
     select: {
       id: true,
       name: true,

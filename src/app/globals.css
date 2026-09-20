@@ -882,10 +882,28 @@
    not know the report exists, and the report cannot reach into the shell. A
    stylesheet is where those two meet.
    --------------------------------------------------------------------------- */
+@page {
+  /* Lebanon prints A4, and a report handed across a desk needs a margin wide
+     enough to hold in one hand without covering a mark. */
+  size: A4;
+  margin: 16mm 14mm;
+}
+
 @media print {
   aside,
   nav[aria-label],
   .print\:hidden {
+    display: none !important;
+  }
+
+  /* ANYTHING PINNED TO THE VIEWPORT, which on paper is not furniture but a
+     stamp on every sheet. The tutor dock, its chip, the phone's bottom
+     navigation and the sidebar's overlay are all `fixed`, none of them knew the
+     report existed, and a print-only rule per component is a rule somebody
+     forgets on the next one. Matching the utility is the same trick this file
+     already uses for `bg-paper`, and it covers components not written yet. */
+  [class*='fixed'],
+  [class*='sticky'] {
     display: none !important;
   }
 
@@ -916,9 +934,71 @@
     break-inside: avoid;
   }
 
+  /* A heading stranded at the foot of a page belongs to nothing. Paired with
+     `break-inside` above, this keeps a subject's name with its marks. */
+  h1,
+  h2,
+  h3 {
+    break-after: avoid;
+  }
+
+  /* One line of a paragraph alone at a page boundary reads as a printing
+     fault, and this document is handed to a parent as a record. */
+  p,
+  li {
+    orphans: 3;
+    widows: 3;
+  }
+
+  li {
+    break-inside: avoid;
+  }
+
+  /* THE BARS HAVE TO SURVIVE THE PRINTER. Browsers drop backgrounds by
+     default, which turns every mastery meter into an empty outline — not a
+     missing decoration but a bar that reads as zero. Every meter also carries
+     its number in text (the rule that colour never works alone), so the figure
+     is never lost; this keeps the bar from actively lying about it. */
+  [class*='bg-mark'],
+  [class*='bg-partial'],
+  [class*='bg-correct'],
+  [class*='bg-primary'] {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* The app's rules are tuned for a lavender screen and print as grey mush.
+     A hairline is what a printed table wants. */
+  [class*='border-rule'],
+  [class*='divide-rule'] {
+    border-color: #9a9a9a !important;
+  }
+
   /* A link's href is meaningless on paper and its underline is noise. */
   a {
     text-decoration: none !important;
     color: inherit !important;
+  }
+
+  /* WHOSE REPORT THIS IS, ON EVERY SHEET.
+     A two-page report whose second sheet carries no name is a page that gets
+     filed against the wrong student, and these are printed a class at a time.
+
+     `display: block` overrides the `hidden` the element carries for screen —
+     this line belongs to paper only and would be a duplicate heading on screen.
+
+     It sits at a negative offset so it prints INSIDE the page margin rather
+     than over the first lines of content. Chrome repeats a fixed element on
+     every printed page, which is what this relies on; Firefox and Safari print
+     it once at the top. Page one is identified either way, so the degradation
+     costs the second sheet its label and nothing else. */
+  .print-running-head {
+    display: block !important;
+    position: fixed !important;
+    top: -9mm;
+    inset-inline: 0;
+    font-size: 9pt;
+    line-height: 1.2;
+    color: #444;
   }
 }

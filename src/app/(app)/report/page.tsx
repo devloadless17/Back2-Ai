@@ -33,8 +33,28 @@ export default async function ReadinessReportPage() {
   const { locale, t } = await getTranslations();
   const report = await readinessReport(user.id, user.trackId, user.preferredLanguage);
 
+  const identity = [
+    report.studentName ?? user.email,
+    report.trackName,
+    formatDate(locale, report.generatedAt),
+  ]
+    .filter(Boolean)
+    .join(' · ');
+
   return (
     <>
+      {/*
+        Printed on every sheet and never shown on screen — the styling and the
+        reason both live in the print block of globals.css, under
+        `.print-running-head`. `hidden` is what keeps it off the screen, where
+        the same three facts already sit under the title.
+      */}
+      <div className="print-running-head hidden" aria-hidden>
+        {t.report.title}
+        {' — '}
+        {identity}
+      </div>
+
       {/* Navigation and the button itself are screen-only — see `print:hidden`. */}
       <div className="print:hidden">
         <BackLink href="/progress" label={t.nav.performance} />
@@ -43,18 +63,13 @@ export default async function ReadinessReportPage() {
       <div className="mb-5 flex items-start justify-between gap-4">
         <div>
           <h1 className="text-xl font-semibold text-ink">{t.report.title}</h1>
-          <p className="mt-1 text-caption text-ink-faint">
-            {report.studentName ?? user.email}
-            {report.trackName ? ` · ${report.trackName}` : ''}
-            {' · '}
-            {formatDate(locale, report.generatedAt)}
-          </p>
+          <p className="mt-1 text-caption text-ink-faint">{identity}</p>
         </div>
         <PrintButton label={t.report.print} />
       </div>
 
       {/* --- The headline, and the caveat that has to travel with it -------- */}
-      <section className="mb-6 rounded-lg border border-rule p-5">
+      <section className="mb-6 rounded-lg border border-rule p-5 break-inside-avoid">
         <p className="text-caption uppercase tracking-wider text-ink-faint">{t.report.overall}</p>
         {report.overallMark === null ? (
           <p className="mt-1 text-sm text-ink-muted">{t.report.notEnough}</p>

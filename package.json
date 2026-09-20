@@ -84,7 +84,10 @@
     "review:import": "node --conditions=react-server --env-file=.env --import tsx scripts/review-import.ts",
     "rotate:admin": "node --conditions=react-server --env-file=.env --import tsx scripts/rotate-admin-password.ts",
     "account:test": "node --conditions=react-server --env-file=.env --import tsx scripts/create-test-account.ts",
-    "refile:cross-language": "node --conditions=react-server --env-file=.env --import tsx scripts/refile-cross-language-questions.ts"
+    "refile:cross-language": "node --conditions=react-server --env-file=.env --import tsx scripts/refile-cross-language-questions.ts",
+    "corpus:mathpix:batch": "node --conditions=react-server --env-file=.env --import tsx scripts/corpus/mathpix-batch.ts",
+    "corpus:figures:fetch": "node --env-file=.env --import tsx scripts/corpus/fetch-mathpix-figures.ts",
+    "corpus:backup": "node --env-file=.env --import tsx scripts/corpus/backup.ts"
   },
   "overrides": {
     "postcss": "$postcss",
@@ -111,6 +114,7 @@
     "remark-math": "^6.0.0",
     "server-only": "^0.0.1",
     "tailwind-merge": "^2.6.0",
+    "unpdf": "^1.8.1",
     "web-push": "^3.6.7",
     "zod": "^3.24.1"
   },
