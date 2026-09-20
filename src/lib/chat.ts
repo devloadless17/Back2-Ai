@@ -19,6 +19,7 @@ import { getNextUp } from '@/lib/queries/next-up';
 import { getProgressForUser, rankChapters } from '@/lib/queries/progress';
 import { getSidebarStanding } from '@/lib/queries/standing';
 import { verifyAgainstContext } from '@/lib/verification';
+import { formatFigureManifest, loadSourceFigures, loadUploadedImage } from '@/lib/figures';
 
 /**
  * The grounded chat pipeline: retrieve → generate → verify → persist.
@@ -783,15 +784,91 @@ export async function* runChatTurn(input: ChatTurnInput): AsyncGenerator<ChatEve
   // that we do not have it. Checked on the QUESTION, not on the tier, because
   // the tier that most often answers these is `exact_match` — the one that
   // never reaches the routing which would otherwise have caught it.
+  /*
+   * The figures of the sources this answer is actually built from.
+   *
+   * Loaded here rather than in retrieval because retrieval runs on every
+   * message and most answers need no picture; reading files for all of them
+   * would be work nobody asked for. Only the sources handed to the model are
+   * read, so a neighbouring exercise's diagram never arrives as evidence.
+   */
+  const figures = await loadSourceFigures(grounding.sources);
+
+  /*
+   * THE PAGE THE STUDENT PHOTOGRAPHED GOES TO THE MODEL TOO.
+   *
+   * `loadSourceFigures` collects the diagrams of the corpus sources retrieval
+   * chose. It cannot reach the picture the student took, which lives on their
+   * chat session — and that was the whole failure: a photographed physics
+   * problem was transcribed to text, the text said "the adjacent circuit", and
+   * the tutor answered that it did not have the circuit the student had just
+   * handed it.
+   *
+   * The student's own page goes FIRST. It is the thing being asked about; a
+   * corpus figure is supporting material.
+   */
+  const session = await db.chatSession.findUnique({
+    where: { id: input.sessionId },
+    select: { uploadedImageUrl: true },
+  });
+  const uploaded = await loadUploadedImage(session?.uploadedImageUrl);
+  const images = uploaded ? [uploaded, ...figures.images] : figures.images;
+
+  /*
+   * WHEN THE NOTICE STILL FIRES.
+   *
+   * It used to fire whenever the question named a figure, because no question
+   * had one — the notice says so in as many words: "figures are not yet stored
+   * with the papers". Now that some do, firing regardless would apologise for a
+   * diagram sitting in the request.
+   *
+   * So it fires when the question sends the student to look at something AND
+   * nothing was attached: either the question has no stored figure, or every
+   * one of them failed to load. That is the same degraded state the notice
+   * always described. It is simply now true less often.
+   */
+  //
+  // HELD IN A VARIABLE BECAUSE IT HAS TO BE PERSISTED TOO.
+  //
+  // It used to be yielded inline and then forgotten. The student saw "I do not
+  // have that figure" while the answer streamed, the turn was saved with only
+  // the model's text, and on the next page load the caveat was gone — leaving
+  // an answer about a circuit with no record that nobody had seen the circuit.
+  // `generalKnowledgeTurn` already persists `notice + answer` for exactly this
+  // reason; this path did not.
   const absentVisual = missingVisual(input.question);
-  if (absentVisual) {
-    yield { type: 'delta', text: MISSING_VISUAL_NOTICE[input.locale](absentVisual) };
+  const visualNotice =
+    absentVisual && images.length === 0 ? MISSING_VISUAL_NOTICE[input.locale](absentVisual) : '';
+  if (visualNotice) {
+    yield { type: 'delta', text: visualNotice };
   }
 
   const provider = ai();
+  const figureManifest = formatFigureManifest(grounding.sources, figures);
+  /*
+   * SAY WHOSE PICTURE IT IS.
+   *
+   * The attached images arrive as an undifferentiated list, and the student's
+   * photographed page is not the same kind of thing as a corpus diagram: it is
+   * the question itself, figures and all. Without this line the model is handed
+   * a picture with no account of where it came from, and the text it was
+   * transcribed into says "the adjacent circuit" — pointing at something the
+   * model has been given but not told it has.
+   *
+   * It goes first because the image does.
+   */
+  const uploadedNote = uploaded
+    ? 'The FIRST attached image is the page the student photographed. It is the question ' +
+      'itself — the circuit, the graph, the document it refers to are all on it. Read the ' +
+      'figures off that image rather than saying you do not have them. If something on it is ' +
+      'genuinely unreadable, say which part.'
+    : null;
+
   const userContent = [
     '# Course material you may use',
     grounding.context,
+    ...(uploadedNote ? ['', '# The page the student uploaded', uploadedNote] : []),
+    ...(figureManifest ? ['', figureManifest] : []),
     ...(input.anchorAttempt ? ['', formatAttempt(input.anchorAttempt)] : []),
     '',
     '# Student question',
@@ -812,7 +889,17 @@ export async function* runChatTurn(input: ChatTurnInput): AsyncGenerator<ChatEve
           input.question,
         ) +
         (input.anchorAttempt ? `\n${CORRECTION_KEY_PROMPT}` : ''),
+      /*
+       * FIGURES GO WITH THE CURRENT TURN ONLY.
+       *
+       * Both adapters attach images to the first user message, so resending
+       * them each turn would re-upload the same diagrams for the life of the
+       * conversation — three figures on turn one is twelve by turn four, paid
+       * for every time. The turn being answered is the one that needs to see
+       * them; an earlier turn's figure survives in the text of the history.
+       */
       messages: [...input.history.slice(-8), { role: 'user', content: userContent }],
+      ...(images.length > 0 ? { images } : {}),
       effort: 'high',
     });
 
@@ -835,7 +922,8 @@ export async function* runChatTurn(input: ChatTurnInput): AsyncGenerator<ChatEve
 
   const message = await persistAssistantMessage({
     sessionId: input.sessionId,
-    content: answer,
+    // The caveat is part of the answer, not decoration around it.
+    content: visualNotice + answer,
     tier: grounding.tier,
     citedSourceIds: grounding.sources.map((s) => s.id),
     topSimilarity: grounding.topSimilarity,
