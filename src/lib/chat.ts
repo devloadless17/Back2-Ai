@@ -6,7 +6,7 @@ import { ai } from '@/lib/ai';
 import { db } from '@/lib/db';
 import type { Locale } from '@/lib/i18n/config';
 import { classifyChatIntent, type IntentClassification } from '@/lib/chat-intent';
-import { missingVisual, type QuestionClassification } from '@/lib/question-kind';
+import { isSuppliedProblem, missingVisual, type QuestionClassification } from '@/lib/question-kind';
 import {
   retrieveGrounding,
   type GroundingResult,
@@ -340,6 +340,10 @@ export function systemPrompt(
    */
   question?: string,
 ): string {
+  // Asked for a solution to a problem they supplied, rather than asked about
+  // a topic. Changes which set of hard rules applies — see below.
+  const suppliedProblem = question ? isSuppliedProblem(question) : false;
+
   const common = [
     'You are a tutor for the Lebanese Baccalaureate. You are talking to a student preparing for a national exam.',
     '',
@@ -373,10 +377,48 @@ export function systemPrompt(
     'Mathematics in LaTeX: $...$ inline, $$...$$ displayed.',
     '',
     'Hard rules:',
-    '- Answer ONLY from the material given below. It is the entire basis you are permitted to use.',
-    '- If the material does not cover part of what was asked, say which part it does not cover. Do not fill',
-    '  the gap from general knowledge, however confident you are.',
-    '- Do not invent formulas, constants, theorem names, or exam conventions.',
+    /*
+     * TWO SETS OF HARD RULES, AND ONLY ONE OF THEM IS IN THE PROMPT AT A TIME.
+     *
+     * The rule below the `else` — answer only from the material — is what stops
+     * the tutor inventing a barème or an exam convention it cannot know. It was
+     * written for "explain this chapter" and then applied to everything, and a
+     * student pasting a workbook exercise got retrieval over a chapter corpus
+     * that does not contain their exercise. The tutor was therefore forbidden
+     * from deriving the differential equation of a series RLC circuit, which is
+     * bookwork in the Lebanese programme and the whole reason they asked. On
+     * 2026-09-20 that was reported as "i gave him this, he couldnt get
+     * anything", and it was exactly right.
+     *
+     * So a supplied problem gets its own rules rather than an extra paragraph
+     * arguing with the first one. What is relaxed is the ban on programme
+     * knowledge — the laws and derivations in the textbook, which were always
+     * safe. What is KEPT, and stated more sharply than before, is the ban on
+     * inventing DATA and on inventing anything about how the exam is marked.
+     * Those were the rule's real purpose, and they survive intact.
+     */
+    ...(suppliedProblem
+      ? [
+          '- The student has handed you a complete problem with its own data. Solve it, step by step, all',
+          '  the way through.',
+          '- The programme is yours to use: the definitions, laws, derivations and algebra taught in the',
+          '  Lebanese programme for this subject. The material below does not have to contain this exact',
+          '  problem for you to be allowed to solve it.',
+          '- Do not invent DATA. Every number, value and condition must come from the problem itself or',
+          '  from the material. If a step needs a quantity that neither one gives you, name the quantity',
+          '  and stop there rather than choosing a plausible value.',
+          '- Do not invent a barème, a mark allocation, or an exam convention. Those come only from the',
+          '  material, exactly as before.',
+          '- If a part depends on a figure or a graph you cannot see, carry the reasoning as far as the',
+          '  stated data allows, then say precisely which reading off the figure you would need. Do not',
+          '  claim what an unseen figure shows.',
+        ]
+      : [
+          '- Answer ONLY from the material given below. It is the entire basis you are permitted to use.',
+          '- If the material does not cover part of what was asked, say which part it does not cover. Do not fill',
+          '  the gap from general knowledge, however confident you are.',
+          '- Do not invent formulas, constants, theorem names, or exam conventions.',
+        ]),
     '',
     'How to teach:',
     '- Work through the method step by step. The student needs to be able to reproduce it alone, under time',

@@ -419,9 +419,25 @@ export function ChatThread({
           message.role === 'user' ? (
             <div key={message.id} className="flex justify-end">
               <div className="max-w-[85%] rounded-lg rounded-ee-sm bg-primary-soft px-4 py-2.5">
-                <p className="whitespace-pre-wrap text-body leading-relaxed text-ink">
-                  {message.content}
-                </p>
+                {/*
+                  THE STUDENT'S OWN MESSAGE IS RENDERED AS MATHS TOO.
+
+                  It used to be plain `whitespace-pre-wrap` text, on the
+                  reasonable-sounding grounds that nobody should have their
+                  typing reformatted. But a question carried into this box from
+                  a paper arrives as LaTeX, and the student was shown
+
+                      Prove that $R = 10\ \Omega$.
+
+                  which is the source, not the equation. In a product whose
+                  subject matter is equations, the student's side of the
+                  conversation contains equations.
+
+                  Line breaks survive: `remarkBreaks` is already in MathText's
+                  remark chain and turns a single newline into a break, which
+                  is what `whitespace-pre-wrap` was there for.
+                */}
+                <MathText compact>{message.content}</MathText>
               </div>
             </div>
           ) : message.refusal && message.content ? (
