@@ -1327,20 +1327,29 @@ def ocr_pages(pdf: Path) -> list | None:
         return None
     digest = hashlib.sha256(pdf.read_bytes()).hexdigest()
 
-    # TWO LAYOUTS, because two readers wrote them.
+    # ONLY `ocr_pdf.py`'s layout, `<something>__<first 8 of sha>`, is looked for.
     #
-    # `ocr_pdf.py` names its folder `<something>__<first 8 of sha>`; `mathpix.ts`
-    # names its folder the full sha. Only the first was looked for, so every
-    # paper read by Mathpix was invisible here — 816 papers, read and paid for,
-    # that this function reported as "not transcribed". Nothing failed and no
-    # count changed, which is why it would have gone unnoticed: a paper with a
-    # broken text layer simply carried on extracting nothing.
-    folder = OCR_TEXT / digest
-    if not folder.is_dir():
-        folder = next(OCR_TEXT.glob(f"*__{digest[:8]}"), None)
-    if folder is None or not folder.is_dir():
+    # `mathpix.ts` writes its pages under the FULL sha, and for one commit this
+    # function looked there too. That made 819 Mathpix papers visible to `read()`
+    # above, which substitutes a transcription wherever the text layer averages
+    # under 400 characters a page — and the corpus was unambiguous about the
+    # result. Of the 18 papers whose segmentation changed, ZERO improved: 16
+    # regressed outright, 2 gained an exercise while losing every sub-question,
+    # and even the genuinely broken paper at 5 characters a page went from four
+    # sub-questions to two.
+    #
+    # The damage is specific. Mathpix renders Arabic that reads correctly and
+    # corrupts the structural tokens: the mark word arrives as `عســلامة` rather
+    # than `علامة`, so every mark-gated header rule in this file stops seeing
+    # marks and the paper falls out of the cascade. Plausible prose, useless
+    # structure — which is exactly what the note in `read()` warns against.
+    #
+    # Mathpix earns its place on the VISUAL path, where its figures are the
+    # evidence. It is not a text source for this extractor, and the narrowest
+    # way to say so is to leave its folders unfindable from here.
+    folder = next(OCR_TEXT.glob(f"*__{digest[:8]}"), None)
+    if folder is None:
         return None
-
     pages = sorted(folder.glob("page-*.md"))
     if not pages:
         return None
