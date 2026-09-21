@@ -5,6 +5,7 @@ import { ExamRunner, type ExamSlot } from '@/components/exam/exam-runner';
 import { requireUser } from '@/lib/auth/guards';
 import { loadSimulation, remainingSeconds, slotContent } from '@/lib/exam';
 import { dirForLanguage } from '@/lib/i18n/config';
+import { visualKeysFor } from '@/lib/visual-evidence';
 
 export const metadata: Metadata = { title: 'Examination' };
 
@@ -32,6 +33,9 @@ export default async function ExamSittingPage({
 
   const remaining = remainingSeconds(simulation);
 
+  // The one visual selector — the same call Nour's retrieval makes.
+  const visualKeys = await visualKeysFor(simulation.questions.flatMap((s) => (s.question ? [s.question] : [])));
+
   const slots: ExamSlot[] = simulation.questions.map((slot) => {
     const content = slotContent(slot);
     return {
@@ -39,7 +43,7 @@ export default async function ExamSittingPage({
       orderIndex: slot.orderIndex,
       contentText: content.contentText,
       contentLatex: content.contentLatex,
-      contentImages: content.contentImages,
+      contentImages: slot.question ? (visualKeys.get(slot.question.id) ?? []) : content.contentImages,
       chapterName: content.chapterName,
       maxScore: slot.maxScore === null ? null : Number(slot.maxScore),
       savedAnswer: slot.answer?.typedAnswer ?? null,

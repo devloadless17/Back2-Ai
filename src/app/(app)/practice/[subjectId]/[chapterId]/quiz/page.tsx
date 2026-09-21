@@ -9,6 +9,7 @@ import { requireUser } from '@/lib/auth/guards';
 import { db } from '@/lib/db';
 import { getTranslations } from '@/lib/i18n';
 import { getChapterForTrack } from '@/lib/queries/taxonomy';
+import { visualKeysFor } from '@/lib/visual-evidence';
 
 export async function generateMetadata(): Promise<Metadata> {
   const { t } = await getTranslations();
@@ -89,12 +90,15 @@ export default async function ChapterQuizPage({
           take: QUIZ_LENGTH - unseen.length,
         });
 
+  // The one visual selector — the same call Nour's retrieval makes.
+  const visualKeys = await visualKeysFor([...unseen, ...topUp]);
+
   const questions: QuizQuestion[] = [...unseen, ...topUp].map((question) => ({
     id: question.id,
     questionType: question.questionType,
     contentText: question.contentText,
     contentLatex: question.contentLatex,
-    contentImages: question.contentImages,
+    contentImages: visualKeys.get(question.id) ?? [],
     options: parseOptions(question.options),
     hasBareme: Array.isArray(question.bareme) && question.bareme.length > 0,
   }));

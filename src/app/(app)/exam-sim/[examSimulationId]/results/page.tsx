@@ -21,6 +21,7 @@ import { parseBaremeResult } from '@/lib/grading';
 import { getTranslations } from '@/lib/i18n';
 import { format } from '@/lib/i18n/format';
 import { dirForLanguage } from '@/lib/i18n/config';
+import { visualKeysFor } from '@/lib/visual-evidence';
 
 export const metadata: Metadata = { title: 'Results' };
 
@@ -53,6 +54,9 @@ export default async function ExamResultsPage({
   if (simulation.status === 'in_progress') {
     redirect(`/exam-sim/${simulation.id}`);
   }
+
+  // The one visual selector — the same call Nour's retrieval makes.
+  const visualKeys = await visualKeysFor(simulation.questions.flatMap((s) => (s.question ? [s.question] : [])));
 
   /*
    * The paper's direction, not the student's. The sitting has always carried
@@ -298,7 +302,7 @@ export default async function ExamResultsPage({
                   <QuestionBody
                     contentText={content.contentText}
                     contentLatex={content.contentLatex}
-                    images={content.contentImages}
+                    images={slot.question ? (visualKeys.get(slot.question.id) ?? []) : content.contentImages}
                     dir={paperDir}
                   />
                 </SheetBody>

@@ -21,6 +21,7 @@ import {
   type QuestionHit,
   type UserReferenceHit,
 } from '@/lib/vector';
+import { selectVisualsFor } from '@/lib/visual-evidence';
 
 /**
  * Tiered retrieval — the pipeline that decides what the assistant is allowed
@@ -585,6 +586,11 @@ export type RetrievalSource = {
    */
   images?: string[];
   /**
+   * Aligned with `images`: the panel group each image belongs to, if any.
+   * A multi-panel document is loaded whole or withheld — see `loadSourceFigures`.
+   */
+  imageGroups?: Array<{ groupKey: string; size: number } | null>;
+  /**
    * What the student is entitled to be told about where this came from.
    *
    * STRUCTURED, NOT A SENTENCE. The label above is one string assembled here,
@@ -987,7 +993,7 @@ export async function retrieveGrounding(input: RetrievalInput): Promise<Groundin
       topSimilarity: topQuestion.similarity,
       requiresVerification: false,
       classification,
-      sources: [questionSource(topQuestion)],
+      sources: [await questionSourceWithVisuals(topQuestion)],
       context: formatQuestionContext(
         readable(topQuestion),
         topQuestion.officialSolution,
@@ -1393,6 +1399,26 @@ function formatQuestionContext(
 function readable(hit: { contentText: string; contentLatex?: string | null }): string {
   const latex = hit.contentLatex?.trim();
   return latex && latex.length > 0 ? latex : hit.contentText;
+}
+
+/**
+ * A question source whose figures come from the shared visual selector — the
+ * same call the student's pages make, so the model and the student receive the
+ * same ordered keys for the same exercise. Legacy `contentImages` is only used
+ * through the selector's fallback rule, never read directly here.
+ */
+async function questionSourceWithVisuals(hit: QuestionHit): Promise<RetrievalSource> {
+  const source = questionSource(hit);
+  const selection = (
+    await selectVisualsFor([{ id: hit.id, contentText: hit.contentText, contentImages: hit.contentImages ?? [] }])
+  ).get(hit.id);
+  if (selection) {
+    source.images = selection.keys;
+    source.imageGroups = selection.visuals.map((v) =>
+      v.groupKey && v.groupSize ? { groupKey: v.groupKey, size: v.groupSize } : null,
+    );
+  }
+  return source;
 }
 
 function questionSource(hit: QuestionHit): RetrievalSource {

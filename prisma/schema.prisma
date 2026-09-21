@@ -758,6 +758,10 @@ model Question {
   chatSessions     ChatSession[]
   examSimQuestions ExamSimulationQuestion[]
   alsoInChapters   QuestionChapter[]
+  /// Canonical visual evidence (see scripts/corpus/VISUAL-EVIDENCE-MODEL.md).
+  /// `contentImages` above is legacy compatibility, not the source of truth.
+  visuals          QuestionVisual[]
+  legacyImageAudit LegacyImageAudit?
 
   @@index([chapterId, difficulty])
   @@index([sourceExamId, orderIndex])
@@ -1364,4 +1368,211 @@ model AiUsage {
   @@index([userId, createdAt(sort: Desc)])
   @@index([createdAt(sort: Desc)])
   @@map("ai_usage")
+}
+
+// ---------------------------------------------------------------------------
+// Visual evidence — design record: scripts/corpus/VISUAL-EVIDENCE-MODEL.md
+//
+// Three facts kept apart because the corpus showed they differ:
+//   VisualAsset       what the bytes are (106 crops print identical bytes twice)
+//   VisualOccurrence  where they were printed, and under which access policy
+//   QuestionVisual    which exercise uses the occurrence, and in what role
+//
+// Access policy lives on the OCCURRENCE, not the asset: one content hash is
+// printed both as a question figure and inside solution territory, so a
+// byte-level flag would put one policy on two contexts.
+// ---------------------------------------------------------------------------
+
+/// Who may see an occurrence. `solution` bytes live under `solution-images/`,
+/// which the open question-image route never serves.
+enum VisualAccess {
+  question
+  solution
+
+  @@map("visual_access")
+}
+
+enum VisualIdentityKind {
+  document
+  figure
+
+  @@map("visual_identity_kind")
+}
+
+/// How an exercise uses a visual.
+enum VisualRole {
+  /// One part consumes it.
+  question_evidence
+  /// Two or more parts consume it.
+  exercise_shared
+  /// Introduced in the stimulus, or owned by the exercise with no part named.
+  exercise_context
+  /// Several exercises of one paper use it (Arabic Geography document sets).
+  paper_shared
+  /// Official-solution material: never evidence before the answer is revealed.
+  solution_material
+
+  @@map("visual_role")
+}
+
+/// Where the exercise is printed (C1 alignment).
+enum StructuralConfidence {
+  exact
+  strong
+  ambiguous
+  unresolved
+
+  @@map("structural_confidence")
+}
+
+/// Which exercises geometry allows for the crop (C2).
+enum GeometricConfidence {
+  unique
+  multiple
+  weak
+  none
+
+  @@map("geometric_confidence")
+}
+
+/// Who uses the visual, from captions and references (C3).
+enum SemanticConfidence {
+  direct_reference
+  corroborated
+  contextual
+  ambiguous
+  unresolved
+
+  @@map("semantic_confidence")
+}
+
+/// Why a relation has the status it has. `human` rows are reviewer decisions:
+/// no backfill or rollback ever modifies them.
+enum VisualTier {
+  automatic
+  gated
+  review
+  human
+
+  @@map("visual_tier")
+}
+
+enum VisualStatus {
+  active
+  pending
+  rejected
+
+  @@map("visual_status")
+}
+
+/// The audit verdict on a question's legacy `contentImages` page.
+enum LegacyImageVerdict {
+  correct
+  wrong_exercise
+  wrong_page
+  header_only
+  unresolved
+  no_crop_on_page
+  no_position_source
+  untraceable
+
+  @@map("legacy_image_verdict")
+}
+
+model VisualAsset {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  /// SHA-256 of the bytes. One row per distinct content.
+  contentHash String   @unique @map("content_hash")
+  mediaType   String   @map("media_type")
+  byteSize    Int      @map("byte_size")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  occurrences VisualOccurrence[]
+
+  @@map("visual_assets")
+}
+
+model VisualOccurrence {
+  id             String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  assetId        String              @map("asset_id") @db.Uuid
+  /// The exam PDF, by content — the only identity an exam paper has here.
+  paperSha256    String              @map("paper_sha256")
+  /// `sha256(mathpix url)[:16]`: stable per crop, independent of any parser.
+  cropName       String              @map("crop_name")
+  page           Int
+  bboxX          Int                 @map("bbox_x")
+  bboxY          Int                 @map("bbox_y")
+  bboxW          Int                 @map("bbox_w")
+  bboxH          Int                 @map("bbox_h")
+  pageWidth      Int?                @map("page_width")
+  pageHeight     Int?                @map("page_height")
+  readingOrder   Int                 @map("reading_order")
+  access         VisualAccess
+  /// Content-addressed: `<scope>/<contentHash>.<ext>`, scope from `access`.
+  storageKey     String              @map("storage_key")
+  identityKind   VisualIdentityKind? @map("identity_kind")
+  identityNumber Int?                @map("identity_number")
+  identitySuffix String?             @map("identity_suffix")
+  /// The caption as printed, including an unreadable numeral that was not guessed.
+  identityText   String?             @map("identity_text")
+  /// Panels of one logical visual share a key; `groupPart` orders them.
+  groupKey       String?             @map("group_key")
+  groupPart      Int?                @map("group_part")
+  /// The figure-ownership artifact (sha256) that first wrote this row.
+  evidenceRun    String              @map("evidence_run")
+  createdAt      DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  asset     VisualAsset      @relation(fields: [assetId], references: [id], onDelete: Restrict)
+  relations QuestionVisual[]
+
+  @@unique([paperSha256, cropName])
+  @@index([paperSha256, page])
+  @@index([groupKey])
+  @@index([evidenceRun])
+  @@map("visual_occurrences")
+}
+
+model QuestionVisual {
+  id                   String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  /// The exercise row (a `Question` is a whole exercise).
+  questionId           String               @map("question_id") @db.Uuid
+  occurrenceId         String               @map("occurrence_id") @db.Uuid
+  role                 VisualRole
+  /// Advisory part locators `[{label, labelOccurrence, fingerprint}]`. Parts are
+  /// not durable (75% label stability across extractor versions), so these are
+  /// checked against the current text at read time and never used as keys.
+  consumers            Json?
+  introducedInStimulus Boolean              @default(false) @map("introduced_in_stimulus")
+  structuralConfidence StructuralConfidence @map("structural_confidence")
+  geometricConfidence  GeometricConfidence  @map("geometric_confidence")
+  semanticConfidence   SemanticConfidence   @map("semantic_confidence")
+  tier                 VisualTier
+  status               VisualStatus
+  evidenceRun          String               @map("evidence_run")
+  createdAt            DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime             @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  question   Question         @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  occurrence VisualOccurrence @relation(fields: [occurrenceId], references: [id], onDelete: Cascade)
+
+  @@unique([questionId, occurrenceId])
+  @@index([questionId, status, role])
+  @@index([occurrenceId])
+  @@index([evidenceRun])
+  @@map("question_visuals")
+}
+
+/// The audit verdict on a question's legacy `contentImages`, kept beside the
+/// question rather than on it so that no backfill or rollback writes a
+/// `questions` row.
+model LegacyImageAudit {
+  questionId  String             @id @map("question_id") @db.Uuid
+  verdict     LegacyImageVerdict
+  evidenceRun String             @map("evidence_run")
+  createdAt   DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@index([evidenceRun])
+  @@map("legacy_image_audits")
 }

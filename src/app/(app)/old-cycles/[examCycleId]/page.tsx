@@ -16,6 +16,7 @@ import { db } from '@/lib/db';
 import { getTranslations } from '@/lib/i18n';
 import { format } from '@/lib/i18n/format';
 import { dirForLanguage } from '@/lib/i18n/config';
+import { visualKeysFor } from '@/lib/visual-evidence';
 
 export const metadata: Metadata = { title: 'Past paper' };
 
@@ -80,6 +81,9 @@ export default async function ExamCyclePage({
   });
 
   if (!cycle) notFound();
+
+  // The one visual selector — the same call Nour's retrieval makes.
+  const visualKeys = await visualKeysFor(cycle.questions);
 
   /*
    * THE PAPER'S DIRECTION, NOT THE STUDENT'S.
@@ -175,7 +179,7 @@ export default async function ExamCyclePage({
                 <QuestionBody
                   contentText={question.contentText}
                   contentLatex={question.contentLatex}
-                  images={question.contentImages}
+                  images={visualKeys.get(question.id) ?? []}
                   dir={paperDir}
                 />
 

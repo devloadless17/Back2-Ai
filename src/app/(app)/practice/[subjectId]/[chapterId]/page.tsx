@@ -11,6 +11,7 @@ import { db } from '@/lib/db';
 import { PUBLISHED_FILTER } from '@/lib/generation';
 import { getTranslations } from '@/lib/i18n';
 import { getChapterForTrack } from '@/lib/queries/taxonomy';
+import { visualKeysFor } from '@/lib/visual-evidence';
 
 export const metadata: Metadata = { title: 'Practice' };
 
@@ -97,6 +98,9 @@ export default async function ChapterPracticePage({
     }),
   ]);
 
+  // The one visual selector — the same call Nour's retrieval makes.
+  const visualKeys = await visualKeysFor(questions);
+
   const prepared: PracticeQuestion[] = [
     ...questions.map((question) => ({
       kind: 'question' as const,
@@ -105,7 +109,7 @@ export default async function ChapterPracticePage({
       difficulty: question.difficulty === null ? null : Number(question.difficulty),
       contentText: question.contentText,
       contentLatex: question.contentLatex,
-      contentImages: question.contentImages,
+      contentImages: visualKeys.get(question.id) ?? [],
       options: parseOptions(question.options),
       baremeCriteria: criteriaOf(question.bareme),
       examYear: question.sourceExam?.year ?? null,

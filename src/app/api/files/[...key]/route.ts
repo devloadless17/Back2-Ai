@@ -23,6 +23,12 @@ export const GET = route(async (_request, context: { params: Promise<{ key: stri
 
   if (!scope) return fail(404, 'NOT_FOUND');
 
+  // Official-solution visuals are never served here, whatever the key: only
+  // `/api/visuals/solution/[occurrenceId]` serves them, and only after the
+  // student has submitted. Stated outright rather than left to the key having
+  // no owner segment.
+  if (scope === 'solution-images' && user.role !== 'admin') return fail(404, 'NOT_FOUND');
+
   // Question images are curriculum content: any signed-in student may read them.
   if (scope !== 'question-images') {
     const owner = ownerFromKey(key);

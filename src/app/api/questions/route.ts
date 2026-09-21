@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { fail, ok, parseQuery, route, unauthorized } from '@/lib/api';
 import { apiUser } from '@/lib/auth/guards';
 import { db } from '@/lib/db';
+import { visualKeysFor } from '@/lib/visual-evidence';
 
 /**
  * Question listing.
@@ -62,6 +63,9 @@ export const GET = route(async (request) => {
     skip: query.offset,
   });
 
+  // The one visual selector — the same call Nour's retrieval makes.
+  const visualKeys = await visualKeysFor(questions);
+
   return ok({
     questions: questions.map((question) => ({
       id: question.id,
@@ -69,7 +73,7 @@ export const GET = route(async (request) => {
       difficulty: question.difficulty === null ? null : Number(question.difficulty),
       contentText: question.contentText,
       contentLatex: question.contentLatex,
-      contentImages: question.contentImages,
+      contentImages: visualKeys.get(question.id) ?? [],
       options: question.options,
       /** Criteria only — the point values are the marking scheme, shown after marking. */
       baremeCriteriaCount: Array.isArray(question.bareme) ? question.bareme.length : 0,

@@ -224,6 +224,46 @@ export async function getObject(key: string): Promise<Buffer> {
   return driver().get(key);
 }
 
+/** The key names bytes that differ from the ones being written. */
+export class ContentConflictError extends Error {
+  constructor(key: string) {
+    super(`Storage key already holds different bytes: ${key}`);
+    this.name = 'ContentConflictError';
+  }
+}
+
+/**
+ * Writes bytes under a key derived from their content — never a random name.
+ *
+ * Idempotent: the same bytes at the same key is `unchanged`, nothing written.
+ * Never overwrites: the key embeds the SHA-256 of the bytes it names, so bytes
+ * that do not hash to it are refused before anything is read, and an existing
+ * object with a different payload is a conflict, not a replacement.
+ */
+export async function putContentAddressed(
+  key: string,
+  bytes: Buffer,
+  contentType: string,
+): Promise<'written' | 'unchanged'> {
+  assertSafeKey(key);
+  const checksum = createHash('sha256').update(bytes).digest('hex');
+  const named = /\/([0-9a-f]{64})\.[a-z0-9]+$/.exec(key)?.[1];
+  if (!named || named !== checksum) throw new ContentConflictError(key);
+
+  let existing: Buffer | null = null;
+  try {
+    existing = await driver().get(key);
+  } catch {
+    existing = null;
+  }
+  if (existing) {
+    if (createHash('sha256').update(existing).digest('hex') === checksum) return 'unchanged';
+    throw new ContentConflictError(key);
+  }
+  await driver().put(key, bytes, contentType);
+  return 'written';
+}
+
 export async function deleteObject(key: string): Promise<void> {
   assertSafeKey(key);
   await driver().remove(key);

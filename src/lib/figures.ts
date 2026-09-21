@@ -57,6 +57,8 @@ export type FigureRef = {
   label: string;
   key: string;
   sourceIndex: number;
+  /** The multi-panel document this image is one panel of, if any. */
+  group?: { groupKey: string; size: number } | null;
 };
 
 export type LoadedFigures = {
@@ -67,6 +69,12 @@ export type LoadedFigures = {
   failed: FigureRef[];
   /** Source indexes (1-based) that declared a figure and got none. */
   sourcesMissingEvidence: number[];
+  /**
+   * Source indexes whose multi-panel document could not be loaded whole. Its
+   * loaded panels are withdrawn: half a document presented as the document is
+   * worse than none, because it looks complete.
+   */
+  sourcesIncompleteEvidence: number[];
 };
 
 export const EMPTY_FIGURES: LoadedFigures = {
@@ -74,6 +82,7 @@ export const EMPTY_FIGURES: LoadedFigures = {
   refs: [],
   failed: [],
   sourcesMissingEvidence: [],
+  sourcesIncompleteEvidence: [],
 };
 
 function mediaTypeFor(key: string): AiImage['mediaType'] | null {
@@ -138,6 +147,7 @@ export async function loadSourceFigures(
         label: `source_${sourceIndex}_figure_${figureIndex + 1}`,
         key,
         sourceIndex,
+        group: source.imageGroups?.[figureIndex] ?? null,
       });
     });
   });
@@ -174,6 +184,37 @@ export async function loadSourceFigures(
   }
 
   /*
+   * PANELS GO WHOLE OR NOT AT ALL. A group with any panel unloaded — a read
+   * failure or the figure budget — has its loaded panels withdrawn and its
+   * source named as carrying incomplete evidence.
+   */
+  const loadedPerGroup = new Map<string, number>();
+  refs.forEach((r) => {
+    if (r.group) {
+      const k = `${r.sourceIndex}|${r.group.groupKey}`;
+      loadedPerGroup.set(k, (loadedPerGroup.get(k) ?? 0) + 1);
+    }
+  });
+  const brokenGroups = new Set<string>();
+  for (const ref of [...refs, ...failed]) {
+    if (!ref.group) continue;
+    const k = `${ref.sourceIndex}|${ref.group.groupKey}`;
+    if ((loadedPerGroup.get(k) ?? 0) < ref.group.size) brokenGroups.add(k);
+  }
+  const incompleteSources = new Set<number>();
+  if (brokenGroups.size > 0) {
+    for (let i = refs.length - 1; i >= 0; i -= 1) {
+      const ref = refs[i]!;
+      if (ref.group && brokenGroups.has(`${ref.sourceIndex}|${ref.group.groupKey}`)) {
+        refs.splice(i, 1);
+        images.splice(i, 1);
+        failed.push(ref);
+      }
+    }
+    for (const k of brokenGroups) incompleteSources.add(Number(k.split('|')[0]));
+  }
+
+  /*
    * A source that declared figures and got none has lost its evidence.
    *
    * Partial is still counted as present: a question with three documents and
@@ -186,7 +227,13 @@ export async function loadSourceFigures(
     .filter((i) => !loadedBySource.has(i))
     .sort((a, b) => a - b);
 
-  return { images, refs, failed, sourcesMissingEvidence };
+  return {
+    images,
+    refs,
+    failed,
+    sourcesMissingEvidence,
+    sourcesIncompleteEvidence: [...incompleteSources].sort((a, b) => a - b),
+  };
 }
 
 /**
@@ -197,7 +244,13 @@ export async function loadSourceFigures(
  * the other produces a confident wrong answer with a figure to point at.
  */
 export function formatFigureManifest(sources: RetrievalSource[], loaded: LoadedFigures): string {
-  if (loaded.refs.length === 0 && loaded.sourcesMissingEvidence.length === 0) return '';
+  if (
+    loaded.refs.length === 0 &&
+    loaded.sourcesMissingEvidence.length === 0 &&
+    loaded.sourcesIncompleteEvidence.length === 0
+  ) {
+    return '';
+  }
 
   const lines: string[] = ['# Figures attached to this request'];
 
@@ -213,6 +266,16 @@ export function formatFigureManifest(sources: RetrievalSource[], loaded: LoadedF
     lines.push(
       `- SOURCE ${index} (${label}) prints a figure that could NOT be loaded. ` +
         'Do not answer as though you can see it.',
+    );
+  }
+
+  for (const index of loaded.sourcesIncompleteEvidence) {
+    if (loaded.sourcesMissingEvidence.includes(index)) continue;
+    const source = sources[index - 1];
+    const label = source?.label ?? `source ${index}`;
+    lines.push(
+      `- SOURCE ${index} (${label}) prints a multi-panel figure that could only be partly loaded; ` +
+        'it is withheld. Do not answer as though you can see it.',
     );
   }
 
