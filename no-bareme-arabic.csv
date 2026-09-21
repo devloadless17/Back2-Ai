@@ -1,0 +1,221 @@
+year,session,code,name,no_bareme,has_solution
+2024,session1,GS,أدب عربي,1,0
+2024,session1,SE,جغرافيا,1,0
+2024,session1,GS,فلسفة عامة,3,0
+2024,session1,LH,فلسفة عامة,2,0
+2024,session1,LS,فلسفة عامة,3,0
+2024,session1,SE,فلسفة عامة,2,0
+2023,session1,GS,أدب عربي,2,0
+2023,session1,GS,فلسفة عامة,2,0
+2023,session1,LS,فلسفة عامة,2,0
+2021,session2,GS,أدب عربي,2,0
+2021,session1,LH,أدب عربي,2,0
+2021,session2,LH,أدب عربي,2,0
+2021,session2,LS,أدب عربي,2,0
+2021,session2,SE,أدب عربي,2,0
+2021,session1,GS,تاريخ,1,0
+2021,session1,LS,تاريخ,1,0
+2021,session2,GS,تربية وطنية,1,0
+2021,session2,LS,تربية وطنية,1,0
+2021,session2,SE,تربية وطنية,1,0
+2021,session2,LH,جغرافيا,1,0
+2021,session1,GS,فلسفة عامة,2,0
+2021,session2,GS,فلسفة عامة,2,0
+2021,session1,LH,فلسفة عامة,2,0
+2021,session2,LH,فلسفة عامة,4,0
+2021,session1,LS,فلسفة عامة,2,0
+2021,session2,LS,فلسفة عامة,2,0
+2021,session1,SE,فلسفة عامة,2,0
+2021,session2,SE,فلسفة عامة,3,0
+2019,session1,LH,أدب عربي,1,0
+2019,session1,GS,فلسفة عامة,12,2
+2019,session1,LH,فلسفة عامة,17,2
+2019,session2,LH,فلسفة عامة,7,1
+2019,session1,LS,فلسفة عامة,12,2
+2018,session1,GS,أدب عربي,2,0
+2018,session1,LH,أدب عربي,1,0
+2018,session2,LH,أدب عربي,1,0
+2018,session1,LS,أدب عربي,2,0
+2018,session2,SE,أدب عربي,4,0
+2018,session1,GS,تاريخ,1,0
+2018,session2,GS,تاريخ,1,0
+2018,session1,LS,تاريخ,1,0
+2018,session2,LS,تاريخ,1,0
+2018,session1,GS,تربية وطنية,6,0
+2018,session1,LH,تربية وطنية,6,0
+2018,session2,LH,تربية وطنية,1,0
+2018,session1,LS,تربية وطنية,6,0
+2018,session1,SE,تربية وطنية,6,0
+2018,session1,GS,فلسفة عامة,6,0
+2018,session2,GS,فلسفة عامة,5,0
+2018,session1,LH,فلسفة عامة,13,0
+2018,session2,LH,فلسفة عامة,4,1
+2018,session1,LS,فلسفة عامة,8,0
+2018,session2,LS,فلسفة عامة,5,0
+2018,session1,SE,فلسفة عامة,2,0
+2018,session2,SE,فلسفة عامة,7,0
+2017,session2,LH,تاريخ,1,0
+2017,session1,GS,فلسفة عامة,1,0
+2017,session2,GS,فلسفة عامة,2,0
+2017,session1,LH,فلسفة عامة,6,0
+2017,session2,LH,فلسفة عامة,7,0
+2017,session1,LS,فلسفة عامة,5,0
+2017,session2,LS,فلسفة عامة,2,0
+2017,session1,SE,فلسفة عامة,1,0
+2017,session2,SE,فلسفة عامة,2,0
+2016,session1,GS,أدب عربي,1,0
+2016,session2,GS,أدب عربي,1,0
+2016,session1,LS,أدب عربي,1,0
+2016,session1,SE,أدب عربي,1,0
+2016,session2,SE,أدب عربي,1,0
+2016,session1,GS,تاريخ,1,0
+2016,session2,GS,تاريخ,1,0
+2016,session1,LH,تاريخ,1,0
+2016,session2,LH,تاريخ,1,0
+2016,session1,LS,تاريخ,1,0
+2016,session2,LS,تاريخ,1,0
+2016,session1,GS,تربية وطنية,1,0
+2016,session2,GS,تربية وطنية,1,0
+2016,session1,LH,تربية وطنية,1,0
+2016,session2,LH,تربية وطنية,1,0
+2016,session1,LS,تربية وطنية,1,0
+2016,session2,LS,تربية وطنية,1,0
+2016,session1,SE,تربية وطنية,1,0
+2016,session2,SE,تربية وطنية,1,0
+2016,session1,LH,جغرافيا,8,0
+2016,session2,GS,فلسفة عامة,2,0
+2016,session1,LH,فلسفة عامة,7,0
+2016,session2,LH,فلسفة عامة,1,0
+2016,session2,LS,فلسفة عامة,2,0
+2016,session2,SE,فلسفة عامة,2,0
+2015,session2,LH,أدب عربي,1,0
+2015,session1,SE,أدب عربي,1,0
+2015,session2,SE,أدب عربي,2,0
+2015,session2,GS,جغرافيا,1,0
+2015,session2,LS,جغرافيا,1,0
+2015,session1,GS,فلسفة عامة,2,0
+2015,session2,GS,فلسفة عامة,4,0
+2015,session1,LH,فلسفة عامة,1,0
+2015,session2,LH,فلسفة عامة,5,0
+2015,session1,LS,فلسفة عامة,2,0
+2015,session2,LS,فلسفة عامة,4,0
+2015,session1,SE,فلسفة عامة,2,0
+2015,session2,SE,فلسفة عامة,4,0
+2013,session2,LH,جغرافيا,1,0
+2013,session1,GS,فلسفة عامة,1,0
+2013,session2,GS,فلسفة عامة,2,0
+2013,session1,LH,فلسفة عامة,1,0
+2013,session1,LS,فلسفة عامة,1,0
+2013,session2,LS,فلسفة عامة,3,0
+2012,session2,LH,جغرافيا,2,0
+2012,session2,GS,فلسفة عامة,1,0
+2012,session2,LH,فلسفة عامة,1,0
+2012,session2,LS,فلسفة عامة,1,0
+2011,session2,GS,فلسفة عامة,2,0
+2011,session1,LH,فلسفة عامة,2,0
+2011,session2,LH,فلسفة عامة,2,0
+2011,session1,LS,فلسفة عامة,1,0
+2011,session2,LS,فلسفة عامة,2,0
+2011,session1,SE,فلسفة عامة,2,0
+2011,session2,SE,فلسفة عامة,2,0
+2009,session1,GS,فلسفة عامة,1,0
+2009,session1,LH,فلسفة عامة,2,0
+2009,session2,LH,فلسفة عامة,2,0
+2009,session1,LS,فلسفة عامة,1,0
+2009,session2,SE,فلسفة عامة,2,0
+2008,session1,LH,أدب عربي,1,0
+2008,session1,LH,تاريخ,3,0
+2008,session1,SE,تاريخ,3,0
+2008,session1,GS,فلسفة عامة,2,0
+2008,session2,GS,فلسفة عامة,6,0
+2008,session1,LH,فلسفة عامة,9,0
+2008,session2,LH,فلسفة عامة,12,0
+2008,session1,LS,فلسفة عامة,2,0
+2008,session2,LS,فلسفة عامة,6,0
+2008,session1,SE,فلسفة عامة,7,0
+2008,session2,SE,فلسفة عامة,2,0
+2007,session1,GS,تاريخ,3,0
+2007,session2,GS,تاريخ,2,0
+2007,session2,LH,تاريخ,5,0
+2007,session1,LS,تاريخ,3,0
+2007,session2,LS,تاريخ,2,0
+2007,session2,SE,تاريخ,5,0
+2007,session1,GS,تربية وطنية,1,0
+2007,session1,LH,تربية وطنية,3,0
+2007,session2,LH,تربية وطنية,1,0
+2007,session1,LS,تربية وطنية,1,0
+2007,session1,SE,تربية وطنية,3,0
+2007,session2,SE,تربية وطنية,1,0
+2007,session1,GS,جغرافيا,7,0
+2007,session1,LS,جغرافيا,7,0
+2007,session1,GS,فلسفة عامة,3,0
+2007,session2,GS,فلسفة عامة,3,0
+2007,session1,LS,فلسفة عامة,3,0
+2007,session2,LS,فلسفة عامة,3,0
+2007,session1,SE,فلسفة عامة,1,0
+2006,session2,GS,أدب عربي,4,0
+2006,session2,LS,أدب عربي,4,0
+2006,session1,SE,أدب عربي,4,0
+2006,session1,SE,اقتصاد,2,0
+2006,session1,GS,تاريخ,2,0
+2006,session2,GS,تاريخ,3,0
+2006,session1,LH,تاريخ,3,0
+2006,session2,LH,تاريخ,2,0
+2006,session1,LS,تاريخ,2,0
+2006,session2,LS,تاريخ,3,0
+2006,session1,SE,تاريخ,3,0
+2006,session2,SE,تاريخ,2,0
+2006,session1,LH,تربية وطنية,1,0
+2006,session2,LH,تربية وطنية,1,0
+2006,session1,SE,تربية وطنية,1,0
+2006,session2,SE,تربية وطنية,1,0
+2006,session1,GS,جغرافيا,5,0
+2006,session1,LH,جغرافيا,6,0
+2006,session1,LS,جغرافيا,5,0
+2006,session1,GS,فلسفة عامة,1,0
+2006,session2,GS,فلسفة عامة,2,0
+2006,session1,LH,فلسفة عامة,9,0
+2006,session2,LH,فلسفة عامة,7,0
+2006,session1,LS,فلسفة عامة,1,0
+2006,session2,LS,فلسفة عامة,2,0
+2006,session2,SE,فلسفة عامة,2,0
+2005,session1,GS,أدب عربي,6,0
+2005,session2,GS,أدب عربي,7,0
+2005,session1,LH,أدب عربي,2,0
+2005,session2,LH,أدب عربي,6,0
+2005,session1,LS,أدب عربي,6,0
+2005,session2,LS,أدب عربي,7,0
+2005,session1,SE,أدب عربي,5,0
+2005,session2,SE,أدب عربي,5,0
+2005,session1,SE,اجتماع,8,0
+2005,session2,SE,اقتصاد,2,0
+2005,session2,GS,تاريخ,1,0
+2005,session1,LH,تاريخ,3,0
+2005,session2,LH,تاريخ,3,0
+2005,session2,LS,تاريخ,1,0
+2005,session1,SE,تاريخ,3,0
+2005,session2,SE,تاريخ,3,0
+2005,session2,LH,تربية وطنية,1,0
+2005,session2,SE,تربية وطنية,1,0
+2005,session2,LH,جغرافيا,1,0
+2005,session1,GS,فلسفة عامة,3,0
+2005,session2,GS,فلسفة عامة,3,0
+2005,session2,LH,فلسفة عامة,5,2
+2005,session1,LS,فلسفة عامة,3,0
+2005,session2,LS,فلسفة عامة,3,0
+2005,session1,SE,فلسفة عامة,1,1
+2005,session2,SE,فلسفة عامة,1,0
+2004,session2,GS,أدب عربي,3,0
+2004,session1,LH,أدب عربي,2,0
+2004,session2,LS,أدب عربي,3,0
+2004,session1,SE,أدب عربي,2,0
+2004,session1,LH,تاريخ,2,0
+2004,session1,SE,تاريخ,2,0
+2004,session1,GS,تربية وطنية,3,0
+2004,session1,LH,تربية وطنية,1,0
+2004,session1,LS,تربية وطنية,3,0
+2004,session1,GS,فلسفة عامة,5,0
+2004,session1,LH,فلسفة عامة,1,0
+2004,session2,LH,فلسفة عامة,3,0
+2004,session1,LS,فلسفة عامة,6,0
+2004,session1,SE,فلسفة عامة,3,0

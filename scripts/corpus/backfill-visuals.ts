@@ -471,6 +471,28 @@ async function main() {
     throw new Error(`refusing to write: connected to "${database}", --confirm-db says "${CONFIRM_DB ?? '(none)'}"`);
   }
 
+  /*
+   * A REMOTE DATABASE NEEDS REMOTE BYTES. Active relations take precedence over
+   * a question's legacy page, so relations pointing at crops that were written
+   * to this machine's ./uploads — or not written at all — would replace working
+   * pages with broken images for every exercise they cover. Against anything but
+   * a local database: S3 storage is required, and --skip-upload is refused.
+   */
+  const host = (() => {
+    try {
+      return new URL(process.env.DATABASE_URL ?? '').hostname;
+    } catch {
+      return '';
+    }
+  })();
+  const localDb = host === 'localhost' || host === '127.0.0.1';
+  if (APPLY && !localDb) {
+    if (SKIP_UPLOAD) throw new Error('refusing --skip-upload against a non-local database: relations would point at missing crops');
+    if (process.env.STORAGE_DRIVER !== 's3' || !process.env.S3_ACCESS_KEY_ID) {
+      throw new Error('refusing to apply against a non-local database without STORAGE_DRIVER=s3 and S3 credentials');
+    }
+  }
+
   if (ROLLBACK) {
     const out = await rollback(ROLLBACK);
     console.log(JSON.stringify({ database, rollback: ROLLBACK, deleted: out }, null, 2));
