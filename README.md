@@ -21,16 +21,6 @@ npm run db:seed           # taxonomy, demo content, demo accounts
 npm run dev               # http://localhost:3000
 ```
 
-Development accounts — change them before any deployment:
-
-| | |
-|---|---|
-| student | `student@bac2.local` / `ChangeMeImmediately!2026` |
-| admin | `admin@bac2.local` / `ChangeMeImmediately!2026` |
-
-`npm run db:demo` loads a fully populated account (`demo@bac2.local` /
-`DemoDay2026!`) with practice history, a marked paper and cards due today. Every
-screen is built around a history, so an empty database demos badly.
 
 ## Environment
 
@@ -81,53 +71,6 @@ Marking happens inline when a paper is submitted; the `mark` job is a safety net
 for passes that died. It is safe to run concurrently — marking skips slots that
 already carry a mark.
 
-## Things worth knowing before you change anything
-
-**Auth is session-based, not JWT.** `sessions` stores a SHA-256 of an opaque
-token; the raw token exists only in an httpOnly cookie. The trade is one indexed
-lookup per request in exchange for instant revocation, which a product that
-proctors exams needs.
-
-**Retrieval is tiered and stops at the first hit** (`src/lib/retrieval.ts`):
-near-exact past question (>= 0.85), then chapter course material (>= 0.72), then
-the student's own uploaded documents (>= 0.72). Every assistant message records
-which tier fired and the similarity that triggered it.
-
-**Below the last threshold there are four outcomes, not one** (`src/lib/chat.ts`):
-a greeting is answered as chat, a question about the student's own revision is
-answered from their schedule, a comprehension question about a passage nobody
-supplied asks for the passage, and anything else is answered from the model's own
-knowledge under a notice saying it is not from their course material. Intent is
-decided by rules before retrieval (`src/lib/chat-intent.ts`), not by a model,
-because it runs on the critical path of every question.
-
-**The exam timer is server-authoritative.** `exam_simulations.expires_at` is
-written at start and every write is validated against it. Barèmes are
-snapshotted at composition time so later edits cannot re-mark a sat paper.
-
-**A question that could not be marked is not a zero.** It is excluded from both
-totals, stored with a null score, kept out of mastery, and filed to review.
-
-**Generated content is admin-gated.** `published_at` is set in exactly one place
-— the review-queue handler — and no student-facing query selects a null row.
-
-**The curriculum is derived, not invented.** Subjects, units and chapters are
-read out of the transcribed CRDP textbooks' tables of contents and loaded by
-`prisma/taxonomy-loader.ts`. The four branch codes are `GS`, `LS`, `SE`, `LH`.
-The Markdown files under `scripts/corpus/toc-overrides/` and
-`scripts/corpus/transcriptions/` are that source data, not documentation.
-
-**Nothing in storage has a public URL.** Answer photos and personal documents go
-through `/api/files/[...key]`, which checks ownership.
-
-**Locale follows the user, not the URL.** Chosen at signup, stored on
-`users.preferred_language`. There is no `[locale]` route segment.
-
-**The design system is two files.** `src/app/globals.css` holds the tokens and
-`tailwind.config.ts` maps them to semantic names. No component references a raw
-colour. Status colours are never the only carrier of meaning, and
-`prefers-reduced-motion` switches off every animation.
-
 ## Deploying
 
 `vercel.json` and the route `maxDuration`s are set to deploy on any Vercel plan.
@@ -171,10 +114,5 @@ Before real students use it:
 - **Billing takes no money.** The card panel is real UI over a table no
   processor writes to. Card numbers never leave the browser and nothing in the
   product is gated on payment.
-- **The ingestion pipeline has never been run against a real scanned paper**
-  end to end. Segmentation deserves a supervised first run.
-- **Ingestion continues after the HTTP response returns.** Fine on a
-  long-running Node server; move it to a queue worker on a platform that freezes
-  the process.
-- **`sharp` is pinned via an npm override** to clear a libvips advisory. Remove
-  it once Next ships a patched pin.
+
+  
