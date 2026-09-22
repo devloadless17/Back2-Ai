@@ -1,0 +1,13 @@
+[Unit]
+Description=Bac II reminders, early morning Beirut time
+
+[Timer]
+# Before students open the app. The host clock is UTC; the zone is named here so
+# this stays 05:30 in Beirut across DST rather than drifting by an hour.
+OnCalendar=*-*-* 05:30:00 Asia/Beirut
+# Catches the run if the box was off at 05:30.
+Persistent=true
+Unit=bac2-cron-notify.service
+
+[Install]
+WantedBy=timers.target

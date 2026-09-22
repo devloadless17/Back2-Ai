@@ -31,6 +31,11 @@ __pycache__/
 *.pyc
 .vercel
 .env*
+# ...but the *templates* are documentation and must ship. They hold no real
+# values, and `.env*` above would otherwise swallow every one of them — which is
+# how deploy/.env.example silently failed to be committed the first time.
+!.env.example
+!**/.env.example
 
 # Personal working notes, not product documentation.
 # Launch checklists, status updates for management, anything holding a

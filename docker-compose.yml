@@ -1,5 +1,10 @@
 services:
   db:
+    # Deliberately pg16 while production runs pg18: bumping the major version
+    # here would make an existing bac2-pgdata volume unreadable, and every
+    # developer would have to drop and re-seed to pick up a change that buys
+    # them nothing. The migrations are ordinary additive SQL and apply to both;
+    # CI is what checks them against the production major version.
     image: pgvector/pgvector:pg16
     container_name: bac2-db
     restart: unless-stopped

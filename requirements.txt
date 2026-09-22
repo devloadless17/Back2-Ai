@@ -1,0 +1,26 @@
+# Python dependencies for the offline corpus pipeline in scripts/corpus/.
+#
+# There were 42 .py files and no manifest, so "what does this need" had no
+# answer and CI could not run the two test files that exercise them —
+# tests/exercise-marks.test.ts and tests/taxonomy-heading.test.ts shell out to
+# `python` and load extract_exams.py and taxonomy.py through importlib.
+#
+# Nothing here reaches the running application. The pipeline produces rows in
+# Postgres, and the web tier never shells out to Python.
+#
+# Loose lower bounds rather than exact pins: these are read-only PDF readers
+# with stable APIs, and the corpus work happens on one machine whose versions
+# should not be dictated by a CI lockfile.
+
+# extract_exams.py — page text and structure. Exercised by the test suite.
+pypdf>=6.0
+
+# Word-level positions with bounding boxes, for the positioned-structure and
+# figure-ownership passes.
+pdfplumber>=0.11
+
+# Page rasterisation for the figure crops.
+pypdfium2>=5.0
+
+# HTTP for the Mathpix and Document AI fetchers.
+requests>=2.32

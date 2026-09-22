@@ -21,6 +21,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends openssl \
     && rm -rf /var/lib/apt/lists/*
 
 COPY package.json package-lock.json ./
+
+# package.json carries an `overrides` block (postcss, sharp). npm 10 decides such
+# a lockfile is out of sync on every upstream patch release and `npm ci` then
+# fails with a diff nobody introduced. Pinned here AND in CI; they must agree.
+RUN npm i -g npm@11
 RUN npm ci
 
 # ---------------------------------------------------------------------------
@@ -33,11 +38,28 @@ RUN apt-get update && apt-get install -y --no-install-recommends openssl \
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# The build must not need a reachable database or an API key. `prisma generate`
+# The build must not need a REACHABLE database or an API key. `prisma generate`
 # reads the schema file only, and the app is designed to boot unkeyed — a
 # deployment with no AI key is navigable and says so, rather than crashing.
+#
+# It does need the two required variables to PARSE, though, and that is a
+# different thing. `next build` evaluates every route module while collecting
+# page data, the route wrapper in lib/api.ts calls env() at module scope, and
+# the zod schema in lib/env.ts hard-fails on a missing DATABASE_URL or
+# SESSION_SECRET. On a laptop this never shows: next build reads .env off the
+# disk. In CI's check job it never shows either: both are set for the Postgres
+# service. In a clean image neither exists, and the build dies on the first
+# route it collects.
+#
+# So: placeholders. Syntactically valid, deliberately unreachable (port 1), and
+# never used — compose passes the real values through env_file at runtime, and
+# container environment beats image ENV. They are not secrets and nothing is
+# gained by hiding them.
+ENV DATABASE_URL="postgresql://placeholder:placeholder@127.0.0.1:1/placeholder"
+ENV SESSION_SECRET="build-time-placeholder-never-signs-anything"
 ENV NEXT_TELEMETRY_DISABLED=1
-RUN npx prisma generate && npm run build
+# `npm run build` is already `prisma generate && next build`.
+RUN npm run build
 
 # ---------------------------------------------------------------------------
 FROM node:20-slim AS runtime
@@ -78,7 +100,20 @@ VOLUME ["/app/uploads"]
 USER nextjs
 EXPOSE 3000
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
-  CMD node -e "fetch('http://127.0.0.1:3000/login').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+# Which build is serving. Read back by /api/health, so a deploy can be gated on
+# the new revision actually being live rather than on a container being up.
+# Declared last on purpose: an ARG here invalidates only these final layers, not
+# the 40 MB public/ copy above it.
+ARG APP_REVISION=unknown
+ENV APP_REVISION=${APP_REVISION}
+
+# /api/health, not /login. /login renders React and the i18n dictionaries on
+# every probe and never touches the database, so it reported healthy straight
+# through a total database outage while costing a full page render twice a
+# minute. /api/health is a `SELECT 1` behind a timeout, and it answers 200 even
+# when the database is down — restarting the web tier over a database blip is
+# how a five-second outage becomes a restart loop.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+  CMD node -e "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 
 CMD ["node", "server.js"]

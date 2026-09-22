@@ -1,0 +1,246 @@
+# Production stack for backai.loadless.site.
+#
+# Lives on the VPS at /home/deploy/bac2ai/ alongside the Caddyfile and a rendered
+# .env (chmod 600). Shipped there by the deploy job in .github/workflows/ci.yml;
+# nothing here is ever built on the server — CI builds both images and pushes
+# them, and the server only pulls. That is what makes a rollback a tag change
+# rather than a rebuild.
+#
+#   docker compose -f docker-compose.prod.yml <cmd>
+#
+# CADDY IS THE ONLY SERVICE WITH `ports:`. That is the security model of this
+# file, and it is not a style preference: Docker writes its own iptables rules
+# and bypasses UFW entirely for published ports, so `ufw status` showing only
+# 22/80/443 does NOT mean a published 5432 is unreachable. It would be reachable
+# from the whole internet. The firewall is not protecting the database; this file
+# is.
+
+name: bac2ai
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "20m"
+    max-file: "5"
+
+services:
+  # ---------------------------------------------------------------------------
+  caddy:
+    image: caddy:2-alpine
+    container_name: bac2ai-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"     # ACME challenge + the redirect to 443
+      - "443:443"
+      # HTTP/3. Published because UDP/443 was MEASURED as delivered to this VPS
+      # (2026-09-22), not because it is Caddy's default. The three places that
+      # must agree are this line, the absence of a `protocols h1 h2` pin in the
+      # Caddyfile, and `ufw allow 443/udp` on the host — browsers cache the
+      # alt-svc advertisement for up to 30 days, so a mismatch outlives its fix.
+      - "443:443/udp"
+    environment:
+      SITE_DOMAIN: ${SITE_DOMAIN:?SITE_DOMAIN is required}
+      ACME_EMAIL: ${ACME_EMAIL:?ACME_EMAIL is required}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # Issued certificates and the ACME account key. Lose this volume and every
+      # restart re-issues from Let's Encrypt, which is how a rate limit is hit.
+      - caddy_data:/data
+      - caddy_config:/config
+    networks: [edge]
+    depends_on:
+      app:
+        condition: service_healthy
+    # Must exceed the Caddyfile's `grace_period`, whose DEFAULT IS ETERNAL.
+    # Otherwise SIGKILL becomes the shutdown mechanism and in-flight responses
+    # are truncated.
+    stop_grace_period: 45s
+    healthcheck:
+      # The admin API binds to container-localhost:2019 and is not published, so
+      # this is reachable from inside this container and nowhere else.
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:2019/config/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    logging: *logging
+
+  # ---------------------------------------------------------------------------
+  app:
+    image: ${DOCKER_USERNAME:?DOCKER_USERNAME is required}/bac2ai:${IMAGE_TAG:-latest}
+    # Fixed name so `docker exec bac2ai-app` in the cron units and the deploy
+    # health gate never has to guess Compose's generated name.
+    container_name: bac2ai-app
+    restart: unless-stopped
+    # NO `ports:`. Caddy reaches this as `app:3000` on the edge network.
+    env_file: [.env]
+    # tini as PID 1, to reap zombies. Next installs its own SIGTERM handler, so
+    # this is about child processes, not signal forwarding.
+    init: true
+    # next@15.5 handles SIGTERM itself: it stops accepting connections, drains
+    # in-flight requests, then exits 0. The longest in-flight request is a
+    # streamed chat turn, which the route budgets 60s for; 90s is that plus
+    # margin. This costs NOTHING on a quiet deploy — Docker waits UP TO this
+    # long, and an idle app exits in milliseconds.
+    #
+    # It does NOT cover `void runIngestion(...)` in the admin ingestion route:
+    # that work is not an in-flight request, so the drain never sees it and
+    # process.exit(0) kills it mid-job. src/instrumentation.ts closes out the
+    # stranded rows on the way back in. Check /admin/ingestion before deploying.
+    stop_grace_period: 90s
+    volumes:
+      # With STORAGE_DRIVER=s3 nothing durable should ever land here. The volume
+      # exists because the Dockerfile declares VOLUME ["/app/uploads"]; NAMING it
+      # is what stops Docker creating a fresh anonymous volume on every `up`,
+      # forever, and quietly filling the disk.
+      - app_uploads:/app/uploads
+    networks: [edge, backend]
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    # HEALTHCHECK is inherited from the image and deliberately not repeated here:
+    # two copies drift, and the image's copy is also the one that runs for anyone
+    # who starts this container by hand.
+    logging: *logging
+
+  # ---------------------------------------------------------------------------
+  db:
+    # pgvector, not stock postgres: the first migration runs
+    # CREATE EXTENSION "vector" and declares four HNSW indexes.
+    #
+    # pg18, not pg16, and the major version is not a free choice: production
+    # data comes from Neon, which runs PostgreSQL 18.6 with vector 0.8.6. A dump
+    # only restores into a server at least as new as the one it came from, and
+    # an older pgvector cannot read HNSW index definitions written by a newer
+    # one — a mismatch fails at the END of a long restore, on the index build.
+    # This image is 18.6 / 0.8.6 exactly. Keep it in lockstep with the service
+    # image in .github/workflows/ci.yml.
+    image: pgvector/pgvector:pg18
+    container_name: bac2ai-db
+    restart: unless-stopped
+    # NO `ports:`. The dev docker-compose.yml at the repo root publishes 5442 and
+    # stays that way; this one publishes nothing. Reach it with:
+    #   docker compose -f docker-compose.prod.yml exec db psql -U bac2 -d bac2
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB is required}
+    volumes:
+      # /var/lib/postgresql, NOT /var/lib/postgresql/data — this changed in
+      # Postgres 18. The 18+ images store data in a major-version subdirectory
+      # (/var/lib/postgresql/18/docker) so that pg_upgrade --link can work
+      # without crossing a mount boundary, and they REFUSE TO START if they find
+      # a volume mounted at the old path. The error talks about pg_upgrade and
+      # reads like a failed migration; it is really just the wrong mount point.
+      - postgres_data:/var/lib/postgresql
+    networks: [backend]
+    # maintenance_work_mem is for the HNSW index rebuild during the Neon restore:
+    # too small and pgvector silently falls back to an on-disk build that is an
+    # order of magnitude slower and says nothing about it.
+    command:
+      - postgres
+      - -c
+      - maintenance_work_mem=512MB
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+    # Inherited from the postgres image, restated because the difference is not
+    # obvious and getting it wrong corrupts data: to Postgres SIGTERM is a SMART
+    # shutdown that waits for every client to disconnect — i.e. it hangs until
+    # Docker SIGKILLs it mid-write. SIGINT is a FAST shutdown: roll back, flush,
+    # exit.
+    stop_signal: SIGINT
+    stop_grace_period: 60s
+    # Docker's default /dev/shm is 64 MB, and 256 MB was not enough either: a
+    # parallel HNSW build asks for roughly maintenance_work_mem per worker in
+    # SHARED memory, so `pg_restore -j 4` against 512MB of maintenance_work_mem
+    # tried to resize a segment to 509 MB and failed with
+    #
+    #   could not resize shared memory segment ... No space left on device
+    #
+    # which names neither shared memory limits nor the real culprit, and reads
+    # like the disk is full. It is not: /dev/shm is a tmpfs CEILING, allocated
+    # on demand, so a generous number costs nothing until something uses it.
+    #
+    # This cost the two largest vector indexes on the first restore — the data
+    # loaded fine and only the indexes were missing, which is a failure mode
+    # that looks like success until a search gets slow.
+    shm_size: 1gb
+    logging: *logging
+
+  # ---------------------------------------------------------------------------
+  # One-shot migration, gating the app.
+  #
+  # Runs the `build` stage image, because that is the only place in this repo
+  # where the Prisma CLI exists: `prisma` is a devDependency that no route
+  # imports, so Next's file tracing never copies it into .next/standalone, and
+  # the runtime image's `nextjs` user has no home directory for `npx` to cache a
+  # download into. The migrations are in the runtime image; the tool to apply
+  # them is not.
+  #
+  # `npm run`, not `npx`: npm puts node_modules/.bin on PATH, so the CLI already
+  # in this image is used and the deploy never depends on a registry.
+  migrate:
+    image: ${DOCKER_USERNAME}/bac2ai-ops:${IMAGE_TAG:-latest}
+    container_name: bac2ai-migrate
+    restart: "no"
+    init: true
+    env_file: [.env]
+    command: ["npm", "run", "db:deploy"]
+    networks: [backend]
+    depends_on:
+      db:
+        condition: service_healthy
+    logging: *logging
+
+  # ---------------------------------------------------------------------------
+  # Maintenance scripts. `profiles` keeps it out of `up`; `compose run` enables
+  # the profile automatically, and honours depends_on, so the database is up
+  # before a script connects.
+  #
+  #   docker compose -f docker-compose.prod.yml run --rm ops \
+  #       npm run rotate:admin -- --email admin@bac2.local --apply
+  ops:
+    image: ${DOCKER_USERNAME}/bac2ai-ops:${IMAGE_TAG:-latest}
+    profiles: ["ops"]
+    restart: "no"
+    init: true
+    env_file: [.env]
+    volumes:
+      # ~87 npm scripts are `node --env-file=.env --import tsx …`, and Node exits
+      # with an error if that FILE is absent — env vars are not a substitute.
+      # This is the same .env the containers are already configured from, so
+      # there is no second copy of any secret and no precedence question.
+      - ./.env:/app/.env:ro
+      # Scratch space for one-off input and output: a PDF for `ingest`, an xlsx
+      # for `judge:export`. Written as root — `sudo chown -R $USER: ops-in` after.
+      - ./ops-in:/app/ops-in
+      # Normally empty. db:seed:taxonomy reads corpus/taxonomy/*.json relative to
+      # /app, and those files are gitignored and absent from the image — without
+      # this mount the seed reports the corpus present and then writes zero
+      # tracks. Production content comes from the Neon restore, not from here.
+      - ./ops-in/corpus:/app/corpus:ro
+    networks: [edge, backend]
+    depends_on:
+      db:
+        condition: service_healthy
+    logging: *logging
+
+volumes:
+  postgres_data:
+  caddy_data:
+  caddy_config:
+  app_uploads:
+
+networks:
+  # Has a default route: Caddy needs inbound, the app needs outbound for OpenAI,
+  # Resend and R2.
+  edge:
+  # No default route at all, so a compromised Postgres cannot call out.
+  backend:
+    internal: true

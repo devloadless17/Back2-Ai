@@ -1,0 +1,10 @@
+[Unit]
+Description=Bac II expired session purge, weekly
+
+[Timer]
+OnCalendar=Sun *-*-* 04:00:00 Asia/Beirut
+Persistent=true
+Unit=bac2-cron-weekly.service
+
+[Install]
+WantedBy=timers.target

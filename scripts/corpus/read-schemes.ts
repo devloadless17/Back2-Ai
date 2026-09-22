@@ -92,6 +92,7 @@ import { existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
+import { pathToFileURL } from 'node:url';
 
 import { ai } from '@/lib/ai';
 import { env } from '@/lib/env';
@@ -824,7 +825,23 @@ async function main(): Promise<void> {
   console.log(`  sidecars in ${path.relative(process.cwd(), args.outDir)}`);
 }
 
-main().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+/**
+ * Only run the CLI when this file IS the command.
+ *
+ * tests/scheme-gate.test.ts imports `verify` and `exerciseOf` from here for
+ * their own sake. Unguarded, that import RAN the whole command: main() went
+ * looking for a corpus that is not there under vitest, threw, and called
+ * process.exit(1) — which vitest reports as an unhandled error and which failed
+ * the entire suite no matter how many tests had passed. It looked like a broken
+ * test rather than a module that starts a CLI when you import a function from
+ * it.
+ */
+const invokedDirectly =
+  process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href;
+
+if (invokedDirectly) {
+  main().catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });
+}

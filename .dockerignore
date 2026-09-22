@@ -1,6 +1,7 @@
 node_modules
 .next
 .git
+.github
 .env
 .env.*
 uploads
@@ -9,3 +10,15 @@ docs
 tests
 *.log
 *.xlsx
+*.csv
+coverage
+__pycache__
+*.pyc
+.vercel
+.vercelignore
+
+# The production compose file, Caddyfile and — on a server — the rendered .env
+# live here. A pattern without a slash anchors at the context root, so the `.env`
+# line above does NOT cover `deploy/.env`; without this line that file would be
+# swept up by `COPY . .` and baked into an image.
+deploy/

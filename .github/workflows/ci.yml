@@ -1,4 +1,4 @@
-# Continuous integration.
+# Continuous integration and deployment.
 #
 # The repo had none. Every check below was already runnable locally and was
 # being run by hand, which works exactly until the day somebody is in a hurry —
@@ -10,25 +10,57 @@
 # Postgres runs with pgvector because the schema declares vector columns; a
 # migration check against a stock postgres image fails on the extension, not on
 # the migration, and that failure teaches nobody anything.
+#
+# PIPELINE SHAPE:
+#   PR                 -> check only. Never touches the server.
+#   push main          -> check only. NEVER deploys. main is the integration branch.
+#   push production    -> check -> build+push both images -> ship -> migrate ->
+#                         up -d -> health gate.
+#   workflow_dispatch  -> deploys only when run FROM `production`, so a redeploy
+#                         or a ROLLBACK needs no empty commit (see image_tag).
+#
+# A release is `git push origin main:production` — the identical commit. The
+# check job re-runs there deliberately: the suite is cheap, and it guarantees
+# nothing hand-edited on the release branch ships.
+#
+# SSH auth: the deploy key is stored base64-encoded (single line) in
+# VPS_SSH_KEY_B64 — a single line cannot get its newlines mangled on paste. We
+# decode it to a file and use plain ssh/scp.
 name: CI
 
 on:
   push:
-    branches: [main, demo]
+    branches: [main, production]
   pull_request:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: 'Roll back to a previously deployed image tag (a commit SHA). Leave empty to deploy this commit.'
+        required: false
+        default: ''
+        type: string
 
 concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  group: deploy-${{ github.ref }}
+  # Cancel superseded PR runs, but NEVER a deploy: cancelling mid-SSH leaves
+  # half-recreated containers on the VPS with nothing on the way to finish.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  DEPLOY_DIR: /home/deploy/bac2ai
+  IMAGE_NAME: bac2ai
 
 jobs:
   check:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
 
     services:
       db:
-        image: pgvector/pgvector:pg16
+        # Matches the production image. Migrations that apply cleanly on one
+        # major version and not another are exactly what this step exists to
+        # catch, so testing them against a version nobody runs is wasted work.
+        image: pgvector/pgvector:pg18
         env:
           POSTGRES_USER: bac2
           POSTGRES_PASSWORD: bac2_ci
@@ -50,12 +82,32 @@ jobs:
       ANTHROPIC_API_KEY: ''
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 20
           cache: npm
+
+      # tests/exercise-marks.test.ts and tests/taxonomy-heading.test.ts shell out
+      # to `python` (unsuffixed) and load scripts/corpus/*.py through importlib.
+      # ubuntu-latest has python3 but no `python` on PATH, so both files failed
+      # on every run before this step existed. setup-python provides the name;
+      # requirements.txt provides pypdf, which extract_exams.py imports at module
+      # level.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Install corpus Python dependencies
+        run: python -m pip install --disable-pip-version-check -r requirements.txt
+
+      # package.json carries an `overrides` block (postcss, sharp). npm 10
+      # decides such a lockfile is out of sync on every upstream patch release,
+      # and `npm ci` then fails with a diff nobody introduced. Pinned here AND
+      # in the Dockerfile's deps stage; they must agree.
+      - name: Pin npm 11
+        run: npm i -g npm@11 && npm --version
 
       - run: npm ci
 
@@ -76,3 +128,386 @@ jobs:
 
       - name: Build
         run: npm run build
+
+  # ===========================================================================
+  # Build both images and push them. Skipped on a rollback run, where the tag
+  # being deployed was built by an earlier run and is already on Docker Hub.
+  build:
+    name: Build & push images
+    if: |
+      github.ref == 'refs/heads/production'
+      && github.event_name != 'pull_request'
+      && inputs.image_tag == ''
+    needs: check
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+
+    steps:
+      - uses: actions/checkout@v5
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_SECRET }}
+
+      # Two tags each: latest, and the commit SHA. The SHA tag is what the
+      # deploy pins to, so it doubles as the rollback unit.
+      #
+      # No NEXT_PUBLIC_* build args exist in this app, so the SAME image serves
+      # any hostname — APP_URL is read at runtime through src/lib/env.ts. The
+      # only build arg is APP_REVISION, which /api/health reports back so the
+      # health gate can prove the new build is the one serving.
+      - name: Build & push app image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: runtime
+          push: true
+          build-args: APP_REVISION=${{ github.sha }}
+          tags: |
+            ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:latest
+            ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # The `build` stage, as its own image. It is the only place in this repo
+      # where the Prisma CLI, tsx, scripts/ and src/ exist together — the runtime
+      # image has the migrations but not the tool that applies them, because
+      # `prisma` is a devDependency no route imports and Next's file tracing
+      # therefore never copies it.
+      #
+      # Built AFTER the app image and in its own step, not in parallel: two
+      # targets of one Dockerfile are two build requests, and run concurrently
+      # BuildKit may execute the expensive shared stage twice. Sequentially the
+      # layers are already in cache and this is close to free.
+      - name: Build & push ops image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: build
+          push: true
+          tags: |
+            ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}-ops:latest
+            ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}-ops:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ===========================================================================
+  # Ship config + the rendered .env, migrate, recreate the stack, health-gate.
+  #
+  # `always()` so a ROLLBACK still deploys: `build` is skipped on those runs, and
+  # a plain `needs:` would skip this job with it. The explicit result checks are
+  # what keep `always()` from also deploying after a FAILED build.
+  deploy:
+    name: Ship & deploy
+    if: |
+      always()
+      && needs.check.result == 'success'
+      && (needs.build.result == 'success' || needs.build.result == 'skipped')
+      && github.ref == 'refs/heads/production'
+      && github.event_name != 'pull_request'
+    needs: [check, build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    env:
+      # The release being deployed. A dispatch may name a previously built tag
+      # to roll back to; a push deploys its own commit.
+      IMAGE_TAG: ${{ inputs.image_tag || github.sha }}
+
+    steps:
+      # Fail with the list of missing names, rather than with a confusing error
+      # halfway through the deploy.
+      #
+      # Each secret is mapped in BY NAME rather than serialising the whole
+      # `secrets` context with toJSON. Enumerating is tighter — only what this
+      # job actually needs is ever materialised — and it keeps the step from
+      # reading like a step that dumps every secret it can reach.
+      - name: Validate required secrets
+        env:
+          V_DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+          V_DOCKER_SECRET: ${{ secrets.DOCKER_SECRET }}
+          V_VPS_HOST: ${{ secrets.VPS_HOST }}
+          V_VPS_USER: ${{ secrets.VPS_USER }}
+          V_VPS_SSH_KEY_B64: ${{ secrets.VPS_SSH_KEY_B64 }}
+          V_FRONTEND_DOMAIN: ${{ secrets.FRONTEND_DOMAIN }}
+          V_API_DOMAIN: ${{ secrets.API_DOMAIN }}
+          V_ACME_EMAIL: ${{ secrets.ACME_EMAIL }}
+          V_POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          V_SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
+          V_CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          V_AI_PROVIDER: ${{ secrets.AI_PROVIDER }}
+          V_ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          V_OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          V_EMBEDDING_PROVIDER: ${{ secrets.EMBEDDING_PROVIDER }}
+          V_S3_ENDPOINT: ${{ secrets.S3_ENDPOINT }}
+          V_S3_BUCKET: ${{ secrets.S3_BUCKET }}
+          V_S3_ACCESS_KEY_ID: ${{ secrets.S3_ACCESS_KEY_ID }}
+          V_S3_SECRET_ACCESS_KEY: ${{ secrets.S3_SECRET_ACCESS_KEY }}
+        run: |
+          missing=""
+          for name in DOCKER_USERNAME DOCKER_SECRET VPS_HOST VPS_USER VPS_SSH_KEY_B64 \
+                      FRONTEND_DOMAIN API_DOMAIN ACME_EMAIL POSTGRES_PASSWORD \
+                      SESSION_SECRET CRON_SECRET AI_PROVIDER \
+                      S3_ENDPOINT S3_BUCKET S3_ACCESS_KEY_ID S3_SECRET_ACCESS_KEY; do
+            eval "v=\${V_$name}"
+            [ -n "$v" ] || missing="$missing $name"
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::Missing required GitHub secret(s):$missing"; exit 1
+          fi
+
+          # This app is ONE service. The Caddyfile has a single site block on
+          # {$SITE_DOMAIN} and never reads API_DOMAIN, so the two must agree or
+          # one hostname would silently have no certificate. Asserting it means
+          # the day somebody genuinely splits them, CI says "add a second site
+          # block" instead of Caddy serving half the app.
+          if [ "$V_API_DOMAIN" != "$V_FRONTEND_DOMAIN" ]; then
+            echo "::error::API_DOMAIN ($V_API_DOMAIN) != FRONTEND_DOMAIN ($V_FRONTEND_DOMAIN). This app is a single service — set both to the same hostname, or add a second site block to deploy/Caddyfile."
+            exit 1
+          fi
+
+          # The chat provider needs its own key, and the embedding provider needs
+          # one independently: EMBEDDING_PROVIDER=openai requires OPENAI_API_KEY
+          # even when AI_PROVIDER=anthropic. isAiConfigured() and
+          # isEmbeddingConfigured() are separate checks in src/lib/env.ts, and a
+          # deployment failing only the second boots fine and then refuses every
+          # retrieval — which reads like a corpus problem.
+          case "$V_AI_PROVIDER" in
+            anthropic) [ -n "$V_ANTHROPIC_API_KEY" ] || { echo "::error::AI_PROVIDER=anthropic but ANTHROPIC_API_KEY is empty"; exit 1; } ;;
+            openai)    [ -n "$V_OPENAI_API_KEY" ]    || { echo "::error::AI_PROVIDER=openai but OPENAI_API_KEY is empty"; exit 1; } ;;
+            *) echo "::error::AI_PROVIDER must be exactly 'anthropic' or 'openai' (got '$V_AI_PROVIDER')"; exit 1 ;;
+          esac
+          case "${V_EMBEDDING_PROVIDER:-openai}" in
+            openai) [ -n "$V_OPENAI_API_KEY" ] || { echo "::error::EMBEDDING_PROVIDER=openai but OPENAI_API_KEY is empty — retrieval would refuse everything"; exit 1; } ;;
+          esac
+
+          echo "All required secrets present."
+
+      # For deploy/docker-compose.prod.yml, deploy/Caddyfile and the remote
+      # script. On a rollback this is the CURRENT production tree, not the tree
+      # the rolled-back image was built from — config and image version
+      # independently, which is the point of pinning IMAGE_TAG.
+      - uses: actions/checkout@v5
+
+      - name: Prepare SSH key
+        env:
+          KEY_B64: ${{ secrets.VPS_SSH_KEY_B64 }}
+        run: |
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s' "$KEY_B64" | base64 -d > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          head -1 ~/.ssh/deploy_key | grep -q "BEGIN OPENSSH PRIVATE KEY" \
+            || { echo "::error::VPS_SSH_KEY_B64 did not decode to an OpenSSH private key — regenerate with 'base64 -w0 ~/.ssh/bac2ai_deploy | clip.exe' and repaste"; exit 1; }
+          echo "SSH key decoded"
+
+      # Hostinger runs always-on edge DDoS scrubbing in front of the VPS, and
+      # GitHub's shared runner IPs intermittently get flagged: the SYN is dropped
+      # before it reaches the host, so there is no failed-login line in the
+      # server's logs to find and ufw/sshd look perfectly healthy. The window is
+      # short, so poll rather than fail; a sustained block exits non-zero and a
+      # re-run draws a fresh runner IP.
+      #
+      # Deliberately AFTER the image build: reachability measured five minutes
+      # before the first ssh is not a measurement.
+      - name: Wait for VPS SSH to be reachable
+        env:
+          HOST: ${{ secrets.VPS_HOST }}
+          PORT: ${{ secrets.VPS_PORT || '22' }}
+        run: |
+          for i in $(seq 1 7); do
+            if timeout 8 bash -c "exec 3<>/dev/tcp/$HOST/$PORT" 2>/dev/null; then
+              echo "$HOST:$PORT reachable (attempt $i/7)"
+              ssh-keyscan -p "$PORT" -H "$HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
+              exit 0
+            fi
+            echo "$HOST:$PORT unreachable (attempt $i/7) — likely edge scrubbing; retrying in 8s"
+            sleep 8
+          done
+          echo "::error::$HOST:$PORT never became reachable — sustained edge scrub. Re-run the job for a fresh runner IP."
+          exit 1
+
+      - name: Render production .env on the runner
+        env:
+          V_FRONTEND_DOMAIN: ${{ secrets.FRONTEND_DOMAIN }}
+          V_ACME_EMAIL: ${{ secrets.ACME_EMAIL }}
+          V_DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+          V_POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          V_SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
+          V_SESSION_TTL_DAYS: ${{ secrets.SESSION_TTL_DAYS }}
+          V_CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          V_AI_PROVIDER: ${{ secrets.AI_PROVIDER }}
+          V_ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          V_ANTHROPIC_MODEL: ${{ secrets.ANTHROPIC_MODEL }}
+          V_OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          V_OPENAI_MODEL: ${{ secrets.OPENAI_MODEL }}
+          V_OPENAI_MODEL_VERIFY: ${{ secrets.OPENAI_MODEL_VERIFY }}
+          V_EMBEDDING_PROVIDER: ${{ secrets.EMBEDDING_PROVIDER }}
+          V_EMBEDDING_MODEL: ${{ secrets.EMBEDDING_MODEL }}
+          V_EMBEDDING_DIM: ${{ secrets.EMBEDDING_DIM }}
+          V_S3_ENDPOINT: ${{ secrets.S3_ENDPOINT }}
+          V_S3_REGION: ${{ secrets.S3_REGION }}
+          V_S3_BUCKET: ${{ secrets.S3_BUCKET }}
+          V_S3_ACCESS_KEY_ID: ${{ secrets.S3_ACCESS_KEY_ID }}
+          V_S3_SECRET_ACCESS_KEY: ${{ secrets.S3_SECRET_ACCESS_KEY }}
+          V_RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          V_EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
+          V_VAPID_PUBLIC_KEY: ${{ secrets.VAPID_PUBLIC_KEY }}
+          V_VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
+          V_VAPID_SUBJECT: ${{ secrets.VAPID_SUBJECT }}
+          V_DEFAULT_LOCALE: ${{ secrets.DEFAULT_LOCALE }}
+          V_AI_BUDGET_FREE_USD: ${{ secrets.AI_BUDGET_FREE_USD }}
+          V_AI_BUDGET_MONTHLY_USD: ${{ secrets.AI_BUDGET_MONTHLY_USD }}
+          V_AI_BUDGET_ANNUAL_USD: ${{ secrets.AI_BUDGET_ANNUAL_USD }}
+        run: |
+          set -euo pipefail
+
+          # NEVER sed a template. Emit each line single-quoted, because docker
+          # compose's env parser is NOT a shell: it hard-fails the whole file on
+          # a bare `<` or an unquoted space, and it expands $VAR inside unquoted
+          # and double-quoted values — silently truncating a secret at the first
+          # `$`. Single-quoted values it takes literally.
+          #
+          # It also has NO escape inside single quotes, so a value containing an
+          # apostrophe cannot be represented at all. Rejecting one here is loud
+          # and fixable; escaping it would corrupt .env into something that boots
+          # half-configured. Every generator in DEPLOYMENT.md avoids apostrophes.
+          put() {
+            case "$2" in
+              *"'"*) echo "::error::Value of $1 contains a single quote, which docker compose's env parser cannot escape. Regenerate it without one."; exit 1 ;;
+            esac
+            printf "%s='%s'\n" "$1" "$2"
+          }
+
+          # POSTGRES_PASSWORD is interpolated RAW into DATABASE_URL below. `/`
+          # ends the URL's authority section and `@ : ? #` split it, so such a
+          # password yields a VALID-LOOKING url pointing somewhere else — Prisma
+          # then fails with a host/database error rather than "bad password".
+          # `openssl rand -base64` emits `/` and `+` routinely, so this is a live
+          # trap on every rotation. Generate with `openssl rand -hex 32`.
+          case "$V_POSTGRES_PASSWORD" in
+            *[/@:?\#]*)
+              echo "::error::POSTGRES_PASSWORD contains a URL-unsafe character (one of / @ : ? #). Regenerate with: openssl rand -hex 32"
+              exit 1 ;;
+          esac
+
+          {
+            put NODE_ENV production
+
+            # ---- compose interpolation ----
+            put DOCKER_USERNAME "$V_DOCKER_USERNAME"
+            # Pin to THIS commit's immutable tag, not floating :latest. Two
+            # payoffs: `up -d` always sees a changed image ref so the app is
+            # reliably recreated, and the tag IS the version, so a rollback is
+            # just redeploying the previous SHA.
+            put IMAGE_TAG "$IMAGE_TAG"
+            put SITE_DOMAIN "$V_FRONTEND_DOMAIN"
+            put ACME_EMAIL "$V_ACME_EMAIL"
+            put POSTGRES_USER bac2
+            put POSTGRES_PASSWORD "$V_POSTGRES_PASSWORD"
+            put POSTGRES_DB bac2
+
+            # ---- app runtime ----
+            # Host is the compose service name and the INTERNAL port. Not 5442 —
+            # that is the dev compose file's published port.
+            put DATABASE_URL "postgresql://bac2:${V_POSTGRES_PASSWORD}@db:5432/bac2?schema=public"
+            put SESSION_SECRET "$V_SESSION_SECRET"
+            put SESSION_TTL_DAYS "${V_SESSION_TTL_DAYS:-14}"
+            # Derived, never hand-entered: a typed APP_URL is how a trailing
+            # slash or a missing scheme reaches production.
+            put APP_URL "https://${V_FRONTEND_DOMAIN}"
+            put CRON_SECRET "$V_CRON_SECRET"
+            put DEFAULT_LOCALE "${V_DEFAULT_LOCALE:-en}"
+
+            put AI_PROVIDER "$V_AI_PROVIDER"
+            put ANTHROPIC_API_KEY "$V_ANTHROPIC_API_KEY"
+            put ANTHROPIC_MODEL "${V_ANTHROPIC_MODEL:-claude-opus-5}"
+            put OPENAI_API_KEY "$V_OPENAI_API_KEY"
+            put OPENAI_MODEL "${V_OPENAI_MODEL:-gpt-5.5}"
+            put OPENAI_MODEL_VERIFY "${V_OPENAI_MODEL_VERIFY:-gpt-5.4-mini}"
+
+            put EMBEDDING_PROVIDER "${V_EMBEDDING_PROVIDER:-openai}"
+            put EMBEDDING_MODEL "${V_EMBEDDING_MODEL:-text-embedding-3-small}"
+            # MUST equal the vector(N) width in the database.
+            put EMBEDDING_DIM "${V_EMBEDDING_DIM:-1536}"
+
+            # EXACTLY "s3" — src/lib/storage.ts compares the raw process.env
+            # value and never goes through the zod schema, so "S3" or a trailing
+            # space falls back to the local-disk driver. That driver writes into
+            # the container filesystem, so every uploaded answer photo would
+            # survive until the next redeploy and then be gone.
+            put STORAGE_DRIVER s3
+            put S3_ENDPOINT "$V_S3_ENDPOINT"
+            put S3_REGION "${V_S3_REGION:-auto}"
+            put S3_BUCKET "$V_S3_BUCKET"
+            put S3_ACCESS_KEY_ID "$V_S3_ACCESS_KEY_ID"
+            put S3_SECRET_ACCESS_KEY "$V_S3_SECRET_ACCESS_KEY"
+            # REQUIRED true for Cloudflare R2: with false the code builds
+            # https://<bucket>.<account>.r2.cloudflarestorage.com, a
+            # second-level subdomain R2's wildcard cert does not cover, and every
+            # upload fails at the TLS handshake.
+            put S3_FORCE_PATH_STYLE true
+
+            put RESEND_API_KEY "$V_RESEND_API_KEY"
+            put EMAIL_FROM "${V_EMAIL_FROM:-Bac II <onboarding@resend.dev>}"
+            put VAPID_PUBLIC_KEY "$V_VAPID_PUBLIC_KEY"
+            put VAPID_PRIVATE_KEY "$V_VAPID_PRIVATE_KEY"
+            put VAPID_SUBJECT "${V_VAPID_SUBJECT:-mailto:$V_ACME_EMAIL}"
+          } > prod.env
+
+          # Optional budget ceilings. Read straight from process.env in
+          # src/lib/ai/budget.ts, not through the zod schema, so only write them
+          # when they are actually set.
+          for plan in FREE MONTHLY ANNUAL; do
+            eval "v=\${V_AI_BUDGET_${plan}_USD}"
+            [ -n "$v" ] && printf "AI_BUDGET_%s_USD='%s'\n" "$plan" "$v" >> prod.env
+          done
+
+          chmod 600 prod.env
+          echo "rendered $(wc -l < prod.env) variables"
+
+      - name: Ship files to the VPS
+        env:
+          HOST: ${{ secrets.VPS_HOST }}
+          SSH_USER: ${{ secrets.VPS_USER }}
+          PORT: ${{ secrets.VPS_PORT || '22' }}
+        run: |
+          set -euo pipefail
+          KEY=~/.ssh/deploy_key
+          OPTS="-o StrictHostKeyChecking=accept-new"
+          ssh -i "$KEY" -p "$PORT" $OPTS "$SSH_USER@$HOST" \
+            "mkdir -p '$DEPLOY_DIR/bin' '$DEPLOY_DIR/systemd' '$DEPLOY_DIR/ops-in/corpus'"
+          scp -i "$KEY" -P "$PORT" $OPTS \
+            deploy/docker-compose.prod.yml deploy/Caddyfile "$SSH_USER@$HOST:$DEPLOY_DIR/"
+          scp -i "$KEY" -P "$PORT" $OPTS \
+            deploy/bin/bac2-cron "$SSH_USER@$HOST:$DEPLOY_DIR/bin/"
+          # The timer units live here so the server always has the current
+          # version of a schedule that is edited in the repo. Installing them
+          # into /etc/systemd/system needs root, which the deploy user does not
+          # have and should not — DEPLOYMENT.md has the one-time `sudo cp`.
+          scp -i "$KEY" -P "$PORT" $OPTS \
+            deploy/systemd/bac2-cron-*.service deploy/systemd/bac2-cron-*.timer \
+            "$SSH_USER@$HOST:$DEPLOY_DIR/systemd/"
+          scp -i "$KEY" -P "$PORT" $OPTS \
+            prod.env "$SSH_USER@$HOST:$DEPLOY_DIR/.env"
+          ssh -i "$KEY" -p "$PORT" $OPTS "$SSH_USER@$HOST" \
+            "chmod 600 '$DEPLOY_DIR/.env' && chmod 755 '$DEPLOY_DIR/bin/bac2-cron'"
+
+      - name: Deploy on the VPS
+        env:
+          HOST: ${{ secrets.VPS_HOST }}
+          SSH_USER: ${{ secrets.VPS_USER }}
+          PORT: ${{ secrets.VPS_PORT || '22' }}
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+          DOCKER_SECRET: ${{ secrets.DOCKER_SECRET }}
+          SITE_DOMAIN: ${{ secrets.FRONTEND_DOMAIN }}
+        run: |
+          set -euo pipefail
+          # The Docker Hub token is prepended to the script over STDIN rather
+          # than passed as an ssh argument: argv is world-readable through `ps`
+          # on the VPS for the whole duration of the deploy.
+          { printf 'DOCKER_SECRET=%q\n' "$DOCKER_SECRET"
+            cat deploy/bin/remote-deploy.sh
+          } | ssh -i ~/.ssh/deploy_key -p "$PORT" -o StrictHostKeyChecking=accept-new \
+                "$SSH_USER@$HOST" \
+                "DEPLOY_DIR='$DEPLOY_DIR' DOCKER_USERNAME='$DOCKER_USERNAME' SITE_DOMAIN='$SITE_DOMAIN' IMAGE_TAG='$IMAGE_TAG' bash -s"

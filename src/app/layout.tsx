@@ -1,34 +1,41 @@
 import type { Metadata, Viewport } from 'next';
-import { Cairo, Inter } from 'next/font/google';
 
 import { I18nProvider } from '@/lib/i18n/client';
 import { dirFor, getDictionary, getLocale } from '@/lib/i18n';
+
+// Self-hosted, and vendored through npm rather than fetched at build time.
+//
+// These were `next/font/google`, which downloads the font files DURING the
+// build: it fetches Google's stylesheet, pulls the file URLs out of it, and
+// derives each file's extension with `/\.(woff|woff2|...)$/.exec(url)[1]`.
+// Google does not answer every caller identically — from a GitHub Actions
+// runner one of the Cairo URLs comes back in the legacy extensionless
+// `/l/font?kit=` form, `exec` returns null, and the whole build dies on `[1]`.
+// It never surfaced while this deployed on Vercel, where Next fetches from
+// Vercel's own network, and it cannot be reproduced from a laptop.
+//
+// A build that reaches out to a third party is a build that fails for reasons
+// nobody in this repo controls — which is the same argument the comment below
+// already makes about runtime. These packages carry the identical Google
+// subsets and unicode-ranges, so the browser still downloads only the scripts
+// a page actually uses; the build just no longer asks anyone's permission.
+import '@fontsource-variable/cairo';
+import '@fontsource-variable/inter';
 
 import './globals.css';
 import 'katex/dist/katex.min.css';
 
 /**
- * Fonts are self-hosted by next/font rather than fetched from a CDN at runtime.
- * A student on a slow Beirut connection should not wait on fonts.googleapis.com
- * to see their own dashboard, and an exam runner must never depend on a third
- * party being reachable.
+ * Fonts are self-hosted, so a student on a slow Beirut connection does not wait
+ * on fonts.googleapis.com to see their own dashboard, and an exam runner never
+ * depends on a third party being reachable. The families are wired to
+ * --font-cairo and --font-inter in globals.css.
  *
  * Cairo carries both scripts: it has a real Arabic cut, so an Arabic-track
  * student gets the designed voice rather than a silent system substitution.
+ * Both are variable fonts, so every weight the design uses comes out of one
+ * file per script instead of one file per weight.
  */
-const cairo = Cairo({
-  subsets: ['latin', 'arabic'],
-  weight: ['400', '600', '700', '800'],
-  variable: '--font-cairo',
-  display: 'swap',
-});
-
-const inter = Inter({
-  subsets: ['latin'],
-  weight: ['400', '500', '600'],
-  variable: '--font-inter',
-  display: 'swap',
-});
 
 export const metadata: Metadata = {
   title: {
@@ -77,7 +84,6 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       lang={locale}
       dir={dir}
       data-theme="light"
-      className={`${cairo.variable} ${inter.variable}`}
       suppressHydrationWarning
     >
       <body className="min-h-dvh bg-paper">

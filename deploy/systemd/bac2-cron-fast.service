@@ -1,0 +1,8 @@
+[Unit]
+Description=Bac II maintenance - auto_submit + mark
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/home/deploy/bac2ai/bin/bac2-cron auto_submit mark
