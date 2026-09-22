@@ -11,6 +11,7 @@ import { requireUser } from '@/lib/auth/guards';
 import { db } from '@/lib/db';
 import { isAiConfigured, isEmbeddingConfigured } from '@/lib/env';
 import { getTranslations } from '@/lib/i18n';
+import { dirForLanguage } from '@/lib/i18n/config';
 import { format } from '@/lib/i18n/format';
 import { citedSources } from '@/lib/queries/cited-sources';
 import { listSubjectsForStudent } from '@/lib/queries/taxonomy';
@@ -149,6 +150,7 @@ export default async function ChatSessionPage({
             <QuestionBody
               contentText={session.question.contentText}
               contentLatex={session.question.contentLatex}
+              dir={dirForLanguage(session.subject?.language)}
             />
           </SheetBody>
         </Sheet>

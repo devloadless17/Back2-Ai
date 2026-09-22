@@ -10,6 +10,7 @@ import { requireUser } from '@/lib/auth/guards';
 import { db } from '@/lib/db';
 import { PUBLISHED_FILTER } from '@/lib/generation';
 import { getTranslations } from '@/lib/i18n';
+import { dirForLanguage } from '@/lib/i18n/config';
 import { getChapterForTrack } from '@/lib/queries/taxonomy';
 import { visualKeysFor } from '@/lib/visual-evidence';
 
@@ -166,6 +167,7 @@ export default async function ChapterPracticePage({
           questions={prepared}
           initialMastery={Number(mastery?.masteryScore ?? 0)}
           initialAttempts={mastery?.attemptsCount ?? 0}
+          paperDir={dirForLanguage(chapter.subject.language)}
         />
       )}
     </>

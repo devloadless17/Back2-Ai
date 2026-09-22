@@ -60,10 +60,13 @@ export function QuizRunner({
   questions,
   subjectId,
   chapterId,
+  paperDir,
 }: {
   questions: QuizQuestion[];
   subjectId: string;
   chapterId: string;
+  /** The subject's own reading direction. See `ExamRunner`. */
+  paperDir: 'ltr' | 'rtl';
 }) {
   const { t, formatScore, formatPercent } = useI18n();
   const router = useRouter();
@@ -169,6 +172,7 @@ export function QuizRunner({
                   contentText={q.contentText}
                   contentLatex={q.contentLatex}
                   images={q.contentImages}
+                  dir={paperDir}
                 />
               </SheetBody>
 
@@ -209,7 +213,7 @@ export function QuizRunner({
                 <>
                   <SheetHeader title={t.practice.officialSolution} className="border-t" />
                   <SheetBody>
-                    <MathText>{outcome.solution}</MathText>
+                    <MathText dir={paperDir}>{outcome.solution}</MathText>
                   </SheetBody>
                 </>
               )}
@@ -243,6 +247,7 @@ export function QuizRunner({
             contentText={question.contentText}
             contentLatex={question.contentLatex}
             images={question.contentImages}
+            dir={paperDir}
           />
         </SheetBody>
 
@@ -254,6 +259,7 @@ export function QuizRunner({
               options={question.options}
               value={choices[question.id]}
               onChange={(optionId) => setChoices((c) => ({ ...c, [question.id]: optionId }))}
+              dir={paperDir}
             />
           ) : (
             <div className="space-y-2">

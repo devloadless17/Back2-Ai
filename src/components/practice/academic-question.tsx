@@ -45,6 +45,7 @@ export function AcademicQuestion({
   meta,
   labels,
   className,
+  dir,
 }: {
   contentText: string;
   contentLatex?: string | null;
@@ -60,6 +61,8 @@ export function AcademicQuestion({
     question: string;
   };
   className?: string;
+  /** The subject's own direction, where the caller knows it. See `MathText`. */
+  dir?: 'ltr' | 'rtl';
 }) {
   const official = Boolean(meta?.examYear);
 
@@ -118,7 +121,7 @@ export function AcademicQuestion({
         mathematics rather than as blank boxes.
       */}
       <div className="pt-4">
-        <QuestionBody contentText={contentText} contentLatex={contentLatex} images={images} />
+        <QuestionBody contentText={contentText} contentLatex={contentLatex} images={images} dir={dir} />
       </div>
     </article>
   );

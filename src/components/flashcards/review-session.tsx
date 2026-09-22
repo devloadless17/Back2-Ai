@@ -13,6 +13,7 @@ import { Sheet, SheetBody, SheetFooter, SheetHeader } from '@/components/ui/shee
 import { cn } from '@/lib/cn';
 import { sendJson } from '@/lib/client/request';
 import { useI18n } from '@/lib/i18n/client';
+import { dirForLanguage } from '@/lib/i18n/config';
 import type { DueCard } from '@/lib/queries/flashcards';
 import type { ReviewGrade } from '@/lib/scoring/sm2';
 
@@ -218,7 +219,9 @@ export function ReviewSession({ cards }: { cards: DueCard[] }) {
               }
             />
             <SheetBody className="flex flex-1 items-center justify-center text-center">
-              <MathText>{card.contentLatex || card.contentText}</MathText>
+              <MathText dir={dirForLanguage(card.subjectLanguage)}>
+                {card.contentLatex || card.contentText}
+              </MathText>
             </SheetBody>
             {!flipped && (
               <p className="pb-3 text-center text-caption text-ink-faint">
@@ -232,7 +235,9 @@ export function ReviewSession({ cards }: { cards: DueCard[] }) {
             <SheetHeader title={t.flashcards.answer} description={card.chapterName} />
             <SheetBody className="flex flex-1 items-center justify-center text-center">
               {card.officialSolutionLatex || card.officialSolution ? (
-                <MathText>{card.officialSolutionLatex ?? card.officialSolution ?? ''}</MathText>
+                <MathText dir={dirForLanguage(card.subjectLanguage)}>
+                  {card.officialSolutionLatex ?? card.officialSolution ?? ''}
+                </MathText>
               ) : (
                 <p className="text-sm text-ink-muted">{t.flashcards.noSolution}</p>
               )}

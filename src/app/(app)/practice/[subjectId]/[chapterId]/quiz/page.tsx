@@ -8,6 +8,7 @@ import { BackLink } from '@/components/ui/back-link';
 import { requireUser } from '@/lib/auth/guards';
 import { db } from '@/lib/db';
 import { getTranslations } from '@/lib/i18n';
+import { dirForLanguage } from '@/lib/i18n/config';
 import { getChapterForTrack } from '@/lib/queries/taxonomy';
 import { visualKeysFor } from '@/lib/visual-evidence';
 
@@ -122,6 +123,7 @@ export default async function ChapterQuizPage({
           questions={questions}
           subjectId={chapter.subject.id}
           chapterId={chapter.id}
+          paperDir={dirForLanguage(chapter.subject.language)}
         />
       )}
     </>

@@ -82,26 +82,63 @@ type AttemptResponse = {
   mastery: { chapterId: string; masteryScore: number; attemptsCount: number };
 };
 
+/**
+ * Fisher-Yates within each difficulty band, bands left in their given order.
+ * Keeps the easiest-first scaffolding while a student does not solve the same
+ * question first every time they open the chapter.
+ */
+function shuffleWithinDifficulty(questions: PracticeQuestion[]): PracticeQuestion[] {
+  const bands = new Map<number | null, PracticeQuestion[]>();
+  for (const question of questions) {
+    const band = bands.get(question.difficulty);
+    if (band) band.push(question);
+    else bands.set(question.difficulty, [question]);
+  }
+
+  const shuffled: PracticeQuestion[] = [];
+  for (const band of bands.values()) {
+    for (let i = band.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [band[i], band[j]] = [band[j]!, band[i]!];
+    }
+    shuffled.push(...band);
+  }
+  return shuffled;
+}
+
 export function PracticeRunner({
   chapterId,
   chapterName,
   questions,
   initialMastery,
   initialAttempts,
+  paperDir,
 }: {
   chapterId: string;
   chapterName: string;
   questions: PracticeQuestion[];
   initialMastery: number;
   initialAttempts: number;
+  /** The subject's own reading direction. See `ExamRunner`. */
+  paperDir: 'ltr' | 'rtl';
 }) {
   const { t, formatPercent, formatScore, format } = useI18n();
   const router = useRouter();
 
-  // Unattempted questions first — returning to a chapter should continue, not
-  // restart. Order is otherwise preserved (easiest first).
+  /*
+   * Never a question this student has already answered — repetition of
+   * material already seen is what flashcards are for (see the "Start review"
+   * link on the chapter-complete screen below), not fresh practice. Once this
+   * runs out, `requestMore` asks the pool for something the student has never
+   * attempted, generating one if the pool is empty; it never falls back to a
+   * repeat.
+   *
+   * Difficulty bands stay in order (easiest first), but which question leads
+   * within a band is reshuffled each time this list loads, so two sessions in
+   * the same chapter do not open on the same question either.
+   */
   const ordered = useMemo(
-    () => [...questions].sort((a, b) => Number(a.attemptedByYou) - Number(b.attemptedByYou)),
+    () => shuffleWithinDifficulty(questions.filter((q) => !q.attemptedByYou)),
     [questions],
   );
 
@@ -274,9 +311,6 @@ export function PracticeRunner({
           <SheetHeader
             title={`${t.practice.question} ${index + 1} ${t.common.of} ${ordered.length}`}
             description={difficultyLabel(question.difficulty, t)}
-            actions={
-              question.attemptedByYou ? <Badge tone="neutral">{t.practice.attempts}</Badge> : null
-            }
           />
 
           {/*
@@ -290,6 +324,7 @@ export function PracticeRunner({
               contentText={question.contentText}
               contentLatex={question.contentLatex}
               images={question.contentImages}
+              dir={paperDir}
               meta={{
                 chapterName,
                 examYear: question.examYear,
@@ -328,7 +363,7 @@ export function PracticeRunner({
                       onChange={() => setSelectedOption(option.id)}
                       className="mt-1 h-4 w-4 shrink-0 accent-[hsl(var(--primary))]"
                     />
-                    <MathText compact className="min-w-0 flex-1">
+                    <MathText compact dir={paperDir} className="min-w-0 flex-1">
                       {option.text}
                     </MathText>
                   </label>
@@ -559,7 +594,7 @@ export function PracticeRunner({
                 : t.practice.modelSolution}
             </summary>
             <SheetBody className="pt-0">
-              <MathText>{outcome.solution}</MathText>
+              <MathText dir={paperDir}>{outcome.solution}</MathText>
             </SheetBody>
           </details>
         )}

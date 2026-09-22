@@ -65,6 +65,7 @@ export type DueCard = {
   chapterId: string;
   chapterName: string;
   subjectName: string;
+  subjectLanguage: string;
   easiness: number;
   intervalDays: number;
   repetitions: number;
@@ -211,7 +212,7 @@ export async function countDue(userId: string, trackId: string | null, scope: Re
 }
 
 const CHAPTER_SELECT = {
-  select: { id: true, name: true, subject: { select: { name: true } } },
+  select: { id: true, name: true, subject: { select: { name: true, language: true } } },
 } as const;
 
 const CARD_SELECT = {
@@ -239,7 +240,7 @@ const CARD_SELECT = {
   },
 } as const;
 
-type ChapterRow = { id: string; name: string; subject: { name: string } };
+type ChapterRow = { id: string; name: string; subject: { name: string; language: string } };
 
 type CardRow = {
   easiness: unknown;
@@ -310,6 +311,7 @@ function toCard(row: CardRow, aheadOfSchedule: boolean): DueCard | null {
       chapterId: card.chapter.id,
       chapterName: card.chapter.name,
       subjectName: card.chapter.subject.name,
+      subjectLanguage: card.chapter.subject.language,
       ...scheduling,
     };
   }
@@ -326,6 +328,7 @@ function toCard(row: CardRow, aheadOfSchedule: boolean): DueCard | null {
     chapterId: question.chapter.id,
     chapterName: question.chapter.name,
     subjectName: question.chapter.subject.name,
+    subjectLanguage: question.chapter.subject.language,
     ...scheduling,
   };
 }

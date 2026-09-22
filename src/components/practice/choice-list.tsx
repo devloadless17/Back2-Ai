@@ -35,6 +35,7 @@ export function ChoiceList({
   onChange,
   verdicts,
   disabled,
+  dir,
 }: {
   /** Radio group name — must be unique per question on the page. */
   name: string;
@@ -45,6 +46,8 @@ export function ChoiceList({
   /** Optional per-option marking, keyed by option id. Used by the preview only. */
   verdicts?: Record<string, ChoiceVerdict | undefined>;
   disabled?: boolean;
+  /** The subject's own direction, where the caller knows it. See `MathText`. */
+  dir?: 'ltr' | 'rtl';
 }) {
   return (
     <fieldset className="space-y-2" disabled={disabled}>
@@ -76,7 +79,7 @@ export function ChoiceList({
               onChange={() => onChange(option.id)}
               className="mt-1 h-4 w-4 shrink-0 accent-[hsl(var(--primary))]"
             />
-            <MathText compact className="min-w-0 flex-1">
+            <MathText compact dir={dir} className="min-w-0 flex-1">
               {option.text}
             </MathText>
             {verdict && (
