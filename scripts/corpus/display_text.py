@@ -35,6 +35,7 @@ import sys
 from pathlib import Path
 
 sys.stdout.reconfigure(encoding='utf-8')
+sys.path.insert(0, str(Path(__file__).parent))
 
 C1_PATH = Path('corpus/.mapping/positioned-structure.json')
 EXAMS_PATH = Path('corpus/exams.json')
@@ -360,14 +361,24 @@ def to_markdown(raw):
     return s.strip()
 
 
-FOOTER = re.compile(r'^\s*(\d{1,2}|page\s*\d+(\s*/\s*\d+)?|\d+\s*/\s*\d+|-+\s*\d+\s*-+)\s*$', re.I)
+FOOTER = re.compile(
+    r'^\s*(\d{1,2}|page\s*\d+(\s*(?:/|of|de)\s*\d+)?|\d+\s*/\s*\d+|-+\s*\d+\s*-+)\s*$', re.I
+)
 
 
 # --------------------------------------------------------------------------
 # Coverage
 # --------------------------------------------------------------------------
 
+# A maths function name is a word: the canonical text has "sin" where the
+# Mathpix text has "\sin", and stripping every command punished exactly the
+# formula-heavy exercises this is for.
+FUNCTION_NAME = re.compile(
+    r'\\(sin|cos|tan|cot|sec|csc|arcsin|arccos|arctan|sinh|cosh|tanh|log|ln|lim|exp|max|min|det|deg|gcd)\b')
+
+
 def words(text):
+    text = FUNCTION_NAME.sub(r' \1 ', text)
     text = re.sub(r'\\[A-Za-z]+', ' ', text)
     return collections.Counter(re.findall(r'[^\W\d_]{3,}', text.lower()))
 
@@ -385,6 +396,36 @@ def coverage(md, canonical):
 def lines_of(sha):
     d = json.loads((Path('corpus/meta') / sha / 'lines.json').read_text(encoding='utf-8'))
     return [str(l.get('text') or '') for pg in d['pages'] for l in pg['lines']]
+
+
+# The fraction of a page's height the ministry's masthead occupies: seal,
+# directorate lines, "فرع:", the session line, "مسابقة في ...", "الاسم:",
+# "الرقم:", "المدة:". Measured across 758 Latin-script science papers: 1,842
+# of 1,921 Arabic lines in that corpus sit above 20% of the page, in a band
+# that tops out at 26.7% on the tallest masthead seen. 28% leaves margin
+# either side without reaching into where an exercise's own statement starts.
+HEADER_BAND = 0.28
+
+
+def header_band_of(sha):
+    """Per line, in the same order as `lines_of`: does it sit in the masthead band?
+
+    Position only, from Mathpix's own bounding box — not a guess from the
+    text. Combined with ARABIC at the call site, because the band alone would
+    also catch a Latin exercise title printed at the top of a page, and Arabic
+    alone would refuse a paper whose masthead survives with the exercise
+    (`latin_science` already keeps a genuinely Arabic paper out of this
+    entirely, so nothing here is mistaking a paper's real language).
+    """
+    d = json.loads((Path('corpus/meta') / sha / 'lines.json').read_text(encoding='utf-8'))
+    flags = []
+    for pg in d['pages']:
+        height = pg.get('page_height') or 0
+        for l in pg['lines']:
+            region = l.get('region') or {}
+            top = region.get('top_left_y')
+            flags.append(bool(height and top is not None and top / height < HEADER_BAND))
+    return flags
 
 
 SCIENCE_FILE = re.compile(r'math|phy|chem|chim|bio', re.I)
@@ -408,6 +449,33 @@ def latin_science(paper):
     return bool(letters) and sum(1 for ch in letters if ARABIC.match(ch)) < 0.05 * len(letters)
 
 
+"""
+A statement that is itself a marking scheme.
+
+`extract_exams.py` counts these per paper as `schemeInStatement` and stores
+them anyway — a student practising one is shown the answer key as the question.
+C1 stops such a container at the scheme marker, so the Mathpix text is the
+statement alone and the canonical text is the polluted one. Recall against it
+is then meaningless: the words "missing" are the answers.
+
+So the recall gate is waived, and only there, when all of this holds:
+  - the canonical statement carries a mark column (the same MARK_CELL count
+    `extract_exams.py` uses, at the same threshold);
+  - the Mathpix text does NOT — never trade one scheme on screen for another;
+  - C1 placed the container EXACTly;
+  - precision is high, so nothing foreign came in.
+
+The canonical text stays the yardstick everywhere else.
+"""
+from extract_exams import MARK_COLUMN, scheme_signal  # noqa: E402  (sys.path set above)
+
+SCHEME_MIN_PRECISION = 0.95
+
+
+def scheme_in(text):
+    return scheme_signal(text) >= MARK_COLUMN
+
+
 def build(paper, exam, container):
     ex = exam['exercises'][container['ordinal'] - 1]
     # Arabic page furniture (the ministry header) sits in the canonical text of
@@ -426,14 +494,21 @@ def build(paper, exam, container):
     if container['startsInScheme']:
         return {**rec, 'verdict': 'refused', 'reason': 'starts in scheme'}
     L = lines_of(paper['sha256'])
+    HDR = header_band_of(paper['sha256'])
     idx = sorted({i for s in container['spans'] for i in range(s['lineFrom'], s['lineTo'] + 1)})
-    raw = ''.join(L[i] for i in idx if not FOOTER.match(L[i]))
+    raw = ''.join(
+        L[i] for i in idx
+        if not FOOTER.match(L[i]) and not (HDR[i] and ARABIC.search(L[i]))
+    )
     md = to_markdown(raw)
     if ARABIC.search(md):
         return {**rec, 'verdict': 'refused', 'reason': 'arabic in output'}
     recall, precision = coverage(md, canonical)
     rec.update(recall=recall, precision=precision, markdown=md)
     if recall < MIN_RECALL:
+        if scheme_in(canonical) and not scheme_in(md) and container['alignment']['status'] == 'EXACT' \
+                and precision >= SCHEME_MIN_PRECISION:
+            return {**rec, 'verdict': 'ok', 'reason': 'canonical carries the scheme'}
         return {**rec, 'verdict': 'refused', 'reason': 'low recall'}
     if precision < MIN_PRECISION:
         return {**rec, 'verdict': 'refused', 'reason': 'low precision'}
