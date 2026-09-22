@@ -67,11 +67,19 @@ export function ExaminerMark({
    * rather than {} when it did not ask.
    */
   repeats,
+  /**
+   * The paper's own direction. `criterion` is the ministry's exact wording —
+   * an Arabic paper's bareme is Arabic — and `explanation` mixes that wording
+   * with dates and numbers, which is exactly the text MathText's per-paragraph
+   * auto-detect gets wrong. Both need the paper's direction stated, not guessed.
+   */
+  dir,
 }: {
   total: number;
   max: number;
   criteria: MarkedCriterion[];
   repeats?: Map<string, { times: number; pointsLost: number }>;
+  dir?: 'ltr' | 'rtl';
   labels: {
     title: string;
     nourNote: string;
@@ -128,7 +136,13 @@ export function ExaminerMark({
                 <div className="min-w-0 flex-1">
                   {/* The examiner's own wording. Never truncated — it is the
                       thing being marked, and Lebanese criteria run long. */}
-                  <p className="break-words text-sm font-medium text-ink">{item.criterion}</p>
+                  <p
+                    className="break-words text-sm font-medium text-ink"
+                    dir={dir}
+                    lang={dir === 'rtl' ? 'ar' : undefined}
+                  >
+                    {item.criterion}
+                  </p>
 
                   {item.provisional && (
                     <p className="mt-1 text-caption text-partial">{labels.provisional}</p>
@@ -162,7 +176,7 @@ export function ExaminerMark({
                   <div className="mt-1 text-meta leading-relaxed text-ink-muted">
                     {/* Through MathText: an explanation of a lost mark in
                         mathematics is mathematics. */}
-                    <MathText compact>{item.explanation}</MathText>
+                    <MathText compact dir={dir}>{item.explanation}</MathText>
                   </div>
                 </div>
               )}

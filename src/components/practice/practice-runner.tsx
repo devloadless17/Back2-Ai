@@ -561,6 +561,7 @@ export function PracticeRunner({
             max={outcome.maxScore ?? 0}
             criteria={outcome.baremeResult}
             repeats={outcome.repeats ? new Map(Object.entries(outcome.repeats)) : undefined}
+            dir={paperDir}
             labels={{
               title: t.practice.examinerTitle,
               nourNote: t.practice.nourNote,

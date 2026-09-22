@@ -8,7 +8,6 @@ import { BackLink } from '@/components/ui/back-link';
 import { requireUser } from '@/lib/auth/guards';
 import { db } from '@/lib/db';
 import { getTranslations } from '@/lib/i18n';
-import { cachedChapterSummaries, summariseSubject } from '@/lib/summaries';
 import { format } from '@/lib/i18n/format';
 
 export const metadata: Metadata = { title: 'Summaries' };
@@ -67,22 +66,6 @@ export default async function SubjectSummaryPage({
 
   const readable = chapters.filter((chapter) => chapter._count.contentChunks > 0);
 
-  /*
-   * The subject overview, from the chapter summaries that already exist.
-   *
-   * Only from cached ones, and that restraint is the whole design. Composing it
-   * from every chapter would mean opening a subject page triggers a model call
-   * per chapter — forty of them on GS mathematics — so the overview appears
-   * once chapters have actually been read, and until then the page is the
-   * chapter list it has always been. `summariseSubject` caches its own result
-   * against the chapter ids it used, so this costs one call, once.
-   */
-  const written = await cachedChapterSummaries(subject.id);
-  const overview =
-    written.length >= 2
-      ? await summariseSubject({ subjectId: subject.id, chapterSummaries: written })
-      : null;
-
   const byUnit = new Map<string, typeof readable>();
   for (const chapter of readable) {
     const unit = chapter.unit?.name ?? '';
@@ -106,15 +89,6 @@ export default async function SubjectSummaryPage({
       */}
       <BackLink href={`/practice/${subject.id}`} label={subject.name} />
       <PageHeader title={subject.name} description={t.summaries.subtitle} />
-
-      {overview?.status === 'ok' && overview.overview ? (
-        <Sheet className="mb-5">
-          <SheetBody>
-            <p className="text-body leading-relaxed text-ink">{overview.overview}</p>
-            <p className="mt-3 text-caption text-ink-faint">{t.summaries.generatedNotice}</p>
-          </SheetBody>
-        </Sheet>
-      ) : null}
 
       {readable.length === 0 ? (
         <EmptyState tone="pending" title={t.summaries.empty} body={t.summaries.emptyHint} />

@@ -356,6 +356,7 @@ export default async function ExamResultsPage({
                       total={slotTotal ?? 0}
                       max={slotMax ?? 0}
                       criteria={results}
+                      dir={paperDir}
                       labels={{
                         title: results.some((item) => item.provisional)
                           ? t.examSim.provisionalMarking

@@ -58,3 +58,6 @@ PRODUCTION-RUNBOOK.md
 LAUNCH-QA.md
 SYSTEM-BRIEF.md
 NOUR-VERIFICATION-DEBT.md
+
+# Local Claude Code settings (machine-specific permissions).
+.claude/settings.local.json
