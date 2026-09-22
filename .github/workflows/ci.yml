@@ -57,7 +57,10 @@ jobs:
 
     services:
       db:
-        image: pgvector/pgvector:pg16
+        # Matches the production image. Migrations that apply cleanly on one
+        # major version and not another are exactly what this step exists to
+        # catch, so testing them against a version nobody runs is wasted work.
+        image: pgvector/pgvector:pg18
         env:
           POSTGRES_USER: bac2
           POSTGRES_PASSWORD: bac2_ci

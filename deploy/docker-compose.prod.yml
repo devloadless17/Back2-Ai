@@ -108,9 +108,16 @@ services:
   # ---------------------------------------------------------------------------
   db:
     # pgvector, not stock postgres: the first migration runs
-    # CREATE EXTENSION "vector" and declares four HNSW indexes. Keep this tag in
-    # lockstep with the service image in .github/workflows/ci.yml.
-    image: pgvector/pgvector:pg16
+    # CREATE EXTENSION "vector" and declares four HNSW indexes.
+    #
+    # pg18, not pg16, and the major version is not a free choice: production
+    # data comes from Neon, which runs PostgreSQL 18.6 with vector 0.8.6. A dump
+    # only restores into a server at least as new as the one it came from, and
+    # an older pgvector cannot read HNSW index definitions written by a newer
+    # one — a mismatch fails at the END of a long restore, on the index build.
+    # This image is 18.6 / 0.8.6 exactly. Keep it in lockstep with the service
+    # image in .github/workflows/ci.yml.
+    image: pgvector/pgvector:pg18
     container_name: bac2ai-db
     restart: unless-stopped
     # NO `ports:`. The dev docker-compose.yml at the repo root publishes 5442 and
