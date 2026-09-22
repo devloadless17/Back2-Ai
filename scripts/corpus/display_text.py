@@ -387,6 +387,27 @@ def lines_of(sha):
     return [str(l.get('text') or '') for pg in d['pages'] for l in pg['lines']]
 
 
+SCIENCE_FILE = re.compile(r'math|phy|chem|chim|bio', re.I)
+
+
+def latin_science(paper):
+    """A science paper labelled Arabic that Mathpix read as French or English.
+
+    The extractor decides language from the first pages' script, and the
+    ministry's Arabic header is enough to tip a French paper to "ar"
+    (ls/2015 1/math_fr.pdf). What Mathpix read inside the exercises settles it.
+    Geography is excluded by name: its maps read as Latin and it is not a
+    science paper.
+    """
+    name = paper['paper'].rsplit('/', 1)[-1]
+    if 'geo' in name.lower() or not SCIENCE_FILE.search(name):
+        return False
+    L = lines_of(paper['sha256'])
+    text = ''.join(L[i] for c in paper['containers'] for s in c['spans'] for i in range(s['lineFrom'], s['lineTo'] + 1))
+    letters = re.findall(r'[^\W\d_]', text)
+    return bool(letters) and sum(1 for ch in letters if ARABIC.match(ch)) < 0.05 * len(letters)
+
+
 def build(paper, exam, container):
     ex = exam['exercises'][container['ordinal'] - 1]
     # Arabic page furniture (the ministry header) sits in the canonical text of
@@ -396,7 +417,7 @@ def build(paper, exam, container):
         'paper': paper['paper'], 'sha256': paper['sha256'], 'ordinal': container['ordinal'],
         'index': ex.get('index'), 'status': container['alignment']['status'],
     }
-    if paper['language'] == 'ar':
+    if paper['language'] == 'ar' and not latin_science(paper):
         return {**rec, 'verdict': 'refused', 'reason': 'arabic paper'}
     if container['alignment']['status'] not in ('EXACT', 'STRONG'):
         return {**rec, 'verdict': 'refused', 'reason': f"C1 {container['alignment']['status']}"}
@@ -433,7 +454,7 @@ def main():
     out = []
     for p in c1:
         exam = exams.get(p['sha256'])
-        if not exam or p['language'] == 'ar':
+        if not exam or (p['language'] == 'ar' and not latin_science(p)):
             continue
         if len(exam['exercises']) != len(p['containers']):
             out.extend({'paper': p['paper'], 'sha256': p['sha256'], 'ordinal': c['ordinal'],
