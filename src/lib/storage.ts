@@ -116,10 +116,15 @@ async function signedFetch(
   const { createHmac } = await import('node:crypto');
   const e = env();
 
+  // A trailing slash on the endpoint would make the path `//bucket/key`, which
+  // is signed as written and rejected as a mismatch — an authentication error
+  // for what is really a typo in a config value nobody looks at twice.
+  const endpoint = e.S3_ENDPOINT.replace(/\/+$/, '');
+
   const url = new URL(
     e.S3_FORCE_PATH_STYLE
-      ? `${e.S3_ENDPOINT}/${e.S3_BUCKET}/${key}`
-      : `${e.S3_ENDPOINT.replace('://', `://${e.S3_BUCKET}.`)}/${key}`,
+      ? `${endpoint}/${e.S3_BUCKET}/${key}`
+      : `${endpoint.replace('://', `://${e.S3_BUCKET}.`)}/${key}`,
   );
 
   const now = new Date();
