@@ -472,11 +472,19 @@ jobs:
           set -euo pipefail
           KEY=~/.ssh/deploy_key
           OPTS="-o StrictHostKeyChecking=accept-new"
-          ssh -i "$KEY" -p "$PORT" $OPTS "$SSH_USER@$HOST" "mkdir -p '$DEPLOY_DIR/bin' '$DEPLOY_DIR/ops-in/corpus'"
+          ssh -i "$KEY" -p "$PORT" $OPTS "$SSH_USER@$HOST" \
+            "mkdir -p '$DEPLOY_DIR/bin' '$DEPLOY_DIR/systemd' '$DEPLOY_DIR/ops-in/corpus'"
           scp -i "$KEY" -P "$PORT" $OPTS \
             deploy/docker-compose.prod.yml deploy/Caddyfile "$SSH_USER@$HOST:$DEPLOY_DIR/"
           scp -i "$KEY" -P "$PORT" $OPTS \
             deploy/bin/bac2-cron "$SSH_USER@$HOST:$DEPLOY_DIR/bin/"
+          # The timer units live here so the server always has the current
+          # version of a schedule that is edited in the repo. Installing them
+          # into /etc/systemd/system needs root, which the deploy user does not
+          # have and should not — DEPLOYMENT.md has the one-time `sudo cp`.
+          scp -i "$KEY" -P "$PORT" $OPTS \
+            deploy/systemd/bac2-cron-*.service deploy/systemd/bac2-cron-*.timer \
+            "$SSH_USER@$HOST:$DEPLOY_DIR/systemd/"
           scp -i "$KEY" -P "$PORT" $OPTS \
             prod.env "$SSH_USER@$HOST:$DEPLOY_DIR/.env"
           ssh -i "$KEY" -p "$PORT" $OPTS "$SSH_USER@$HOST" \
