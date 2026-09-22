@@ -38,9 +38,25 @@ RUN apt-get update && apt-get install -y --no-install-recommends openssl \
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# The build must not need a reachable database or an API key. `prisma generate`
+# The build must not need a REACHABLE database or an API key. `prisma generate`
 # reads the schema file only, and the app is designed to boot unkeyed — a
 # deployment with no AI key is navigable and says so, rather than crashing.
+#
+# It does need the two required variables to PARSE, though, and that is a
+# different thing. `next build` evaluates every route module while collecting
+# page data, the route wrapper in lib/api.ts calls env() at module scope, and
+# the zod schema in lib/env.ts hard-fails on a missing DATABASE_URL or
+# SESSION_SECRET. On a laptop this never shows: next build reads .env off the
+# disk. In CI's check job it never shows either: both are set for the Postgres
+# service. In a clean image neither exists, and the build dies on the first
+# route it collects.
+#
+# So: placeholders. Syntactically valid, deliberately unreachable (port 1), and
+# never used — compose passes the real values through env_file at runtime, and
+# container environment beats image ENV. They are not secrets and nothing is
+# gained by hiding them.
+ENV DATABASE_URL="postgresql://placeholder:placeholder@127.0.0.1:1/placeholder"
+ENV SESSION_SECRET="build-time-placeholder-never-signs-anything"
 ENV NEXT_TELEMETRY_DISABLED=1
 # `npm run build` is already `prisma generate && next build`.
 RUN npm run build
