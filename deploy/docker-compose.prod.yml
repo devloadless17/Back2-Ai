@@ -128,7 +128,13 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
       POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB is required}
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      # /var/lib/postgresql, NOT /var/lib/postgresql/data — this changed in
+      # Postgres 18. The 18+ images store data in a major-version subdirectory
+      # (/var/lib/postgresql/18/docker) so that pg_upgrade --link can work
+      # without crossing a mount boundary, and they REFUSE TO START if they find
+      # a volume mounted at the old path. The error talks about pg_upgrade and
+      # reads like a failed migration; it is really just the wrong mount point.
+      - postgres_data:/var/lib/postgresql
     networks: [backend]
     # maintenance_work_mem is for the HNSW index rebuild during the Neon restore:
     # too small and pgvector silently falls back to an on-disk build that is an
