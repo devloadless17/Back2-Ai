@@ -73,6 +73,12 @@ already carry a mark.
 
 ## Deploying
 
+**Self-hosted on a VPS is the live deployment — see [DEPLOYMENT.md](DEPLOYMENT.md).**
+A release is `git push origin main:production`, which builds the image, ships it,
+migrates and health-gates. That document also covers the server baseline, the
+secrets, restoring the database and rolling back.
+
+The Vercel path below still works and is what the repo shipped with:
 `vercel.json` and the route `maxDuration`s are set to deploy on any Vercel plan.
 Provision Postgres with pgvector (Neon's free tier works — the first migration
 runs `CREATE EXTENSION "vector"` and `"pgcrypto"`), then from your machine:

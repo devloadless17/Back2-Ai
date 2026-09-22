@@ -16,6 +16,40 @@ the enforcement.
 
 ---
 
+## Current state (22 Sep 2026)
+
+Live at **https://backai.loadless.site**, serving the full corpus restored from
+Neon. Verified on the day: TLS from Let's Encrypt, `db: "up"` at 1 ms, HTTP/3
+advertised after measuring UDP/443, a nearest-neighbour query over 12,723
+vectors answering in 4.7 ms off the HNSW index, `/api/cron` 404 from outside and
+200 over loopback, and CSRF returning 401 rather than 403 — which is what proves
+Caddy is passing `Host` through.
+
+Row counts match Neon exactly: 4 tracks, 60 subjects, 1,192 chapters, 1,686 exam
+cycles, 5,783 questions (all embedded), 12,723 content chunks (all embedded), 8
+users, 269 attempts, 32 migrations.
+
+Two things about the restored users, both deliberate:
+
+- **`admin@bac2.local` was rotated on restore** and its password is in Ali's
+  password manager, nowhere else. The literal in `prisma/seed.ts` no longer
+  opens it; that was verified by trying it against the live login (401).
+- **`student@bac2.local` and `demo@bac2.local` still use the passwords printed
+  in `prisma/seed.ts`**, which is in a public repo. This is a known, accepted
+  state, not an oversight: they are student-role, so an intruder reaches only
+  those accounts' own fabricated data, and `demo@bac2.local` is the populated
+  demo student whose password is shared for demos. Rotate or delete them before
+  real students sign up — `npm run rotate:admin -- --email <addr> --apply` works
+  for any account, not only admins.
+
+One piece of inherited history worth recognising rather than fixing: the
+`_prisma_migrations` table carries a row for `20260901090000_exam_cycle_language`
+with `rolled_back_at` set, from a failure on Neon on 1 Sep. Prisma treats
+rolled-back as resolved, `migrate deploy` exits 0, and the column that migration
+wanted exists. Nothing to do; it just looks alarming in a count.
+
+---
+
 ## Live environment
 
 | | |
