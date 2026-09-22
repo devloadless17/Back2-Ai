@@ -23,7 +23,7 @@
  *
  * IDEMPOTENT AND REVERSIBLE. A row already holding the text is skipped. The
  * value each row held before its first write is kept in
- * corpus/.mapping/display-text-backup-<run>.json, never overwritten by a later
+ * corpus/.mapping/display-text-backup-<database>-<run>.json, never overwritten by a later
  * apply; `--rollback` restores it only where the row still holds exactly what
  * this run wrote, so a later edit is never clobbered.
  */
@@ -57,7 +57,9 @@ const CONFIRM_DB = arg('confirm-db');
 const SHOW = Number(arg('show') ?? 0);
 
 const sha256 = (s: string | Buffer) => createHash('sha256').update(s).digest('hex');
-const backupPath = (run: string) => path.join(ROOT, `corpus/.mapping/display-text-backup-${run.slice(0, 16)}.json`);
+/** Per database as well as per run: the same artifact applied locally and in production must not share one backup. */
+const backupPath = (run: string, database: string) =>
+  path.join(ROOT, `corpus/.mapping/display-text-backup-${database}-${run.slice(0, 16)}.json`);
 
 type Record_ = {
   paper: string;
@@ -133,7 +135,7 @@ async function guardWrite() {
 
 async function rollback(run: string) {
   const database = await guardWrite();
-  const file = backupPath(run);
+  const file = backupPath(run, database);
   if (!existsSync(file)) throw new Error(`no backup for run ${run} at ${file}`);
   const backup = JSON.parse(readFileSync(file, 'utf-8')) as Backup;
   let restored = 0;
@@ -222,7 +224,7 @@ async function main() {
   await guardWrite();
 
   // Keep the first "before" a row ever had under this run.
-  const file = backupPath(run);
+  const file = backupPath(run, database);
   const backup: Backup = existsSync(file) ? JSON.parse(readFileSync(file, 'utf-8')) : { run, rows: {} };
   for (const w of writes) {
     if (!backup.rows[w.id]) backup.rows[w.id] = { before: w.before, written: w.text };
