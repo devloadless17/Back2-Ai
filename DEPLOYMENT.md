@@ -159,23 +159,26 @@ to that file against it. The check that proves it:
 ssh bac2ai 'ss -tlnp'   # before the first deploy: sshd only
 ```
 
-### HTTP/3 — measure before enabling
+### HTTP/3 — measured, and on
 
-Caddy advertises `alt-svc: h3=":443"` by default and browsers cache that for up to 30
-days. If UDP/443 is not actually delivered, some clients intermittently cannot open the
-site while others are fine — and the fix takes a month to propagate.
+Caddy advertises `alt-svc: h3=":443"` by default and browsers cache that for up
+to 30 days. If UDP/443 is not actually delivered, some clients intermittently
+cannot open the site while others are fine — and the fix takes a month to
+propagate. So it is measured, never assumed.
 
-The stack therefore ships **matched and conservative**: no `443:443/udp` in the compose
-file, and `protocols h1 h2` pinned in the Caddyfile. To turn HTTP/3 on, measure first:
+**Measured 2026-09-22 on this VPS: UDP/443 IS delivered.** A datagram sent from
+outside arrived at a container publishing 443/udp. HTTP/3 is therefore enabled,
+and three things agree: `443:443/udp` in the compose file, no `protocols` pin in
+the Caddyfile, and `443/udp` allowed in UFW.
+
+To re-measure after any provider or network change:
 
 ```bash
-ssh bac2ai 'docker run --rm -p 443:443/udp alpine timeout 12 nc -u -l -p 443' &
-sleep 3; for i in 1 2 3; do printf probe | nc -u -w1 152.239.121.8 443; sleep 1; done
+ssh bac2ai 'docker run --rm -p 443:443/udp alpine sh -c "timeout 12 nc -u -l -p 443"' &
+sleep 12; for i in 1 2 3; do printf probe | nc -u -w1 152.239.121.8 443; sleep 1; done
 ```
 
-Anything received → remove the `protocols h1 h2` pin from `deploy/Caddyfile`, add
-`- "443:443/udp"` to the caddy service, and `ufw allow 443/udp`. **All three in one
-commit.** Nothing received → leave it exactly as shipped.
+If packets stop arriving, turn HTTP/3 off in all three places in one commit.
 
 ---
 

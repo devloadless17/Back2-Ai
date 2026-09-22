@@ -3,20 +3,17 @@
 	# address nobody reads.
 	email {$ACME_EMAIL}
 
-	# HTTP/3 IS PINNED OFF, and this line is half of a pair.
+	# HTTP/3 is ON, and that is a measured decision, not a default.
 	#
-	# Caddy advertises `alt-svc: h3=":443"` by default and browsers cache that
-	# for up to 30 days. Advertising a protocol the host does not actually
-	# receive means SOME clients intermittently cannot open the site while
-	# others load fine, and the fix takes a month to propagate.
+	# Caddy advertises `alt-svc: h3=":443"` and browsers cache it for up to 30
+	# days, so advertising a protocol the host does not actually receive breaks
+	# some clients for a month after the fix. UDP/443 was measured as delivered
+	# to this VPS on 2026-09-22 (a datagram sent from outside arrived at a
+	# container publishing 443/udp), so the advertisement is honest.
 	#
-	# docker-compose.prod.yml therefore does not publish 443/udp, and this pin
-	# keeps the advertisement honest. To turn HTTP/3 on, measure UDP/443 first
-	# (DEPLOYMENT.md), then delete this line AND publish the UDP port AND
-	# `ufw allow 443/udp`. All three together, never one alone.
-	servers {
-		protocols h1 h2
-	}
+	# If that ever stops being true, turn it off in THREE places in one commit:
+	# pin `servers { protocols h1 h2 }` here, drop `443:443/udp` from
+	# docker-compose.prod.yml, and `ufw delete allow 443/udp`. Never one alone.
 
 	# The default is ETERNAL: Caddy would wait forever for an open connection and
 	# Docker's SIGKILL would become the shutdown mechanism, truncating whatever

@@ -32,18 +32,12 @@ services:
     ports:
       - "80:80"     # ACME challenge + the redirect to 443
       - "443:443"
-      # HTTP/3 (UDP) IS DELIBERATELY NOT PUBLISHED YET.
-      #
-      # Caddy advertises `alt-svc: h3=":443"` by default and browsers cache that
-      # for up to 30 days. If UDP/443 is not actually delivered to this host,
-      # SOME clients intermittently cannot open the site while others load fine
-      # — a failure that outlives the fix by a month.
-      #
-      # So the two sides start matched and conservative: no UDP port here, and
-      # `protocols h1 h2` pinned in the Caddyfile. To enable HTTP/3, run the
-      # measurement in DEPLOYMENT.md, then remove the pin in the Caddyfile AND
-      # add `- "443:443/udp"` here AND `ufw allow 443/udp` — all three, in one
-      # commit. Never one without the others.
+      # HTTP/3. Published because UDP/443 was MEASURED as delivered to this VPS
+      # (2026-09-22), not because it is Caddy's default. The three places that
+      # must agree are this line, the absence of a `protocols h1 h2` pin in the
+      # Caddyfile, and `ufw allow 443/udp` on the host — browsers cache the
+      # alt-svc advertisement for up to 30 days, so a mismatch outlives its fix.
+      - "443:443/udp"
     environment:
       SITE_DOMAIN: ${SITE_DOMAIN:?SITE_DOMAIN is required}
       ACME_EMAIL: ${ACME_EMAIL:?ACME_EMAIL is required}
