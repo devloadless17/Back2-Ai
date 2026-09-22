@@ -38,6 +38,7 @@
     "corpus:visuals": "node --conditions=react-server --env-file=.env --import tsx scripts/corpus/backfill-visuals.ts",
     "corpus:visual-smoke": "node --conditions=react-server --env-file=.env --import tsx scripts/corpus/visual-smoke.ts",
     "corpus:display-text": "node --conditions=react-server --env-file=.env --import tsx scripts/corpus/load-display-text.ts",
+    "corpus:clear-mismatched": "node --conditions=react-server --env-file=.env --import tsx scripts/corpus/clear-mismatched-latex.ts",
     "corpus:extract-exams": "python scripts/corpus/extract_exams.py",
     "corpus:chunks": "node --conditions=react-server --env-file=.env --import tsx scripts/corpus/load-chunks.ts",
     "corpus:link-chapters": "node --conditions=react-server --env-file=.env --import tsx scripts/corpus/link-chapters.ts",
