@@ -812,6 +812,30 @@
     @apply mt-4;
   }
 
+  /*
+   * Tables from the papers: data tables, variation tables, reaction tables.
+   * Ruled like the printed page, and scrollable rather than squeezed when a
+   * table is wider than the screen.
+   */
+  .prose-exam table {
+    display: block;
+    max-width: 100%;
+    overflow-x: auto;
+    border-collapse: collapse;
+    margin: 0.75rem 0;
+    font-size: 0.95em;
+  }
+  .prose-exam th,
+  .prose-exam td {
+    @apply border border-rule;
+    padding: 0.35rem 0.6rem;
+    vertical-align: top;
+    text-align: start;
+  }
+  .prose-exam th {
+    @apply font-semibold bg-paper-raised;
+  }
+
   .prose-exam .katex {
     @apply text-ink;
     font-size: 1.05em;

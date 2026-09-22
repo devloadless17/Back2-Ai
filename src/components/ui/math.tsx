@@ -3,7 +3,9 @@
 import ReactMarkdown from 'react-markdown';
 import rehypeKatex from 'rehype-katex';
 import remarkBreaks from 'remark-breaks';
+import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
+import type { PluggableList } from 'unified';
 
 import { cn } from '@/lib/cn';
 import { normalizeMathDelimiters } from '@/lib/math-delimiters';
@@ -62,7 +64,16 @@ import { dirForText } from '@/lib/i18n/config';
  * corrects every screen at once. It costs one pass over a string that is about
  * to be parsed as Markdown anyway.
  */
-const REMARK = [remarkMath, remarkBreaks];
+/*
+ * Tables. Exam papers print data tables, variation tables and reaction tables,
+ * and the Mathpix transcriptions carry them. Without GFM a Markdown table
+ * reaches the student as rows of raw pipes. GFM splits a row on every `|`,
+ * including one inside a formula, so table text written for this viewer spells
+ * an absolute value `\vert` (scripts/corpus/display_text.py does). Raw HTML
+ * stays off (`skipHtml`). `singleTilde` is off: papers write "~ 20 min" for
+ * "about", and two of those on a line must not strike the text between them.
+ */
+const REMARK = [remarkMath, [remarkGfm, { singleTilde: false }], remarkBreaks] as PluggableList;
 const REHYPE = [rehypeKatex];
 
 
