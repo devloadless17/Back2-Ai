@@ -87,12 +87,25 @@ jobs:
       ANTHROPIC_API_KEY: ''
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 20
           cache: npm
+
+      # tests/exercise-marks.test.ts and tests/taxonomy-heading.test.ts shell out
+      # to `python` (unsuffixed) and load scripts/corpus/*.py through importlib.
+      # ubuntu-latest has python3 but no `python` on PATH, so both files failed
+      # on every run before this step existed. setup-python provides the name;
+      # requirements.txt provides pypdf, which extract_exams.py imports at module
+      # level.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Install corpus Python dependencies
+        run: python -m pip install --disable-pip-version-check -r requirements.txt
 
       # package.json carries an `overrides` block (postcss, sharp). npm 10
       # decides such a lockfile is out of sync on every upstream patch release,
@@ -135,7 +148,7 @@ jobs:
     timeout-minutes: 40
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: docker/setup-buildx-action@v3
       - uses: docker/login-action@v3
         with:
@@ -283,7 +296,7 @@ jobs:
       # script. On a rollback this is the CURRENT production tree, not the tree
       # the rolled-back image was built from — config and image version
       # independently, which is the point of pinning IMAGE_TAG.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Prepare SSH key
         env:
