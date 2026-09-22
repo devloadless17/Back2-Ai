@@ -394,19 +394,25 @@ pulled from Docker Hub.
 
 ---
 
-## Wiping the database (`reset_data`)
+## There is no wipe
 
-Actions → CI → Run workflow → `reset_data: true`. Only a deliberate dispatch can set it;
-no ordinary push can.
+This pipeline cannot destroy the database, and that is deliberate: no workflow
+input, no `down -v`, nothing on a schedule. A deploy only ever pulls an image,
+runs forward migrations and recreates containers. `docker compose down` without
+`-v` leaves every named volume intact.
 
-It **deletes every student account, attempt and all exam content.** It takes a best-effort
-`pg_dump` into `ops-in/pre-reset-*.dump` first so a mis-click is recoverable, then removes
-the `bac2ai_postgres_data` volume specifically — **not** `down -v`, which would take
-`caddy_data` with it. That volume holds the issued certificates and the ACME account key,
-and losing it means re-issuing against a Let's Encrypt rate limit counted per domain per
-week. Losing a database you meant to wipe is the intent; losing HTTPS for a week is not.
+If a database genuinely has to be rebuilt one day, it is a deliberate, manual,
+logged-in act with a fresh `pg_dump` taken first — never a checkbox on a deploy.
 
-After a reset, restore from a dump again — an empty database is not a working site.
+Two volumes to know about before running any `docker` command by hand:
+
+- **`bac2ai_postgres_data`** — every account, attempt, upload record and all the
+  exam content restored from Neon.
+- **`bac2ai_caddy_data`** — the issued TLS certificates and the ACME account key.
+  Losing this means re-issuing against a Let's Encrypt rate limit counted per
+  domain per week, so the site would be without HTTPS in the meantime.
+
+`docker compose down -v` takes both. Do not use the `-v` flag on this stack.
 
 ---
 

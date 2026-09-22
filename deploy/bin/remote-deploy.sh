@@ -14,7 +14,6 @@ set -euo pipefail
 
 : "${DEPLOY_DIR:?}" "${DOCKER_USERNAME:?}" "${DOCKER_SECRET:?}"
 : "${SITE_DOMAIN:?}" "${IMAGE_TAG:?}"
-RESET_DATA="${RESET_DATA:-false}"
 
 cd "$DEPLOY_DIR"
 C=(docker compose -f docker-compose.prod.yml)
@@ -28,36 +27,6 @@ PREV_TAG="$(cat .deploy_current 2>/dev/null || true)"
 
 echo "==> Pulling images"
 "${C[@]}" pull --quiet
-
-# Only reachable from a deliberate workflow_dispatch with reset_data=true.
-#
-# NOT `down -v`. That would take the caddy_data volume with it — the issued
-# certificates AND the ACME account key — so the next boot re-issues from
-# Let's Encrypt, against a rate limit that is counted per registered domain per
-# week. Losing a database you meant to wipe is the intent; losing the ability to
-# serve HTTPS for a week is not. So: stop the stack, drop exactly the one
-# volume, leave the rest alone.
-if [ "$RESET_DATA" = "true" ]; then
-  echo "==> reset_data=true — destroying the database volume"
-  # Best-effort safety dump. If the database is already gone or unreadable this
-  # is a no-op; the point is that a mis-click on a populated database is
-  # recoverable, not that this is a backup system.
-  if docker ps -a --format '{{.Names}}' | grep -qx bac2ai-db; then
-    "${C[@]}" up -d db >/dev/null 2>&1 || true
-    sleep 5
-    dump="ops-in/pre-reset-$(date +%Y%m%d-%H%M%S).dump"
-    if "${C[@]}" exec -T db pg_dump -U bac2 -d bac2 --format=custom --no-owner > "$dump" </dev/null 2>/dev/null; then
-      echo "  safety dump written to $dump ($(du -h "$dump" | cut -f1))"
-    else
-      rm -f "$dump"
-      echo "  no safety dump taken (database not readable) — continuing"
-    fi
-  fi
-  "${C[@]}" down --remove-orphans
-  docker volume rm bac2ai_postgres_data >/dev/null 2>&1 \
-    && echo "  bac2ai_postgres_data removed" \
-    || echo "  bac2ai_postgres_data did not exist"
-fi
 
 echo "==> Starting the database"
 "${C[@]}" up -d db

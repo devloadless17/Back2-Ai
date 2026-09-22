@@ -39,14 +39,6 @@ on:
         required: false
         default: ''
         type: string
-      reset_data:
-        description: 'DANGER: wipe the database volume and start from an empty schema (deletes ALL student accounts, attempts and exam content)'
-        required: false
-        default: 'false'
-        type: choice
-        options:
-          - 'false'
-          - 'true'
 
 concurrency:
   group: deploy-${{ github.ref }}
@@ -219,9 +211,6 @@ jobs:
       # The release being deployed. A dispatch may name a previously built tag
       # to roll back to; a push deploys its own commit.
       IMAGE_TAG: ${{ inputs.image_tag || github.sha }}
-      # Only ever 'true' from a deliberate workflow_dispatch. A push cannot set
-      # it, so no ordinary release can wipe the database.
-      RESET_DATA: ${{ inputs.reset_data || 'false' }}
 
     steps:
       # Fail with the list of missing names, rather than with a confusing error
@@ -503,9 +492,6 @@ jobs:
           SITE_DOMAIN: ${{ secrets.FRONTEND_DOMAIN }}
         run: |
           set -euo pipefail
-          if [ "$RESET_DATA" = "true" ]; then
-            echo "::warning::reset_data=true — the database volume will be DESTROYED before this deploy"
-          fi
           # The Docker Hub token is prepended to the script over STDIN rather
           # than passed as an ssh argument: argv is world-readable through `ps`
           # on the VPS for the whole duration of the deploy.
@@ -513,4 +499,4 @@ jobs:
             cat deploy/bin/remote-deploy.sh
           } | ssh -i ~/.ssh/deploy_key -p "$PORT" -o StrictHostKeyChecking=accept-new \
                 "$SSH_USER@$HOST" \
-                "DEPLOY_DIR='$DEPLOY_DIR' DOCKER_USERNAME='$DOCKER_USERNAME' SITE_DOMAIN='$SITE_DOMAIN' IMAGE_TAG='$IMAGE_TAG' RESET_DATA='$RESET_DATA' bash -s"
+                "DEPLOY_DIR='$DEPLOY_DIR' DOCKER_USERNAME='$DOCKER_USERNAME' SITE_DOMAIN='$SITE_DOMAIN' IMAGE_TAG='$IMAGE_TAG' bash -s"
