@@ -1,0 +1,10 @@
+[Unit]
+Description=Bac II readiness + difficulty recompute, off-peak
+
+[Timer]
+OnCalendar=*-*-* 03:15:00 Asia/Beirut
+Persistent=true
+Unit=bac2-cron-daily.service
+
+[Install]
+WantedBy=timers.target

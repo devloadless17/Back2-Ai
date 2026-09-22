@@ -1,0 +1,97 @@
+{
+	# Let's Encrypt uses this to warn about expiry. A real inbox, not a role
+	# address nobody reads.
+	email {$ACME_EMAIL}
+
+	# HTTP/3 IS PINNED OFF, and this line is half of a pair.
+	#
+	# Caddy advertises `alt-svc: h3=":443"` by default and browsers cache that
+	# for up to 30 days. Advertising a protocol the host does not actually
+	# receive means SOME clients intermittently cannot open the site while
+	# others load fine, and the fix takes a month to propagate.
+	#
+	# docker-compose.prod.yml therefore does not publish 443/udp, and this pin
+	# keeps the advertisement honest. To turn HTTP/3 on, measure UDP/443 first
+	# (DEPLOYMENT.md), then delete this line AND publish the UDP port AND
+	# `ufw allow 443/udp`. All three together, never one alone.
+	servers {
+		protocols h1 h2
+	}
+
+	# The default is ETERNAL: Caddy would wait forever for an open connection and
+	# Docker's SIGKILL would become the shutdown mechanism, truncating whatever
+	# was in flight. Must stay below the caddy service's stop_grace_period (45s).
+	grace_period 30s
+}
+
+{$SITE_DOMAIN} {
+	encode zstd gzip
+
+	log {
+		output stdout
+		format json
+	}
+
+	# MAX_UPLOAD_BYTES in lib/storage.ts is 15 MB. Refusing a larger body here
+	# means it is never read into the app's memory only to be rejected there.
+	request_body {
+		max_size 20MB
+	}
+
+	# Maintenance is driven from INSIDE the app container over loopback (see
+	# deploy/bin/bac2-cron), so this endpoint never needs to be reachable from
+	# the internet. It is secret-protected and constant-time compared, but an
+	# internet-facing URL that auto-submits and grades exam papers is not worth
+	# leaving open for no benefit. 404, not 403 — a 403 confirms it is there.
+	@cron path /api/cron
+	respond @cron 404
+
+	# The chat turn is a ReadableStream of newline-delimited JSON. Caddy already
+	# auto-flushes when Content-Length is unknown, which it is here; -1 says so
+	# out loud so nobody later "optimises" it back into a buffer.
+	#
+	# (application/x-ndjson is not in `encode`'s default content-type list, so
+	# the stream is not compressed either and the first token is not held back
+	# waiting for a 512-byte buffer to fill.)
+	@stream path /api/chat/messages
+	reverse_proxy @stream app:3000 {
+		flush_interval -1
+	}
+
+	reverse_proxy app:3000
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# WHAT NOT TO ADD HERE — each of these has bitten a real deployment.
+#
+# 1. NEVER `header_up Host {upstream_hostport}`. It is the reflex port of
+#    nginx's `proxy_set_header Host $proxy_host`, and Caddy does not need it:
+#    it passes the client's Host through unmodified already. `assertSameOrigin`
+#    in src/lib/api.ts compares the Origin/Referer host against the Host header
+#    on EVERY mutating request, so rewriting Host to `app:3000` makes every
+#    POST, PUT, PATCH and DELETE in the application return 403
+#    "Cross-site requests are not permitted". Logging in still works, which is
+#    what makes it hard to find. This is the single most likely way to break
+#    this deployment.
+#
+#    Do not write `header_up Host {host}` either. It is already the default;
+#    spelling it out makes it look like a knob and invites someone to turn it.
+#
+# 2. No `header` block for Strict-Transport-Security, X-Frame-Options,
+#    X-Content-Type-Options, Referrer-Policy or Permissions-Policy.
+#    next.config.mjs already emits all five on /:path*, and Caddy adds no HSTS
+#    of its own. Adding them here produces two of each.
+#
+# 3. No X-Forwarded-* by hand. Caddy sets X-Forwarded-For/-Proto/-Host already,
+#    and lib/api.ts, lib/audit.ts and lib/auth/session.ts all read
+#    x-forwarded-for to get the real client IP. Setting them again breaks the
+#    chain those three depend on.
+#
+# 4. No `file_server`, `root` or `try_files` for public/ or .next/static. The
+#    standalone server serves both, and src/lib/figures.ts reads the same 40 MB
+#    of committed PNGs from process.cwd(). Two servers for the same bytes is two
+#    sources of truth.
+#
+# 5. No `admin off`. The admin API binds to container-localhost:2019 with no
+#    published port, so it is unreachable from outside this container — and it
+#    is what the healthcheck and `caddy reload` use.

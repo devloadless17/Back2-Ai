@@ -1,0 +1,15 @@
+[Unit]
+Description=Bac II auto_submit + mark, every 2 minutes
+
+[Timer]
+OnBootSec=3min
+# OnUnitActiveSec, not OnCalendar=*:0/2, on purpose: a `mark` tick is several
+# model calls per paper and can outrun a two-minute wall clock. This schedules
+# the next tick two minutes after the last one FINISHED, so slow ticks stretch
+# the interval instead of stacking up behind each other.
+OnUnitActiveSec=2min
+AccuracySec=15s
+Unit=bac2-cron-fast.service
+
+[Install]
+WantedBy=timers.target

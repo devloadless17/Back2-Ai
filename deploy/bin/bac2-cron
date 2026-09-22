@@ -1,0 +1,47 @@
+#!/bin/sh
+# Runs one or more maintenance jobs by calling /api/cron on loopback INSIDE the
+# app container.
+#
+#   bac2-cron auto_submit mark
+#
+# Jobs run in the order given, and that order is load-bearing: auto_submit closes
+# papers abandoned by students who shut the tab, and mark grades them on the same
+# pass, so a student whose clock ran out is not left waiting for the next tick.
+#
+# WHY docker exec RATHER THAN curl AGAINST THE PUBLIC URL:
+# CRON_SECRET is already in the app container's environment, so `docker exec`
+# inherits it and the value never appears in a unit file, a crontab line, `ps`
+# output on the host, or shell history. Nothing on this host needs to know it.
+# Going out through the public hostname would also route internal maintenance
+# through DNS, ACME and the public edge — so a certificate problem would stop
+# exam papers being marked.
+#
+# Every job is attempted even if an earlier one fails; the exit status is
+# non-zero if any did, which is what makes systemd record a failure.
+set -u
+
+CONTAINER=bac2ai-app
+rc=0
+
+for job in "$@"; do
+  docker exec "$CONTAINER" node -e '
+    const job = process.argv[1];
+    const secret = process.env.CRON_SECRET;
+    if (!secret) {
+      console.error(job + ": CRON_SECRET is not set in the container; /api/cron returns 503 for everything");
+      process.exit(1);
+    }
+    fetch("http://127.0.0.1:3000/api/cron?job=" + encodeURIComponent(job), {
+      method: "POST",
+      headers: { authorization: "Bearer " + secret },
+    }).then(async (r) => {
+      console.log(job + " " + r.status + " " + (await r.text()));
+      process.exit(r.ok ? 0 : 1);
+    }).catch((e) => {
+      console.error(job + " failed: " + e.message);
+      process.exit(1);
+    });
+  ' "$job" || rc=1
+done
+
+exit "$rc"
