@@ -156,10 +156,21 @@ services:
     # exit.
     stop_signal: SIGINT
     stop_grace_period: 60s
-    # Docker's default /dev/shm is 64 MB, which a parallel vector scan or a
-    # parallel pg_restore exhausts. It surfaces as "could not resize shared
-    # memory segment", which reads like a disk problem and is not.
-    shm_size: 256mb
+    # Docker's default /dev/shm is 64 MB, and 256 MB was not enough either: a
+    # parallel HNSW build asks for roughly maintenance_work_mem per worker in
+    # SHARED memory, so `pg_restore -j 4` against 512MB of maintenance_work_mem
+    # tried to resize a segment to 509 MB and failed with
+    #
+    #   could not resize shared memory segment ... No space left on device
+    #
+    # which names neither shared memory limits nor the real culprit, and reads
+    # like the disk is full. It is not: /dev/shm is a tmpfs CEILING, allocated
+    # on demand, so a generous number costs nothing until something uses it.
+    #
+    # This cost the two largest vector indexes on the first restore — the data
+    # loaded fine and only the indexes were missing, which is a failure mode
+    # that looks like success until a search gets slow.
+    shm_size: 1gb
     logging: *logging
 
   # ---------------------------------------------------------------------------
