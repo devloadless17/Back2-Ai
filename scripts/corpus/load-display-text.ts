@@ -57,9 +57,18 @@ const CONFIRM_DB = arg('confirm-db');
 const SHOW = Number(arg('show') ?? 0);
 
 const sha256 = (s: string | Buffer) => createHash('sha256').update(s).digest('hex');
-/** Per database as well as per run: the same artifact applied locally and in production must not share one backup. */
+/*
+ * Per database as well as per run: the same artifact applied locally and in
+ * production must not share one backup.
+ *
+ * `--backup-dir` because the VPS runs this in the `ops` container, where
+ * `corpus/` is mounted read-only (deploy/docker-compose.prod.yml) and writing
+ * the backup there would throw before a single row was written. It points at
+ * the writable scratch mount instead.
+ */
+const BACKUP_DIR = arg('backup-dir') ?? 'corpus/.mapping';
 const backupPath = (run: string, database: string) =>
-  path.join(ROOT, `corpus/.mapping/display-text-backup-${database}-${run.slice(0, 16)}.json`);
+  path.join(ROOT, BACKUP_DIR, `display-text-backup-${database}-${run.slice(0, 16)}.json`);
 
 type Record_ = {
   paper: string;
