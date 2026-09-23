@@ -76,6 +76,8 @@
     "judge:export": "node --conditions=react-server --env-file=.env --import tsx scripts/judge-passages-xlsx.ts",
     "judge:import": "node --conditions=react-server --env-file=.env --import tsx scripts/judge-passages-xlsx.ts --import",
     "prune:translated": "node --conditions=react-server --env-file=.env --import tsx scripts/corpus/prune-translated-exams.ts",
+    "diagnose:visibility": "node --conditions=react-server --env-file=.env --import tsx scripts/diagnose-track-visibility.ts",
+    "repair:study-language": "node --conditions=react-server --env-file=.env --import tsx scripts/repair-study-language.ts",
     "prune:misfiled": "node --conditions=react-server --env-file=.env --import tsx scripts/corpus/prune-misfiled-exams.ts",
     "refile:editions": "node --conditions=react-server --env-file=.env --import tsx scripts/corpus/refile-wrong-edition-exams.ts",
     "refile:languages": "node --conditions=react-server --env-file=.env --import tsx scripts/corpus/refile-exam-languages.ts",
