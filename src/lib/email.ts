@@ -5,14 +5,19 @@ import { env } from '@/lib/env';
 /**
  * Sending mail.
  *
- * One function, two backends, and the fallback is the interesting half.
+ * One function, three backends, and the fallback is the interesting half.
  *
- * With `RESEND_API_KEY` set, mail goes to Resend. Without it, the message is
- * written to the server log and reported as sent. That is deliberate: every
- * flow built on top of this — confirming an address, resetting a password, the
- * nightly reminder — has to work end to end on a laptop with no mail account,
- * or nobody can develop against it and the first time it runs for real is in
- * production. The logged form carries the link, so a developer can follow it.
+ * With `SMTP_HOST` set, mail goes out over SMTP; failing that, `RESEND_API_KEY`
+ * sends through Resend. With neither, the message is written to the server log
+ * and reported as sent. That is deliberate: every flow built on top of this —
+ * confirming an address, resetting a password, the nightly reminder — has to
+ * work end to end on a laptop with no mail account, or nobody can develop
+ * against it and the first time it runs for real is in production. The logged
+ * form carries the link, so a developer can follow it.
+ *
+ * SMTP comes first because it is the one a deployment is most likely to have
+ * deliberately configured: a Resend key left in the environment from an earlier
+ * host should not quietly outrank the mail account someone just set up.
  *
  * It never throws. A reminder that cannot be delivered must not fail the cron
  * run that generated forty others, and a signup must not fail because the
@@ -28,7 +33,55 @@ export type Mail = {
 };
 
 export function isEmailConfigured(): boolean {
-  return env().RESEND_API_KEY.length > 0;
+  const e = env();
+  return e.SMTP_HOST.length > 0 || e.RESEND_API_KEY.length > 0;
+}
+
+/*
+ * One transport, reused.
+ *
+ * Nodemailer keeps a connection pool behind a transport, so building a fresh
+ * one per message means a fresh TCP connect, TLS handshake and AUTH for every
+ * reminder in a nightly run of forty. Built on first use rather than at import
+ * so that a deployment with no SMTP configured never constructs one, and so
+ * this module stays importable when `env()` would throw.
+ */
+let transport: import('nodemailer').Transporter | null = null;
+
+async function smtpTransport() {
+  if (transport) return transport;
+  const e = env();
+  const nodemailer = await import('nodemailer');
+
+  transport = nodemailer.createTransport({
+    host: e.SMTP_HOST,
+    port: e.SMTP_PORT,
+    // 465 is wrapped in TLS from the first byte; 587 and friends open in the
+    // clear and upgrade, which `requireTLS` makes non-optional rather than
+    // best-effort — an SMTP key must never cross the wire unencrypted.
+    secure: e.SMTP_PORT === 465,
+    requireTLS: e.SMTP_PORT !== 465,
+    auth: { user: e.SMTP_USER, pass: e.SMTP_PASSWORD },
+  });
+  return transport;
+}
+
+async function sendViaSmtp(mail: Mail, from: string): Promise<boolean> {
+  try {
+    const sender = await smtpTransport();
+    await sender.sendMail({ from, to: mail.to, subject: mail.subject, text: mail.text });
+    return true;
+  } catch (error) {
+    /*
+     * The transport is dropped on failure. A pooled connection that has gone
+     * bad — the relay restarted, the key was revoked — stays bad for every
+     * later send if it is kept, and rebuilding one is cheap next to never
+     * delivering again until the process restarts.
+     */
+    transport = null;
+    console.error('[email] smtp send failed', error);
+    return false;
+  }
 }
 
 export async function sendEmail(mail: Mail): Promise<boolean> {
@@ -47,6 +100,8 @@ export async function sendEmail(mail: Mail): Promise<boolean> {
     );
     return true;
   }
+
+  if (e.SMTP_HOST.length > 0) return sendViaSmtp(mail, e.EMAIL_FROM);
 
   try {
     const response = await fetch('https://api.resend.com/emails', {

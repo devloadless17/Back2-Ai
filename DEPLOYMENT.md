@@ -124,8 +124,12 @@ of Caddy quietly serving only one of them.
 | `S3_REGION` | | `auto` |
 | `S3_BUCKET` | | `back-ai-production` |
 | `S3_ACCESS_KEY_ID` / `S3_SECRET_ACCESS_KEY` | R2 API token | Cloudflare → R2 → Manage API Tokens → **Object Read & Write**, scoped to the bucket |
-| `RESEND_API_KEY` | Optional — unset means mail is only written to the log | resend.com |
-| `EMAIL_FROM` | Optional but see below | `Bac II <no-reply@backai.loadless.site>` |
+| `SMTP_HOST` | Mail backend #1, and the switch — set, everything goes over SMTP | `smtp-relay.brevo.com` |
+| `SMTP_PORT` | Optional, defaults `587` | `587` (STARTTLS) or `465` (TLS from the first byte) |
+| `SMTP_USER` | The relay **login**, not the from-address | Brevo → SMTP & API → SMTP: `xxxxxxxxx@smtp-brevo.com` |
+| `SMTP_PASSWORD` | An **SMTP key** (`xsmtpsib-…`), not the `xkeysib-…` API key | Brevo → SMTP & API → SMTP keys → Generate |
+| `RESEND_API_KEY` | Mail backend #2, used only when `SMTP_HOST` is empty | resend.com |
+| `EMAIL_FROM` | Required — must be a sender the provider has verified | `BackAi <no-reply-backai@loadless.online>` |
 | `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | Web push | `npx web-push generate-vapid-keys` |
 | `VAPID_SUBJECT` | Optional | `mailto:dev@loadless.ai` |
 | `DEFAULT_LOCALE` | Optional, `fr` \| `en` \| `ar` | `en` |
@@ -150,9 +154,16 @@ is how a trailing slash or a missing scheme reaches production.
    it has no escape inside single quotes, and it expands `$VAR` in unquoted values,
    silently truncating a secret at the first `$`. The workflow rejects apostrophes rather
    than trying to escape them. `openssl rand -hex` and `-base64` both avoid these.
-4. **`EMAIL_FROM` unset means `onboarding@resend.dev`** — Resend's shared sandbox domain,
-   which only delivers to the account owner. Every other recipient silently gets nothing,
-   including password resets. Set it to an address on a domain verified in Resend.
+4. **Mail is not optional, and its failure mode is silent.** `emailVerifiedAt` is the
+   login gate, and with no backend configured `sendEmail()` writes the confirmation to
+   the server log and reports success — so signup keeps working and every account it
+   creates is one nobody can ever log into. The workflow therefore refuses to deploy
+   without either `SMTP_HOST` + `SMTP_USER` + `SMTP_PASSWORD` or `RESEND_API_KEY`, and
+   without `EMAIL_FROM`. Two further traps inside that one: the SMTP **login is not the
+   from-address** (Brevo's is `xxxxxxxxx@smtp-brevo.com`), and an `EMAIL_FROM` the
+   provider has not verified is rejected by the relay — or, on Resend's unset default
+   `onboarding@resend.dev`, delivered only to the account owner while every other
+   recipient silently gets nothing.
 
 ---
 

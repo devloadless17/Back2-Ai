@@ -82,12 +82,27 @@ const schema = z.object({
   APP_URL: z.string().default('http://localhost:3000'),
 
   /*
-   * Mail. Both optional on purpose: with no key, `sendEmail` logs the message
-   * and reports success, so confirming an address or resetting a password works
-   * end to end on a laptop with no mail account. A deployment that never sets
-   * these still runs; it just never delivers.
+   * Mail. All of it optional on purpose: with no backend configured,
+   * `sendEmail` logs the message and reports success, so confirming an address
+   * or resetting a password works end to end on a laptop with no mail account.
+   * A deployment that never sets these still runs; it just never delivers.
    */
   RESEND_API_KEY: z.string().default(''),
+  /*
+   * SMTP, tried before Resend when a host is set.
+   *
+   * Two backends rather than one because the credential decides: a Brevo SMTP
+   * key (`xsmtpsib-…`) only speaks SMTP, and Brevo's HTTP API wants a different
+   * key entirely. Whichever of the two a deployment holds, it can send.
+   *
+   * SMTP_HOST is the switch. The port implies the encryption — 465 is TLS from
+   * the first byte, anything else (587, the usual) starts plain and upgrades
+   * with STARTTLS — so there is no separate boolean to get wrong.
+   */
+  SMTP_HOST: z.string().default(''),
+  SMTP_PORT: z.coerce.number().int().positive().default(587),
+  SMTP_USER: z.string().default(''),
+  SMTP_PASSWORD: z.string().default(''),
   EMAIL_FROM: z.string().default('Bac II <onboarding@resend.dev>'),
 
   /*
