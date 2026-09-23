@@ -740,13 +740,32 @@ export function ChatThread({
                     </button>
                   </div>
 
+                  {/*
+                    THE TRANSCRIPTION IS FOLDED AWAY, NOT DELETED.
+
+                    It used to sit open in the composer, so attaching a photo
+                    filled the box with OCR output the student had not asked to
+                    read and had to scroll past to type. What they want to see
+                    at that moment is that the photo arrived.
+
+                    It is still one press away, because it is the only thing
+                    standing between a misread exponent and a confident answer
+                    to a question nobody asked. `<details>` rather than state:
+                    the summary is focusable and announced as a disclosure for
+                    free, and the choice survives a re-render.
+                  */}
                   {transcription !== null ? (
-                    <Textarea
-                      value={transcription}
-                      onChange={(event) => setTranscription(event.target.value)}
-                      rows={3}
-                      className="text-meta"
-                    />
+                    <details className="group">
+                      <summary className="cursor-pointer list-none text-caption text-ink-muted marker:hidden hover:text-ink">
+                        {t.upload.showTranscription}
+                      </summary>
+                      <Textarea
+                        value={transcription}
+                        onChange={(event) => setTranscription(event.target.value)}
+                        rows={3}
+                        className="mt-1.5 text-meta"
+                      />
+                    </details>
                   ) : null}
 
                   {illegible ? (
@@ -769,6 +788,29 @@ export function ChatThread({
             <Textarea
               value={input}
               onChange={(event) => setInput(event.target.value)}
+              /*
+               * A COPIED IMAGE IS A PHOTO.
+               *
+               * Screenshotting a question and pressing Ctrl+V is how anybody
+               * on a laptop moves a picture, and it did nothing here — the
+               * clipboard image was dropped and the student was left looking
+               * for a file to choose that they never saved.
+               *
+               * Only the first image, and only when the clipboard actually
+               * carries one: a paste of ordinary text, or of text copied from
+               * a rich editor that also puts an image flavour on the
+               * clipboard, must still paste as text. The event is only
+               * intercepted once a real image file is in hand.
+               */
+              onPaste={(event) => {
+                if (attaching || streaming || disabled) return;
+                const file = Array.from(event.clipboardData?.files ?? []).find((f) =>
+                  f.type.startsWith('image/'),
+                );
+                if (!file) return;
+                event.preventDefault();
+                void attach(file, 'photo');
+              }}
               onKeyDown={(event) => {
                 // Enter sends; Shift+Enter is a newline. Students paste
                 // multi-line working in here.
