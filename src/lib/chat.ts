@@ -571,6 +571,14 @@ export type ChatTurnInput = {
   userId: string;
   sessionId: string;
   question: string;
+  /**
+   * The photo the question was asked about, as a storage key.
+   *
+   * Kept on the user's own message so the conversation still shows what the
+   * tutor was looking at when the student reads it back. The model is given
+   * the transcription, as before; this is for the student.
+   */
+  imageKey?: string | null;
   /** Subject scope, derived server-side from the student's locked track. */
   subjectIds: string[];
   /** The locked track itself, for the lanes that read the student's own record. */
@@ -643,7 +651,12 @@ function formatAttempt(attempt: AnchorAttempt): string {
  */
 export async function* runChatTurn(input: ChatTurnInput): AsyncGenerator<ChatEvent> {
   await db.chatMessage.create({
-    data: { sessionId: input.sessionId, role: 'user', content: input.question },
+    data: {
+      sessionId: input.sessionId,
+      role: 'user',
+      content: input.question,
+      imageKey: input.imageKey ?? null,
+    },
   });
   await db.chatSession.update({
     where: { id: input.sessionId },

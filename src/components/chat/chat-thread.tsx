@@ -54,6 +54,14 @@ export type ChatMessageView = {
   sources: EvidenceSource[];
   /** Which refusal, when this message is one. Absent on every other message. */
   refusal?: RefusalKind;
+  /**
+   * The photo this message was asked about, as a storage key.
+   *
+   * Shown beside the student's words rather than replaced by them: a
+   * transcription is what the OCR could read, and the circuit, the graph or
+   * the handwriting it could not is the part the question was usually about.
+   */
+  imageKey?: string | null;
 };
 
 type StreamEvent =
@@ -145,8 +153,42 @@ export function ChatThread({
   const [attaching, setAttaching] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
   const [transcription, setTranscription] = useState<string | null>(null);
+  /*
+   * The stored key of the clipped photo, kept past the preview.
+   *
+   * `preview` is an object URL for the file on this device and dies with the
+   * tab; this is what the message keeps, so the picture is still in the
+   * conversation tomorrow and on the student's other phone.
+   */
+  const [imageKey, setImageKey] = useState<string | null>(null);
   const [illegible, setIllegible] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
+
+  /*
+   * THE COMPOSER SITS ON TOP OF THE ANSWER'S LAST LINES.
+   *
+   * It is `sticky bottom-4`, so it floats over the thread while the student
+   * scrolls — which is what it is for. But `scrollIntoView({ block: 'end' })`
+   * puts the end of the conversation at the very bottom of the viewport, which
+   * is exactly where the composer is: every answer ended underneath the box a
+   * student types into, on the phone and on the desktop both.
+   *
+   * Measured rather than guessed. The composer is one line tall normally,
+   * three or four when a photo is clipped to it with a transcription to edit,
+   * and a constant would be wrong in one of those states.
+   */
+  const composerRef = useRef<HTMLFormElement>(null);
+  const [composerHeight, setComposerHeight] = useState(0);
+
+  useEffect(() => {
+    const element = composerRef.current;
+    if (!element || typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(([entry]) => {
+      if (entry) setComposerHeight(entry.contentRect.height);
+    });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
 
   /*
    * FOLLOW THE ANSWER ONLY IF THE STUDENT IS STILL AT THE BOTTOM.
@@ -212,8 +254,10 @@ export function ChatThread({
         extractedText: string;
         hasIllegibleRegions: boolean;
         previewOnly?: boolean;
+        imageKey?: string | null;
       }>('/api/upload', form);
       setTranscription(response.extractedText);
+      setImageKey(kind === 'photo' ? (response.imageKey ?? null) : null);
       setIllegible(response.hasIllegibleRegions);
       /*
        * A long document is stored whole and searched; only an opening goes in
@@ -252,6 +296,7 @@ export function ChatThread({
   function clearAttachment() {
     if (preview) URL.revokeObjectURL(preview);
     setPreview(null);
+    setImageKey(null);
     setAttachedName(null);
     setStoredWhole(false);
     setTranscription(null);
@@ -283,9 +328,12 @@ export function ChatThread({
       .slice(0, 4000);
     if (!question || streaming || disabled) return;
 
+    // Read before `clearAttachment` empties it, and passed explicitly: `ask`
+    // is also the retry path, which has no composer state to read.
+    const attachedImage = imageKey;
     setInput('');
     clearAttachment();
-    await ask(question);
+    await ask(question, attachedImage);
   }
 
   /*
@@ -296,7 +344,7 @@ export function ChatThread({
    * the request. A retry has no composer state to read; it has a question it
    * was already given.
    */
-  async function ask(question: string) {
+  async function ask(question: string, attachedImage: string | null = null) {
     setError(null);
     setLastQuestion(question);
     setStreaming(true);
@@ -305,7 +353,7 @@ export function ChatThread({
 
     setMessages((current) => [
       ...current,
-      { id: `${pendingId}-user`, role: 'user', content: question, tier: null, sources: [] },
+      { id: `${pendingId}-user`, role: 'user', content: question, tier: null, sources: [], imageKey: attachedImage },
       { id: pendingId, role: 'assistant', content: '', tier: null, sources: [] },
     ]);
 
@@ -313,7 +361,7 @@ export function ChatThread({
       const response = await fetch('/api/chat/messages', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ sessionId, content: question }),
+        body: JSON.stringify({ sessionId, content: question, imageKey: attachedImage }),
       });
 
       if (!response.ok || !response.body) {
@@ -418,7 +466,15 @@ export function ChatThread({
         {messages.map((message) =>
           message.role === 'user' ? (
             <div key={message.id} className="flex justify-end">
-              <div className="max-w-[85%] rounded-lg rounded-ee-sm bg-primary-soft px-4 py-2.5">
+              <div className="max-w-[85%] space-y-2 rounded-lg rounded-ee-sm bg-primary-soft px-4 py-2.5">
+                {message.imageKey && (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img
+                    src={`/api/files/${message.imageKey}`}
+                    alt={t.upload.extracted}
+                    className="max-h-64 w-auto rounded border border-rule bg-paper"
+                  />
+                )}
                 {/*
                   THE STUDENT'S OWN MESSAGE IS RENDERED AS MATHS TOO.
 
@@ -549,7 +605,11 @@ export function ChatThread({
           ),
         )}
 
-        <div ref={endRef} />
+        {/* `scroll-margin-bottom`, not padding: it keeps the last lines clear
+            of the composer when anything scrolls to the end, without opening a
+            gap above the composer in a short conversation. The 1rem matches
+            the composer's own `bottom-4`. */}
+        <div ref={endRef} style={{ scrollMarginBottom: composerHeight + 16 }} />
       </div>
 
       {/*
@@ -577,7 +637,7 @@ export function ChatThread({
       */}
       {error && <TechnicalError message={error} onRetry={retry ?? undefined} />}
 
-      <form onSubmit={send} className="sticky bottom-4 space-y-2">
+      <form ref={composerRef} onSubmit={send} className="sticky bottom-4 space-y-2">
         <Sheet>
           <SheetBody className="space-y-2 p-3">
             {/*

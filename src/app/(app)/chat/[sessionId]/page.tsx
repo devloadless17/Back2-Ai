@@ -53,6 +53,7 @@ export default async function ChatSessionPage({
           content: true,
           groundingTier: true,
           citedSourceIds: true,
+          imageKey: true,
           createdAt: true,
         },
         orderBy: { createdAt: 'asc' },
@@ -97,6 +98,7 @@ export default async function ChatSessionPage({
     role: message.role,
     content: message.content,
     tier: message.groundingTier,
+    imageKey: message.imageKey,
     // A cited row that has since been re-ingested or deleted simply does not
     // come back; the answer shows fewer sources rather than a broken one.
     sources: message.citedSourceIds

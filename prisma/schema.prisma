@@ -1130,6 +1130,15 @@ model ChatMessage {
   sessionId      String         @map("session_id") @db.Uuid
   role           ChatRole
   content        String
+  /// The photo or page this message was asked about, as a storage key.
+  ///
+  /// The transcription is not a replacement for the picture. Handwriting,
+  /// circuit diagrams, a graph with its axes labelled — OCR returns words and
+  /// loses the thing the student was pointing at, and a student rereading the
+  /// conversation has no way to check what the tutor was shown. The column is
+  /// on the MESSAGE rather than the session because a thread accumulates
+  /// several photos and each question is about its own.
+  imageKey       String?        @map("image_key")
   /// Null on user messages. Always set on assistant messages — an assistant
   /// message with no tier means the pipeline was bypassed, which is a bug.
   groundingTier  GroundingTier? @map("grounding_tier")

@@ -17,6 +17,7 @@ import { db } from '@/lib/db';
 import { isAiConfigured, isEmbeddingConfigured } from '@/lib/env';
 import { parseBareme } from '@/lib/grading';
 import { subjectIdsForStudent } from '@/lib/queries/taxonomy';
+import { ownerFromKey } from '@/lib/storage';
 
 /**
  * One chat turn, streamed.
@@ -33,6 +34,14 @@ import { subjectIdsForStudent } from '@/lib/queries/taxonomy';
 const bodySchema = z.object({
   sessionId: z.string().uuid(),
   content: z.string().trim().min(1).max(4000),
+  /*
+   * The photo this question is about, if one was clipped to it.
+   *
+   * A key, never a URL: the client is telling the server which stored object it
+   * just uploaded, and the ownership check below decides whether it may. The
+   * upload route returned it moments earlier.
+   */
+  imageKey: z.string().max(400).optional().nullable(),
 });
 
 /**
@@ -69,6 +78,18 @@ export const POST = route(async (request) => {
   if (budget.exhausted) return fail(402, 'AI_BUDGET_EXHAUSTED');
 
   const body = await parseBody(request, bodySchema);
+
+  /*
+   * A key the student does not own is dropped, not refused.
+   *
+   * The same check `/api/files` makes before serving bytes, made here before
+   * the key is written down: a message row pointing at someone else's upload
+   * would render as their photograph inside this conversation. Dropping it
+   * rather than failing the request keeps the question answerable — the text
+   * is the question, the picture is evidence beside it.
+   */
+  const imageKey =
+    body.imageKey && ownerFromKey(body.imageKey) === user.id ? body.imageKey : null;
 
   const session = await db.chatSession.findFirst({
     where: { id: body.sessionId, userId: user.id },
@@ -152,6 +173,7 @@ export const POST = route(async (request) => {
           userId: user.id,
           sessionId: session.id,
           question: body.content,
+          imageKey,
           subjectIds,
           trackId: user.trackId,
           locale: user.preferredLanguage,
