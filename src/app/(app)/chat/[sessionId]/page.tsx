@@ -84,6 +84,20 @@ export default async function ChatSessionPage({
     : [];
 
   /*
+   * "Explain this" on a chapter or subject page has no question to anchor to
+   * — only the label the dock was showing, carried here as the session's
+   * title (see `useTutorSession`). Asking on the student's behalf, with that
+   * exact label, is what makes the anchor actually mean something: without
+   * it the student who tapped "Explain this" under "Looking at: Organic
+   * Chemistry" landed on the same empty box as a student who opened `/chat`
+   * cold, and had to type the chapter's name back in themselves to get it.
+   */
+  const autoPrompt =
+    configured && session.messages.length === 0 && !session.question && session.subjectId && session.title
+      ? format(t.chat.autoExplainPrompt, { label: session.title })
+      : null;
+
+  /*
    * Provenance for answers written before this page load.
    *
    * Evidence arrives on the `meta` event, which covers the answer being
@@ -220,6 +234,7 @@ export default async function ChatSessionPage({
         sessionId={session.id}
         initialMessages={messages}
         disabled={!configured}
+        autoPrompt={autoPrompt}
         subject={
           session.subject
             ? { name: session.subject.name, language: String(session.subject.language) }

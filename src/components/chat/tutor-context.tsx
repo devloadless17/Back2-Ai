@@ -26,6 +26,15 @@ export type TutorPageContext = {
   label: string;
   questionId?: string;
   attemptId?: string;
+  /**
+   * The subject this page belongs to, for pages that have nothing finer to
+   * anchor on — a chapter or a subject index carries no question or attempt,
+   * but does not mean nothing. Without it, "Explain this" on those pages had
+   * only `{}` to open a session with: the label shown on the closed dock
+   * ("Looking at: Organic Chemistry") vanished the moment the panel's own
+   * chip was pressed, and the student landed on a blank, unscoped chat.
+   */
+  subjectId?: string;
 };
 
 type Store = {
@@ -53,13 +62,13 @@ export function useTutorContext(): TutorPageContext | null {
  * it on every render — which would loop, since publishing sets state in a
  * provider above.
  */
-export function TutorAnchor({ label, questionId, attemptId }: TutorPageContext) {
+export function TutorAnchor({ label, questionId, attemptId, subjectId }: TutorPageContext) {
   const { publish } = useContext(TutorContextStore);
 
   useEffect(() => {
-    publish({ label, questionId, attemptId });
+    publish({ label, questionId, attemptId, subjectId });
     return () => publish(null);
-  }, [publish, label, questionId, attemptId]);
+  }, [publish, label, questionId, attemptId, subjectId]);
 
   return null;
 }

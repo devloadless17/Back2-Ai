@@ -670,6 +670,7 @@ export const fr: Dictionary = {
     dockContext: 'En cours : {label}',
     dockNoContext: 'Rien à regarder sur cet écran — pose-moi ce que tu veux.',
     dockChipExplain: 'Explique-moi',
+    autoExplainPrompt: 'Explique-moi {label}',
     dockChipQuiz: 'Interroge-moi',
     dockChipFlashcards: 'Cartes',
     dockChipPlan: 'Ajuster mon plan',

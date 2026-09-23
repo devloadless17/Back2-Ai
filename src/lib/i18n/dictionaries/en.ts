@@ -693,6 +693,14 @@ export const en = {
     dockContext: 'Looking at: {label}',
     dockNoContext: 'Nothing on this screen to look at — ask me anything you like.',
     dockChipExplain: 'Explain this',
+    /**
+     * Sent as the student's own first message when "Explain this" opens on a
+     * chapter or subject rather than a specific question — there is no
+     * question text to anchor on, only the label the dock was already
+     * showing, so the app asks with it instead of landing the student on a
+     * blank box and making them type the chapter name themselves.
+     */
+    autoExplainPrompt: 'Explain {label}',
     dockChipQuiz: 'Quiz me',
     dockChipFlashcards: 'Flashcards',
     dockChipPlan: 'Adjust my plan',

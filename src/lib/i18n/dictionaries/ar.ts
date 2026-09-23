@@ -685,6 +685,7 @@ export const ar: Dictionary = {
     dockContext: 'أمامك: {label}',
     dockNoContext: 'لا شيء على هذه الشاشة لأنظر إليه — اسألني ما تشاء.',
     dockChipExplain: 'اشرح لي هذا',
+    autoExplainPrompt: 'اشرح لي {label}',
     dockChipQuiz: 'اختبرني',
     dockChipFlashcards: 'البطاقات',
     dockChipPlan: 'عدّل خطتي',

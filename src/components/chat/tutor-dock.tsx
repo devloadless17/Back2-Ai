@@ -40,6 +40,8 @@ export type TutorDockContext = {
   label: string;
   questionId?: string;
   attemptId?: string;
+  /** See `TutorPageContext` in `tutor-context.tsx` — same field, same reason. */
+  subjectId?: string;
 };
 
 export function TutorDock({
@@ -136,7 +138,8 @@ export function TutorDock({
   // hook order between renders and React throws.
   if (pathname?.startsWith('/chat')) return null;
 
-  const anchor = context?.questionId || context?.attemptId ? context : undefined;
+  const anchor =
+    context?.questionId || context?.attemptId || context?.subjectId ? context : undefined;
 
   /*
    * Three states, each of them a fact rather than a flourish: a request is in

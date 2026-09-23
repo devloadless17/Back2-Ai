@@ -46,7 +46,7 @@ export default async function ChapterSummaryPage({
 
   return (
     <>
-      <TutorAnchor label={chapter.name} />
+      <TutorAnchor label={chapter.name} subjectId={chapter.subject.id} />
 
       <BackLink href={`/summaries/${chapter.subject.id}`} label={chapter.subject.name} />
 

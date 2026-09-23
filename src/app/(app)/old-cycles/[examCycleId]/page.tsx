@@ -104,7 +104,7 @@ export default async function ExamCyclePage({
 
   return (
     <>
-      <TutorAnchor label={cycle.title} />
+      <TutorAnchor label={cycle.title} subjectId={cycle.subject.id} />
       <BackLink href="/old-cycles" label={t.nav.oldCycles} />
 
       {/*

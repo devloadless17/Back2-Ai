@@ -67,7 +67,7 @@ export default async function SubjectChaptersPage({
         index belongs under the things it indexes rather than in place of them.
       */}
       {/* So the tutor knows which subject the student is standing in. */}
-      <TutorAnchor label={subject.name} />
+      <TutorAnchor label={subject.name} subjectId={subject.id} />
       {/*
         Up to the dashboard, not across to the subject list.
         

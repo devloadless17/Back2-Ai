@@ -102,6 +102,7 @@ export function ChatThread({
   initialMessages,
   disabled,
   subject,
+  autoPrompt,
 }: {
   sessionId: string;
   initialMessages: ChatMessageView[];
@@ -113,6 +114,14 @@ export function ChatThread({
    * scope. It is not an error and must not read as a missing value.
    */
   subject?: { name: string; language: string } | null;
+  /**
+   * Asked automatically, once, on a session that opened anchored to a chapter
+   * or subject rather than a question — see `chat/[sessionId]/page.tsx`. Null
+   * on every other session, including this same one after its first message
+   * exists, so there is nothing here to reset or guard against re-sending on
+   * a later visit.
+   */
+  autoPrompt?: string | null;
 }) {
   const { t } = useI18n();
 
@@ -218,6 +227,28 @@ export function ChatThread({
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
+
+  /*
+   * "EXPLAIN THIS" ON A CHAPTER ASKS ITSELF.
+   *
+   * `autoPrompt` is only ever set on a fresh, unanchored-to-a-question session
+   * that opened with a subject and a label — see `chat/[sessionId]/page.tsx`.
+   * Firing it here, once, is what carries "Looking at: Organic Chemistry"
+   * from the dock into an actual question, so the student who tapped one chip
+   * gets an answer about that chapter rather than a blank composer asking
+   * them to type its name back in.
+   *
+   * The ref guards against React 18 Strict Mode's double-invoke in
+   * development, which would otherwise open the same conversation with the
+   * same question asked twice.
+   */
+  const autoAsked = useRef(false);
+  useEffect(() => {
+    if (!autoPrompt || autoAsked.current || disabled) return;
+    autoAsked.current = true;
+    void ask(autoPrompt);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoPrompt]);
 
   useEffect(() => {
     if (!following) return;

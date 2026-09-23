@@ -146,7 +146,7 @@ export default async function ChapterPracticePage({
 
   return (
     <>
-      <TutorAnchor label={chapter.name} />
+      <TutorAnchor label={chapter.name} subjectId={chapter.subject.id} />
       <BackLink href={`/practice/${chapter.subject.id}`} label={chapter.subject.name} />
 
       <PageHeader

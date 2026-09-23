@@ -133,7 +133,7 @@ export default async function ExamResultsPage({
     <>
       {/* The paper's own direction. The sitting already carried
           `subjects.language`; only the rendering ignored it. */}
-      <TutorAnchor label={simulation.subject.name} />
+      <TutorAnchor label={simulation.subject.name} subjectId={simulation.subject.id} />
 
       <BackLink href="/exam-sim" label={t.nav.examSim} />
 
