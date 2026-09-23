@@ -23,7 +23,7 @@ import type { QuestionKind } from '@/lib/question-kind';
 import { getNextUp } from '@/lib/queries/next-up';
 import { getProgressForUser, rankChapters } from '@/lib/queries/progress';
 import { getSidebarStanding } from '@/lib/queries/standing';
-import { verifyAgainstContext } from '@/lib/verification';
+import { shouldRetract, verifyAgainstContext } from '@/lib/verification';
 import { formatFigureManifest, loadSourceFigures, loadUploadedImage } from '@/lib/figures';
 
 /**
@@ -1051,6 +1051,36 @@ export async function* runChatTurn(input: ChatTurnInput): AsyncGenerator<ChatEve
 
   if (verdict.supported) {
     yield { type: 'done', messageId: message.id, verified: true };
+    return;
+  }
+
+  /*
+   * A CHECKER THAT COULD NOT RUN HAS NOT FOUND ANYTHING WRONG.
+   *
+   * `inconclusive` means the verification call itself failed — a provider
+   * error, or its output ceiling reached mid-thought — not that a claim went
+   * unsupported. Treating the two alike withdrew a correct answer from a
+   * student's screen and told them it could not be verified against the
+   * curriculum, which is a statement about their textbook that nobody had
+   * checked. It happened on 23 September to a physics derivation the student
+   * had taken from the book.
+   *
+   * So the answer stays, flagged for review rather than retracted. This is
+   * what `photo-qa.ts` already does with the same verdict; the two paths now
+   * agree. The student keeps the answer, an administrator sees that it went
+   * out unverified, and no claim is made either way.
+   */
+  if (!shouldRetract(verdict)) {
+    console.error(`[chat] verification inconclusive, answer kept: ${verdict.notes}`);
+    await db.reviewQueueItem.create({
+      data: {
+        itemType: 'flagged_content',
+        itemId: message.id,
+        flagReason: `Verification could not run (${verdict.notes}). The answer was shown to the student unverified.`,
+        flaggedByUserId: null,
+      },
+    });
+    yield { type: 'done', messageId: message.id, verified: false };
     return;
   }
 

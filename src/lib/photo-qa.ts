@@ -6,7 +6,7 @@ import { ai, type AiImage } from '@/lib/ai';
 import { isAiConfigured } from '@/lib/env';
 import { transcribeImage } from '@/lib/ocr';
 import { retrieveGrounding } from '@/lib/retrieval';
-import { verifyAgainstContext } from '@/lib/verification';
+import { shouldRetract, verifyAgainstContext } from '@/lib/verification';
 
 /**
  * "I'm stuck on this" — a photographed problem, answered from the programme.
@@ -200,7 +200,7 @@ export async function answerPhotoQuestion(input: PhotoQaInput): Promise<PhotoAns
       answer: response.data.answer,
       context: grounding.context,
     });
-    if (!verdict.supported && verdict.severity === 'major' && !verdict.inconclusive) {
+    if (shouldRetract(verdict)) {
       return {
         ...blank,
         transcription,

@@ -81,6 +81,22 @@ const SYSTEM = [
   'notes: one sentence summarising the verdict.',
 ].join('\n');
 
+/**
+ * Does this verdict justify taking an answer off the student's screen?
+ *
+ * Only a verdict that actually found something. `inconclusive` means the check
+ * never ran — a provider error, or its ceiling reached mid-thought — and a
+ * checker that could not run has not found anything wrong. Withdrawing on it
+ * tells a student their own textbook could not be verified, which is a claim
+ * nobody made.
+ *
+ * One function because two callers were deciding this separately and only one
+ * of them was right: `photo-qa.ts` kept the answer, chat withdrew it.
+ */
+export function shouldRetract(verdict: VerificationVerdict): boolean {
+  return !verdict.supported && !verdict.inconclusive;
+}
+
 export async function verifyAgainstContext(input: VerificationInput): Promise<VerificationVerdict> {
   if (input.context.trim().length === 0) {
     return {
@@ -115,7 +131,19 @@ export async function verifyAgainstContext(input: VerificationInput): Promise<Ve
       schema: VERDICT_SCHEMA as unknown as Record<string, unknown>,
       schemaName: 'grounding_verification',
       effort: 'high',
-      maxTokens: 4000,
+      /*
+       * ROOM TO THINK, OR THE CHECK FAILS ON THE LONGEST ANSWERS.
+       *
+       * `effort: 'high'` spends output tokens reasoning before the verdict
+       * JSON, and this ceiling covers both. At 4,000 a multi-part derivation —
+       * an RLC circuit carried through impedance, resonance and average power —
+       * ran out mid-thought, the provider raised "cut off before it was
+       * complete", and a correct answer was withdrawn from a student's screen
+       * because the CHECKER could not finish. The verdict itself is a few dozen
+       * tokens; the ceiling is for the thinking in front of it, and is billed
+       * only for what is used.
+       */
+      maxTokens: 16000,
       model: provider.verifyModel,
       parse: (value) => verdictResponseSchema.parse(value),
     });
