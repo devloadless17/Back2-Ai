@@ -1,7 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
-import { FirstSteps } from '@/components/dashboard/first-steps';
 import { SplitHero } from '@/components/dashboard/split-hero';
 import { streakFrom, type SubjectRing } from '@/components/dashboard/subject-rings';
 import { WelcomeHero } from '@/components/dashboard/welcome-hero';
@@ -21,7 +20,6 @@ import { db } from '@/lib/db';
 import { getTranslations } from '@/lib/i18n';
 import { daysUntil, format, formatDate } from '@/lib/i18n/format';
 import { attemptsByDay, weeklyEffort } from '@/lib/queries/activity';
-import { getFirstSteps } from '@/lib/queries/first-steps';
 import { recurringLosses } from '@/lib/queries/recurring-losses';
 import { getNextUp } from '@/lib/queries/next-up';
 import { nextMoveReason } from '@/lib/queries/next-move';
@@ -63,7 +61,6 @@ export default async function DashboardPage() {
     nextUp,
     todaySessions,
     week,
-    firstSteps,
     losses,
   ] = await Promise.all([
     getProgressForUser(user.id, user.trackId, user.preferredLanguage),
@@ -126,7 +123,6 @@ export default async function DashboardPage() {
     }),
     // The last seven days, for the hero's three figures.
     weeklyEffort(user.id),
-    getFirstSteps(user.id),
     /*
      * A plain read of what is already stored — no model call. The dashboard
      * must never wait on one, and this is the card a student is most likely to
@@ -264,13 +260,6 @@ export default async function DashboardPage() {
 
   return (
     <>
-      {/*
-        Above the hero, not below it. Every number on this page is zero for a
-        student who has just signed up, and a card explaining what to do sits
-        badly underneath the empty rings it is there to fill.
-      */}
-      <FirstSteps steps={firstSteps} />
-
       <WelcomeHero
         firstName={user.displayName?.split(' ')[0] ?? ''}
         sessionCount={todaySessions.filter((s) => s.status === 'planned').length}

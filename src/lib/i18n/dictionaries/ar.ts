@@ -759,16 +759,6 @@ export const ar: Dictionary = {
     },
   },
 
-  firstSteps: {
-    title: 'ثلاثة أمور جرّبها',
-    subtitle: 'بقي {n}. كلّ واحد يستغرق دقيقة ويملأ هذه الصفحة بشيء حقيقي.',
-    askTitle: 'اسأل المعلّم سؤالاً',
-    askNote: 'أيّ شيء من منهجك — يجيب من كتبك أنت.',
-    practiceTitle: 'أجب عن تمرين واحد',
-    practiceNote: 'من دورة سابقة، ويُصحَّح وفق سلّم التصحيح الرسمي.',
-    cardTitle: 'راجع بطاقة',
-    cardNote: 'تأتي من التمارين التي تحلّها وتعود إليك في وقتها.',
-  },
   upload: {
     attachFile: 'ملف',
     attachedFile: 'مرفق: {name}',

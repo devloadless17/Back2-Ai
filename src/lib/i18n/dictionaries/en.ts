@@ -760,16 +760,6 @@ export const en = {
     },
   },
 
-  firstSteps: {
-    title: 'Three things to try',
-    subtitle: '{n} left. Each one takes a minute and puts something real on this page.',
-    askTitle: 'Ask the tutor a question',
-    askNote: 'Anything from your syllabus — it answers from your own textbooks.',
-    practiceTitle: 'Answer one exercise',
-    practiceNote: 'From a past paper, marked against the official barème.',
-    cardTitle: 'Review a flashcard',
-    cardNote: 'They come from the questions you practise, and come back when you need them.',
-  },
   upload: {
     attachFile: 'File',
     attachedFile: 'Attached: {name}',

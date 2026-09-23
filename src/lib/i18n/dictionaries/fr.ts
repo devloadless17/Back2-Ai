@@ -744,16 +744,6 @@ export const fr: Dictionary = {
     },
   },
 
-  firstSteps: {
-    title: 'Trois choses à essayer',
-    subtitle: 'Il en reste {n}. Chacune prend une minute et remplit cette page.',
-    askTitle: 'Posez une question au tuteur',
-    askNote: 'Sur votre programme — il répond à partir de vos propres manuels.',
-    practiceTitle: 'Répondez à un exercice',
-    practiceNote: "D'une épreuve officielle, corrigé selon le barème.",
-    cardTitle: 'Révisez une fiche',
-    cardNote: 'Elles viennent des exercices que vous faites et reviennent au bon moment.',
-  },
   upload: {
     attachFile: 'Fichier',
     attachedFile: 'Joint : {name}',
