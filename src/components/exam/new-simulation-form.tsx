@@ -237,7 +237,22 @@ export function NewSimulationForm({
             size="lg"
             onClick={begin}
             loading={starting}
-            disabled={mode === 'real_cycle' ? !canUseReal || !cycleId : !canUseGenerated}
+            /*
+             * Three modes, three gates. This used to read
+             * `mode === 'real_cycle' ? … : !canUseGenerated` — written when
+             * there were only two modes, and never updated when `real_mixed`
+             * was added as a third. `real_mixed` fell into the `else` branch
+             * and was gated on `canUseGenerated` instead of `canUseMixed`, so
+             * "Begin" stayed disabled for a mock exam whenever the unrelated
+             * AI-generated queue was empty — which is effectively always.
+             */
+            disabled={
+              mode === 'real_cycle'
+                ? !canUseReal || !cycleId
+                : mode === 'real_mixed'
+                  ? !canUseMixed
+                  : !canUseGenerated
+            }
           >
             {t.examSim.begin}
           </Button>
