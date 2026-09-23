@@ -13,11 +13,13 @@ import { ActivityColumns, BarRows, type BarDatum } from '@/components/ui/charts'
 import { Badge, EmptyState } from '@/components/ui/feedback';
 import { Meter } from '@/components/ui/progress';
 import { Sheet, SheetBody, SheetHeader, StatTile } from '@/components/ui/sheet';
+import { inLocale } from '@/lib/announcements';
 import { requireUser } from '@/lib/auth/guards';
 import { cn } from '@/lib/cn';
 import { today, toStoredDate } from '@/lib/calendar';
 import { db } from '@/lib/db';
 import { getTranslations } from '@/lib/i18n';
+import { dirForLanguage } from '@/lib/i18n/config';
 import { daysUntil, format, formatDate } from '@/lib/i18n/format';
 import { attemptsByDay, weeklyEffort } from '@/lib/queries/activity';
 import { recurringLosses } from '@/lib/queries/recurring-losses';
@@ -94,7 +96,18 @@ export default async function DashboardPage() {
           },
         ],
       },
-      select: { id: true, title: true, body: true, createdAt: true },
+      select: {
+        id: true,
+        title: true,
+        body: true,
+        language: true,
+        createdAt: true,
+        // Only this student's language. The others are somebody else's row.
+        translations: {
+          where: { locale: user.preferredLanguage },
+          select: { locale: true, title: true, body: true },
+        },
+      },
       orderBy: { createdAt: 'desc' },
       take: 3,
     }),
@@ -578,17 +591,26 @@ export default async function DashboardPage() {
                 <p className="px-5 py-4 text-sm text-ink-muted">{t.dashboard.announcementsNone}</p>
               ) : (
                 <ul className="ruled">
-                  {announcements.map((announcement) => (
+                  {announcements.map((announcement) => {
+                    /* The student's own language where there is one, the
+                       original where there is not — a notice in the wrong
+                       language still has to be readable rather than hidden. */
+                    const shown = inLocale(announcement, user.preferredLanguage);
+                    const dir = dirForLanguage(
+                      shown.translated ? user.preferredLanguage : announcement.language,
+                    );
+                    return (
                     <li key={announcement.id} className="px-5 py-3">
-                      <p className="text-sm font-medium text-ink">{announcement.title}</p>
-                      <p className="mt-0.5 text-meta leading-snug text-ink-muted">
-                        {announcement.body}
+                      <p className="text-sm font-medium text-ink" dir={dir}>{shown.title}</p>
+                      <p className="mt-0.5 text-meta leading-snug text-ink-muted" dir={dir}>
+                        {shown.body}
                       </p>
                       <p className="mt-1 text-caption text-ink-faint">
                         {formatDate(locale, announcement.createdAt)}
                       </p>
                     </li>
-                  ))}
+                    );
+                  })}
                 </ul>
               )}
             </SheetBody>

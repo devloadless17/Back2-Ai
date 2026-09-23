@@ -4,6 +4,7 @@ import { assertSameOrigin, created, fail, ok, parseBody, route, unauthorized } f
 import { AuditAction, recordAudit } from '@/lib/audit';
 import { apiAdmin } from '@/lib/auth/guards';
 import { db } from '@/lib/db';
+import { detectLanguage, translateAnnouncement } from '@/lib/announcements';
 
 /**
  * Announcements.
@@ -107,10 +108,22 @@ export const POST = route(async (request) => {
     return fail(422, 'TARGET_CONFLICT');
   }
 
+  /*
+   * Which language it was written in, read from the text rather than asked for.
+   *
+   * An admin posting a notice is thinking about the notice, not about a
+   * language field, and the answer is in the words they just typed. It is
+   * stored so the translations below know what they are translating FROM, and
+   * so a student reading that language is never shown a translation of it.
+   */
+  const language = detectLanguage(`${body.title}
+${body.body}`);
+
   const announcement = await db.announcement.create({
     data: {
       title: body.title,
       body: body.body,
+      language,
       targetSubjectId: body.targetSubjectId ?? null,
       createdBy: auth.user.id,
       tracks: { createMany: { data: trackIds.map((trackId) => ({ trackId })) } },
@@ -168,7 +181,16 @@ export const POST = route(async (request) => {
     },
   });
 
-  return created({ id: announcement.id, notified: audience.length });
+  /*
+   * Translated before the response, so the first student to open the dashboard
+   * already reads it in their own language. One admin action pays for it once;
+   * doing it on read would pay per student and put a model call in front of a
+   * page load. A failure is logged inside and never fails the post — the
+   * announcement exists, in the language it was written in.
+   */
+  const translated = await translateAnnouncement(announcement.id);
+
+  return created({ id: announcement.id, notified: audience.length, translated });
 });
 
 const deleteSchema = z.object({ id: z.string().uuid() });

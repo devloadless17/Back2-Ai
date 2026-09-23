@@ -318,16 +318,17 @@ async function main() {
     });
   }
 
-  await db.announcement.deleteMany({ where: { title: 'Bienvenue' } });
-  await db.announcement.create({
-    data: {
-      title: 'Bienvenue',
-      body:
-        'Cette instance contient un contenu de démonstration. Le programme officiel sera chargé ' +
-        'par le processus d’ingestion avant la mise en service.',
-      // No track rows: this one is for the whole cohort.
-      targetSubjectId: null,
-    },
+  /*
+   * NO SEEDED ANNOUNCEMENT.
+   *
+   * There was one — "Bienvenue", in French, telling every student the content
+   * was a demonstration. It survived into the live database, where it was
+   * false (the corpus is real) and in a language 8 of the 9 accounts do not
+   * read. An announcement is a message to students; the seed has no business
+   * writing one, and any left over are cleared here.
+   */
+  await db.announcement.deleteMany({
+    where: { title: { in: ['Bienvenue', 'Demonstration account'] } },
   });
 
   console.log('');

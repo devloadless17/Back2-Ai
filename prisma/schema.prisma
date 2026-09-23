@@ -1258,6 +1258,13 @@ model Announcement {
   id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   title           String
   body            String
+  /// The language it was WRITTEN in, read from the text itself at post time.
+  ///
+  /// An announcement is free text an admin typed, and the cohort reads three
+  /// languages: a French notice reached the English students in French, which
+  /// is how a student misses a changed exam date. Stored rather than detected
+  /// on each read so a translation can be matched against it.
+  language        Language @default(en)
   /// Null = all subjects.
   targetSubjectId String?  @map("target_subject_id") @db.Uuid
   createdBy       String?  @map("created_by") @db.Uuid
@@ -1269,6 +1276,7 @@ model Announcement {
   /// two posts drift. Empty is the default because the commonest announcement
   /// is for the whole cohort.
   tracks        AnnouncementTrack[]
+  translations  AnnouncementTranslation[]
   targetSubject Subject?            @relation(fields: [targetSubjectId], references: [id], onDelete: SetNull)
   author        User?               @relation("AnnouncementAuthor", fields: [createdBy], references: [id], onDelete: SetNull)
 
@@ -1283,6 +1291,26 @@ model Announcement {
 /// That is exactly what the old `SetNull` on `target_track_id` did, so this is
 /// not a new hazard; it is worth knowing before anyone deletes a track, which
 /// `db:prune` can do when migrating the retired French branch codes.
+/// One announcement in one other language.
+///
+/// Written when the announcement is posted, not when a student opens the
+/// dashboard: a translation made on read would put a model call in front of a
+/// page load, and the same notice would be translated once per student. A
+/// missing row is not an error — the original is shown, which is what happened
+/// before this table existed.
+model AnnouncementTranslation {
+  announcementId String   @map("announcement_id") @db.Uuid
+  locale         Language
+  title          String
+  body           String
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  announcement Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+
+  @@id([announcementId, locale])
+  @@map("announcement_translations")
+}
+
 model AnnouncementTrack {
   announcementId String @map("announcement_id") @db.Uuid
   trackId        String @map("track_id") @db.Uuid
