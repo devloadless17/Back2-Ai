@@ -50,6 +50,62 @@ function formatScore(value: number): string {
   return Number.isInteger(value) ? String(value) : value.toFixed(1);
 }
 
+/*
+ * A criterion printed as "- idea one. - idea two. - idea three." on one line,
+ * with no newline anywhere in it.
+ *
+ * A philosophy or language barème states its sub-points the same way the
+ * paper does — each on its own line, starting with "-". Extraction keeps that
+ * structure for `content_text` (44 newlines survive on a question in this
+ * corpus) but not always for a `bareme` criterion, which some profiles build
+ * by joining a scheme's lines with a single space rather than a line break.
+ * The paper's own repeated "- " markers are the only structure left in that
+ * case, and this puts them back as an actual list rather than one dense
+ * paragraph a student has to re-parse by eye.
+ *
+ * Two bullets or more, never one: a single incidental " - " — an aside, a
+ * page number, a stray hyphen OCR left behind — is far more common than a
+ * one-item list, so treating it as one would misfire more often than it
+ * helped. Below that threshold the text is shown exactly as stored.
+ */
+const BULLET_SPLIT = /\s-\s+(?=\S)/g;
+
+function criterionParts(text: string): { intro: string; bullets: string[] } {
+  const segments = text
+    .split(BULLET_SPLIT)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (segments.length < 3) return { intro: text, bullets: [] };
+  const [intro, ...bullets] = segments as [string, ...string[]];
+  return { intro, bullets };
+}
+
+function CriterionText({ text, dir }: { text: string; dir?: 'ltr' | 'rtl' }) {
+  const { intro, bullets } = criterionParts(text);
+  const lang = dir === 'rtl' ? 'ar' : undefined;
+
+  if (bullets.length === 0) {
+    return (
+      <p className="break-words text-sm font-medium text-ink" dir={dir} lang={lang}>
+        {text}
+      </p>
+    );
+  }
+
+  return (
+    <div dir={dir} lang={lang}>
+      {intro && <p className="break-words text-sm font-medium text-ink">{intro}</p>}
+      <ul className="mt-1 list-disc space-y-1 ps-5 text-sm text-ink">
+        {bullets.map((bullet, i) => (
+          <li key={i} className="break-words">
+            {bullet}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 function outcomeOf(item: MarkedCriterion): 'earned' | 'partial' | 'lost' {
   if (item.points_awarded >= item.points_possible) return 'earned';
   return item.points_awarded > 0 ? 'partial' : 'lost';
@@ -136,13 +192,7 @@ export function ExaminerMark({
                 <div className="min-w-0 flex-1">
                   {/* The examiner's own wording. Never truncated — it is the
                       thing being marked, and Lebanese criteria run long. */}
-                  <p
-                    className="break-words text-sm font-medium text-ink"
-                    dir={dir}
-                    lang={dir === 'rtl' ? 'ar' : undefined}
-                  >
-                    {item.criterion}
-                  </p>
+                  <CriterionText text={item.criterion} dir={dir} />
 
                   {item.provisional && (
                     <p className="mt-1 text-caption text-partial">{labels.provisional}</p>
