@@ -31,8 +31,17 @@ const nextConfig = {
    * embedding provider is loaded through an opaque specifier precisely so the
    * 69 MB ONNX runtime stays out of every serverless function, and naming the
    * packages here keeps any future static import from quietly undoing that.
+   *
+   * Nodemailer is here for a third reason: it reaches for its own files through
+   * runtime `require`s that webpack cannot resolve statically, and bundling it
+   * produces a transport that throws on the first send rather than at build.
    */
-  serverExternalPackages: ['@prisma/client', '@huggingface/transformers', 'onnxruntime-node'],
+  serverExternalPackages: [
+    '@prisma/client',
+    '@huggingface/transformers',
+    'onnxruntime-node',
+    'nodemailer',
+  ],
   eslint: {
     // Lint is run explicitly in CI; do not couple it to the production build.
     ignoreDuringBuilds: true,
