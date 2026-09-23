@@ -5,7 +5,7 @@ import { Alert, Badge, EmptyAction, EmptyState } from '@/components/ui/feedback'
 import { PageHeader, Sheet, SheetBody, SheetHeader } from '@/components/ui/sheet';
 import { requireUser } from '@/lib/auth/guards';
 import { db } from '@/lib/db';
-import { OWN_EDITION_ONLY, subjectLanguagesFor } from '@/lib/queries/taxonomy';
+import { HAS_LIVE_QUESTIONS, OWN_EDITION_ONLY, subjectLanguagesFor } from '@/lib/queries/taxonomy';
 import { LOCALE_LABELS } from '@/lib/i18n/config';
 import { getTranslations } from '@/lib/i18n';
 import { format } from '@/lib/i18n/format';
@@ -51,6 +51,8 @@ export default async function OldCyclesPage({
       // And only the edition the subject is sat in, so the Arabic-taught
       // papers arrive in Arabic and not in three printings of themselves.
       ...OWN_EDITION_ONLY,
+      // ...and only a paper that still has something readable on it.
+      ...HAS_LIVE_QUESTIONS,
       /*
        * Narrowed when the student arrived from a subject.
        *
@@ -70,7 +72,9 @@ export default async function OldCyclesPage({
       language: true,
       durationMinutes: true,
       subject: { select: { id: true, name: true } },
-      _count: { select: { questions: true } },
+      // Only the questions a student can actually be shown: a count that
+      // included rejected rows promised a paper fuller than it is.
+      _count: { select: { questions: { where: { verifiedStatus: { not: 'rejected' } } } } },
     },
     orderBy: [{ year: 'desc' }, { session: 'asc' }],
   });

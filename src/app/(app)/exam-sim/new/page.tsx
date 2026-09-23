@@ -7,7 +7,7 @@ import { requireUser } from '@/lib/auth/guards';
 import { db } from '@/lib/db';
 import { PUBLISHED_FILTER } from '@/lib/generation';
 import { getTranslations } from '@/lib/i18n';
-import { OWN_EDITION_ONLY, listSubjects, subjectLanguagesFor } from '@/lib/queries/taxonomy';
+import { HAS_LIVE_QUESTIONS, OWN_EDITION_ONLY, listSubjects, subjectLanguagesFor } from '@/lib/queries/taxonomy';
 import { LOCALE_LABELS } from '@/lib/i18n/config';
 
 export const metadata: Metadata = { title: 'New simulation' };
@@ -72,7 +72,9 @@ export default async function NewSimulationPage({
     db.examCycle.findMany({
       where: {
         subjectId: { in: subjectIds },
-        questions: { some: {} },
+        // A rejected question is not a question a candidate can sit, so the
+        // bare `some: {}` this replaced offered papers with nothing on them.
+        ...HAS_LIVE_QUESTIONS,
         language: { in: subjectLanguagesFor(user.preferredLanguage) },
         ...OWN_EDITION_ONLY,
       },
@@ -85,7 +87,9 @@ export default async function NewSimulationPage({
         language: true,
         durationMinutes: true,
         durationIsOfficial: true,
-        _count: { select: { questions: true } },
+        // Only the questions a student can actually be shown: a count that
+      // included rejected rows promised a paper fuller than it is.
+      _count: { select: { questions: { where: { verifiedStatus: { not: 'rejected' } } } } },
       },
       orderBy: [{ year: 'desc' }, { session: 'asc' }],
     }),

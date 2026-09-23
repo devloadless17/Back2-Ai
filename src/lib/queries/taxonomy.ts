@@ -191,6 +191,23 @@ export async function listSubjectsForStudent(
  * `scripts/corpus/prune-translated-exams.ts` rejects those rows. Reverting this
  * decision means reverting both.
  */
+/**
+ * A paper with something left to read on it.
+ *
+ * Rejection is how this product hides a question — a misfiled one, a
+ * translated edition, an "exercise" that was really a marking scheme — and the
+ * paper it sat on stays behind. 26 papers on the live database are in that
+ * state, mostly Arabic philosophy and civics whose text never extracted: a
+ * student picked a real year and session from the list and opened nothing.
+ *
+ * `some` with the rejection filter, not `some: {}`: a paper whose every
+ * question has been rejected has no questions as far as a student is
+ * concerned, and counting the hidden ones is what let those shells through.
+ */
+export const HAS_LIVE_QUESTIONS: Prisma.ExamCycleWhereInput = {
+  questions: { some: { verifiedStatus: { not: 'rejected' } } },
+};
+
 export const OWN_EDITION_ONLY: Prisma.ExamCycleWhereInput = {
   OR: [
     { subject: { language: 'ar' }, language: 'ar' },
