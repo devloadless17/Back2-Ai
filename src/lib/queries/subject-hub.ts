@@ -1,7 +1,7 @@
 import 'server-only';
 
 import { db } from '@/lib/db';
-import { LIVE_CHAPTER, subjectLanguagesFor } from '@/lib/queries/taxonomy';
+import { LIVE_CHAPTER, OWN_EDITION_ONLY, subjectLanguagesFor } from '@/lib/queries/taxonomy';
 import { MIN_ATTEMPTS_FOR_WEAKNESS } from '@/lib/scoring/mastery';
 import { WEAKNESS_MASTERY_CEILING } from '@/lib/queries/flashcards';
 
@@ -67,6 +67,7 @@ export async function getSubjectHub(
         where: {
           subjectId,
           language: { in: subjectLanguagesFor(studyLanguage) },
+          ...OWN_EDITION_ONLY,
           questions: { some: { verifiedStatus: { not: 'rejected' } } },
         },
       }),

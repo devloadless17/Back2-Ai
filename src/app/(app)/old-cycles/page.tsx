@@ -5,7 +5,7 @@ import { Alert, Badge, EmptyAction, EmptyState } from '@/components/ui/feedback'
 import { PageHeader, Sheet, SheetBody, SheetHeader } from '@/components/ui/sheet';
 import { requireUser } from '@/lib/auth/guards';
 import { db } from '@/lib/db';
-import { subjectLanguagesFor } from '@/lib/queries/taxonomy';
+import { OWN_EDITION_ONLY, subjectLanguagesFor } from '@/lib/queries/taxonomy';
 import { LOCALE_LABELS } from '@/lib/i18n/config';
 import { getTranslations } from '@/lib/i18n';
 import { format } from '@/lib/i18n/format';
@@ -48,6 +48,9 @@ export default async function OldCyclesPage({
     where: {
       subject: { trackId: user.trackId ?? undefined },
       language: { in: subjectLanguagesFor(user.preferredLanguage) },
+      // And only the edition the subject is sat in, so the Arabic-taught
+      // papers arrive in Arabic and not in three printings of themselves.
+      ...OWN_EDITION_ONLY,
       /*
        * Narrowed when the student arrived from a subject.
        *

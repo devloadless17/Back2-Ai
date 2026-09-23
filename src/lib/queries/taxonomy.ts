@@ -164,6 +164,41 @@ export async function listSubjectsForStudent(
  * تاريخ. Filtering them out with the French science books would delete half
  * their programme.
  */
+/**
+ * A paper in the edition its subject is actually sat in.
+ *
+ * `subjectLanguagesFor` decides which editions a STUDENT can read; this decides
+ * which editions EXIST. The two are different questions and were conflated for
+ * a while, which is how an English-track student came to be offered "Philosophy
+ * LH 2018" in English beside the Arabic paper they will actually sit.
+ *
+ * The CRDP prints philosophy, sociology and economics in all three languages
+ * and `exam_cycles.language` was added so those printings could be told apart.
+ * They are still told apart — the column stays, the rows stay — but an
+ * Arabic-taught subject is examined in Arabic, so the translations are not part
+ * of anyone's programme and are not offered as practice for one.
+ *
+ * Written as an equality because that is the rule for every subject, not only
+ * the Arabic ones. The sciences already have a subject row per language, so
+ * `Chemistry` is the English course and `Chimie` the French one, and a cycle
+ * under `Chemistry` that says it is French is broken whichever half is wrong.
+ * 44 were. `scripts/corpus/refile-wrong-edition-exams.ts` repaired 35 of them —
+ * mostly a bad language stamp on an English paper, not a French paper in the
+ * wrong course — and the 9 it would not guess at stay here, unoffered.
+ *
+ * Hiding the papers is half of it. The questions on them are filed under Arabic
+ * chapters and would still surface in practice, quizzes and the tutor, so
+ * `scripts/corpus/prune-translated-exams.ts` rejects those rows. Reverting this
+ * decision means reverting both.
+ */
+export const OWN_EDITION_ONLY: Prisma.ExamCycleWhereInput = {
+  OR: [
+    { subject: { language: 'ar' }, language: 'ar' },
+    { subject: { language: 'en' }, language: 'en' },
+    { subject: { language: 'fr' }, language: 'fr' },
+  ],
+};
+
 export function subjectLanguagesFor(language: string): ('en' | 'fr' | 'ar')[] {
   return language === 'ar' ? ['ar'] : [language as 'en' | 'fr', 'ar'];
 }

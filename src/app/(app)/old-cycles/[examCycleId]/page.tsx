@@ -16,6 +16,7 @@ import { db } from '@/lib/db';
 import { getTranslations } from '@/lib/i18n';
 import { format } from '@/lib/i18n/format';
 import { dirForLanguage } from '@/lib/i18n/config';
+import { OWN_EDITION_ONLY } from '@/lib/queries/taxonomy';
 import { visualKeysFor } from '@/lib/visual-evidence';
 
 export const metadata: Metadata = { title: 'Past paper' };
@@ -54,7 +55,20 @@ export default async function ExamCyclePage({
   const { t } = await getTranslations();
 
   const cycle = await db.examCycle.findFirst({
-    where: { id: examCycleId, subject: { trackId: user.trackId ?? undefined } },
+    /*
+     * The track check, and the edition check.
+     *
+     * The list this page is reached from already drops the translated printing
+     * of an Arabic-taught paper, but a URL is not reached only from a list —
+     * an old bookmark or a shared link arrives here directly, and a paper the
+     * product has decided is not part of the programme should 404 rather than
+     * open because someone still had the address.
+     */
+    where: {
+      id: examCycleId,
+      subject: { trackId: user.trackId ?? undefined },
+      ...OWN_EDITION_ONLY,
+    },
     select: {
       id: true,
       title: true,

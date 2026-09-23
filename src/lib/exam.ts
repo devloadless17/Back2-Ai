@@ -17,6 +17,7 @@ import {
 import type { Locale } from '@/lib/i18n/config';
 import { recomputeChapterMastery } from '@/lib/queries/progress';
 import { rescaleBaremes } from '@/lib/rescale-bareme';
+import { OWN_EDITION_ONLY } from '@/lib/queries/taxonomy';
 import { retrieveGrounding } from '@/lib/retrieval';
 
 /**
@@ -299,7 +300,9 @@ async function startFromRealCycle(input: StartInput): Promise<{ id: string }> {
   if (!input.examCycleId) throw new ExamError('NOT_FOUND', 'No paper was chosen.');
 
   const cycle = await db.examCycle.findFirst({
-    where: { id: input.examCycleId, subjectId: input.subjectId },
+    // `OWN_EDITION_ONLY` here too, not only in the picker: this starts a timed
+    // sitting, and the id arrives in a request body.
+    where: { id: input.examCycleId, subjectId: input.subjectId, ...OWN_EDITION_ONLY },
     select: { id: true, durationMinutes: true },
   });
   if (!cycle) throw new ExamError('NOT_FOUND', 'That paper does not exist for this subject.');

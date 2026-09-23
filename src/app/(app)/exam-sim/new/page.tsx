@@ -7,7 +7,7 @@ import { requireUser } from '@/lib/auth/guards';
 import { db } from '@/lib/db';
 import { PUBLISHED_FILTER } from '@/lib/generation';
 import { getTranslations } from '@/lib/i18n';
-import { listSubjects, subjectLanguagesFor } from '@/lib/queries/taxonomy';
+import { OWN_EDITION_ONLY, listSubjects, subjectLanguagesFor } from '@/lib/queries/taxonomy';
 import { LOCALE_LABELS } from '@/lib/i18n/config';
 
 export const metadata: Metadata = { title: 'New simulation' };
@@ -74,6 +74,7 @@ export default async function NewSimulationPage({
         subjectId: { in: subjectIds },
         questions: { some: {} },
         language: { in: subjectLanguagesFor(user.preferredLanguage) },
+        ...OWN_EDITION_ONLY,
       },
       select: {
         id: true,
