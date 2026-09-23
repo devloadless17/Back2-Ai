@@ -121,11 +121,15 @@ const ASSEMBLED_PAPER_MINUTES = 120;
  * chapters, and never two large exercises from one chapter.
  */
 async function startFromRealPool(input: StartInput): Promise<{ id: string }> {
-  const seen = await db.attempt.findMany({
-    where: { userId: input.userId, questionId: { not: null } },
-    select: { questionId: true },
-  });
+  const [subject, seen] = await Promise.all([
+    db.subject.findUnique({ where: { id: input.subjectId }, select: { name: true } }),
+    db.attempt.findMany({
+      where: { userId: input.userId, questionId: { not: null } },
+      select: { questionId: true },
+    }),
+  ]);
   const seenIds = new Set(seen.flatMap((a) => (a.questionId ? [a.questionId] : [])));
+  const isLanguageArts = LANGUAGE_ARTS_SUBJECTS.has(subject?.name ?? '');
 
   const pool = await db.question.findMany({
     where: {
@@ -133,7 +137,14 @@ async function startFromRealPool(input: StartInput): Promise<{ id: string }> {
       sourceType: 'past_exam',
       verifiedStatus: { not: 'rejected' },
     },
-    select: { id: true, chapterId: true, bareme: true, difficulty: true, contentText: true },
+    select: {
+      id: true,
+      chapterId: true,
+      bareme: true,
+      difficulty: true,
+      contentText: true,
+      questionType: true,
+    },
     take: 400,
   });
 
@@ -168,11 +179,21 @@ async function startFromRealPool(input: StartInput): Promise<{ id: string }> {
    * one, and composing it costs nothing. Only when no subset reaches 20 —
    * physics, whose exercises the extractor merges, so its marks are lumpy — is
    * a paper assembled near the target and its marks redistributed.
+   *
+   * English, Francais and Arabic literature skip this search entirely.
+   * `assemblePaper` looks for three to six exercises that sum to twenty
+   * because that is the shape a maths or physics paper has; a language-arts
+   * paper has two — one reading/comprehension block and one writing block,
+   * each worth ten or so marks on its own. Two is below the search's own
+   * floor, so it always failed for these subjects, and the generic fallback
+   * then favoured the many small essay prompts over the few large reading
+   * ones — which is how mock English papers went essay-only even though the
+   * comprehension questions were sitting in the same pool.
    */
-  let chosen = assemblePaper(ordered);
+  let chosen = isLanguageArts ? (assembleLanguageArtsPaper(ordered) ?? []) : assemblePaper(ordered);
   let rescaled = false;
 
-  if (chosen.length === 0) {
+  if (chosen.length === 0 && !isLanguageArts) {
     /*
      * The same shape rule the exact search enforces.
      *
@@ -191,8 +212,10 @@ async function startFromRealPool(input: StartInput): Promise<{ id: string }> {
   if (chosen.length === 0) {
     throw new ExamError(
       'NO_CONTENT',
-      `This subject does not have enough marked past-exam questions to build a paper — ` +
-        `at least ${MIN_PAPER_QUESTIONS} are needed.`,
+      isLanguageArts
+        ? 'This subject does not have both a reading and a writing past-exam question to build a paper from yet.'
+        : `This subject does not have enough marked past-exam questions to build a paper — ` +
+          `at least ${MIN_PAPER_QUESTIONS} are needed.`,
     );
   }
 
@@ -205,6 +228,10 @@ async function startFromRealPool(input: StartInput): Promise<{ id: string }> {
    * starts from the official marks again.
    */
   const officialBaremes = chosen.map((q) => parseBareme(q.bareme) ?? []);
+  // A language-arts pair is the paper's real shape even when its two halves
+  // do not happen to total twenty themselves — `rescaleBaremes` is a no-op
+  // when they already do, so this only ever adjusts the pairs that need it.
+  if (isLanguageArts) rescaled = Math.abs(totalOf(officialBaremes) - PAPER_TOTAL_MARKS) > 0.001;
   const baremes = rescaled
     ? await rescaleBaremes(officialBaremes, PAPER_TOTAL_MARKS)
     : officialBaremes;
@@ -246,6 +273,7 @@ async function startFromRealPool(input: StartInput): Promise<{ id: string }> {
       // Worth recording: it is the difference between a mark a student can
       // quote and one that is ours.
       rescaled,
+      paperShape: isLanguageArts ? 'reading_writing' : 'assembled',
     },
   });
 
@@ -406,6 +434,30 @@ export type SelectableProblem = {
   difficulty: unknown;
   contentText?: string;
 };
+
+/**
+ * Subjects examined as a reading/comprehension part plus a writing part,
+ * rather than several small exercises — the exact names `subjects.name`
+ * holds for them in the corpus. `assemblePaper`'s three-to-six-exercise
+ * search can never fit this shape, so these subjects use
+ * `assembleLanguageArtsPaper` instead. See the comment at its call site in
+ * `startFromRealPool`.
+ */
+const LANGUAGE_ARTS_SUBJECTS = new Set(['English', 'Francais', 'أدب عربي']);
+
+/**
+ * A language-arts paper's real shape: one reading/comprehension question and
+ * one writing question, unseen ones preferred — `pool` is already ordered
+ * that way by the caller. Returns `null` only when the subject's pool is
+ * missing one of the two halves outright.
+ */
+function assembleLanguageArtsPaper<T extends SelectableProblem & { questionType: string }>(
+  pool: T[],
+): T[] | null {
+  const reading = pool.find((q) => q.questionType === 'problem');
+  const writing = pool.find((q) => q.questionType === 'open');
+  return reading && writing ? [reading, writing] : null;
+}
 
 /**
  * The selection rule, separated from the query so it can be tested.
