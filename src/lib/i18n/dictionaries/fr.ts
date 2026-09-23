@@ -838,6 +838,10 @@ export const fr: Dictionary = {
     acceptPlan: 'Accepter le plan',
     discardPlan: 'Abandonner',
     noUpcomingExams: 'Ajoutez d’abord une date d’examen pour savoir vers quoi planifier.',
+    nothingToPlanSoon:
+      'Cet examen est trop proche : un plan couvre les jours entre demain et la veille. Choisissez un examen plus lointain, ou ajoutez une séance à la main.',
+    nothingToPlanSyllabus:
+      'Le programme de cette matière n’est pas encore disponible : il n’y a rien à partir de quoi planifier. Ajoutez une séance à la main en attendant.',
     upcomingExams: 'Dates d’examen',
     addExam: 'Ajouter une date d’examen',
     examLabel: 'Intitulé',

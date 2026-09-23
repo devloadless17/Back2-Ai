@@ -852,6 +852,10 @@ export const en = {
     acceptPlan: 'Accept plan',
     discardPlan: 'Discard',
     noUpcomingExams: 'Add an exam date first so we know what to plan towards.',
+    nothingToPlanSoon:
+      'This exam is too close to plan towards — a plan covers the days between tomorrow and the day before it. Pick an exam further ahead, or add a session by hand.',
+    nothingToPlanSyllabus:
+      'There is no syllabus for this subject yet, so there is nothing to plan sessions from. Add a session by hand in the meantime.',
     upcomingExams: 'Exam dates',
     addExam: 'Add an exam date',
     examLabel: 'Label',

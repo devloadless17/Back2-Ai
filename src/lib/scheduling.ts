@@ -307,6 +307,16 @@ export type SuggestResult = {
   examDate: string;
   daysRemaining: number;
   sessions: PlannedSession[];
+  /**
+   * Why the plan is empty, when it is.
+   *
+   * An empty plan is a real answer, and it has two different causes a student
+   * can act on differently: an exam too close to plan towards (the planner
+   * starts tomorrow and stops the day before), or a subject whose syllabus is
+   * not in the corpus yet. Returned rather than inferred, because the caller
+   * cannot tell those apart from an empty list.
+   */
+  reason?: 'NO_DAYS_AVAILABLE' | 'NO_SYLLABUS';
 };
 
 export async function suggestSchedule(
@@ -345,7 +355,18 @@ export async function suggestSchedule(
     orderBy: { orderIndex: 'asc' },
   });
 
-  if (chapters.length === 0) return null;
+  if (chapters.length === 0) {
+    return {
+      examLabel: exam.subject?.name ?? exam.label ?? 'Baccalauréat',
+      examDate: toIso(exam.examDate),
+      daysRemaining: Math.max(
+        0,
+        Math.round((startOfUtcDay(exam.examDate).getTime() - startOfUtcDay(new Date()).getTime()) / 86_400_000),
+      ),
+      sessions: [],
+      reason: 'NO_SYLLABUS',
+    };
+  }
 
   const today = new Date();
   const horizon = new Date(today.getTime() + 120 * 86_400_000);

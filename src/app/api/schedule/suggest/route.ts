@@ -42,8 +42,10 @@ export const POST = route(async (request) => {
 
   if (plan.sessions.length === 0) {
     // Nothing to plan is a real answer — the exam is tomorrow, or the syllabus
-    // for it has not been ingested yet.
-    return ok({ ...plan, reason: 'NO_DAYS_AVAILABLE' });
+    // for it has not been ingested yet. `suggestSchedule` knows which; it is
+    // passed through rather than flattened, because the two have different
+    // answers for the student.
+    return ok({ ...plan, reason: plan.reason ?? 'NO_DAYS_AVAILABLE' });
   }
 
   return ok(plan);

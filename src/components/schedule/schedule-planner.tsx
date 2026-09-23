@@ -60,6 +60,8 @@ type SuggestResponse = {
   examDate: string;
   daysRemaining: number;
   sessions: ProposedSession[];
+  /** Why the plan came back empty. Set only when it did. */
+  reason?: 'NO_DAYS_AVAILABLE' | 'NO_SYLLABUS';
 };
 
 export function SchedulePlanner({
@@ -286,8 +288,36 @@ export function SchedulePlanner({
     <div className="space-y-5">
       {error && <Alert tone="error">{error}</Alert>}
 
+      {/*
+        AN EMPTY PLAN IS AN ANSWER, AND IT HAS TO SAY SO.
+
+        The planner works on the days between tomorrow and the day before the
+        exam, so an exam tomorrow leaves it nothing to place. That used to
+        render as the staging card with an empty list under it — a student who
+        pressed the button was shown a plan with no sessions in it and no
+        explanation, which reads as the feature being broken.
+      */}
+      {proposal && proposal.sessions.length === 0 && (
+        <Sheet className="animate-fade-up">
+          <SheetHeader
+            title={t.schedule.suggestedTitle}
+            description={`${proposal.examLabel} · ${formatDate(proposal.examDate)}`}
+          />
+          <SheetBody className="space-y-3">
+            <p className="text-sm text-ink-muted">
+              {proposal.reason === 'NO_SYLLABUS'
+                ? t.schedule.nothingToPlanSyllabus
+                : t.schedule.nothingToPlanSoon}
+            </p>
+            <Button variant="quiet" onClick={() => setProposal(null)}>
+              {t.schedule.discardPlan}
+            </Button>
+          </SheetBody>
+        </Sheet>
+      )}
+
       {/* --- Proposed plan (staging) --- */}
-      {proposal && (
+      {proposal && proposal.sessions.length > 0 && (
         <Sheet className="animate-fade-up border-primary/30">
           <SheetHeader
             title={t.schedule.suggestedTitle}
