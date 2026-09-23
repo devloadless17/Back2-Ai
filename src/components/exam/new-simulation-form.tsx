@@ -150,9 +150,19 @@ export function NewSimulationForm({
       <Sheet>
         <SheetHeader title={t.examSim.chooseMode} />
         <SheetBody className="space-y-3">
+          {/*
+            None of these three cards disable on a thin pool any more. A card
+            greyed out before the student has chosen anything reads as "this
+            is broken", not "this is empty" — and it was actively wrong once,
+            when the Begin button's own gate fell out of sync with these and
+            disabled a working mode for an unrelated empty one (see Begin
+            below). The hint still says when a pool is thin or empty; Begin
+            attempting the request and showing the real NO_CONTENT message is
+            the honest version of that warning, not a card the student can't
+            even select to find out why.
+          */}
           <ModeCard
             selected={mode === 'real_cycle'}
-            disabled={!canUseReal}
             onSelect={() => setMode('real_cycle')}
             title={t.examSim.modeRealCycle}
             hint={canUseReal ? t.examSim.modeRealCycleHint : t.oldCycles.noCycles}
@@ -167,7 +177,6 @@ export function NewSimulationForm({
           */}
           <ModeCard
             selected={mode === 'real_mixed'}
-            disabled={!canUseMixed}
             onSelect={() => setMode('real_mixed')}
             title={t.examSim.modeRealMixed}
             hint={
@@ -178,7 +187,6 @@ export function NewSimulationForm({
           />
           <ModeCard
             selected={mode === 'ai_generated'}
-            disabled={!canUseGenerated}
             onSelect={() => setMode('ai_generated')}
             title={t.examSim.modeAiGenerated}
             hint={
@@ -238,21 +246,19 @@ export function NewSimulationForm({
             onClick={begin}
             loading={starting}
             /*
-             * Three modes, three gates. This used to read
-             * `mode === 'real_cycle' ? … : !canUseGenerated` — written when
-             * there were only two modes, and never updated when `real_mixed`
-             * was added as a third. `real_mixed` fell into the `else` branch
-             * and was gated on `canUseGenerated` instead of `canUseMixed`, so
-             * "Begin" stayed disabled for a mock exam whenever the unrelated
-             * AI-generated queue was empty — which is effectively always.
+             * Only a structural requirement left, not a content gate: a
+             * `real_cycle` sitting needs a chosen paper to post an id for,
+             * and there is nothing else Begin can check client-side that the
+             * request itself does not check more honestly. Gating this on
+             * `canUseMixed` / `canUseGenerated` too was the actual bug —
+             * `real_mixed` was briefly wired to the wrong one of the two and
+             * stayed disabled regardless of its own pool — and duplicating
+             * that logic here a second time is how it drifted the first
+             * time. `begin()` already turns an empty pool into
+             * `t.practice.simNotEnough` on the one path that owns knowing
+             * the pool is empty: the server.
              */
-            disabled={
-              mode === 'real_cycle'
-                ? !canUseReal || !cycleId
-                : mode === 'real_mixed'
-                  ? !canUseMixed
-                  : !canUseGenerated
-            }
+            disabled={mode === 'real_cycle' && !cycleId}
           >
             {t.examSim.begin}
           </Button>
@@ -264,13 +270,11 @@ export function NewSimulationForm({
 
 function ModeCard({
   selected,
-  disabled,
   onSelect,
   title,
   hint,
 }: {
   selected: boolean;
-  disabled: boolean;
   onSelect: () => void;
   title: string;
   hint: string;
@@ -279,14 +283,12 @@ function ModeCard({
     <button
       type="button"
       onClick={onSelect}
-      disabled={disabled}
       aria-pressed={selected}
       className={cn(
         'w-full rounded border px-4 py-3 text-start transition-colors duration-150',
-        selected && !disabled
+        selected
           ? 'border-primary bg-primary-soft'
           : 'border-rule-strong bg-paper-raised hover:bg-paper-sunken',
-        disabled && 'cursor-not-allowed opacity-50 hover:bg-paper-raised',
       )}
     >
       <p className="text-sm font-medium text-ink">{title}</p>
