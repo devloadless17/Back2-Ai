@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { dirForLanguage, dirForText } from '@/lib/i18n/config';
+import { dirForLanguage, dirForText, fixRtlLineDashes } from '@/lib/i18n/config';
 
 /**
  * Which way a piece of CONTENT reads.
@@ -78,5 +78,45 @@ describe('the subject language wins where it is known', () => {
     expect(dirForLanguage('en')).toBe('ltr');
     expect(dirForLanguage(null)).toBe('ltr');
     expect(dirForLanguage(undefined)).toBe('ltr');
+  });
+});
+
+describe('fixRtlLineDashes', () => {
+  /*
+   * These papers itemise their marking schemes with a plain hyphen-minus at
+   * the start of a line: "- الشرح: (خمس علامات)". Confirmed directly in
+   * Chrome: that exact character, in that exact position, renders pinned to
+   * the physical left while the Arabic beside it reads right to left — a
+   * Unicode bidi class quirk (hyphen-minus is ES, not ON), not a CSS bug. An
+   * en dash in the same spot renders correctly, which is the swap this makes.
+   */
+  it('swaps a line-leading hyphen followed by a space for an en dash', () => {
+    expect(fixRtlLineDashes('المقدمة\n- الشرح: تبدو الرياضيات مختلفة.')).toBe(
+      'المقدمة\n– الشرح: تبدو الرياضيات مختلفة.',
+    );
+  });
+
+  it('swaps at the very start of the string too', () => {
+    expect(fixRtlLineDashes('- الإشكالية: ما هو مصدر المفاهيم؟')).toBe(
+      '– الإشكالية: ما هو مصدر المفاهيم؟',
+    );
+  });
+
+  it('carries leading indentation across the swap', () => {
+    expect(fixRtlLineDashes('السؤال\n  - المقدمة: علامتان')).toBe('السؤال\n  – المقدمة: علامتان');
+  });
+
+  it('leaves a hyphen with no following space alone — it already renders correctly', () => {
+    expect(fixRtlLineDashes('\n-الإشكالية: تبدو الرياضيات مختلفة.')).toBe(
+      '\n-الإشكالية: تبدو الرياضيات مختلفة.',
+    );
+  });
+
+  it('leaves a negative number alone: a digit follows, never whitespace', () => {
+    expect(fixRtlLineDashes('القيمة هي\n-5 في هذا السياق.')).toBe('القيمة هي\n-5 في هذا السياق.');
+  });
+
+  it('leaves a mid-line hyphen alone', () => {
+    expect(fixRtlLineDashes('نتيجة الطرح 5 - 3 يساوي 2.')).toBe('نتيجة الطرح 5 - 3 يساوي 2.');
   });
 });

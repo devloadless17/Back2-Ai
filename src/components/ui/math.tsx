@@ -10,7 +10,7 @@ import type { PluggableList } from 'unified';
 import { cn } from '@/lib/cn';
 import { normalizeMathDelimiters } from '@/lib/math-delimiters';
 import { repairSymbolFont } from '@/lib/symbol-font';
-import { dirForText } from '@/lib/i18n/config';
+import { dirForText, fixRtlLineDashes } from '@/lib/i18n/config';
 
 /**
  * Question, solution and explanation bodies.
@@ -101,8 +101,12 @@ export function MathText({
   // Delimiters first, then the font repair: a symbol sitting inside a `\[ … \]`
   // block has to be inside `$$ … $$` before anything reasons about whether it
   // is in maths.
-  const body = repairSymbolFont(normalizeMathDelimiters(children));
-  const direction = dir ?? dirForText(body);
+  const repaired = repairSymbolFont(normalizeMathDelimiters(children));
+  const direction = dir ?? dirForText(repaired);
+  // Direction has to be known first: the dash fix is only correct — and only
+  // needed — on the side of `dirForText` that already decided this reads
+  // right to left. See `fixRtlLineDashes`.
+  const body = direction === 'rtl' ? fixRtlLineDashes(repaired) : repaired;
 
   return (
     <div

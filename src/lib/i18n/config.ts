@@ -86,6 +86,35 @@ export function dirForText(text: string | null | undefined): 'ltr' | 'rtl' {
   return arabic > latin ? 'rtl' : 'ltr';
 }
 
+/**
+ * A line-leading "- " made bidi-safe, for content that reads right to left.
+ *
+ * These papers' marking schemes itemise with a plain hyphen-minus: "- الشرح:
+ * (خمس علامات)". U+002D carries the Unicode bidi class ES (European
+ * Separator) rather than ON (Other Neutral), and at the start of a line —
+ * with a space after it and no strong character before it on that line — the
+ * browser's own bidi algorithm resolves it to the paragraph's weak default
+ * rather than the Arabic that follows it, so the dash renders pinned to the
+ * physical left while the rest of the line reads right to left beside it.
+ *
+ * Confirmed against Chrome directly: the identical markup with an en dash
+ * (U+2013, bidi class ON) in the same position renders correctly, and a
+ * hyphen-minus with no following space — "-الشرح" — also renders correctly,
+ * because ES only takes this detour when the neutral run it sits in is
+ * longer than the dash itself. So only "start of line, hyphen, space" is
+ * touched. A negative number ("-5") is untouched because a digit follows
+ * immediately, never whitespace.
+ *
+ * Rendering only, never the stored text — the same rule `repairSymbolFont`
+ * follows and for the same reason: a display fix cannot corrupt data nobody
+ * can then tell was rewritten.
+ */
+const RTL_LINE_HYPHEN = /(^|\n)([ \t]*)-(?=[ \t])/g;
+
+export function fixRtlLineDashes(text: string): string {
+  return text.replace(RTL_LINE_HYPHEN, '$1$2–');
+}
+
 /** The content direction for a subject whose language is known. */
 export function dirForLanguage(language: string | null | undefined): 'ltr' | 'rtl' {
   return language === 'ar' ? 'rtl' : 'ltr';
