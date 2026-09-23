@@ -31,6 +31,12 @@ __pycache__/
 *.pyc
 .vercel
 .env*
+# Per-developer compose overrides. Compose merges docker-compose.override.yml
+# automatically, which makes it the right place to differ from the shared file —
+# a different Postgres major version, an extra published port — WITHOUT changing
+# what everyone else runs. It is per-machine by definition, so it never belongs
+# in the repo.
+docker-compose.override.yml
 # ...but the *templates* are documentation and must ship. They hold no real
 # values, and `.env*` above would otherwise swallow every one of them — which is
 # how deploy/.env.example silently failed to be committed the first time.
