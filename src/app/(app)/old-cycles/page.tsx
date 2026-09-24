@@ -5,7 +5,13 @@ import { Alert, Badge, EmptyAction, EmptyState } from '@/components/ui/feedback'
 import { PageHeader, Sheet, SheetBody, SheetHeader } from '@/components/ui/sheet';
 import { requireUser } from '@/lib/auth/guards';
 import { db } from '@/lib/db';
-import { HAS_LIVE_QUESTIONS, OWN_EDITION_ONLY, subjectLanguagesFor } from '@/lib/queries/taxonomy';
+import {
+  HAS_LIVE_QUESTIONS,
+  OWN_EDITION_ONLY,
+  paperScopeFor,
+  subjectIdsForTrack,
+  subjectLanguagesFor,
+} from '@/lib/queries/taxonomy';
 import { LOCALE_LABELS } from '@/lib/i18n/config';
 import { getTranslations } from '@/lib/i18n';
 import { format } from '@/lib/i18n/format';
@@ -44,25 +50,43 @@ export default async function OldCyclesPage({
    * subjects, for the same reason. An English-track student is not shown the
    * French printing of a paper they cannot read.
    */
+  /*
+   * The subjects whose papers this student may see.
+   *
+   * Their own, plus the same subject on a track that sits it FROM THE SAME
+   * BOOK. LH and SE share one physics, one chemistry and one life-sciences
+   * textbook, so an LH candidate revising Physique was offered 32 papers while
+   * SE's 17 on the same syllabus sat behind a track label — and SE, with half
+   * as many of its own, had the worse end of it.
+   *
+   * Maths is not shared and cannot be: the four tracks have four maths books,
+   * and `paperScopeFor` reads that from the corpus rather than from a list.
+   */
+  const scope = await paperScopeFor(await subjectIdsForTrack(user.trackId));
+
+  /*
+   * Narrowed when the student arrived from a subject.
+   *
+   * Narrowing the SCOPE rather than adding a second `subjectId` filter, so the
+   * shared papers come with it: arriving from LH Physique must still show the
+   * SE printings, which a filter on that one subject id would drop. An id from
+   * another track is simply absent from the map, so it narrows to nothing —
+   * the same protection the old track filter gave, by the same accident of
+   * being a whitelist.
+   */
+  const visible = onlySubject
+    ? [...scope.entries()].filter(([, own]) => own === onlySubject).map(([id]) => id)
+    : [...scope.keys()];
+
   const cycles = await db.examCycle.findMany({
     where: {
-      subject: { trackId: user.trackId ?? undefined },
+      subjectId: { in: visible },
       language: { in: subjectLanguagesFor(user.preferredLanguage) },
       // And only the edition the subject is sat in, so the Arabic-taught
       // papers arrive in Arabic and not in three printings of themselves.
       ...OWN_EDITION_ONLY,
       // ...and only a paper that still has something readable on it.
       ...HAS_LIVE_QUESTIONS,
-      /*
-       * Narrowed when the student arrived from a subject.
-       *
-       * The track filter still applies underneath, so a hand-edited id belonging
-       * to another track returns nothing rather than papers this student is not
-       * sitting. `undefined` — not a bare spread — because Prisma treats an
-       * explicit `subjectId: undefined` as "no constraint", which is exactly the
-       * unfiltered list we want when the parameter is absent.
-       */
-      subjectId: onlySubject || undefined,
     },
     select: {
       id: true,

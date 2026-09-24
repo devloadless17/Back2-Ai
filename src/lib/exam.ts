@@ -20,7 +20,7 @@ import {
 import type { Locale } from '@/lib/i18n/config';
 import { recomputeChapterMastery, resolveCreditChapter } from '@/lib/queries/progress';
 import { rescaleBaremes } from '@/lib/rescale-bareme';
-import { LIVE_CHAPTER, OWN_EDITION_ONLY } from '@/lib/queries/taxonomy';
+import { LIVE_CHAPTER, OWN_EDITION_ONLY, paperScopeFor } from '@/lib/queries/taxonomy';
 import { retrieveGrounding } from '@/lib/retrieval';
 
 /**
@@ -332,9 +332,21 @@ async function startFromRealCycle(input: StartInput): Promise<{ id: string }> {
   if (!input.examCycleId) throw new ExamError('NOT_FOUND', 'No paper was chosen.');
 
   const cycle = await db.examCycle.findFirst({
-    // `OWN_EDITION_ONLY` here too, not only in the picker: this starts a timed
-    // sitting, and the id arrives in a request body.
-    where: { id: input.examCycleId, subjectId: input.subjectId, ...OWN_EDITION_ONLY },
+    /*
+     * `OWN_EDITION_ONLY` here too, not only in the picker: this starts a timed
+     * sitting, and the id arrives in a request body.
+     *
+     * The subject is a SET, not the one id, because the picker offers papers
+     * from the track that shares this course's book. Checking `input.subjectId`
+     * alone would offer a paper and then refuse to start it. The set is still a
+     * whitelist built from the student's own subject, so a paper from a course
+     * they do not sit is as unreachable as it was before.
+     */
+    where: {
+      id: input.examCycleId,
+      subjectId: { in: [...(await paperScopeFor([input.subjectId])).keys()] },
+      ...OWN_EDITION_ONLY,
+    },
     select: { id: true, durationMinutes: true },
   });
   if (!cycle) throw new ExamError('NOT_FOUND', 'That paper does not exist for this subject.');
@@ -481,17 +493,39 @@ export type SelectableProblem = {
 const LANGUAGE_ARTS_SUBJECTS = new Set(['English', 'Francais', 'أدب عربي']);
 
 /**
- * Subjects every track sits from the same book, so a mock paper may draw on
- * any track's past papers, not only the student's own.
+ * Subjects sat from a book more than one track shares, so a mock paper may draw
+ * on those tracks' past papers and not only the student's own.
  *
- * History, civics and geography: one national programme, one textbook, and
- * every chapter name matches across all four tracks. Practice already offers
- * them this way through `corpus:share-tracks`; this extends the same pool to
- * mock papers. Deliberately a named list and not every shared chapter: GS and
- * SE maths share chapter names too, but a mock paper built from the other
- * track's questions would be sat at the wrong depth.
+ * History, civics and geography: one national programme, one textbook, every
+ * chapter name matching across all four tracks.
+ *
+ * The sciences, added after: LH and SE sit physics, chemistry and life sciences
+ * from one book each — the corpus calls them `physique-lhse`, `chimie-lhse` and
+ * `svt-lhse`, and `source_documents.tracks` says `{LH,SE}` — while GS and LS
+ * share their own, separate pair of science books. Maths is not here and cannot
+ * be: all four tracks have their own maths book.
+ *
+ * WHAT MAKES THIS SAFE IS NOT THIS LIST. It is that `corpus:share-tracks` now
+ * requires the two tracks to share the BOOK, not merely a chapter name. The
+ * pool below is read through `question_chapters`, so a subject named here can
+ * only ever reach the tracks that book serves. The earlier version of this
+ * comment ruled the sciences out because "GS and SE maths share chapter names
+ * too, and a mock paper built from the other track's questions would be sat at
+ * the wrong depth" — that was right about the risk and is now handled a level
+ * down, where name matching alone no longer creates a link. Adding a subject
+ * here without that guarantee would bring the risk straight back.
  */
-export const SHARED_ACROSS_TRACKS = new Set(['تاريخ', 'تربية وطنية', 'جغرافيا']);
+export const SHARED_ACROSS_TRACKS = new Set([
+  'تاريخ',
+  'تربية وطنية',
+  'جغرافيا',
+  'Physics',
+  'Physique',
+  'Chemistry',
+  'Chimie',
+  'Life Sciences',
+  'Sciences de la vie',
+]);
 
 /**
  * A language-arts paper's real shape: one reading/comprehension question and

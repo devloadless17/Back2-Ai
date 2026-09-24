@@ -16,7 +16,7 @@ import { db } from '@/lib/db';
 import { getTranslations } from '@/lib/i18n';
 import { format } from '@/lib/i18n/format';
 import { dirForLanguage } from '@/lib/i18n/config';
-import { OWN_EDITION_ONLY } from '@/lib/queries/taxonomy';
+import { OWN_EDITION_ONLY, paperScopeFor, subjectIdsForTrack } from '@/lib/queries/taxonomy';
 import { visualKeysFor } from '@/lib/visual-evidence';
 
 export const metadata: Metadata = { title: 'Past paper' };
@@ -66,7 +66,9 @@ export default async function ExamCyclePage({
      */
     where: {
       id: examCycleId,
-      subject: { trackId: user.trackId ?? undefined },
+      // The same scope the list uses, so a paper visible there opens here —
+      // including the other track's printing of a shared science course.
+      subjectId: { in: [...(await paperScopeFor(await subjectIdsForTrack(user.trackId))).keys()] },
       ...OWN_EDITION_ONLY,
     },
     select: {

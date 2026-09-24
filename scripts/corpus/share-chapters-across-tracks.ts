@@ -21,13 +21,26 @@ import { db } from '../../src/lib/db';
  * `question_chapters` — the same table, and the same mechanism, that already
  * lets one exercise belong to several chapters within a subject.
  *
- * Matching is on the chapter NAME, deliberately and with its limits stated. Two
- * tracks calling a chapter "Alcohols" in the same language are teaching alcohols;
- * that is what a shared national syllabus and a shared textbook mean. What it
- * cannot see is depth — GS may examine the same chapter harder than LS does, and
- * name matching has no opinion about that. So this widens supply, and the
- * curriculum work that decides what each track should actually be asked comes
- * after it, with `--undo` to clear the ground.
+ * Matching is on the chapter name AND ON THE BOOK, and the second half was
+ * missing. Name alone says two tracks use the same word, not that they study
+ * the same thing: GS and LH both have a chapter called "Radioactivity" and both
+ * have one called "Current Medicinal Drugs", out of different textbooks, at
+ * different depths. Name alone also shared maths across all four tracks, which
+ * have four separate books — `math-gs-*`, `math-ls-*`, `math-se-*`,
+ * `math-lh-*` — and LH philosophy with the other three, which sit `falsafe-gsls`
+ * while LH sits `falsafe-lh`. 3,600 links of the 16,148 were of that kind.
+ *
+ * `source_documents.tracks` already records which tracks a book serves, so the
+ * test is: the book this chapter's passages come from must be one the other
+ * track studies. Nothing is hardcoded and nothing needs maintaining — a new
+ * book serving two tracks shares on the next run, and one serving a single
+ * track never does.
+ *
+ * What it still cannot see is depth WITHIN a shared book, and that limit is
+ * real but much smaller: two tracks issued the same textbook are examined on
+ * the same material even where one is asked harder questions about it. So this
+ * widens supply, and the curriculum work that decides what each track should
+ * actually be asked comes after it, with `--undo` to clear the ground.
  *
  * `--undo` is exact, because the rows are self-identifying: a shared link is one
  * where the question's subject is not the chapter's subject. Nothing else in the
@@ -85,6 +98,15 @@ async function main() {
          AND target.language = source.language
          AND target.name = source.name
          AND target.track_id <> source.track_id
+         -- The other track must study the book this chapter comes out of.
+         AND EXISTS (
+           SELECT 1
+             FROM chapter_content_chunks cl
+             JOIN content_chunks cc ON cc.id = cl.chunk_id
+             JOIN source_documents d ON d.id = cc.source_document_id
+             JOIN tracks tt ON tt.id = target.track_id
+            WHERE cl.chapter_id = source.id
+              AND tt.code = ANY(d.tracks))
     )
     SELECT count(*)::bigint AS n FROM pairs`;
 
@@ -109,6 +131,16 @@ async function main() {
      WHERE ts.name = ss.name
        AND ts.language = ss.language
        AND ts.track_id <> ss.track_id
+       -- The same book test as the count above. Both statements must agree, or
+       -- the report describes a set the insert does not write.
+         AND EXISTS (
+           SELECT 1
+             FROM chapter_content_chunks cl
+             JOIN content_chunks cc ON cc.id = cl.chunk_id
+             JOIN source_documents d ON d.id = cc.source_document_id
+             JOIN tracks tt ON tt.id = ts.track_id
+            WHERE cl.chapter_id = sc.id
+              AND tt.code = ANY(d.tracks))
     ON CONFLICT DO NOTHING`;
 
   console.log(`  rows inserted         ${written}`);

@@ -1,7 +1,7 @@
 import 'server-only';
 
 import { db } from '@/lib/db';
-import { LIVE_CHAPTER, OWN_EDITION_ONLY, subjectLanguagesFor } from '@/lib/queries/taxonomy';
+import { LIVE_CHAPTER, OWN_EDITION_ONLY, paperScopeFor, subjectLanguagesFor } from '@/lib/queries/taxonomy';
 import { MIN_ATTEMPTS_FOR_WEAKNESS } from '@/lib/scoring/mastery';
 import { WEAKNESS_MASTERY_CEILING } from '@/lib/queries/flashcards';
 
@@ -65,7 +65,9 @@ export async function getSubjectHub(
        */
       db.examCycle.count({
         where: {
-          subjectId,
+          // The shared-book tracks too, so this number matches the list the
+          // student then opens rather than undercounting it.
+          subjectId: { in: [...(await paperScopeFor([subjectId])).keys()] },
           language: { in: subjectLanguagesFor(studyLanguage) },
           ...OWN_EDITION_ONLY,
           questions: { some: { verifiedStatus: { not: 'rejected' } } },

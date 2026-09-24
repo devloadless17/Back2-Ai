@@ -8,7 +8,13 @@ import { db } from '@/lib/db';
 import { SHARED_ACROSS_TRACKS } from '@/lib/exam';
 import { PUBLISHED_FILTER } from '@/lib/generation';
 import { getTranslations } from '@/lib/i18n';
-import { HAS_LIVE_QUESTIONS, OWN_EDITION_ONLY, listSubjects, subjectLanguagesFor } from '@/lib/queries/taxonomy';
+import {
+  HAS_LIVE_QUESTIONS,
+  OWN_EDITION_ONLY,
+  listSubjects,
+  paperScopeFor,
+  subjectLanguagesFor,
+} from '@/lib/queries/taxonomy';
 import { LOCALE_LABELS } from '@/lib/i18n/config';
 
 export const metadata: Metadata = { title: 'New simulation' };
@@ -44,6 +50,15 @@ export default async function NewSimulationPage({
   const subjectIds = subjects.map((subject) => subject.id);
 
   /*
+   * Papers may come from another track that sits the same course from the same
+   * book — see `paperScopeFor`. The map carries each one back to the student's
+   * own subject, because everything below is keyed by that: the picker groups
+   * papers under a subject the student recognises, and a sitting must credit
+   * their own subject rather than the track the paper was printed for.
+   */
+  const paperScope = await paperScopeFor(subjectIds);
+
+  /*
    * FOUR QUERIES, NOT THREE PER SUBJECT.
    *
    * This ran `Promise.all` over the subjects and issued a cycle list, a
@@ -72,7 +87,7 @@ export default async function NewSimulationPage({
      */
     db.examCycle.findMany({
       where: {
-        subjectId: { in: subjectIds },
+        subjectId: { in: [...paperScope.keys()] },
         // A rejected question is not a question a candidate can sit, so the
         // bare `some: {}` this replaced offered papers with nothing on them.
         ...HAS_LIVE_QUESTIONS,
@@ -158,9 +173,13 @@ export default async function NewSimulationPage({
 
   const cyclesBySubject = new Map<string, typeof cycleRows>();
   for (const cycle of cycleRows) {
-    const list = cyclesBySubject.get(cycle.subjectId);
+    // Filed under the student's own subject, not the one the paper belongs to,
+    // so a shared SE physics paper appears under their Physics.
+    const under = paperScope.get(cycle.subjectId);
+    if (!under) continue;
+    const list = cyclesBySubject.get(under);
     if (list) list.push(cycle);
-    else cyclesBySubject.set(cycle.subjectId, [cycle]);
+    else cyclesBySubject.set(under, [cycle]);
   }
 
   const options: SimulationOption[] = subjects.map((subject) => ({
