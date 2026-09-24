@@ -73,9 +73,24 @@ type StreamEvent =
       refusal?: RefusalKind;
     }
   | { type: 'delta'; text: string }
+  | { type: 'stage'; stage: 'retrieving' | 'solving' }
   | { type: 'done'; messageId: string; verified: boolean }
   | { type: 'retracted'; messageId: string; reason: string }
   | { type: 'error'; message: string };
+
+/**
+ * What the wait currently is.
+ *
+ * `thinking` is set by this component the instant the question is sent, not by
+ * the server — the first server event still has a round trip to make, and a
+ * beat of empty box is exactly the thing being fixed. The other two arrive from
+ * the pipeline, which is the only place that knows when retrieval ends and the
+ * model begins.
+ *
+ * Held beside the messages rather than on one, because only ever one answer is
+ * pending: the composer is disabled while `streaming` is true.
+ */
+type Stage = 'thinking' | 'retrieving' | 'solving';
 
 /**
  * What to tell a student whose photo did not go through.
@@ -128,6 +143,7 @@ export function ChatThread({
   const [messages, setMessages] = useState<ChatMessageView[]>(initialMessages);
   const [input, setInput] = useState('');
   const [streaming, setStreaming] = useState(false);
+  const [stage, setStage] = useState<Stage>('thinking');
   const [error, setError] = useState<string | null>(null);
   /*
    * The question that failed, kept so it can be sent again.
@@ -379,6 +395,7 @@ export function ChatThread({
     setError(null);
     setLastQuestion(question);
     setStreaming(true);
+    setStage('thinking');
 
     const pendingId = `pending-${Date.now()}`;
 
@@ -424,7 +441,8 @@ export function ChatThread({
             continue;
           }
 
-          applyEvent(event, pendingId);
+          if (event.type === 'stage') setStage(event.stage);
+          else applyEvent(event, pendingId);
         }
       }
     } catch (err) {
@@ -565,7 +583,7 @@ export function ChatThread({
                   <MathText>{message.content}</MathText>
                 ) : (
                   /*
-                   * WHAT IT IS READING, WHILE IT READS IT.
+                   * WHAT IT IS DOING, WHILE IT DOES IT.
                    *
                    * Retrieval finishes before generation starts, so the sources
                    * arrive on the `meta` event — ahead of the first token. The
@@ -578,16 +596,40 @@ export function ChatThread({
                    * they have nothing else to look at. It also lets them catch a
                    * wrong subject before reading a paragraph of it.
                    *
-                   * Falls back to "Thinking…" before `meta` lands, which is the
-                   * honest thing to say while retrieval is still running.
+                   * But it said one thing for the whole wait, and the wait is
+                   * two waits: retrieval, then the model reading everything
+                   * retrieval found. A line that never changes across ten
+                   * seconds reads as a page that has stopped, and a student who
+                   * believes that sends the question again — a second answer
+                   * charged to them for the one they were already getting.
+                   *
+                   * So the line moves with the turn — and CARRIES THE CHAPTER
+                   * WITH IT. Retrieval ends and generation begins almost
+                   * back-to-back, so a `solving` message that dropped the
+                   * source would have replaced the specific thing with a
+                   * generic one for the whole of the longest wait, which is the
+                   * opposite of the improvement. Once a chapter is known it is
+                   * named in every state after it.
+                   *
+                   * The `key` restarts the entrance, so each change is visible
+                   * without anything looping. Nothing here animates on a timer;
+                   * the text moves because the turn moved.
+                   *
+                   * It is not a progress bar and must not become one. There is
+                   * no percentage here and no estimate worth making — only
+                   * which of two named things is happening.
                    */
-                  <p className="text-sm text-ink-faint">
+                  <p key={stage} className="animate-fade-up text-sm text-ink-faint">
                     {message.sources.length > 0
-                      ? format(t.chat.readingFrom, {
+                      ? format(stage === 'solving' ? t.chat.solvingFrom : t.chat.readingFrom, {
                           count: message.sources.length,
                           source: message.sources[0]!.label,
                         })
-                      : t.chat.thinking}
+                      : stage === 'solving'
+                        ? t.chat.solving
+                        : stage === 'retrieving'
+                          ? t.chat.searching
+                          : t.chat.thinking}
                   </p>
                 )}
 

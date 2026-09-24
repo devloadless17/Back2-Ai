@@ -59,6 +59,28 @@ export type ChatEvent =
       refusal?: 'needsPassage' | 'offProgramme';
     }
   | { type: 'delta'; text: string }
+  /**
+   * WHAT THE TURN IS DOING, WHILE IT DOES IT.
+   *
+   * A grounded answer is two waits before a single character appears —
+   * retrieval, then the model's time to its first token — and both are seconds
+   * long on a real question. The client showed one unchanging line of grey text
+   * across the whole of it, which is indistinguishable from a page that has
+   * stopped working. Students wait, then send the question again.
+   *
+   * These are not a progress bar and must never be sold as one. There is no
+   * percentage to report and no estimate worth making; what they say is which
+   * of two named things is happening, so that a wait that is still moving looks
+   * different from one that is not.
+   *
+   * They do not replace the sources on `meta` — the client keeps naming the
+   * chapter and changes only the verb, because the chapter is the more useful
+   * half and generation begins too soon after retrieval for a message that
+   * dropped it to be anything but a downgrade. These carry the half `meta`
+   * cannot: retrieval has to finish before there are any sources to name, and
+   * the lanes that never retrieve have nothing else to show at all.
+   */
+  | { type: 'stage'; stage: 'retrieving' | 'solving' }
   | { type: 'done'; messageId: string; verified: boolean }
   | { type: 'retracted'; messageId: string; reason: string }
   | { type: 'error'; message: string };
@@ -688,6 +710,10 @@ export async function* runChatTurn(input: ChatTurnInput): AsyncGenerator<ChatEve
     return;
   }
 
+  // Named before it starts, not after. This is the wait with nothing else on
+  // screen: the sources that will fill the line do not exist until it is over.
+  yield { type: 'stage', stage: 'retrieving' };
+
   let grounding: GroundingResult;
   try {
     grounding = await retrieveGrounding({
@@ -982,6 +1008,13 @@ export async function* runChatTurn(input: ChatTurnInput): AsyncGenerator<ChatEve
 
   let answer = '';
   let modelUsed: string | null = null;
+
+  /*
+   * Retrieval is done and the chapter is already on screen, so this changes
+   * only the verb. It is usually the longer of the two waits — the model reads
+   * everything retrieval found, at `effort: 'high'`, before writing a word.
+   */
+  yield { type: 'stage', stage: 'solving' };
 
   try {
     const stream = provider.streamText({
@@ -1293,6 +1326,8 @@ async function* planningTurn(
   let answer = "";
   let modelUsed: string | null = null;
 
+  yield { type: "stage", stage: "solving" };
+
   try {
     const stream = ai().streamText({
       system: planningPrompt(snapshot, input.locale, startOfToday().toISOString().slice(0, 10)),
@@ -1587,6 +1622,8 @@ async function* conversationalTurn(
 
   let answer = '';
   let modelUsed: string | null = null;
+
+  yield { type: 'stage', stage: 'solving' };
 
   try {
     const stream = ai().streamText({
