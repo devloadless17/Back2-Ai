@@ -56,6 +56,7 @@ BOOKS = {
     "themes_workbook_en": "themes-workbook-gsls-en__08c8e964",
     "falsafe_lh": "falsafa-3amma-lh__0b41b677",
     "falsafe_gsls": "falsafa-gsls__c804d5ac",
+    "tarbeya": "tarbiya__164689a6",
     "math_gs_1_en": "289de41e5b683087171d2d02f8ac52ba323d0ef1b4e44d977ab7060817b4c38b",
     "math_gs_2_en": "math-gs-2-en__56566975",
     "math_gs_1_fr": "math-gs-1-fr__184c4281",
@@ -64,6 +65,17 @@ BOOKS = {
     # LS sweep, and it is the same shuffle: 63 blocks of five, every block
     # holding its own five pages in the wrong order, all 35 chapters affected.
     "ektesad": "economics-se__7979fbf6",
+    # SE/LH science scans, from the SE page-order pass. Each is one PDF filed
+    # under two tracks, so it gets one audit per taxonomy: reordering the LH
+    # copy and not the SE one would leave half the corpus shuffled.
+    "biology_lh_en__39d396cf": "biology-lh-en__39d396cf",
+    "biology_se_en__39d396cf": "biology-se-en__39d396cf",
+    "chemistry_lh_en__f24cb630": "chemistry-lh-en__f24cb630",
+    "physics_lh_en__3f6585b4": "physics-lh-en__3f6585b4",
+    "physics_se_en__3f6585b4": "physics-se-en__3f6585b4",
+    "ejtema3_se__7fa192d5": "ejtema3-se__7fa192d5",
+    "themes_se_en__d5989526": "themes-se-en__d5989526",
+    "themes_workbook_se_en__1539569c": "themes-workbook-se-en__1539569c",
 }
 
 # The audits were written per track. `LS` is where the original sweep put them
@@ -75,6 +87,7 @@ AUDIT_FOLDERS = ("LS", "SE", "GS")
 PAGE_MAPS = {
     "themes_workbook_en": AUDIT / "dbmaps" / "themes-workbook-gsls-en__08c8e964.json",
     "falsafe_gsls": AUDIT / "dbmaps" / "falsafa-gsls__c804d5ac.json",
+    "tarbeya": AUDIT / "dbmaps" / "tarbiya__164689a6.json",
 }
 
 # Chapter starts read by eye where the audit's could not be trusted. The French
@@ -104,10 +117,17 @@ START_OVERRIDES = {
                      175, 183, 195, 207, 223, 241],
 }
 
+START_OVERRIDES["tarbeya"] = [
+    # Civics, contents pages (printed 6-7) of the complete book. Each unit's
+    # introduction goes with its first lesson.
+    10, 18, 24, 30, 36, 44, 50, 56, 62, 70, 76, 82, 90, 96, 102,
+    108, 116, 122, 128, 134, 140, 148, 154, 160, 166, 174, 180, 186, 192, 198]
+
 # Where the last chapter ends (first printed page NOT in it), when the old
 # span's last scan is not near the book's last printed page.
 END_OVERRIDES = {
     "falsafe_lh": 358,
+    "tarbeya": 205,
 }
 
 
