@@ -5,6 +5,7 @@ import { NewSimulationForm, type SimulationOption } from '@/components/exam/new-
 import { PageHeader } from '@/components/ui/sheet';
 import { requireUser } from '@/lib/auth/guards';
 import { db } from '@/lib/db';
+import { SHARED_ACROSS_TRACKS } from '@/lib/exam';
 import { PUBLISHED_FILTER } from '@/lib/generation';
 import { getTranslations } from '@/lib/i18n';
 import { HAS_LIVE_QUESTIONS, OWN_EDITION_ONLY, listSubjects, subjectLanguagesFor } from '@/lib/queries/taxonomy';
@@ -136,6 +137,24 @@ export default async function NewSimulationPage({
 
   const generatedBySubject = foldBySubject(generatedRows);
   const realBySubject = foldBySubject(realRows);
+
+  // History, civics and geography draw on every track's papers — see
+  // `SHARED_ACROSS_TRACKS`. Counted the same way the pool is queried, so the
+  // number shown is the number a paper is actually built from.
+  await Promise.all(
+    subjects
+      .filter((subject) => SHARED_ACROSS_TRACKS.has(subject.name))
+      .map(async (subject) => {
+        const count = await db.question.count({
+          where: {
+            alsoInChapters: { some: { chapter: { subjectId: subject.id } } },
+            sourceType: 'past_exam',
+            verifiedStatus: { not: 'rejected' },
+          },
+        });
+        realBySubject.set(subject.id, count);
+      }),
+  );
 
   const cyclesBySubject = new Map<string, typeof cycleRows>();
   for (const cycle of cycleRows) {

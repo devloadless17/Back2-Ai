@@ -134,8 +134,10 @@ def read_page(key: str, model: str, jpeg: bytes) -> tuple:
             # budget. At 4000 a dense marking-scheme page came back EMPTY: the
             # whole allowance went on thinking and no text was ever written.
             "max_completion_tokens": 16000,
-            "reasoning_effort": "low",
         }
+        # Only reasoning models take this; gpt-4.1 and gpt-4o reject it.
+        if model.startswith(("gpt-5", "o")):
+            body["reasoning_effort"] = "low"
         headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
 
     request = urllib.request.Request(url, data=json.dumps(body).encode(), headers=headers)

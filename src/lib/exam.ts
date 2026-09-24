@@ -15,7 +15,7 @@ import {
   type Bareme,
 } from '@/lib/grading';
 import type { Locale } from '@/lib/i18n/config';
-import { recomputeChapterMastery } from '@/lib/queries/progress';
+import { recomputeChapterMastery, resolveCreditChapter } from '@/lib/queries/progress';
 import { rescaleBaremes } from '@/lib/rescale-bareme';
 import { OWN_EDITION_ONLY } from '@/lib/queries/taxonomy';
 import { retrieveGrounding } from '@/lib/retrieval';
@@ -131,10 +131,16 @@ async function startFromRealPool(input: StartInput): Promise<{ id: string }> {
   ]);
   const seenIds = new Set(seen.flatMap((a) => (a.questionId ? [a.questionId] : [])));
   const isLanguageArts = LANGUAGE_ARTS_SUBJECTS.has(subject?.name ?? '');
+  const shared = SHARED_ACROSS_TRACKS.has(subject?.name ?? '');
 
-  const pool = await db.question.findMany({
+  const rows = await db.question.findMany({
     where: {
-      chapter: { subjectId: input.subjectId },
+      // A shared subject draws from every track's papers: the questions reach
+      // this subject's chapters through `question_chapters`, which is what
+      // `corpus:share-tracks` writes. Otherwise, only this track's own papers.
+      ...(shared
+        ? { alsoInChapters: { some: { chapter: { subjectId: input.subjectId } } } }
+        : { chapter: { subjectId: input.subjectId } }),
       sourceType: 'past_exam',
       verifiedStatus: { not: 'rejected' },
     },
@@ -145,9 +151,32 @@ async function startFromRealPool(input: StartInput): Promise<{ id: string }> {
       difficulty: true,
       contentText: true,
       questionType: true,
+      ...(shared
+        ? {
+            alsoInChapters: {
+              where: { chapter: { subjectId: input.subjectId } },
+              select: { chapterId: true },
+              orderBy: { chapterId: 'asc' as const },
+              take: 1,
+            },
+          }
+        : {}),
     },
-    take: 400,
+    take: shared ? 1200 : 400,
   });
+
+  /*
+   * This subject's copy of the chapter, not the other track's.
+   *
+   * `chooseQuestions` spreads a paper across chapters by `chapterId`. A GS
+   * question on "the French Mandate" and an LH one on the same chapter carry
+   * two different ids, so left alone the spread would count one chapter as two
+   * and could put two large exercises from it on one paper.
+   */
+  const pool = rows.map(({ alsoInChapters, ...q }) => ({
+    ...q,
+    chapterId: (alsoInChapters as { chapterId: string }[] | undefined)?.[0]?.chapterId ?? q.chapterId,
+  }));
 
   /*
    * A paper that cannot be marked is not a paper.
@@ -447,6 +476,19 @@ export type SelectableProblem = {
  * `startFromRealPool`.
  */
 const LANGUAGE_ARTS_SUBJECTS = new Set(['English', 'Francais', 'أدب عربي']);
+
+/**
+ * Subjects every track sits from the same book, so a mock paper may draw on
+ * any track's past papers, not only the student's own.
+ *
+ * History, civics and geography: one national programme, one textbook, and
+ * every chapter name matches across all four tracks. Practice already offers
+ * them this way through `corpus:share-tracks`; this extends the same pool to
+ * mock papers. Deliberately a named list and not every shared chapter: GS and
+ * SE maths share chapter names too, but a mock paper built from the other
+ * track's questions would be sat at the wrong depth.
+ */
+export const SHARED_ACROSS_TRACKS = new Set(['تاريخ', 'تربية وطنية', 'جغرافيا']);
 
 /**
  * A language-arts paper's real shape: one reading/comprehension question and
@@ -1050,6 +1092,10 @@ export async function markSimulation(
 
   const marks: MarkEntry[] = [];
   const touchedChapters = new Set<string>();
+  const owner = await db.user.findUnique({
+    where: { id: input.userId },
+    select: { trackId: true },
+  });
 
   for (const slot of simulation.questions) {
     // Already marked on an earlier pass. Carry its result into the tally so the
@@ -1166,11 +1212,27 @@ export async function markSimulation(
 
     // Exam-sim answers count towards mastery, exactly like practice — this is
     // the same student demonstrating the same knowledge.
-    const chapterId = slot.question?.chapter?.id ?? slot.generatedProblem?.chapter?.id ?? null;
+    const homeChapterId = slot.question?.chapter?.id ?? slot.generatedProblem?.chapter?.id ?? null;
+    /*
+     * Credited to THIS student's copy of the chapter, the way practice does.
+     * A mock paper in a shared subject can carry another track's question, and
+     * crediting its home chapter would post the mark where this student's
+     * progress page never looks.
+     */
+    const chapterId =
+      homeChapterId && slot.questionId
+        ? ((await resolveCreditChapter({
+            userTrackId: owner?.trackId ?? null,
+            questionId: slot.questionId,
+            questionChapterId: homeChapterId,
+            isGenerated: false,
+          })) ?? homeChapterId)
+        : homeChapterId;
     if (chapterId) {
       touchedChapters.add(chapterId);
       await db.attempt.create({
         data: {
+          chapterId,
           userId: input.userId,
           questionId: slot.questionId,
           generatedProblemId: slot.generatedProblemId,
