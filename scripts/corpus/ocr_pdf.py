@@ -24,6 +24,7 @@ Costs money, so:
 
 import argparse
 import base64
+import http.client
 import io
 import json
 import os
@@ -162,7 +163,10 @@ def read_page(key: str, model: str, jpeg: bytes) -> tuple:
                 time.sleep(4 * (attempt + 1))
                 continue
             raise SystemExit(f"page failed ({e.code}): {e.read().decode()[:200]}")
-        except (TimeoutError, urllib.error.URLError):
+        except (OSError, http.client.HTTPException):
+            # OSError covers timeouts, URLError and a dropped connection
+            # (RemoteDisconnected), which is what ended a 1,651-page run five
+            # pages short.
             # A slow response on a dense page is not a bad page. Without this a
             # single timeout killed the whole run mid-paper.
             if attempt < 3:
