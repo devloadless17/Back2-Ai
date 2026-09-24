@@ -160,14 +160,20 @@ export default async function NewSimulationPage({
     subjects
       .filter((subject) => SHARED_ACROSS_TRACKS.has(subject.name))
       .map(async (subject) => {
-        const count = await db.question.count({
+        // Distinct exercises, not rows: the same paper is filed once per track,
+        // so history holds 640 rows and 207 different questions.
+        const rows = await db.question.findMany({
           where: {
             alsoInChapters: { some: { chapter: { subjectId: subject.id } } },
             sourceType: 'past_exam',
             verifiedStatus: { not: 'rejected' },
           },
+          select: { contentText: true },
         });
-        realBySubject.set(subject.id, count);
+        realBySubject.set(
+          subject.id,
+          new Set(rows.map((row) => row.contentText.replace(/\s+/g, ''))).size,
+        );
       }),
   );
 

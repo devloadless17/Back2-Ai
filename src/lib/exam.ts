@@ -176,10 +176,27 @@ async function startFromRealPool(input: StartInput): Promise<{ id: string }> {
    * two different ids, so left alone the spread would count one chapter as two
    * and could put two large exercises from it on one paper.
    */
-  const pool = rows.map(({ alsoInChapters, ...q }) => ({
+  const allCopies = rows.map(({ alsoInChapters, ...q }) => ({
     ...q,
     chapterId: (alsoInChapters as { chapterId: string }[] | undefined)?.[0]?.chapterId ?? q.chapterId,
   }));
+
+  /*
+   * One copy of each exercise, in a shared subject.
+   *
+   * GS and LS sit the same paper and the corpus files it once per track, so a
+   * shared subject's pool holds the same exercise up to four times under four
+   * ids — history reaches 640 rows and 207 distinct texts. Left alone, a paper
+   * could set the same question twice, and a student who answered the GS copy
+   * would be offered the LS copy as "unseen".
+   */
+  const textKey = (q: { contentText: string }) => q.contentText.replace(/\s+/g, '');
+  const seenTexts = new Set(allCopies.filter((q) => seenIds.has(q.id)).map(textKey));
+  const isSeen = (q: { id: string; contentText: string }) =>
+    shared ? seenTexts.has(textKey(q)) : seenIds.has(q.id);
+  const pool = shared
+    ? [...new Map(allCopies.map((q) => [textKey(q), q] as const)).values()]
+    : allCopies;
 
   /*
    * A paper that cannot be marked is not a paper.
@@ -201,8 +218,8 @@ async function startFromRealPool(input: StartInput): Promise<{ id: string }> {
 
   // Unseen first, then the rest — `chooseQuestions` walks the pool in order, so
   // ordering it is how the preference is expressed.
-  const unseen = markable.filter((q) => !seenIds.has(q.id));
-  const ordered = [...shuffle(unseen), ...shuffle(markable.filter((q) => seenIds.has(q.id)))];
+  const unseen = markable.filter((q) => !isSeen(q));
+  const ordered = [...shuffle(unseen), ...shuffle(markable.filter((q) => isSeen(q)))];
 
   /*
    * Exact first, rescaled only if that fails.

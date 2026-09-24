@@ -38,11 +38,23 @@ EXAMS = ROOT / "corpus" / "exams"
 OUT = ROOT / "corpus" / "exams-ocr"
 
 # Arabic-taught subjects, by the filename conventions of corpus/exams.
-# History is left out: it was transcribed by hand (exams_history_lh/*.json).
+#
+# SEARCHED ANYWHERE IN THE NAME, not anchored at the start. The first version
+# was anchored and missed 72 papers: from 2021 the ministry's files are named
+# `SVSG_Geo_2021_1.pdf` / `SE_Eco_2024_1_Ar.pdf`, and 2004–2006 ones
+# `gs geo 1.pdf`, none of which begin with the subject.
 SUBJECT = re.compile(
-    r"^(arabe|arabic|falsaf|tarbeya|tarbia|geo|greo|ektesad|eqtesad|ejteme|ejtema)", re.I
+    r"(arab|falsaf|philo|tarbeya|tarbia|geo|greo|ektesad|eqtesad|eco|ejteme|ejtema|socio)", re.I
 )
-TRANSLATED = re.compile(r"_(fr|en|eng)\.pdf$", re.I)
+# History was transcribed by hand (exams_history_lh/*.json), a better source.
+HISTORY = re.compile(r"(tarekh|terekh|tarikh|histo)", re.I)
+# French/English editions, including `SE_Eco_2021_1_Fr_0.pdf`.
+TRANSLATED = re.compile(r"[_-](fr|en|eng)(?:_\d+)?\.pdf$", re.I)
+# Accommodation editions (special-needs sittings) are not part of the corpus.
+ACCOMMODATION = re.compile(r"(ehteyejet|makfofen|makfufin|mokhtasa)", re.I)
+# Arabic editions of science papers are out of scope, full stop:
+# `lh/2018 1/phy_arabe.pdf` matches "arab" and must not be read.
+SCIENCE = re.compile(r"(phy|chim|chem|bio|svt|math|riyad)", re.I)
 
 # USD per million tokens. ASSUMED — confirm on the provider's pricing page.
 PRICES = {"gpt-4.1-mini": (0.40, 1.60), "gpt-5.5": (5.0, 30.0)}
@@ -52,7 +64,13 @@ def exam_pdfs() -> list:
     out = []
     for path in glob.glob(str(EXAMS / "**" / "*.pdf"), recursive=True):
         name = os.path.basename(path)
-        if SUBJECT.match(name) and not TRANSLATED.search(name):
+        if (
+            SUBJECT.search(name)
+            and not HISTORY.search(name)
+            and not TRANSLATED.search(name)
+            and not ACCOMMODATION.search(name)
+            and not SCIENCE.search(name)
+        ):
             out.append(Path(path))
     return sorted(out)
 

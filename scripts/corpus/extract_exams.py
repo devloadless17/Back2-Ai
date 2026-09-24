@@ -1309,6 +1309,29 @@ def table_marks(pdf: Path, exercises: list) -> dict:
 
 OCR_TEXT = ROOT / "corpus" / "text"
 
+# Whole-paper transcriptions of Arabic-taught papers, written by
+# `ocr_exams_batch.py` as `corpus/exams-ocr/<sha8>/page-NNN.md`. Which papers
+# use them is `ocr_whole_papers.json` (sha8 -> path); see `read()` for why.
+EXAMS_OCR = ROOT / "corpus" / "exams-ocr"
+OCR_WHOLE_PAPERS = frozenset(
+    json.loads((Path(__file__).resolve().parent / "ocr_whole_papers.json").read_text("utf-8"))
+)
+
+
+_SHA8: dict = {}
+
+
+def _sha8(pdf: Path) -> str:
+    """First 8 of the paper's sha256, read once per paper per run."""
+    if pdf not in _SHA8:
+        _SHA8[pdf] = hashlib.sha256(pdf.read_bytes()).hexdigest()[:8]
+    return _SHA8[pdf]
+
+
+def exam_ocr_pages(pdf: Path) -> list | None:
+    pages = sorted((EXAMS_OCR / _sha8(pdf)).glob("page-*.md"))
+    return [page.read_text(encoding="utf-8") for page in pages] or None
+
 
 def ocr_pages(pdf: Path) -> list | None:
     """Pages transcribed by `ocr_pdf.py`, if this paper has been read that way.
@@ -1368,7 +1391,23 @@ def read(pdf: Path) -> dict | None:
     # image: the PDF's own text is exact where it works, and OCR is a
     # reconstruction, so preferring it everywhere would trade certainty for
     # plausibility across the whole corpus to fix one eighth of it.
-    if sum(len(page) for page in pages) / max(1, len(pages)) < 400:
+    # The papers in `ocr_whole_papers.json` take the transcription WHOLE. Their
+    # text layer is not wrong in one character but throughout:
+    # words out of order, vowel marks torn off their letters, brackets flipped,
+    # ھ for ه — lh/2017 2/arabe.pdf came out as one "exercise" whose 34 parts
+    # were the lines of the poem. Measured with `compare_ocr_extract.py` over
+    # all 330 Arabic-taught papers: taking the transcription only for these 152
+    # (text layer damaged or unparseable), and the text layer everywhere else,
+    # extracts 329 papers where today extracts 291, finds more sub-questions,
+    # and takes visible damage from 6,830 to 12. A transcription puts a mark on
+    # its own line, which costs some mark-gated headers; measured, that is far
+    # smaller than what it replaces here. The list is frozen because it is
+    # derived from extraction output, and extraction must not depend on itself.
+    if _sha8(pdf) in OCR_WHOLE_PAPERS:
+        transcribed = exam_ocr_pages(pdf)
+        if transcribed:
+            pages = transcribed
+    elif sum(len(page) for page in pages) / max(1, len(pages)) < 400:
         transcribed = ocr_pages(pdf)
         if transcribed:
             pages = transcribed
