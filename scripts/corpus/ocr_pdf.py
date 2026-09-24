@@ -130,7 +130,11 @@ def read_page(key: str, model: str, jpeg: bytes) -> tuple:
                     ],
                 },
             ],
-            "max_completion_tokens": 4000,
+            # A reasoning model spends its hidden thinking out of this same
+            # budget. At 4000 a dense marking-scheme page came back EMPTY: the
+            # whole allowance went on thinking and no text was ever written.
+            "max_completion_tokens": 16000,
+            "reasoning_effort": "low",
         }
         headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
 
@@ -156,6 +160,13 @@ def read_page(key: str, model: str, jpeg: bytes) -> tuple:
                 time.sleep(4 * (attempt + 1))
                 continue
             raise SystemExit(f"page failed ({e.code}): {e.read().decode()[:200]}")
+        except (TimeoutError, urllib.error.URLError):
+            # A slow response on a dense page is not a bad page. Without this a
+            # single timeout killed the whole run mid-paper.
+            if attempt < 3:
+                time.sleep(4 * (attempt + 1))
+                continue
+            raise
     return "", {}
 
 
@@ -208,6 +219,7 @@ def main() -> None:
     key = api_key(args.model)
     total_in = total_out = 0
     thin = []
+    empty = []
 
     for n in todo:
         jpeg = render(pdf, n)
@@ -217,7 +229,16 @@ def main() -> None:
 
         text = re.sub(r"^```[a-z]*\n|\n```$", "", text.strip())
         arabic = len(ARABIC.findall(text))
-        if text and text != "[blank page]" and arabic < 40:
+
+        # Nothing back is a failure, not a blank page — a blank page says
+        # "[blank page]". Not written, so the next run retries it instead of
+        # the resume check treating an empty file as done.
+        if not text:
+            empty.append(n + 1)
+            print(f"  page {n + 1:>3}  EMPTY — not saved, re-run to retry")
+            continue
+
+        if text != "[blank page]" and arabic < 40:
             thin.append(n + 1)
 
         (folder / f"page-{n + 1:03d}.md").write_text(text + "\n", encoding="utf-8")
@@ -228,6 +249,8 @@ def main() -> None:
     print(f"  tokens: {total_in} in, {total_out} out")
     if thin:
         print(f"  CHECK these pages by eye — very little Arabic came back: {thin}")
+    if empty:
+        print(f"  FAILED — nothing came back, re-run to retry: {empty}")
 
 
 if __name__ == "__main__":
