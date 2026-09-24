@@ -3,8 +3,11 @@ import 'server-only';
 import type { ExamSourceMode, Prisma } from '@prisma/client';
 
 import { AuditAction, recordAudit } from '@/lib/audit';
+import { budgetState } from '@/lib/ai';
+import { rateLimit } from '@/lib/api';
 import { db } from '@/lib/db';
-import { PUBLISHED_FILTER } from '@/lib/generation';
+import { isAiConfigured, isEmbeddingConfigured } from '@/lib/env';
+import { PUBLISHED_FILTER, generateProblem } from '@/lib/generation';
 import {
   baremeMaxScore,
   checkOcrConsistency,
@@ -17,7 +20,7 @@ import {
 import type { Locale } from '@/lib/i18n/config';
 import { recomputeChapterMastery, resolveCreditChapter } from '@/lib/queries/progress';
 import { rescaleBaremes } from '@/lib/rescale-bareme';
-import { OWN_EDITION_ONLY } from '@/lib/queries/taxonomy';
+import { LIVE_CHAPTER, OWN_EDITION_ONLY } from '@/lib/queries/taxonomy';
 import { retrieveGrounding } from '@/lib/retrieval';
 
 /**
@@ -643,7 +646,79 @@ export function assemblePaper<T extends SelectableProblem>(
   return search(0, [], 0, new Set()) ?? [];
 }
 
-export async function selectGeneratedQuestions(subjectId: string) {
+/**
+ * At most this many live generations per `ai_generated` start. Each one is a
+ * model call, an embedding, and a solver check run in series before the
+ * student sees "Begin" resolve — five of them is already a slow click, and
+ * `generateProblem` itself retries up to `MAX_ATTEMPTS` internally on a
+ * duplicate or a bad parse, so the true worst case is a multiple of this.
+ * Capped well under `AI_PAPER_QUESTION_COUNT` on purpose.
+ *
+ * `TUNABLE` — `src/lib/exam.ts`.
+ */
+const LIVE_TOPUP_CAP = 3;
+
+/**
+ * Fills the gap between what is approved and what a paper needs, by
+ * generating live — explicitly chosen over leaving the student with
+ * `NO_CONTENT` while the review queue sits unread. See the module comment on
+ * `ai_generated` for why that queue is usually the reason this runs at all.
+ *
+ * SOLVER-PASSED ONLY. A human has not seen these, but the solver has: it
+ * re-derives the final answer from the stated problem and the bareme is
+ * cross-checked against it. `solver_failed` problems still reach the review
+ * queue — seeing what the generator gets wrong is how the prompt improves —
+ * they are just never handed to a student on a scored, timed sitting.
+ *
+ * Spread across chapters that do not already have an approved problem,
+ * because a top-up that piles three fresh questions onto one chapter is not
+ * the paper `chooseQuestions` is trying to build.
+ */
+async function topUpWithLiveGeneration(
+  subjectId: string,
+  userId: string,
+  shortfall: number,
+  coveredChapterIds: string[],
+): Promise<SelectableProblem[]> {
+  if (!isAiConfigured() || !isEmbeddingConfigured()) return [];
+
+  const budget = await budgetState(userId);
+  if (budget.exhausted) return [];
+
+  const limit = rateLimit(`examsim-topup:${userId}`, LIVE_TOPUP_CAP, 60 * 60_000);
+  if (!limit.allowed) return [];
+
+  const chapters = await db.chapter.findMany({
+    where: { subjectId, ...LIVE_CHAPTER },
+    select: { id: true },
+    orderBy: { orderIndex: 'asc' },
+  });
+  if (chapters.length === 0) return [];
+
+  const covered = new Set(coveredChapterIds);
+  const targets = [
+    ...chapters.filter((c) => !covered.has(c.id)),
+    ...chapters.filter((c) => covered.has(c.id)),
+  ];
+
+  const attempts = Math.min(shortfall, LIVE_TOPUP_CAP);
+  const created: SelectableProblem[] = [];
+
+  for (let i = 0; i < attempts && i < targets.length; i += 1) {
+    const outcome = await generateProblem({ chapterId: targets[i]!.id, requestedBy: userId });
+    if (outcome.status !== 'created' || !outcome.solverPassed) continue;
+
+    const problem = await db.generatedProblem.findUnique({
+      where: { id: outcome.problemId },
+      select: { id: true, chapterId: true, bareme: true, difficulty: true, contentText: true },
+    });
+    if (problem) created.push(problem);
+  }
+
+  return created;
+}
+
+export async function selectGeneratedQuestions(subjectId: string, userId: string) {
   const pool = await db.generatedProblem.findMany({
     where: { chapter: { subjectId }, ...PUBLISHED_FILTER },
     select: { id: true, chapterId: true, bareme: true, difficulty: true, contentText: true },
@@ -651,14 +726,29 @@ export async function selectGeneratedQuestions(subjectId: string) {
     take: 60,
   });
 
-  if (pool.length === 0) {
+  const shortfall = AI_PAPER_QUESTION_COUNT - pool.length;
+  const candidates =
+    shortfall > 0
+      ? [
+          ...pool,
+          ...(await topUpWithLiveGeneration(
+            subjectId,
+            userId,
+            shortfall,
+            pool.map((p) => p.chapterId),
+          )),
+        ]
+      : pool;
+
+  if (candidates.length === 0) {
     throw new ExamError(
       'NO_CONTENT',
-      'No approved generated problems are available for this subject yet.',
+      'No approved generated problems are available for this subject yet, and a fresh one could ' +
+        'not be generated — check that the AI provider is configured and the budget is not exhausted.',
     );
   }
 
-  const chosen = chooseQuestions(pool, AI_PAPER_QUESTION_COUNT);
+  const chosen = chooseQuestions(candidates, AI_PAPER_QUESTION_COUNT);
 
   // Easiest first, the way a real paper is ordered.
   chosen.sort((a, b) => Number(a.difficulty ?? 0.5) - Number(b.difficulty ?? 0.5));
@@ -700,7 +790,7 @@ export async function composeGeneratedPaper(
     return { composed: false, questionCount: simulation._count.questions };
   }
 
-  const chosen = await selectGeneratedQuestions(simulation.subjectId);
+  const chosen = await selectGeneratedQuestions(simulation.subjectId, userId);
 
   await db.$transaction([
     db.examSimulationQuestion.createMany({
@@ -722,7 +812,7 @@ export async function composeGeneratedPaper(
 }
 
 async function startFromGeneratedPool(input: StartInput): Promise<{ id: string }> {
-  const chosen = await selectGeneratedQuestions(input.subjectId);
+  const chosen = await selectGeneratedQuestions(input.subjectId, input.userId);
 
   const startedAt = new Date();
   const duration = DEFAULT_DURATION_MINUTES;
