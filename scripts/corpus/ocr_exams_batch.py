@@ -48,10 +48,14 @@ SUBJECT = re.compile(
 )
 # History was transcribed by hand (exams_history_lh/*.json), a better source.
 HISTORY = re.compile(r"(tarekh|terekh|tarikh|histo)", re.I)
-# French/English editions, including `SE_Eco_2021_1_Fr_0.pdf`.
-TRANSLATED = re.compile(r"[_-](fr|en|eng)(?:_\d+)?\.pdf$", re.I)
+# French/English editions, including `SE_Eco_2021_1_Fr_0.pdf` and
+# `falsafe_en_ehteuejet.pdf`, where the language is not the last token.
+TRANSLATED = re.compile(r"[_\s-](fr|en|eng)(?=[_\s.-])", re.I)
 # Accommodation editions (special-needs sittings) are not part of the corpus.
-ACCOMMODATION = re.compile(r"(ehteyejet|makfofen|makfufin|mokhtasa)", re.I)
+# Every spelling the corpus uses: ehteyejet/ehtiyejet/ehteuejet,
+# makfufin/makfoufen/makfofen, mokhtasa/mu5tasa. The first version knew four
+# and let 21 papers through.
+ACCOMMODATION = re.compile(r"(ehte[uy]ejet|ehtiyejet|makfu|makfou|makfo|mokhtas|mu5tas)", re.I)
 # Arabic editions of science papers are out of scope, full stop:
 # `lh/2018 1/phy_arabe.pdf` matches "arab" and must not be read.
 SCIENCE = re.compile(r"(phy|chim|chem|bio|svt|math|riyad)", re.I)
