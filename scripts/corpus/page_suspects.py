@@ -12,10 +12,10 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "scripts" / "corpus"))
-from audit_book_pages import AUDIT, BOOKS, LS  # noqa: E402
+from audit_book_pages import AUDIT, BOOKS, LS, folder_of  # noqa: E402
 
 name, out = sys.argv[1], sys.argv[2]
-r = json.loads((AUDIT / "LS" / f"{name}.json").read_text(encoding="utf-8"))
+r = json.loads((AUDIT / folder_of(name) / f"{name}.json").read_text(encoding="utf-8"))
 manual_path = AUDIT / "manual" / f"{BOOKS[name][1]}.json"
 manual = json.loads(manual_path.read_text(encoding="utf-8")) if manual_path.exists() else {}
 pm = {p["scan"]: p for p in r["pageMap"]}

@@ -61,6 +61,13 @@ BOOKS = {
     # Added to LS/EN on 2026-09-24. Its cover says الآداب والإنسانيات: this is
     # the LH general-philosophy book, not the GS/LS/SE one.
     "falsafe_lh": (["EN/لفلسفة العامة.pdf"], "99531baf", "falsafa-3amma-lh__0b41b677", "different file"),
+    # GS only: the two-volume GS maths course. Every other GS book is the same
+    # file as its LS counterpart above (GS = LS minus biology, plus these).
+    "math_gs_1_en": (["../GS/En/math_gs_1_en.pdf"], "289de41e",
+                     "289de41e5b683087171d2d02f8ac52ba323d0ef1b4e44d977ab7060817b4c38b", "same file", "GS"),
+    "math_gs_2_en": (["../GS/En/math_gs_2_en.pdf"], "56566975", "math-gs-2-en__56566975", "same file", "GS"),
+    "math_gs_1_fr": (["../GS/FR/math_gs_1_fr.pdf"], "184c4281", "math-gs-1-fr__184c4281", "same file", "GS"),
+    "math_gs_2_fr": (["../GS/FR/math_gs_2_fr.pdf"], "57a12d5b", "math-gs-2-fr__57a12d5b", "same file", "GS"),
 }
 
 BOTTOM_BAND = 0.87   # a footer number starts below this
@@ -227,8 +234,13 @@ def similar(a, b):
 
 # ---------------------------------------------------------------- audit
 
+def folder_of(name):
+    """Which track folder a book's report goes in (LS unless it says otherwise)."""
+    return BOOKS[name][4] if len(BOOKS[name]) > 4 else "LS"
+
+
 def audit(name):
-    files, sha8, db_book, relation = BOOKS[name]
+    files, sha8, db_book, relation = BOOKS[name][:4]
     marks_path = AUDIT / "marks" / f"{sha8}.json"
     marks = json.loads(marks_path.read_text(encoding="utf-8"))
     manual_path = AUDIT / "manual" / f"{sha8}.json"
@@ -365,7 +377,7 @@ def audit(name):
             # between, so "0 missing" would be false.
             report["summary"]["missingPrintedPages"] = notes["missingPages"]
             report["missingPrintedPages"] = notes["missingPages"]
-    out = AUDIT / "LS" / f"{name}.json"
+    out = AUDIT / folder_of(name) / f"{name}.json"
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(report, ensure_ascii=False, indent=1), encoding="utf-8")
     return report
@@ -582,7 +594,7 @@ def write_summary():
     """corpus/page-audit/LS/_summary.json: one line per book, for reading first."""
     rows = []
     for name in BOOKS:
-        path = AUDIT / "LS" / f"{name}.json"
+        path = AUDIT / folder_of(name) / f"{name}.json"
         if not path.exists():
             continue
         r = json.loads(path.read_text(encoding="utf-8"))

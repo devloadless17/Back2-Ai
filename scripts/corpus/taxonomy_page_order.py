@@ -56,6 +56,10 @@ BOOKS = {
     "themes_workbook_en": "themes-workbook-gsls-en__08c8e964",
     "falsafe_lh": "falsafa-3amma-lh__0b41b677",
     "falsafe_gsls": "falsafa-gsls__c804d5ac",
+    "math_gs_1_en": "289de41e5b683087171d2d02f8ac52ba323d0ef1b4e44d977ab7060817b4c38b",
+    "math_gs_2_en": "math-gs-2-en__56566975",
+    "math_gs_1_fr": "math-gs-1-fr__184c4281",
+    "math_gs_2_fr": "math-gs-2-fr__57a12d5b",
     # SE economics. Its audit came from a page-order report rather than from the
     # LS sweep, and it is the same shuffle: 63 blocks of five, every block
     # holding its own five pages in the wrong order, all 35 chapters affected.
@@ -64,7 +68,7 @@ BOOKS = {
 
 # The audits were written per track. `LS` is where the original sweep put them
 # and stays the default, so no existing book changes path.
-AUDIT_FOLDERS = ("LS", "SE")
+AUDIT_FOLDERS = ("LS", "SE", "GS")
 
 # Books whose database text is a different file from the audited one: their
 # own page map, scan page -> printed page, lives here instead.
@@ -93,6 +97,11 @@ START_OVERRIDES = {
     # (printed 15, 69, 129) go with the lesson they open. الفعل الإنساني
     # (printed 189) was dropped from the syllabus in 2016 and is not placed.
     "falsafe_gsls": [15, 25, 37, 53, 61, 69, 83, 99, 116, 129, 140, 152, 162, 171, 181],
+    # GS maths vol 1 (EN): the stored index gives Conics: The Properties 211
+    # and Self Evaluation 229; the headings are on printed 223 and 241, as in
+    # the French edition. The rest is the index as stored.
+    "math_gs_1_en": [13, 21, 31, 41, 51, 69, 83, 93, 103, 115, 125, 133, 141, 153, 167,
+                     175, 183, 195, 207, 223, 241],
 }
 
 # Where the last chapter ends (first printed page NOT in it), when the old
