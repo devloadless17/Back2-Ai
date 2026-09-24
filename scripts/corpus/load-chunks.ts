@@ -3,6 +3,7 @@
  *
  *   npm run corpus:chunks -- --dry              plan only, writes nothing
  *   npm run corpus:chunks -- --book math-ls-en__9de6de98
+ *   npm run corpus:chunks -- --book a__1,b__2      several, loaded as one run
  *   npm run corpus:chunks                       everything in the catalog
  *
  * Reads the normalised text (corpus/text/<book>/clean), the chapter spans
@@ -33,6 +34,7 @@
  */
 
 import { createHash } from 'node:crypto';
+import { existsSync } from 'node:fs';
 import { readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
 
@@ -59,6 +61,8 @@ type Chapter = {
   pdfOffset?: number | null;
   /** Where on its last page it stops. Null means the end of the page. */
   pdfEndOffset?: number | null;
+  /** Its scan pages in printed order, where the scan is shuffled. Overrides pdfPage..pdfPageEnd. */
+  pages?: number[];
 };
 
 function parseCsv(text: string): Row[] {
@@ -259,7 +263,14 @@ function classify(text: string): ContentChunkKind {
 async function main() {
   const args = process.argv.slice(2);
   const dry = args.includes('--dry');
-  const only = args.includes('--book') ? args[args.indexOf('--book') + 1] : null;
+  /*
+   * One book, or several separated by commas. Several matters: the prune at
+   * the end drops every link in a touched chapter that THIS run did not
+   * produce, so a book whose chapters are shared with another (a teacher's
+   * summary fused into the textbook's chapters) must be loaded together with
+   * it, or the other book's passages are unlinked and then deleted.
+   */
+  const only = args.includes('--book') ? new Set(args[args.indexOf('--book') + 1]!.split(',')) : null;
 
   /*
    * Re-label existing chunks in place.
@@ -338,7 +349,7 @@ async function main() {
   const distinct = new Set<string>();
 
   for (const row of catalog) {
-    if (!row.folder || (only && row.folder !== only && row.book_name !== only)) continue;
+    if (!row.folder || (only && !only.has(row.folder) && !only.has(row.book_name ?? ''))) continue;
 
     const cleanDir = path.join(CORPUS, 'text', row.folder, 'clean');
     let pageFiles: string[];
@@ -357,6 +368,21 @@ async function main() {
       continue;
     }
     const chapters = (taxonomy.chapters ?? []).filter((c) => c.pdfPage);
+    /*
+     * A book whose scan is shuffled was given per-chapter page lists once
+     * (its original taxonomy is backed up under corpus/page-audit/backup).
+     * taxonomy.py and the hand-written taxonomy scripts rewrite the file
+     * without them, and loading that would quietly bring back the shuffled
+     * chapters. Refuse instead.
+     */
+    const pageOrdered = existsSync(path.join(CORPUS, 'page-audit', 'backup', 'taxonomy', `${row.folder}.json`));
+    if (pageOrdered && !chapters.some((c) => c.pages?.length)) {
+      report.push(
+        `${row.book_name}: SKIPPED — its scan is shuffled and the taxonomy has lost its page lists; ` +
+          `run  python scripts/corpus/taxonomy_page_order.py --apply  first`,
+      );
+      continue;
+    }
     if (!chapters.length) {
       report.push(`${row.book_name}: taxonomy has no placed chapters`);
       continue;
@@ -430,7 +456,13 @@ async function main() {
       const dbByName = new Map(dbChapters.map((c) => [c.name.trim(), c]));
 
       for (const chapter of chapters) {
-        const target = dbByName.get(chapter.title.trim());
+        // The seeder (prisma/taxonomy-loader.ts) drops a trailing "(*)" footnote
+        // marker from the name it stores, so "Special Relativity (*)" is the
+        // row "Special Relativity". Matching the raw title missed those rows,
+        // and their passages were never refreshed by a reload.
+        const target =
+          dbByName.get(chapter.title.trim()) ??
+          dbByName.get(chapter.title.trim().replace(/\s*\(\s*\*\s*\)\s*$/, '').trim());
         if (!target) {
           report.push(`${row.book_name}: no chapter row named "${chapter.title.slice(0, 40)}"`);
           continue;
@@ -451,8 +483,21 @@ async function main() {
          */
         const startAt = chapter.pdfOffset ?? 0;
         const endAt = chapter.pdfEndOffset ?? null;
+        /*
+         * Which pages, in which order. A scan whose pages are shuffled cannot be
+         * read as the run from..to: the chapter would take some of its
+         * neighbours' pages, lose some of its own, and join the rest out of
+         * order, so passages were cut across the seam between two unrelated
+         * pages. Where corpus/page-audit has mapped every scan page to its
+         * printed number, the taxonomy lists the chapter's pages in printed
+         * order (scripts/corpus/taxonomy_page_order.py) and that list is read
+         * instead.
+         */
+        const order: number[] = chapter.pages?.length
+          ? chapter.pages
+          : Array.from({ length: to - from + 1 }, (_, i) => from + i);
         const body: string[] = [];
-        for (let p = from; p <= to; p += 1) {
+        for (const p of order) {
           let text = pages.get(p);
           if (!text) continue;
           if (p === to && endAt !== null) text = text.slice(0, endAt);
@@ -486,9 +531,23 @@ async function main() {
           const hash = chunkIdentity(documentId!, part.text);
           keep.add(hash);
 
-          const existing = await db.$queryRaw<{ id: string }[]>`
-            SELECT id FROM content_chunks WHERE source_ref = ${hash} LIMIT 1
+          const existing = await db.$queryRaw<{ id: string; source_page_from: number | null; source_page_to: number | null }[]>`
+            SELECT id, source_page_from, source_page_to FROM content_chunks WHERE source_ref = ${hash} LIMIT 1
           `;
+          /*
+           * Same text, new place: keep the row and its vector, move its page.
+           * Identity is the text, so a passage whose page changed — a scan
+           * page replaced, a duplicated page removed — used to keep citing the
+           * page it was first read from.
+           */
+          const pageFrom = part.page ?? from;
+          const pageTo = part.page ?? to;
+          if (existing[0] && (existing[0].source_page_from !== pageFrom || existing[0].source_page_to !== pageTo)) {
+            await db.contentChunk.update({
+              where: { id: existing[0].id },
+              data: { sourcePageFrom: pageFrom, sourcePageTo: pageTo },
+            });
+          }
           const chunkId =
             existing[0]?.id ??
             (
