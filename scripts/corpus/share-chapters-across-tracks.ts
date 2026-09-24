@@ -1,4 +1,63 @@
+import { Prisma } from '@prisma/client';
+
 import { db } from '../../src/lib/db';
+
+/**
+ * Every (question, chapter) pair the sharing rule implies — ONE definition,
+ * used by both the count and the insert, so the report can never describe a
+ * set the insert does not write.
+ *
+ * TWO RULES AGAINST DUPLICATES, both added after the fact.
+ *
+ * The same paper is filed once per track: GS and LS sit the same history,
+ * civics and geography papers, and the corpus keeps a copy under each track.
+ * Sharing every copy into every track put each question in front of a student
+ * up to four times — history reached 640 rows and 207 distinct questions.
+ *
+ *   A copy is not shared into a subject that already has its own copy of the
+ *   same text. That track sat the paper; it has it.
+ *
+ *   Where several other tracks hold the same text, one copy is shared, not
+ *   one per track. The lowest id, so re-runs pick the same row.
+ *
+ * A paper only one track sat still reaches the others, which is the point.
+ */
+const PAIRS = Prisma.sql`
+  WITH cand AS (
+    SELECT qc.question_id, target.id AS chapter_id, q.content_text
+      FROM chapters sc
+      JOIN subjects ss ON ss.id = sc.subject_id
+      JOIN question_chapters qc ON qc.chapter_id = sc.id
+      JOIN questions q ON q.id = qc.question_id AND q.verified_status <> 'rejected'
+      JOIN chapters target ON target.name = sc.name
+      JOIN subjects ts ON ts.id = target.subject_id
+     WHERE ts.name = ss.name
+       AND ts.language = ss.language
+       AND ts.track_id <> ss.track_id
+       -- The other track must study the book this chapter comes out of.
+       AND EXISTS (
+         SELECT 1
+           FROM chapter_content_chunks cl
+           JOIN content_chunks cc ON cc.id = cl.chunk_id
+           JOIN source_documents d ON d.id = cc.source_document_id
+           JOIN tracks tt ON tt.id = ts.track_id
+          WHERE cl.chapter_id = sc.id
+            AND tt.code = ANY(d.tracks))
+       -- Not into a subject that already holds its own copy of this text.
+       AND NOT EXISTS (
+         SELECT 1
+           FROM questions twin
+           JOIN chapters tc ON tc.id = twin.chapter_id
+          WHERE tc.subject_id = ts.id
+            AND twin.verified_status <> 'rejected'
+            AND twin.content_text = q.content_text)
+  ),
+  pairs AS (
+    -- One copy per text per target chapter.
+    SELECT DISTINCT ON (chapter_id, md5(content_text)) question_id, chapter_id
+      FROM cand
+     ORDER BY chapter_id, md5(content_text), question_id
+  )`;
 
 /**
  * Offers an exercise to every track that studies the same chapter.
@@ -84,30 +143,7 @@ async function main() {
    * same thing.
    */
   const rows = await db.$queryRaw<{ n: bigint }[]>`
-    WITH ch AS (
-      SELECT c.id, c.name, c.subject_id, s.name AS subject, s.language, s.track_id
-        FROM chapters c JOIN subjects s ON s.id = c.subject_id
-    ),
-    pairs AS (
-      SELECT DISTINCT qc.question_id, target.id AS chapter_id
-        FROM ch source
-        JOIN question_chapters qc ON qc.chapter_id = source.id
-        JOIN questions q ON q.id = qc.question_id AND q.verified_status <> 'rejected'
-        JOIN ch target
-          ON target.subject = source.subject
-         AND target.language = source.language
-         AND target.name = source.name
-         AND target.track_id <> source.track_id
-         -- The other track must study the book this chapter comes out of.
-         AND EXISTS (
-           SELECT 1
-             FROM chapter_content_chunks cl
-             JOIN content_chunks cc ON cc.id = cl.chunk_id
-             JOIN source_documents d ON d.id = cc.source_document_id
-             JOIN tracks tt ON tt.id = target.track_id
-            WHERE cl.chapter_id = source.id
-              AND tt.code = ANY(d.tracks))
-    )
+    ${PAIRS}
     SELECT count(*)::bigint AS n FROM pairs`;
 
   const planned = Number(rows[0]?.n ?? 0);
@@ -120,27 +156,9 @@ async function main() {
   }
 
   const written = await db.$executeRaw`
+    ${PAIRS}
     INSERT INTO question_chapters (question_id, chapter_id)
-    SELECT DISTINCT qc.question_id, target.id
-      FROM chapters sc
-      JOIN subjects ss ON ss.id = sc.subject_id
-      JOIN question_chapters qc ON qc.chapter_id = sc.id
-      JOIN questions q ON q.id = qc.question_id AND q.verified_status <> 'rejected'
-      JOIN chapters target ON target.name = sc.name
-      JOIN subjects ts ON ts.id = target.subject_id
-     WHERE ts.name = ss.name
-       AND ts.language = ss.language
-       AND ts.track_id <> ss.track_id
-       -- The same book test as the count above. Both statements must agree, or
-       -- the report describes a set the insert does not write.
-         AND EXISTS (
-           SELECT 1
-             FROM chapter_content_chunks cl
-             JOIN content_chunks cc ON cc.id = cl.chunk_id
-             JOIN source_documents d ON d.id = cc.source_document_id
-             JOIN tracks tt ON tt.id = ts.track_id
-            WHERE cl.chapter_id = sc.id
-              AND tt.code = ANY(d.tracks))
+    SELECT question_id, chapter_id FROM pairs
     ON CONFLICT DO NOTHING`;
 
   console.log(`  rows inserted         ${written}`);

@@ -459,9 +459,22 @@ def unqualified(label: str) -> str:
 # Over 4,225 statements, 23 carried corrig[ée] and ALL 23 were the verb; the
 # noun "corrigé" does not occur once in this corpus. The alternative was
 # recovering nothing and truncating twenty real questions mid-sentence.
+#
+# `(?:ال)?`, never `ال?`. The second makes only the LAM optional, so
+# "أسس تصحيح مادة الجغرافيا" — no article, which is how the geography and
+# philosophy schemes are headed — never matched. The Arabic-taught headings
+# below were counted over the vision transcriptions of 330 papers, where 497
+# scheme pages went unrecognised against 87 recognised: "مشروع معيار التصحيح"
+# alone heads 135 of them, and a scheme is otherwise announced only by its
+# table header, "السؤال | التصحيح | العلامة" and its variants. Each is a phrase
+# a question paper does not print: a student is never shown the word التصحيح
+# beside العلامة, nor told a plan is "مقترح".
 SCHEME_HEAD = re.compile(
-    r"أسس\s*ال?تصحيح|معايير\s*التصحيح|سلّ?م\s*ال?تصحيح|"
-    r"ال[أإا]?جابة\s*ال?متوقعة|الجواب\s*ال?متوقع|"
+    r"أسس\s*(?:ال)?تصحيح|(?:معايير|معيار)\s*(?:ال)?تصحيح|سلّ?م\s*(?:ال)?تصحيح|"
+    r"ال[أإا]?جابة\s*(?:ال)?متوقعة|الجواب\s*(?:ال)?متوقع|"
+    r"ال[أإا]جاب(?:ة|ات)\s*المقترحة|عناصر\s*ال[أإا]جاب(?:ة|ات)\s*(?:المقترحة|ومعاييرها)|"
+    r"(?:ال)?تصميم\s*(?:ال)?مقترح|إشكالية\s*مقترحة|"
+    r"السؤال[^\n]{0,40}(?:التصحيح|عناصر\s*ال[أإا]جابة|المعايير)[^\n]{0,60}العلامة|"
     r"bar[eè]me|corrig[ée]s?\b|r[ée]ponses?\s*attendues?|[ée]l[ée]ments?\s*de\s*r[ée]ponse|"
     r"marking\s*scheme|answer\s*key|expected\s*answers?|"
     r"(?:question|part\s+of).{0,30}(?:answer|answers).{0,30}(?:mark|note)",
@@ -1328,9 +1341,79 @@ def _sha8(pdf: Path) -> str:
     return _SHA8[pdf]
 
 
+# A mark as a transcription prints it: in brackets, in words, at the end of a
+# question — "(علامة واحدة)", "(علامة ونصف العلامة)", "(ثلاثة أرباع العلامة)".
+#
+# Not `arabic_marks`, which the rest of this file relies on and which reads
+# those last two as 0.5 and 0: it adds up recognised words but has no notion
+# that "علامة" at the start of a phrase is one mark and after "نصف" is only
+# the unit. This reader is strict instead. A bracket is a mark only if every
+# word in it is a mark word, because "علامة" also means "sign", and a bracket
+# that says anything else is not read at all.
+ARABIC_TAUGHT_PROFILES = frozenset(
+    {"arabic", "philosophy", "civics", "history", "geography", "economics", "sociology"}
+)
+_MARK_BRACKET = re.compile(r"[(（]([^()（）\n]{1,40})[)）]")
+# Longest first, "و" last: alternation takes the first that fits, so "و"
+# ahead of "واحدة" would leave "احدة" behind and reject a real mark.
+_MARK_WORDS = re.compile(
+    r"العلامات|العلامة|علامتان|علامتين|علامات|علامة|واحدة|"
+    r"ثمانية|ثلاثة|أربعة|خمسة|سبعة|تسعة|عشرة|ستة|ثماني|ثمان|ثلاث|أربع|خمس|سبع|تسع|عشر|ست|"
+    r"أرباع|ارباع|نصف|ربع|ثلث|"
+    r"[\d٠-٩]+(?:[.,٫][\d٠-٩]+)?|\s|و"
+)
+_UNITS = {"ثلاث": 3, "ثلاثة": 3, "أربع": 4, "أربعة": 4, "خمس": 5, "خمسة": 5, "ست": 6,
+          "ستة": 6, "سبع": 7, "سبعة": 7, "ثماني": 8, "ثمانية": 8, "ثمان": 8, "تسع": 9,
+          "تسعة": 9, "عشر": 10, "عشرة": 10}
+
+
+def bracket_mark(inner: str) -> float | None:
+    """The value of one bracketed mark phrase, or None if it is not one."""
+    inner = inner.strip()
+    if "علام" not in inner or _MARK_WORDS.sub("", inner).strip(" ،,:.-–"):
+        return None
+    digits = re.search(r"[\d٠-٩]+(?:[.,٫][\d٠-٩]+)?", inner)
+    if digits:
+        return float(digits.group().translate(str.maketrans("٠١٢٣٤٥٦٧٨٩٫,", "0123456789..")))
+    value = 0.0
+    if re.search(r"ثلاث[ة]?\s*[أا]رباع", inner):
+        value += 0.75
+        inner = re.sub(r"ثلاث[ة]?\s*[أا]رباع", " ", inner)
+    value += 0.5 * len(re.findall(r"نصف", inner))
+    # Not the "ربع" inside "أربع" (four).
+    value += 0.25 * len(re.findall(r"(?<![أا])ربع", inner))
+    value += (1 / 3) * len(re.findall(r"ثلث", inner))
+    if re.search(r"علامتان|علامتين", inner):
+        value += 2
+    else:
+        first = inner.split()[0] if inner.split() else ""
+        if first in _UNITS:
+            value += _UNITS[first]
+        elif first.startswith("علامة"):
+            value += 1
+    return round(value, 2) or None
+
+
+def text_marks(text: str) -> float | None:
+    """Every bracketed mark phrase in a question, summed; None if there is none."""
+    values = [v for v in (bracket_mark(m) for m in _MARK_BRACKET.findall(text)) if v]
+    return round(sum(values), 2) if values else None
+
+
+# The transcriber's own list formatting, not the paper's. "• الموضوع الأول:"
+# is how it wrote a heading the paper prints bare, and every heading rule in
+# this file expects only spaces before the heading word: gs/2007 1/falsafe.pdf
+# went from three subjects to "no exercise headers" over one bullet. "-" stays:
+# the papers number their parts with it. So does "|": tables are the paper's.
+_OCR_BULLET = re.compile(r"(?m)^([ \t]*)[•●▪◦·*]+[ \t]*")
+
+
 def exam_ocr_pages(pdf: Path) -> list | None:
     pages = sorted((EXAMS_OCR / _sha8(pdf)).glob("page-*.md"))
-    return [page.read_text(encoding="utf-8") for page in pages] or None
+    return [
+        _OCR_BULLET.sub(r"\1", page.read_text(encoding="utf-8")).replace("**", "")
+        for page in pages
+    ] or None
 
 
 def ocr_pages(pdf: Path) -> list | None:
@@ -1613,6 +1696,40 @@ def read(pdf: Path) -> dict | None:
         ):
             for part, mark in zip(ex["parts"], column):
                 part["marks"] = mark
+
+    # A transcribed paper prints each question's mark in its own text —
+    # "1- استخلص الفكرة. (علامة واحدة)" — and the rules above find none of them,
+    # because they expect the mark on the header line. Read it off the text,
+    # only where nothing better already set one, and only for Arabic-taught
+    # subjects, which print marks this way; a science paper is never touched.
+    if _sha8(pdf) in OCR_WHOLE_PAPERS or profile in ARABIC_TAUGHT_PROFILES:
+        for ex in exercises:
+            for part in ex["parts"]:
+                if part.get("marks") is None:
+                    found = text_marks(part.get("text", ""))
+                    if found is not None:
+                        part["marks"] = found
+
+            # A section whose heading carries no mark but whose questions do.
+            # A philosophy subject prints "(تسع علامات)", "(سبع علامات)" and
+            # "(أربع علامات)" against its three parts and nothing on
+            # "الموضوع الأول", so it read as worth 0 and got no barème.
+            stated = text_marks(ex.get("statement", ""))
+            if not ex["marks"] and stated and stated <= MAX_SUBJECT_MARKS:
+                ex["marks"] = stated
+            # An essay subject is one unlabelled part holding the model answer,
+            # and that part is the whole exercise. Its mark was summed out of
+            # the answer text by `arabic_marks`, which adds every figure in a
+            # scheme and misreads compound marks — 29 on a subject worth 20.
+            only = ex["parts"][0] if len(ex["parts"]) == 1 else None
+            if only is not None and not only.get("label") and ex["marks"]:
+                only["marks"] = ex["marks"]
+
+        total_marks = (
+            max((e["marks"] for e in exercises), default=0)
+            if split_into_subjects
+            else sum(e["marks"] for e in exercises)
+        )
 
     rel = pdf.relative_to(EXAMS)
     return {

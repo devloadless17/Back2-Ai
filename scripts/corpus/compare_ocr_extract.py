@@ -91,6 +91,10 @@ def main() -> None:
     ee.NO_TABLES = True  # geometric mark reading is the same for every variant
     real_reader = ee.PdfReader
     index = json.loads((OCR / "index.json").read_text("utf-8"))
+    # `read()` substitutes the transcription itself for papers on the frozen
+    # list. Each variant must choose its own source, or "layer" is partly OCR
+    # and the comparison measures nothing: off for layer, every paper for OCR.
+    every_sha = frozenset(index.values())
     one_per_sha = {}
     for rel, sha in sorted(index.items()):
         one_per_sha.setdefault(sha, rel)
@@ -103,7 +107,9 @@ def main() -> None:
         ocr_pages = [p.read_text("utf-8") for p in pages]
         row = {"path": rel, "sha8": sha}
         ee.PdfReader = real_reader
+        ee.OCR_WHOLE_PAPERS = frozenset()
         row["layer"] = measure(ee.read(pdf))
+        ee.OCR_WHOLE_PAPERS = every_sha
         for name, text in (("ocr", ocr_pages), ("joined", [join_marks(p) for p in ocr_pages])):
             FakeReader.pages_for = text
             ee.PdfReader = FakeReader
