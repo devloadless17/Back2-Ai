@@ -44,19 +44,21 @@ const PAIRS = Prisma.sql`
           WHERE cl.chapter_id = sc.id
             AND tt.code = ANY(d.tracks))
        -- Not into a subject that already holds its own copy of this text.
+       -- Compared with whitespace removed: two tracks' copies of one paper
+       -- differ in line breaks, and an exact comparison let 100 of them in.
        AND NOT EXISTS (
          SELECT 1
            FROM questions twin
            JOIN chapters tc ON tc.id = twin.chapter_id
           WHERE tc.subject_id = ts.id
             AND twin.verified_status <> 'rejected'
-            AND twin.content_text = q.content_text)
+            AND regexp_replace(twin.content_text, '\\s+', '', 'g') = regexp_replace(q.content_text, '\\s+', '', 'g'))
   ),
   pairs AS (
     -- One copy per text per target chapter.
-    SELECT DISTINCT ON (chapter_id, md5(content_text)) question_id, chapter_id
+    SELECT DISTINCT ON (chapter_id, md5(regexp_replace(content_text, '\\s+', '', 'g'))) question_id, chapter_id
       FROM cand
-     ORDER BY chapter_id, md5(content_text), question_id
+     ORDER BY chapter_id, md5(regexp_replace(content_text, '\\s+', '', 'g')), question_id
   )`;
 
 /**
@@ -162,7 +164,62 @@ async function main() {
     ON CONFLICT DO NOTHING`;
 
   console.log(`  rows inserted         ${written}`);
+
+  /*
+   * COUNTED FROM THE DATABASE, NOT `planned - written`.
+   *
+   * That subtraction assumes the count above and the insert below describe the
+   * same set, and reports the difference as "already present" when they do not.
+   * A production run printed `implied 3967 / inserted 0 / already present 3967`
+   * while 67 of those pairs were demonstrably absent from the table — the
+   * arithmetic turned a silent failure into a clean bill of health, which is
+   * the worst thing a report can do.
+   *
+   * So the run ends by asking the database what is still missing. If anything
+   * is, it says so and exits non-zero; nobody should have to notice a wrong
+   * number to find out the job did not finish.
+   */
+  const missingRows = await db.$queryRaw<{ n: bigint }[]>`
+    WITH ch AS (
+      SELECT c.id, c.name, s.name AS subject, s.language, s.track_id
+        FROM chapters c JOIN subjects s ON s.id = c.subject_id
+    )
+    SELECT count(*)::bigint AS n FROM (
+      SELECT DISTINCT qc.question_id, target.id AS chapter_id
+        FROM ch source
+        JOIN question_chapters qc ON qc.chapter_id = source.id
+        JOIN questions q ON q.id = qc.question_id AND q.verified_status <> 'rejected'
+        JOIN ch target
+          ON target.subject = source.subject
+         AND target.language = source.language
+         AND target.name = source.name
+         AND target.track_id <> source.track_id
+       WHERE EXISTS (
+         SELECT 1
+           FROM chapter_content_chunks cl
+           JOIN content_chunks cc ON cc.id = cl.chunk_id
+           JOIN source_documents d ON d.id = cc.source_document_id
+           JOIN tracks tt ON tt.id = target.track_id
+          WHERE cl.chapter_id = source.id
+            AND tt.code = ANY(d.tracks))
+    ) implied
+    WHERE NOT EXISTS (
+      SELECT 1 FROM question_chapters qc2
+       WHERE qc2.question_id = implied.question_id
+         AND qc2.chapter_id = implied.chapter_id)`;
+
+  const missing = Number(missingRows[0]?.n ?? 0);
   console.log(`  already present       ${planned - written}`);
+  console.log('');
+  if (missing === 0) {
+    console.log('  verified: every link the rule implies is in the table.');
+  } else {
+    console.log(`  NOT DONE: ${missing} link(s) the rule implies are still missing.`);
+    console.log('  The insert reported success and did not write them. Do not treat this run');
+    console.log('  as finished — re-run, and if the number does not fall, the insert and the');
+    console.log('  count above have drifted apart and the rule needs diffing against itself.');
+    process.exitCode = 1;
+  }
 
   await db.$disconnect();
 }
