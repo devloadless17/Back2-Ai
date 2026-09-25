@@ -54,7 +54,12 @@ BOOKS = {
     "geo": "geographie__231a8f14",
     "french_fr": "francais-gsls-fr__881289e3",
     "themes_workbook_en": "themes-workbook-gsls-en__08c8e964",
-    "falsafe_lh": "falsafa-3amma-lh__0b41b677",
+    # SUPERSEDED by the LH pass's own report. The LS-sweep audit and the LH
+    # report disagree about this book's last eleven pages, and the LS one left
+    # «الفعل الإنساني» reading 351,352,353,354,355,360,356,357,358,361,359.
+    # Two entries for one taxonomy would also race on a full run.
+    # "falsafe_lh": "falsafa-3amma-lh__0b41b677",
+    "falsafa_3amma_lh__0b41b677": "falsafa-3amma-lh__0b41b677",
     "falsafe_gsls": "falsafa-gsls__c804d5ac",
     "tarbeya": "tarbiya__164689a6",
     "math_gs_1_en": "289de41e5b683087171d2d02f8ac52ba323d0ef1b4e44d977ab7060817b4c38b",
@@ -76,11 +81,30 @@ BOOKS = {
     "ejtema3_se__7fa192d5": "ejtema3-se__7fa192d5",
     "themes_se_en__d5989526": "themes-se-en__d5989526",
     "themes_workbook_se_en__1539569c": "themes-workbook-se-en__1539569c",
+    # The rest of the SE/LH pass (23 reports, 5,389 pages). Keyed on each page's
+    # CORRECTED POSITION rather than its printed number, which the LH Themes
+    # workbook needs: that book misprints its own pages 170-183 as 172-185.
+    "falsafa_arabiya_lh__86df4a40": "falsafa-arabiya-lh__86df4a40",
+    "francais_oeuvre_lh__7c70d592": "francais-oeuvre-lh__7c70d592",
+    "math_lh_en__a8319ebe": "math-lh-en__a8319ebe",
+    "math_lh_fr__e6185d9e": "math-lh-fr__e6185d9e",
+    "francais_plaisir_lh__251e4071": "francais-plaisir-lh__251e4071",
+    "themes_lh_en__43413a57": "themes-lh-en__43413a57",
+    "themes2_lh_en__b5f6f915": "themes2-lh-en__b5f6f915",
+    "themes_workbook_lh_en__fbcedbf7": "themes-workbook-lh-en__fbcedbf7",
+    "biology_lh_fr__877c8d5c": "biology-lh-fr__877c8d5c",
+    "biology_se_fr__877c8d5c": "biology-se-fr__877c8d5c",
+    "chimie_lh_fr__4d8842b7": "chimie-lh-fr__4d8842b7",
+    "francais_se_fr__a71d1e47": "francais-se-fr__a71d1e47",
+    "math_se_fr__f30a4b0c": "math-se-fr__f30a4b0c",
+    "physique_lh_fr__55d3f2f2": "physique-lh-fr__55d3f2f2",
+    "physique_se_fr__55d3f2f2": "physique-se-fr__55d3f2f2",
+    "math_se_en__de339ba1": "math-se-en__de339ba1",
 }
 
 # The audits were written per track. `LS` is where the original sweep put them
 # and stays the default, so no existing book changes path.
-AUDIT_FOLDERS = ("LS", "SE", "GS")
+AUDIT_FOLDERS = ("LS", "SE", "GS", "LH")
 
 # Books whose database text is a different file from the audited one: their
 # own page map, scan page -> printed page, lives here instead.
