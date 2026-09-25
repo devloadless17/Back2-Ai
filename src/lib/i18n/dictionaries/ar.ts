@@ -1009,6 +1009,7 @@ export const ar: Dictionary = {
     approve: 'اعتماد',
     reject: 'رفض',
     reviewNotes: 'ملاحظات',
+    reasonRequired: 'اكتب سبباً قصيراً في الملاحظات (3 أحرف أو أكثر)، ثم احفظ.',
     flaggedBy: 'أبلغ عنه',
     systemFlagged: 'أبلغ عنه النظام',
     itemType: 'النوع',

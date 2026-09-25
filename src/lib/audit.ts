@@ -42,6 +42,7 @@ export const AuditAction = {
   USER_DEACTIVATED: 'admin.user.deactivated',
   USER_REACTIVATED: 'admin.user.reactivated',
   USER_VERIFICATION_RESENT: 'admin.user.verification_resent',
+  USER_AI_BUDGET_CHANGED: 'admin.user.ai_budget_changed',
 
   // Content lifecycle
   REVIEW_ITEM_APPROVED: 'review.item.approved',

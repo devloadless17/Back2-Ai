@@ -100,7 +100,8 @@ const patchSchema = z
       body.trackId !== undefined ||
       body.preferredLanguage !== undefined ||
       body.role !== undefined ||
-      body.isActive !== undefined,
+      body.isActive !== undefined ||
+      body.aiBudgetUsd !== undefined,
     { message: 'Nothing to change.' },
   );
 
@@ -121,6 +122,7 @@ export const PATCH = route(async (request) => {
       isActive: true,
       trackId: true,
       preferredLanguage: true,
+      subscription: { select: { aiBudgetMicros: true } },
     },
   });
   if (!target) return fail(404, 'NOT_FOUND');
@@ -182,6 +184,18 @@ export const PATCH = route(async (request) => {
       action: AuditAction.USER_ROLE_CHANGED,
       metadata: { from: target.role, to: body.role },
     });
+  }
+  // Money given to one account is a support action like any other, and "who
+  // raised this student's ceiling" has to be answerable from the log.
+  if (body.aiBudgetUsd !== undefined) {
+    const before = target.subscription?.aiBudgetMicros;
+    const fromUsd = before != null ? Number(before) / 1_000_000 : null;
+    if (fromUsd !== body.aiBudgetUsd) {
+      events.push({
+        action: AuditAction.USER_AI_BUDGET_CHANGED,
+        metadata: { fromUsd, toUsd: body.aiBudgetUsd },
+      });
+    }
   }
   if (body.isActive !== undefined && body.isActive !== target.isActive) {
     events.push({

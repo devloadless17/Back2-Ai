@@ -1000,6 +1000,7 @@ export const fr: Dictionary = {
     approve: 'Approuver',
     reject: 'Rejeter',
     reviewNotes: 'Notes',
+    reasonRequired: 'Écrivez une courte raison dans Notes (3 lettres ou plus), puis enregistrez.',
     flaggedBy: 'Signalé par',
     systemFlagged: 'Signalé par le système',
     itemType: 'Type',

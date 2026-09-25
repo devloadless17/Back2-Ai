@@ -1018,6 +1018,7 @@ export const en = {
     approve: 'Approve',
     reject: 'Reject',
     reviewNotes: 'Notes',
+    reasonRequired: 'Write a short reason in Notes (3 letters or more), then save.',
     flaggedBy: 'Flagged by',
     systemFlagged: 'Flagged by the system',
     itemType: 'Type',

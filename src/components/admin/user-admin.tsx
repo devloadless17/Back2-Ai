@@ -87,7 +87,7 @@ export function UserAdmin({
    */
   async function resend(user: AdminUserRow) {
     if (!draft.reason || draft.reason.trim().length < 3) {
-      setError(t.admin.reviewNotes);
+      setError(t.admin.reasonRequired);
       return;
     }
 
@@ -107,7 +107,7 @@ export function UserAdmin({
 
   async function save(user: AdminUserRow) {
     if (!draft.reason || draft.reason.trim().length < 3) {
-      setError(t.admin.reviewNotes);
+      setError(t.admin.reasonRequired);
       return;
     }
 
@@ -153,7 +153,10 @@ export function UserAdmin({
       />
 
       <SheetBody className="p-0">
-        {error && (
+        {/* While a row is open its error shows beside its Save button instead:
+            up here it was off screen for any student below the first few, and
+            a save that refused silently looked like a save that did nothing. */}
+        {error && !editing && (
           <div className="px-5 pt-4">
             <Alert tone="error">{error}</Alert>
           </div>
@@ -330,6 +333,8 @@ export function UserAdmin({
                         placeholder={t.admin.reviewNotes}
                       />
                     </label>
+
+                    {error && <Alert tone="error">{error}</Alert>}
 
                     <div className="flex flex-wrap justify-end gap-2">
                       {!user.emailVerifiedAt && (
