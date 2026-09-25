@@ -3,7 +3,7 @@ import 'server-only';
 import type { GroundingTier } from '@prisma/client';
 
 import { ai } from '@/lib/ai';
-import { embed } from '@/lib/ai/embeddings';
+import { embed, foldArabic } from '@/lib/ai/embeddings';
 import { db } from '@/lib/db';
 import { env } from '@/lib/env';
 import {
@@ -555,6 +555,152 @@ async function conceptQuery(query: string): Promise<string | null> {
   }
 }
 
+/**
+ * Below this, not even a coverage judgement is worth a model call.
+ *
+ * The floor is not a second gate in disguise. `الحصار البحري` — two words, the
+ * exact term the history book uses — scores 0.202 against the passage that
+ * defines it, and off-syllabus questions run 0.202 to 0.563, so similarity
+ * genuinely cannot separate them and no number here could. What it separates is
+ * a question with *something* retrieved from one with nothing: below 0.12 the
+ * search returned text that shares no vocabulary at all, and there is nothing
+ * for a reader to judge.
+ */
+const COVERAGE_FLOOR = 0.12;
+
+/** How many passages the judge sees, and how much of each. */
+const COVERAGE_CANDIDATES = 4;
+const COVERAGE_SNIPPET = 700;
+
+/**
+ * The passages worth putting in front of the reader.
+ *
+ * TAKING THE TOP FOUR BY SCORE DOES NOT WORK ACROSS A TRACK. Scoped to تاريخ,
+ * `الحصار البحري` gets four candidates of which two contain the term and the
+ * reader finds its sentence. Scoped to all fifteen LH subjects the same passage
+ * is still ranked FIRST — the term index sees to that — but its three
+ * neighbours become `الإيقاع`, `الاستعارة` and `التلوث البيئي`, which score
+ * higher on cosine while having nothing to do with the question. One relevant
+ * passage among three irrelevant ones reads as "no", and the question was
+ * refused on a whole-track scope while succeeding on a narrow one. Showing it
+ * eight candidates instead of four did not help: it adds more noise too.
+ *
+ * So candidates are chosen by whether they share the question's vocabulary,
+ * which is the thing the noise does not do. Falling back to rank order when
+ * nothing shares a word keeps the behaviour for queries with no usable content
+ * words at all.
+ *
+ * Words of three or more letters only, folded, and the question's own stop
+ * words are no loss: a passage matching only على or من is the noise this is
+ * trying to exclude.
+ */
+function shareQueryVocabulary<T extends { contentText: string }>(
+  query: string,
+  hits: T[],
+  limit: number,
+): T[] {
+  const words = new Set(
+    foldArabic(query)
+      .split(/[^\p{L}]+/u)
+      .filter((w) => w.length >= 3),
+  );
+  if (words.size === 0) return hits.slice(0, limit);
+
+  const scored = hits.map((hit) => {
+    const text = foldArabic(hit.contentText);
+    return { hit, shared: [...words].filter((w) => text.includes(w)).length };
+  });
+  const sharing = scored.filter((s) => s.shared > 0);
+  if (sharing.length === 0) return hits.slice(0, limit);
+  // Stable within a share count, so the retrieval order still breaks ties and
+  // this only ever promotes a passage over one that shares strictly less.
+  return sharing
+    .map((s, i) => ({ ...s, i }))
+    .sort((a, b) => b.shared - a.shared || a.i - b.i)
+    .slice(0, limit)
+    .map((s) => s.hit);
+}
+
+/**
+ * Does this material actually answer the question?
+ *
+ * WHY THIS EXISTS. The gate is a cosine, and a cosine cannot read. Measured on
+ * this corpus, the query `الحصار البحري` scores 0.096 against the whole chunk
+ * that contains it and 0.245 against the single 91-character sentence that
+ * contains it verbatim — both far under the 0.45 gate. Shrinking the chunk does
+ * not rescue it, so no chunking strategy and no threshold can: the embedding
+ * simply does not place a short Arabic phrase near a sentence containing it.
+ *
+ * Meanwhile the term is in five chunks, the term index finds them, and the
+ * right passage is returned at RANK 1. The material is found and then discarded
+ * by a number.
+ *
+ * NOT THE SAME THING AS RERANKING, which was measured and dropped (31/59 both
+ * with and without, at fifteen times the price — see the note further down).
+ * That measured ORDERING: which of the passages that already passed is best.
+ * Ordering is not what is broken — the right passage is already first. This
+ * asks the one question that was never asked, whether the corpus covers the
+ * question at all, and `rerank.ts` says in its own docstring why a model is the
+ * thing that can answer it: "whether a passage answers a question is a
+ * judgement about the question, which is what a model can make and cosine
+ * cannot."
+ *
+ * DELIBERATELY ASYMMETRIC. It may only ADMIT material the gate would have
+ * refused; it can never reject material the gate passed, and it never reorders.
+ * So a failure, a timeout or a malformed reply leaves the pipeline exactly as
+ * it was, and the worst case is the refusal that would have happened anyway.
+ *
+ * The prompt asks for a quotation, not a yes. A model asked "does this cover
+ * it?" says yes to anything on the same topic; a model that must point at the
+ * sentence carrying the answer has to find one. An empty or unquotable reply
+ * is a no.
+ */
+async function coveredByMaterial(
+  query: string,
+  candidates: Array<{ contentText: string; chapterName: string }>,
+): Promise<boolean> {
+  if (candidates.length === 0) return false;
+  try {
+    const material = candidates
+      .map((c, i) => `[${i + 1}] ${c.chapterName}\n${c.contentText.slice(0, COVERAGE_SNIPPET)}`)
+      .join('\n\n');
+    const response = await ai().complete({
+      system: [
+        'You are checking whether a student\'s course material answers their question.',
+        '',
+        'Reply with the ONE sentence from the material that carries the answer, copied exactly,',
+        'and nothing else. If several passages bear on it, quote the single most direct sentence.',
+        '',
+        'Reply with exactly NO if the material does not answer the question — including when it is',
+        'merely about the same broad topic, mentions the words without explaining them, or would',
+        'need knowledge that is not in the material. Being on the same subject is not an answer.',
+      ].join('\n'),
+      messages: [
+        { role: 'user', content: `QUESTION\n${query.slice(0, 2000)}\n\nMATERIAL\n${material}` },
+      ],
+      maxTokens: 300,
+      effort: 'low',
+      model: ai().fastModel,
+    });
+    const reply = response.text.trim();
+    if (!reply || /^no\b/i.test(reply)) return false;
+    // The quotation has to be real. A model that paraphrases, or invents a
+    // sentence, has not found one — and that is the failure this whole path
+    // would otherwise introduce.
+    // Whitespace is collapsed on BOTH sides before comparing. The passages keep
+    // the line breaks of the page they came from, so a sentence that runs over
+    // a line holds a "\r\n" the model does not reproduce — which rejected a
+    // correct quotation of a real sentence and refused the question anyway.
+    const flatten = (s: string) => foldArabic(s).replace(/\s+/g, ' ').trim();
+    const haystack = flatten(candidates.map((c) => c.contentText).join(' '));
+    const quoted = flatten(reply.replace(/^["'«»]+|["'«»]+$/g, ''));
+    if (quoted.length < 12) return false;
+    return haystack.includes(quoted.slice(0, 60));
+  } catch {
+    return false;
+  }
+}
+
 /** Merges a second result set in, keeping each passage's best score. */
 function mergeHits<T extends { id: string; similarity: number }>(primary: T[], extra: T[]): T[] {
   const best = new Map<string, T>();
@@ -629,6 +775,16 @@ export type GroundingResult = {
   /** The material handed to the model as context. Empty when refused. */
   context: string;
   topSimilarity: number | null;
+  /**
+   * The gate refused this material and a reader admitted it: the passages are
+   * real, cited course material, but their similarity is BELOW the threshold.
+   *
+   * Recorded because `topSimilarity` would otherwise be the only trace, and a
+   * concept-level answer sitting at 0.20 reads like a bug rather than a
+   * decision. Anything measuring the gate — `check:refusal` above all — needs
+   * to be able to separate the two populations.
+   */
+  admittedByReader?: boolean;
   /**
    * True for concept-level and personal-reference answers, where the model
    * synthesizes rather than restates. Those answers get a verification pass
@@ -814,6 +970,61 @@ const PASSAGE_SUPPLIED = 400;
  * the wrong passage — a worse failure than refusing, because it looks right.
  */
 const PASSAGE_MEMORY_TURNS = 12;
+
+/**
+ * How short a message has to be before it is read as a follow-up.
+ *
+ * "وما هي نتائجها؟" is sixteen characters and means nothing on its own: the
+ * ها is the topic of the message before it. Embedded by itself it lands nowhere
+ * near the chapter that answers it, and the student is told their own follow-up
+ * is off their programme.
+ *
+ * Drawn well below the shortest self-contained question this corpus asks. A
+ * bare "ما هي الاستعارة؟" also falls inside it, and that is accepted rather than
+ * worked around: the expansion below adds a search, it does not replace one, and
+ * a self-contained question has already found its own material by then.
+ */
+const FOLLOW_UP_QUERY = 90;
+
+/**
+ * How far back the topic of a follow-up is looked for.
+ *
+ * Shorter than PASSAGE_MEMORY_TURNS on purpose. A pasted passage stays the
+ * subject of a whole exercise; a topic is abandoned as soon as the student asks
+ * about something else, and reaching further back for one would answer a new
+ * question against an old chapter.
+ */
+const FOLLOW_UP_MEMORY_TURNS = 4;
+
+/** How much of the earlier turn is worth embedding as context. */
+const FOLLOW_UP_CONTEXT_CHARS = 300;
+
+/**
+ * This message joined to the turn it depends on, when it cannot stand alone.
+ *
+ * Null when the message is long enough to carry its own topic, and null when
+ * nothing the student typed recently can supply one — an assistant turn is not
+ * read, for the same reason `suppliedPassage` will not read one: grounding a
+ * search on the tutor's own previous answer is how a wrong answer gets
+ * confirmed by being looked up again.
+ */
+export function followUpQuery(input: RetrievalInput): string | null {
+  const query = input.query.trim();
+  if (query.length === 0 || query.length > FOLLOW_UP_QUERY) return null;
+
+  const recent = (input.history ?? []).slice(-FOLLOW_UP_MEMORY_TURNS);
+  for (let i = recent.length - 1; i >= 0; i -= 1) {
+    const message = recent[i];
+    if (message?.role !== 'user') continue;
+
+    const prior = message.content.trim();
+    if (prior.length === 0) continue;
+
+    return `${prior.slice(0, FOLLOW_UP_CONTEXT_CHARS)}\n${query}`;
+  }
+
+  return null;
+}
 
 /**
  * The passage this question is about, from this message or an earlier one.
@@ -1102,6 +1313,52 @@ export async function retrieveGrounding(input: RetrievalInput): Promise<Groundin
   // Fetched wide to measure the lead, then narrowed to HANDED_OVER.
   let chunkHits = await searchContentChunks(queryVector, input.subjectIds, FIELD, input.query);
 
+  /*
+   * A follow-up searched together with the turn it depends on.
+   *
+   * The model already gets the history, so it understands what "وما هي
+   * نتائجها؟" refers to. Retrieval did not: the embedding is built from this
+   * message alone, so the second half of a conversation was searched for with
+   * the half of the question the student had not repeated. The tutor understood
+   * the question and was handed the wrong chapter to answer it from, which reads
+   * to the student as the tutor forgetting what they just said.
+   *
+   * ADDS A SEARCH, NEVER REPLACES ONE. `input.query` still decides what kind of
+   * question this is, what the gate is, and whether tier 1 fired — joining two
+   * turns into one string would let an old topic change the classification of a
+   * new question. Only the chapter vector search is widened, and only when this
+   * message found nothing convincing by itself, so a self-contained question
+   * that happens to be short costs nothing extra.
+   *
+   * Comprehension never reaches here: a question about a passage is answered
+   * or refused above, and that is the better outcome for it anyway — a short
+   * part of an exercise wants the passage from three turns up, which
+   * `carriedPassage` already fetches, not the wording of the previous part.
+   *
+   * NOT MEASURED against the corpus. What stands behind it is the mechanism —
+   * a bare pronoun cannot embed to a chapter it does not name — and the
+   * merge guard below, which is the same one the concept expansion is held to.
+   */
+  if ((chunkHits[0]?.similarity ?? 0) < CONCEPT_EXPAND_BELOW) {
+    const withContext = followUpQuery(input);
+    if (withContext) {
+      const byContext = await searchContentChunks(
+        await embed(withContext, 'query'),
+        input.subjectIds,
+        FIELD,
+        withContext,
+      );
+
+      // The expansion has to look like an answer on its own before it is
+      // merged. See the concept expansion below for why the lead is judged on
+      // the expansion's own hits rather than after the merge.
+      const contextTop = byContext[0]?.similarity ?? 0;
+      if (contextTop >= conceptGate && relevanceLead(byContext.map((c) => c.similarity)) >= EXPANSION_LEAD) {
+        chunkHits = mergeHits(chunkHits, byContext);
+      }
+    }
+  }
+
   // Material in the other script only surfaces if it is searched for in that
   // script. Attempted when nothing convincing has been found yet, so a question
   // that is already well answered costs no extra call.
@@ -1218,6 +1475,33 @@ export async function retrieveGrounding(input: RetrievalInput): Promise<Groundin
       : [];
 
   /*
+   * Nothing cleared the gate — so ask a reader before refusing.
+   *
+   * This is the only path that can admit material the cosine refused, and it
+   * runs only where the alternative is refusing outright. 92% of queries never
+   * reach it, for the same reason the concept expansion above does not: they
+   * have already been answered.
+   *
+   * `chunkLead` is deliberately not required here. It guards against a flat
+   * field of equally-mediocre passages when the top score is respectable; below
+   * the gate the whole field is low by definition, and requiring a lead would
+   * refuse exactly the short precise queries this exists for — the ones where
+   * several passages of one chapter all mention the term.
+   */
+  let admittedByReader = false;
+  if (passingChunks.length === 0 && schemes.length === 0) {
+    const candidates = shareQueryVocabulary(
+      input.query,
+      chunkHits.filter((c) => c.similarity >= COVERAGE_FLOOR),
+      COVERAGE_CANDIDATES,
+    );
+    if (candidates.length > 0 && (await coveredByMaterial(input.query, candidates))) {
+      passingChunks = preferExplanations(candidates, input.query);
+      admittedByReader = true;
+    }
+  }
+
+  /*
    * NOTHING IS RERANKED. The passages are handed over in the embedding's order.
    *
    * Arabic used to be reranked here, on this measurement:
@@ -1291,6 +1575,7 @@ export async function retrieveGrounding(input: RetrievalInput): Promise<Groundin
     return {
       tier: 'concept_level',
       topSimilarity: passingChunks[0]?.similarity ?? schemes[0]?.similarity ?? null,
+      admittedByReader,
       requiresVerification: true,
       classification,
       sources: [...passingChunks.map(chunkSource), ...schemes.map(schemeSource)],
