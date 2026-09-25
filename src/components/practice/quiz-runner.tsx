@@ -34,6 +34,8 @@ export type QuizQuestion = {
   contentImages: string[];
   options: { id: string; text: string }[] | null;
   hasBareme: boolean;
+  /** The paper's extract, for a comprehension question. */
+  passage?: string | null;
 };
 
 type AttemptResponse = {
@@ -173,6 +175,7 @@ export function QuizRunner({
                   contentLatex={q.contentLatex}
                   images={q.contentImages}
                   dir={paperDir}
+                  passage={q.passage}
                 />
               </SheetBody>
 
@@ -248,6 +251,7 @@ export function QuizRunner({
             contentLatex={question.contentLatex}
             images={question.contentImages}
             dir={paperDir}
+            passage={question.passage}
           />
         </SheetBody>
 

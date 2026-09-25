@@ -38,6 +38,8 @@ export type ExamSlot = {
   contentLatex: string | null;
   contentImages: string[];
   chapterName: string | null;
+  /** The paper's extract, for a comprehension question. */
+  passage: string | null;
   maxScore: number | null;
   savedAnswer: string | null;
   savedPhotoKey: string | null;
@@ -430,6 +432,7 @@ export function ExamRunner({
             contentLatex={slot.contentLatex}
             images={slot.contentImages}
             dir={paperDir}
+            passage={slot.passage}
           />
         </SheetBody>
 

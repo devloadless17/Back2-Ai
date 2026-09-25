@@ -304,6 +304,7 @@ export default async function ExamResultsPage({
                     contentLatex={content.contentLatex}
                     images={slot.question ? (visualKeys.get(slot.question.id) ?? []) : content.contentImages}
                     dir={paperDir}
+                    passage={content.passage}
                   />
                 </SheetBody>
 

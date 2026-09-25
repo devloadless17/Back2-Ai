@@ -436,6 +436,7 @@ export const fr: Dictionary = {
     incorrect: 'Pas tout à fait',
     partial: 'Partiellement correct',
     explainThis: 'Explique-moi',
+    passageTitle: 'Le texte',
     nextQuestion: 'Question suivante',
     difficulty: 'Difficulté',
     difficultyEasy: 'Facile',

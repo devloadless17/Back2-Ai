@@ -459,6 +459,7 @@ export const ar: Dictionary = {
     incorrect: 'ليس تماماً',
     partial: 'صحيح جزئياً',
     explainThis: 'اشرح لي',
+    passageTitle: 'النص',
     nextQuestion: 'السؤال التالي',
     difficulty: 'الصعوبة',
     difficultyEasy: 'سهل',

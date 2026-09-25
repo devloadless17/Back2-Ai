@@ -459,6 +459,7 @@ export const en = {
     incorrect: 'Not quite',
     partial: 'Partially correct',
     explainThis: 'Explain this',
+    passageTitle: 'The text',
     nextQuestion: 'Next question',
     difficulty: 'Difficulty',
     difficultyEasy: 'Easy',

@@ -55,6 +55,7 @@ export default async function ChapterQuizPage({
     contentImages: true,
     options: true,
     bareme: true,
+    sourcePassage: true,
   } as const;
 
   const seenKeys = await seenQuestionKeys(user.id);
@@ -114,6 +115,7 @@ export default async function ChapterQuizPage({
     contentImages: visualKeys.get(question.id) ?? [],
     options: parseOptions(question.options),
     hasBareme: Array.isArray(question.bareme) && question.bareme.length > 0,
+    passage: question.sourcePassage,
   }));
 
   return (

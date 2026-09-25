@@ -7,7 +7,7 @@ import { AskWhy } from '@/components/practice/ask-why';
 import { FlagButton } from '@/components/practice/flag-button';
 import { RevealableSolution } from '@/components/practice/revealable-solution';
 import { Alert, EmptyAction, EmptyState } from '@/components/ui/feedback';
-import { QuestionBody } from '@/components/ui/math';
+import { PaperPassage, QuestionBody } from '@/components/ui/math';
 import { LinkButton } from '@/components/ui/button';
 import { PageHeader, Sheet } from '@/components/ui/sheet';
 import { BackLink } from '@/components/ui/back-link';
@@ -89,6 +89,7 @@ export default async function ExamCyclePage({
           contentImages: true,
           officialSolution: true,
           officialSolutionLatex: true,
+          sourcePassage: true,
           chapter: { select: { name: true } },
         },
         orderBy: [{ orderIndex: 'asc' }, { createdAt: 'asc' }],
@@ -117,6 +118,12 @@ export default async function ExamCyclePage({
    * words, and counting characters would call it French.
    */
   const paperDir = dirForLanguage(cycle.subject.language);
+  // Shown unless the paper's own first question already prints it.
+  const paperPassage = (() => {
+    const passage = cycle.questions.find((q) => q.sourcePassage?.trim())?.sourcePassage ?? null;
+    const first = (cycle.questions[0]?.contentText ?? '').replace(/\s+/g, '');
+    return passage && !first.includes(passage.replace(/\s+/g, '').slice(0, 60)) ? passage : null;
+  })();
 
   return (
     <>
@@ -186,6 +193,13 @@ export default async function ExamCyclePage({
         />
       ) : (
         <Sheet>
+          {/* The paper's text, once, above its questions — every question of
+              the paper carries the same extract, so it is not repeated. */}
+          {paperPassage ? (
+            <div className="px-5 pt-5">
+              <PaperPassage passage={paperPassage} dir={paperDir} />
+            </div>
+          ) : null}
           {/* One sheet for the whole paper. The `ruled` rhythm separates the
               fragments with the same hairline a mark scheme uses, rather than
               floating each one on its own card. */}

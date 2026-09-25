@@ -8,6 +8,7 @@ import remarkMath from 'remark-math';
 import type { PluggableList } from 'unified';
 
 import { cn } from '@/lib/cn';
+import { useI18n } from '@/lib/i18n/client';
 import { normalizeMathDelimiters } from '@/lib/math-delimiters';
 import { repairSymbolFont } from '@/lib/symbol-font';
 import { dirForText, fixRtlLineDashes } from '@/lib/i18n/config';
@@ -182,12 +183,54 @@ export function bodyToRender(contentLatex: string | null | undefined, contentTex
   return contentLatex;
 }
 
+/**
+ * The text a comprehension question is about — the extract printed at the top
+ * of the paper, stored on each of its questions as `source_passage`.
+ *
+ * For a long time only the tutor read it: every screen a student sees showed
+ * "استخلص … المسألة التي يطرحها الكاتب في الفقرة الأولى" with no first
+ * paragraph anywhere on the page. Open by default, because the questions are
+ * unanswerable without it; collapsible, because it runs to a page or more.
+ */
+export function PaperPassage({
+  passage,
+  dir,
+  className,
+}: {
+  passage: string;
+  dir?: 'ltr' | 'rtl';
+  className?: string;
+}) {
+  const { t } = useI18n();
+  return (
+    <details open className={cn('rounded-lg border border-rule bg-paper-raised', className)}>
+      <summary className="cursor-pointer select-none px-4 py-2.5 text-meta font-semibold text-ink">
+        {t.practice.passageTitle}
+      </summary>
+      <div className="max-h-[28rem] overflow-y-auto border-t border-rule px-4 py-3">
+        <MathText dir={dir}>{passage}</MathText>
+      </div>
+    </details>
+  );
+}
+
+/**
+ * Whether the passage still needs showing: some questions already carry it in
+ * their own text (the English reading papers print it inside the exercise),
+ * and printing it twice would push the questions a page further down.
+ */
+function passageMissingFrom(passage: string, body: string): boolean {
+  const opening = passage.replace(/\s+/g, '').slice(0, 60);
+  return opening.length > 0 && !body.replace(/\s+/g, '').includes(opening);
+}
+
 export function QuestionBody({
   contentText,
   contentLatex,
   images,
   className,
   dir,
+  passage,
 }: {
   contentText: string;
   contentLatex?: string | null;
@@ -195,10 +238,16 @@ export function QuestionBody({
   className?: string;
   /** The subject's own direction, where the caller knows it. See `MathText`. */
   dir?: 'ltr' | 'rtl';
+  /** The paper's extract, for a question asked about one. See `PaperPassage`. */
+  passage?: string | null;
 }) {
+  const body = bodyToRender(contentLatex, contentText);
   return (
     <div className={className}>
-      <MathText dir={dir}>{bodyToRender(contentLatex, contentText)}</MathText>
+      {passage?.trim() && passageMissingFrom(passage, body) ? (
+        <PaperPassage passage={passage} dir={dir} className="mb-4" />
+      ) : null}
+      <MathText dir={dir}>{body}</MathText>
 
       {images && images.length > 0 && (
         <div className="mt-4 flex flex-wrap gap-3">

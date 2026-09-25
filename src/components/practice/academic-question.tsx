@@ -46,6 +46,7 @@ export function AcademicQuestion({
   labels,
   className,
   dir,
+  passage,
 }: {
   contentText: string;
   contentLatex?: string | null;
@@ -63,6 +64,8 @@ export function AcademicQuestion({
   className?: string;
   /** The subject's own direction, where the caller knows it. See `MathText`. */
   dir?: 'ltr' | 'rtl';
+  /** The paper's extract, for a comprehension question. See `PaperPassage`. */
+  passage?: string | null;
 }) {
   const official = Boolean(meta?.examYear);
 
@@ -121,7 +124,13 @@ export function AcademicQuestion({
         mathematics rather than as blank boxes.
       */}
       <div className="pt-4">
-        <QuestionBody contentText={contentText} contentLatex={contentLatex} images={images} dir={dir} />
+        <QuestionBody
+          contentText={contentText}
+          contentLatex={contentLatex}
+          images={images}
+          dir={dir}
+          passage={passage}
+        />
       </div>
     </article>
   );

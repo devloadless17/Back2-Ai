@@ -52,6 +52,8 @@ export type PracticeQuestion = {
   /** Total marks, summed from the barème. Null when it carries none. */
   marks: number | null;
   attemptedByYou: boolean;
+  /** The paper's extract, for a comprehension question. */
+  passage?: string | null;
 };
 
 type BaremeResultItem = {
@@ -325,6 +327,7 @@ export function PracticeRunner({
               contentLatex={question.contentLatex}
               images={question.contentImages}
               dir={paperDir}
+              passage={question.passage}
               meta={{
                 chapterName,
                 examYear: question.examYear,

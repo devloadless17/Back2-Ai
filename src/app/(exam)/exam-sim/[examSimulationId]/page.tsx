@@ -45,6 +45,7 @@ export default async function ExamSittingPage({
       contentLatex: content.contentLatex,
       contentImages: slot.question ? (visualKeys.get(slot.question.id) ?? []) : content.contentImages,
       chapterName: content.chapterName,
+      passage: content.passage,
       maxScore: slot.maxScore === null ? null : Number(slot.maxScore),
       savedAnswer: slot.answer?.typedAnswer ?? null,
       savedPhotoKey: slot.answer?.photoUrl ?? null,

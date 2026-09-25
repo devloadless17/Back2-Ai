@@ -195,7 +195,12 @@ export default async function WorksheetPage({
                     {q.totalMarks ? ` · ${q.totalMarks} ${t.common.points}` : ''}
                   </span>
                 </div>
-                <QuestionBody contentText={q.contentText} contentLatex={q.contentLatex} dir={sheetDir} />
+                <QuestionBody
+                  contentText={q.contentText}
+                  contentLatex={q.contentLatex}
+                  dir={sheetDir}
+                  passage={q.passage}
+                />
               </li>
             ))}
           </ol>

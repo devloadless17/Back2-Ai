@@ -925,6 +925,7 @@ const SIMULATION_INCLUDE = {
           questionType: true,
           options: true,
           officialSolution: true,
+          sourcePassage: true,
           /* Whether the solution is an examiner's. See `slotContent`. */
           sourceType: true,
           chapter: { select: { id: true, name: true } },
@@ -999,6 +1000,8 @@ export function slotContent(slot: LoadedSimulation['questions'][number]): {
   chapterName: string | null;
   officialSolution: string | null;
   solutionIsOfficial: boolean;
+  /** The paper's extract, for a comprehension question. */
+  passage: string | null;
 } {
   if (slot.question) {
     return {
@@ -1008,6 +1011,7 @@ export function slotContent(slot: LoadedSimulation['questions'][number]): {
       chapterName: slot.question.chapter?.name ?? null,
       officialSolution: slot.question.officialSolution,
       solutionIsOfficial: slot.question.sourceType === 'past_exam',
+      passage: slot.question.sourcePassage,
     };
   }
   if (slot.generatedProblem) {
@@ -1019,6 +1023,7 @@ export function slotContent(slot: LoadedSimulation['questions'][number]): {
       officialSolution: slot.generatedProblem.generatedSolution,
       // Model-written. Never an examiner's, whatever the column is called.
       solutionIsOfficial: false,
+      passage: null,
     };
   }
   return {
@@ -1028,6 +1033,7 @@ export function slotContent(slot: LoadedSimulation['questions'][number]): {
     chapterName: null,
     officialSolution: null,
     solutionIsOfficial: false,
+    passage: null,
   };
 }
 

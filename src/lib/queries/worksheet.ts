@@ -31,6 +31,8 @@ export type WorksheetQuestion = {
   contentText: string;
   contentLatex: string | null;
   officialSolution: string | null;
+  /** The paper's extract, for a comprehension question. */
+  passage: string | null;
   bareme: { criterion: string; points: number }[];
   /** Marks the whole question carries, when the barème says. */
   totalMarks: number | null;
@@ -77,6 +79,7 @@ export async function buildWorksheet(input: {
       content_text: string;
       content_latex: string | null;
       official_solution: string | null;
+      source_passage: string | null;
       bareme: unknown;
       total: bigint;
     }[]
@@ -84,7 +87,7 @@ export async function buildWorksheet(input: {
     WITH pool AS (
       SELECT DISTINCT ON (q.id)
              q.id, c.name AS chapter_name, ec.year,
-             q.content_text, q.content_latex, q.official_solution, q.bareme
+             q.content_text, q.content_latex, q.official_solution, q.source_passage, q.bareme
         FROM questions q
         -- question_chapters, not chapter_id: what a chapter may SERVE, which is
         -- what the quiz uses and what the chapter counts show. Filing is a
@@ -125,6 +128,7 @@ export async function buildWorksheet(input: {
         contentText: row.content_text,
         contentLatex: row.content_latex,
         officialSolution: row.official_solution,
+        passage: row.source_passage,
         bareme,
         // Summed rather than read from a field: these papers print the total on
         // the exercise header and the extractor does not always catch it, but

@@ -61,6 +61,7 @@ export default async function ChapterPracticePage({
         contentImages: true,
         options: true,
         bareme: true,
+        sourcePassage: true,
         /*
          * The paper this question came off, for the question masthead.
          *
@@ -130,6 +131,7 @@ export default async function ChapterPracticePage({
       marks: marksOf(question.bareme),
       attemptedByYou:
         question._count.attempts > 0 || seenKeys.has(questionKey(question.contentText)),
+      passage: question.sourcePassage,
     })),
     ...generated.map((problem) => ({
       kind: 'generated' as const,
