@@ -30,6 +30,7 @@
 
 import { createHash } from 'node:crypto';
 
+import { stripPaperFurniture } from './paper-furniture';
 import { loadSidecars, schemeFor } from './scheme-sidecars';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -528,7 +529,12 @@ async function main() {
     }
 
     for (const [order, exercise] of exam.exercises.entries()) {
-      const statement = clean([exercise.title, exercise.statement].filter(Boolean).join('\n'));
+      // Without the page's footer or a marks column read after the text
+      // (see paper-furniture.ts); strip-paper-furniture.ts applies the same
+      // function to rows already loaded, so a reload does not put it back.
+      const statement = stripPaperFurniture(
+        clean([exercise.title, exercise.statement].filter(Boolean).join('\n')),
+      ).text;
       /*
        * The paper's own text, carried onto every question from that paper.
        *
