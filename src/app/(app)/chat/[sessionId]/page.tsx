@@ -43,7 +43,13 @@ export default async function ChatSessionPage({
       subject: { select: { id: true, name: true, language: true } },
       uploadedImageUrl: true,
       question: {
-        select: { id: true, contentText: true, contentLatex: true, chapter: { select: { name: true } } },
+        select: {
+          id: true,
+          contentText: true,
+          contentLatex: true,
+          sourcePassage: true,
+          chapter: { select: { name: true } },
+        },
       },
       attempt: { select: { submittedAnswer: true, score: true, maxScore: true } },
       messages: {
@@ -166,6 +172,7 @@ export default async function ChatSessionPage({
             <QuestionBody
               contentText={session.question.contentText}
               contentLatex={session.question.contentLatex}
+              passage={session.question.sourcePassage}
               dir={dirForLanguage(session.subject?.language)}
             />
           </SheetBody>
