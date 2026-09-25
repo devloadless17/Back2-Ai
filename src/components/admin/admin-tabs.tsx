@@ -14,6 +14,7 @@ export function AdminTabs() {
     { href: '/admin/review-queue', label: t.admin.reviewQueue },
     { href: '/admin/announcements', label: t.admin.announcements },
     { href: '/admin/chapters', label: t.admin.chapters },
+    { href: '/admin/exam-timing', label: t.admin.examTiming },
     { href: '/admin/ingestion', label: t.admin.ingestion },
     { href: '/admin/users', label: t.admin.users },
     { href: '/admin/audit', label: t.admin.audit },

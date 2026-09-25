@@ -66,6 +66,17 @@ export const AuditAction = {
   CHAPTER_CANCELLED: 'admin.chapter.cancelled',
   CHAPTER_RESTORED: 'admin.chapter.restored',
 
+  /*
+   * How long a paper is sat for, set by a person.
+   *
+   * Audited because the number is a claim about the real examination and the
+   * app shows it as one. Every cycle currently runs on the 180-minute fallback
+   * — 1,656 of them, none official — so a student sitting a civics paper the
+   * ministry gives one hour for is told they have three. Recording who changed
+   * it and from what makes the claim answerable later.
+   */
+  EXAM_DURATION_SET: 'admin.exam_cycle.duration_set',
+
   // Billing. Logged even while no processor is connected: a change to what a
   // student believes they have agreed to pay is exactly the kind of event that
   // has to be reconstructable later.

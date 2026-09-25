@@ -46,7 +46,7 @@ export const ar: Dictionary = {
     admin: 'الإدارة',
     logout: 'تسجيل الخروج',
     grades: 'علاماتي المدرسية',
-    tutorShort: 'نور',
+    tutorShort: 'زكي',
     sections: {
       today: 'اليوم',
       progress: 'تقدّمي',
@@ -444,11 +444,11 @@ export const ar: Dictionary = {
     notMarkedTitle:
       "لم أتمكّن من تصحيح هذه بثقة.",
     notMarkedBody:
-      "إجابتك محفوظة. حاول أن تكتبها بتفصيل أوفى، أو اسأل نور عن هذا السؤال.",
+      "إجابتك محفوظة. حاول أن تكتبها بتفصيل أوفى، أو اسأل زكي عن هذا السؤال.",
     examinerTitle:
       "علامة المصحّح",
-    nourNote:
-      "ملاحظة نور",
+    zakiNote:
+      "ملاحظة زكي",
     criterionProvisional:
       "قراءتنا للسؤال، لا قراءة المصحّح",
     repeatedLoss:
@@ -459,6 +459,9 @@ export const ar: Dictionary = {
     incorrect: 'ليس تماماً',
     partial: 'صحيح جزئياً',
     explainThis: 'اشرح لي',
+    correctAnswer: 'الجواب الصحيح',
+    notMarkedBadge: 'غير مصحَّح',
+    whyWrong: 'لماذا جوابي خاطئ؟ اسأل زكي',
     passageTitle: 'النص',
     nextQuestion: 'السؤال التالي',
     difficulty: 'الصعوبة',
@@ -502,6 +505,8 @@ export const ar: Dictionary = {
     questionCount: '{count} أسئلة',
     duration: '{count} دقيقة',
     askWhy: 'لماذا هذا الجواب؟',
+    answerMissing: 'الجواب غير متوفّر. لا نملك الحلّ الرسمي لهذا الجزء.',
+    solveWithZaki: 'حُلّه مع زكي',
     paperNotice: 'يُعرض كورقة متصلة، بالترتيب المطبوع.',
   },
 
@@ -690,10 +695,12 @@ export const ar: Dictionary = {
     dockNoContext: 'لا شيء على هذه الشاشة لأنظر إليه — اسألني ما تشاء.',
     dockChipExplain: 'اشرح لي هذا',
     autoExplainPrompt: 'اشرح لي {label}',
+    autoSolvePrompt: 'حلّ هذا السؤال خطوة بخطوة واشرح كل خطوة.',
+    autoWhyPrompt: 'ما الخطأ في جوابي، ولماذا خسر علامات؟ أرني الطريقة الصحيحة.',
     dockChipQuiz: 'اختبرني',
     dockChipFlashcards: 'البطاقات',
     dockChipPlan: 'عدّل خطتي',
-    tutorDefaultName: 'نور',
+    tutorDefaultName: 'زكي',
     dockYourTutor: 'مُعلّمك',
     dockGreeting: 'جاهز متى شئت يا {name}.',
     dockGreetingAnon: 'جاهز متى شئت.',
@@ -967,6 +974,15 @@ export const ar: Dictionary = {
   },
 
   admin: {
+    examTiming: 'مدّة الامتحانات',
+    examTimingPickSubject: 'اختر مادة لعرض مسابقاتها.',
+    examTimingNone: 'لا مسابقات لهذه المادة.',
+    examTimingOfficialCount: '{official} من {total} مسابقة مدّتها مؤكّدة.',
+    examTimingOfficial: 'من المسابقة',
+    examTimingFallback: 'المدّة الافتراضية',
+    examTimingMinutes: 'دقيقة',
+    examTimingClear: 'المدّة الافتراضية',
+    examTimingCounts: '{questions} سؤالاً · {sittings} محاولة',
     chapters: 'الفصول',
     chaptersPickSubject: 'اختر مادة لعرض فصولها.',
     chaptersEmpty: 'لا توجد فصول لهذه المادة.',
@@ -1051,12 +1067,12 @@ export const ar: Dictionary = {
     scriptCrit3: 'B3 · التبرير ناقص',
     scriptMark3: '0 / 2',
 
-    scriptNourNote:
+    scriptZakiNote:
       'أنت تعرف الكيمياء. ذهبت العلامتان على الجملة التي يطلبها سلّم التصحيح — قل إنّ x_f = x_max تعني أنّ التفاعل تامّ، وتصبحان لك.',
 
     secPractice: 'التدرّب',
     secExaminer: 'وضع التصحيح',
-    secNour: 'نور',
+    secZaki: 'زكي',
     secProgress: 'مستواك',
     secNextMove: 'خطوتك التالية',
     secBac: 'بكالورياك',
@@ -1097,22 +1113,22 @@ export const ar: Dictionary = {
     examinerBody:
       'يُقرأ جوابك على سلّم تصحيح المسابقة نفسه، معيارًا معيارًا: ما استحققته، وما استحققته جزئيًا، وما كان المصحّح ليمنعه عنك.',
     examinerLabel: 'التصحيح',
-    examinerNourNote: 'ملاحظة نور',
+    examinerZakiNote: 'ملاحظة زكي',
     examinerNote: 'حدّدت العلاقة الصحيحة، لكن التبرير الذي يطلبه سلّم التصحيح غير موجود في جوابك.',
 
-    nourTitle: 'تعرّف إلى نور.',
-    nourTitleAccent: 'المعلّم الذي يعرف بكالورياك.',
-    nourBody:
-      'اسأل بالعربية أو الفرنسية أو الإنكليزية. تجيب نور من منهجك وتُظهر المسابقة أو النص الذي جاءت منه — وتقول بوضوح حين لا يغطّي منهجك السؤال.',
-    nourName: 'نور',
-    nourQuestion: 'Pourquoi utilise-t-on cette relation ici ?',
-    nourAnswer:
+    zakiTitle: 'تعرّف إلى زكي.',
+    zakiTitleAccent: 'المعلّم الذي يعرف بكالورياك.',
+    zakiBody:
+      'اسأل بالعربية أو الفرنسية أو الإنكليزية. يجيب زكي من منهجك ويُظهر المسابقة أو النص الذي جاءت منه — ويقول بوضوح حين لا يغطّي منهجك السؤال.',
+    zakiName: 'زكي',
+    zakiQuestion: 'Pourquoi utilise-t-on cette relation ici ?',
+    zakiAnswer:
       'Because the system is isolated during this stage, no work is exchanged with the surroundings — so the total energy is conserved and the relation applies unchanged.',
-    nourGrounded: 'مستند إلى بكالورياك',
+    zakiGrounded: 'مستند إلى بكالورياك',
 
     evidenceTitle: 'أجوبة يمكنك تتبّع مصدرها.',
     evidenceBody:
-      'كل جواب يحمل ما بُني عليه: المسابقة، الدورة، سلّم التصحيح، الفصل. وإن تعذّر إسناده، تقول نور ذلك بدل أن تخترعه.',
+      'كل جواب يحمل ما بُني عليه: المسابقة، الدورة، سلّم التصحيح، الفصل. وإن تعذّر إسناده، يقول زكي ذلك بدل أن يخترعه.',
 
     progressTitle: 'اعرف أين أنت.',
     progressTitleAccent: 'واعرف ما يجب إصلاحه.',

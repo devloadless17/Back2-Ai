@@ -46,7 +46,7 @@ export const fr: Dictionary = {
     admin: 'Administration',
     logout: 'Se déconnecter',
     grades: 'Mes notes de l’école',
-    tutorShort: 'Nour',
+    tutorShort: 'Zaki',
     sections: {
       today: "Aujourd'hui",
       progress: 'Progrès',
@@ -421,11 +421,11 @@ export const fr: Dictionary = {
     notMarkedTitle:
       "Je n'ai pas pu corriger celle-ci de façon fiable.",
     notMarkedBody:
-      "Ta réponse est enregistrée. Essaie de la développer, ou pose la question à Nour.",
+      "Ta réponse est enregistrée. Essaie de la développer, ou pose la question à Zaki.",
     examinerTitle:
       "NOTE DE L'EXAMINATEUR",
-    nourNote:
-      "Note de Nour",
+    zakiNote:
+      "Note de Zaki",
     criterionProvisional:
       "Notre lecture de la question, pas celle de l'examinateur",
     repeatedLoss:
@@ -436,6 +436,9 @@ export const fr: Dictionary = {
     incorrect: 'Pas tout à fait',
     partial: 'Partiellement correct',
     explainThis: 'Explique-moi',
+    correctAnswer: 'Bonne réponse',
+    notMarkedBadge: 'Non corrigé',
+    whyWrong: 'Pourquoi ma réponse est fausse ? Demande à Zaki',
     passageTitle: 'Le texte',
     nextQuestion: 'Question suivante',
     difficulty: 'Difficulté',
@@ -480,6 +483,8 @@ export const fr: Dictionary = {
     questionCount: '{count} questions',
     duration: '{count} minutes',
     askWhy: 'Pourquoi cette réponse ?',
+    answerMissing: 'Réponse manquante. Nous n’avons pas le corrigé officiel de cette partie.',
+    solveWithZaki: 'Le résoudre avec Zaki',
     paperNotice: 'Affiché comme une épreuve continue, dans l’ordre imprimé.',
   },
 
@@ -675,10 +680,12 @@ export const fr: Dictionary = {
     dockNoContext: 'Rien à regarder sur cet écran — pose-moi ce que tu veux.',
     dockChipExplain: 'Explique-moi',
     autoExplainPrompt: 'Explique-moi {label}',
+    autoSolvePrompt: 'Résous cette question étape par étape et explique chaque étape.',
+    autoWhyPrompt: 'Qu’est-ce qui ne va pas dans ma réponse, et pourquoi a-t-elle perdu des points ? Montre-moi la bonne méthode.',
     dockChipQuiz: 'Interroge-moi',
     dockChipFlashcards: 'Cartes',
     dockChipPlan: 'Ajuster mon plan',
-    tutorDefaultName: 'Nour',
+    tutorDefaultName: 'Zaki',
     dockYourTutor: 'Votre tuteur',
     dockGreeting: 'Prêt quand vous voulez, {name}.',
     dockGreetingAnon: 'Prêt quand vous voulez.',
@@ -958,6 +965,15 @@ export const fr: Dictionary = {
   },
 
   admin: {
+    examTiming: 'Durée des épreuves',
+    examTimingPickSubject: 'Choisissez une matière pour voir ses épreuves.',
+    examTimingNone: 'Cette matière n’a aucune épreuve.',
+    examTimingOfficialCount: '{official} épreuves sur {total} ont une durée confirmée.',
+    examTimingOfficial: 'D’après l’épreuve',
+    examTimingFallback: 'Durée standard',
+    examTimingMinutes: 'minutes',
+    examTimingClear: 'Durée standard',
+    examTimingCounts: '{questions} questions · {sittings} passages',
     chapters: 'Chapitres',
     chaptersPickSubject: 'Choisissez une matiere pour voir ses chapitres.',
     chaptersEmpty: 'Cette matiere n’a aucun chapitre.',
@@ -1042,12 +1058,12 @@ export const fr: Dictionary = {
     scriptCrit3: 'B3 · Justification manquante',
     scriptMark3: '0 / 2',
 
-    scriptNourNote:
+    scriptZakiNote:
       'Vous maîtrisiez la chimie. Les deux points sont partis sur la phrase qu’exige le barème : dites que x_f = x_max signifie que la réaction est totale, et ils sont à vous.',
 
     secPractice: 'Entraînement',
     secExaminer: 'Mode correcteur',
-    secNour: 'Nour',
+    secZaki: 'Zaki',
     secProgress: 'Votre niveau',
     secNextMove: 'Prochaine étape',
     secBac: 'Votre Bac',
@@ -1088,23 +1104,23 @@ export const fr: Dictionary = {
     examinerBody:
       'Votre copie est lue au barème du sujet, critère par critère : ce que vous avez obtenu, ce que vous avez à moitié obtenu, et ce que le correcteur ne vous aurait pas accordé.',
     examinerLabel: 'Correction',
-    examinerNourNote: 'Note de Nour',
+    examinerZakiNote: 'Note de Zaki',
     examinerNote:
       'Vous avez identifié la bonne relation, mais la justification exigée par le barème ne figure pas dans votre réponse.',
 
-    nourTitle: 'Voici Nour.',
-    nourTitleAccent: 'Le tuteur qui connaît votre Bac.',
-    nourBody:
-      'Posez vos questions en arabe, en français ou en anglais. Nour répond à partir de votre programme et montre le sujet ou le passage d’où cela vient — et le dit clairement quand votre programme ne le couvre pas.',
-    nourName: 'Nour',
-    nourQuestion: 'Pourquoi utilise-t-on cette relation ici ?',
-    nourAnswer:
+    zakiTitle: 'Voici Zaki.',
+    zakiTitleAccent: 'Le tuteur qui connaît votre Bac.',
+    zakiBody:
+      'Posez vos questions en arabe, en français ou en anglais. Zaki répond à partir de votre programme et montre le sujet ou le passage d’où cela vient — et le dit clairement quand votre programme ne le couvre pas.',
+    zakiName: 'Zaki',
+    zakiQuestion: 'Pourquoi utilise-t-on cette relation ici ?',
+    zakiAnswer:
       'Parce que le système est isolé pendant cette étape : aucun travail n’est échangé avec l’extérieur, donc l’énergie totale se conserve et la relation s’applique telle quelle.',
-    nourGrounded: 'Appuyé sur votre Bac',
+    zakiGrounded: 'Appuyé sur votre Bac',
 
     evidenceTitle: 'Des réponses que vous pouvez remonter.',
     evidenceBody:
-      'Chaque réponse porte ce sur quoi elle s’appuie : le sujet, la session, le barème, le chapitre. Si rien ne peut l’étayer, Nour le dit au lieu de l’inventer.',
+      'Chaque réponse porte ce sur quoi elle s’appuie : le sujet, la session, le barème, le chapitre. Si rien ne peut l’étayer, Zaki le dit au lieu de l’inventer.',
 
     progressTitle: 'Sachez où vous en êtes.',
     progressTitleAccent: 'Sachez quoi corriger.',

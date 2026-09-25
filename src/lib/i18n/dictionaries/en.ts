@@ -60,7 +60,7 @@ export const en = {
     admin: 'Administration',
     logout: 'Sign out',
     grades: 'My school marks',
-    tutorShort: 'Nour',
+    tutorShort: 'Zaki',
     sections: {
       today: 'Today',
       progress: 'Progress',
@@ -444,11 +444,11 @@ export const en = {
     notMarkedTitle:
       "I couldn't mark this one reliably.",
     notMarkedBody:
-      "Your answer is saved. Try writing it out more fully, or ask Nour about this question.",
+      "Your answer is saved. Try writing it out more fully, or ask Zaki about this question.",
     examinerTitle:
       "EXAMINER'S MARK",
-    nourNote:
-      "Nour's note",
+    zakiNote:
+      "Zaki's note",
     criterionProvisional:
       "Our reading of the question, not the examiner's",
     repeatedLoss:
@@ -459,6 +459,9 @@ export const en = {
     incorrect: 'Not quite',
     partial: 'Partially correct',
     explainThis: 'Explain this',
+    correctAnswer: 'Correct answer',
+    notMarkedBadge: 'Not marked',
+    whyWrong: 'Why is my answer wrong? Ask Zaki',
     passageTitle: 'The text',
     nextQuestion: 'Next question',
     difficulty: 'Difficulty',
@@ -504,6 +507,8 @@ export const en = {
     questionCount: '{count} questions',
     duration: '{count} minutes',
     askWhy: 'Why this answer?',
+    answerMissing: 'Answer missing. We do not have the official answer for this part.',
+    solveWithZaki: 'Solve it with Zaki',
     paperNotice: 'Shown as one continuous paper, in printed order.',
   },
 
@@ -705,13 +710,15 @@ export const en = {
      * blank box and making them type the chapter name themselves.
      */
     autoExplainPrompt: 'Explain {label}',
+    autoSolvePrompt: 'Solve this question step by step and explain each step.',
+    autoWhyPrompt: 'What is wrong in my answer, and why did it lose marks? Show me the correct way.',
     dockChipQuiz: 'Quiz me',
     dockChipFlashcards: 'Flashcards',
     dockChipPlan: 'Adjust my plan',
     /* The tutor has a name so it can be renamed. A default that is already a
        name — not "Assistant" — is what makes renaming feel like changing it
-       rather than filling in a blank. Nour reads as a name in all three. */
-    tutorDefaultName: 'Nour',
+       rather than filling in a blank. Zaki reads as a name in all three. */
+    tutorDefaultName: 'Zaki',
     dockYourTutor: 'Your tutor',
     dockGreeting: 'Ready when you are, {name}.',
     dockGreetingAnon: 'Ready when you are.',
@@ -976,6 +983,15 @@ export const en = {
   },
 
   admin: {
+    examTiming: 'Exam timing',
+    examTimingPickSubject: 'Choose a subject to see its papers.',
+    examTimingNone: 'This subject has no exam papers.',
+    examTimingOfficialCount: '{official} of {total} papers have a confirmed length.',
+    examTimingOfficial: 'From the paper',
+    examTimingFallback: 'Standard length',
+    examTimingMinutes: 'minutes',
+    examTimingClear: 'Use standard',
+    examTimingCounts: '{questions} questions · {sittings} sittings',
     chapters: 'Chapters',
     chaptersPickSubject: 'Choose a subject to see its chapters.',
     chaptersEmpty: 'This subject has no chapters.',
@@ -1060,12 +1076,12 @@ export const en = {
     scriptCrit3: 'B3 · Missing justification',
     scriptMark3: '0 / 2',
 
-    scriptNourNote:
+    scriptZakiNote:
       'You knew the chemistry. The two marks went on the sentence the barème asks for — say that x_f = x_max means the reaction is complete, and they are yours.',
 
     secPractice: 'Practice',
     secExaminer: 'Examiner mode',
-    secNour: 'Nour',
+    secZaki: 'Zaki',
     secProgress: 'Your standing',
     secNextMove: 'Next move',
     secBac: 'Your Bac',
@@ -1106,23 +1122,23 @@ export const en = {
     examinerBody:
       'Your answer is read against the paper’s own barème, criterion by criterion — what you earned, what you half-earned, and what the examiner would not have given you.',
     examinerLabel: 'Examiner',
-    examinerNourNote: 'Nour’s note',
+    examinerZakiNote: 'Zaki’s note',
     examinerNote:
       'You identified the correct relationship, but the justification the barème asks for is not in your answer.',
 
-    nourTitle: 'Meet Nour.',
-    nourTitleAccent: 'The tutor that knows your Bac.',
-    nourBody:
-      'Ask in Arabic, French or English. Nour answers from your programme and shows you the paper or the passage it came from — and says so plainly when your programme does not cover it.',
-    nourName: 'Nour',
-    nourQuestion: 'Pourquoi utilise-t-on cette relation ici ?',
-    nourAnswer:
+    zakiTitle: 'Meet Zaki.',
+    zakiTitleAccent: 'The tutor that knows your Bac.',
+    zakiBody:
+      'Ask in Arabic, French or English. Zaki answers from your programme and shows you the paper or the passage it came from — and says so plainly when your programme does not cover it.',
+    zakiName: 'Zaki',
+    zakiQuestion: 'Pourquoi utilise-t-on cette relation ici ?',
+    zakiAnswer:
       'Because the system is isolated during this stage, no work is exchanged with the surroundings — so the total energy is conserved and the relation applies unchanged.',
-    nourGrounded: 'Grounded in your Bac',
+    zakiGrounded: 'Grounded in your Bac',
 
     evidenceTitle: 'Answers you can trace back.',
     evidenceBody:
-      'Every answer carries what it was built from: the paper, the session, the marking scheme, the chapter. If it cannot be traced, Nour says so instead of inventing it.',
+      'Every answer carries what it was built from: the paper, the session, the marking scheme, the chapter. If it cannot be traced, Zaki says so instead of inventing it.',
 
     progressTitle: 'Know where you stand.',
     progressTitleAccent: 'Know what to fix.',
@@ -1194,7 +1210,7 @@ export const en = {
     headline: 'Your Lebanese Bac.',
     headlineAccent: 'Under control.',
     subhead:
-      'Practise real Bac questions, get marked the way the exam marks you, ask Nour when you are stuck, and know exactly what to work on next.',
+      'Practise real Bac questions, get marked the way the exam marks you, ask Zaki when you are stuck, and know exactly what to work on next.',
     ctaStart: 'Start free',
     ctaHaveAccount: 'I already have an account',
     previewTitle: 'Try it before you sign up',
