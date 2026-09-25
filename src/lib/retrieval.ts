@@ -568,6 +568,30 @@ async function conceptQuery(query: string): Promise<string | null> {
  */
 const COVERAGE_FLOOR = 0.12;
 
+/**
+ * The band where a passing score proves nothing, and the question itself is
+ * worth a look.
+ *
+ * `check:refusal` measures where the two populations sit, and they overlap:
+ *
+ *   GS latin   off 0.158 … 0.514   on 0.528 … 0.744
+ *   SE arabic  off 0.218 … 0.547   on 0.494 … 0.638
+ *   LH arabic  off 0.202 … 0.498   on 0.453 … 0.684
+ *
+ * Inside the overlap a score cannot say which population a question came from,
+ * which is how `سعر صرف الدولار اليوم` gets answered out of «أزمة 1929
+ * الاقتصادية العالمية» and `تذكرة طيران إلى باريس` out of the air-transport
+ * lesson. Neither match is a fault in the embedding: the book really does talk
+ * about currency and really does list Paris. What a cosine cannot tell is a
+ * chapter ABOUT currency from a chapter that answers what the dollar costs
+ * today.
+ *
+ * Above the ceiling nothing is asked. A question scoring 0.60 is inside every
+ * on-syllabus range measured and outside every off-syllabus one, so questioning
+ * it would only add a model call and a chance to be wrong.
+ */
+const TOPICAL_ONLY_CEILING = 0.6;
+
 /** How many passages the judge sees, and how much of each. */
 const COVERAGE_CANDIDATES = 4;
 const COVERAGE_SNIPPET = 700;
@@ -698,6 +722,55 @@ async function coveredByMaterial(
     return haystack.includes(quoted.slice(0, 60));
   } catch {
     return false;
+  }
+}
+
+/**
+ * Is this someone revising, or someone asking the tutor to run an errand?
+ *
+ * ASKED ABOUT THE QUESTION, NOT THE MATERIAL, which is what makes it cheap and
+ * what makes it safe. `coveredByMaterial` has to read passages and decide
+ * whether they answer; this only has to tell a question about a syllabus from a
+ * request for a live fact, a price, a booking or an opinion. No retrieval is
+ * involved and no passage can mislead it.
+ *
+ * It is the mirror of the coverage reader and carries the opposite risk. That
+ * one may only admit, so its worst case is the refusal that would have happened
+ * anyway. This one REJECTS, so its worst case is refusing a real question — and
+ * that is why it runs only inside the measured overlap band, and why anything
+ * unclear counts as a study question. Silence, a timeout, a malformed reply:
+ * all mean answer, exactly as before.
+ *
+ * `classifyQuestionKind` is rules-only on purpose — "this runs before every
+ * retrieval, so a model call here would be a model call on the critical path of
+ * every question asked" — which is why this is not there. It fires on the few
+ * questions whose score already failed to settle the matter.
+ */
+async function isStudyQuestion(query: string, subjects: string[]): Promise<boolean> {
+  try {
+    const response = await ai().complete({
+      system: [
+        'A student revising for the Lebanese Baccalaureate has typed something.',
+        subjects.length ? `They are studying: ${subjects.slice(0, 20).join(', ')}.` : '',
+        '',
+        'Reply with exactly STUDY if it is a question about their course — a concept, a',
+        'definition, a method, a past-paper exercise, a historical or scientific fact they',
+        'would be examined on. A topic being difficult, broad or oddly worded does not matter.',
+        '',
+        'Reply with exactly ERRAND if it asks for something no textbook contains: a current',
+        'price or rate, today\'s news, a booking, a recommendation, a personal or practical',
+        'matter, sport, entertainment, or help with something outside school.',
+        '',
+        'One word. If you are unsure, reply STUDY.',
+      ].filter(Boolean).join('\n'),
+      messages: [{ role: 'user', content: query.slice(0, 1000) }],
+      maxTokens: 200,
+      effort: 'low',
+      model: ai().fastModel,
+    });
+    return !/^errand\b/i.test(response.text.trim());
+  } catch {
+    return true;
   }
 }
 
@@ -1488,6 +1561,34 @@ export async function retrieveGrounding(input: RetrievalInput): Promise<Groundin
    * refuse exactly the short precise queries this exists for — the ones where
    * several passages of one chapter all mention the term.
    */
+  /*
+   * A passing score inside the overlap band settles nothing, so ask whether the
+   * question is about the course at all.
+   *
+   * This is where `سعر صرف الدولار اليوم` was answered out of the 1929 crash
+   * chapter and `تذكرة طيران إلى باريس` out of the air-transport lesson: both
+   * clear the gate on a real topical resemblance, and both want something no
+   * textbook holds. Dropping the passages sends them to the general-knowledge
+   * lane, which already says so plainly, instead of citing a chapter at them.
+   *
+   * Only the concept lane. A comprehension question is about a passage on the
+   * paper and an essay about a barème; neither is an errand, and neither should
+   * pay for a model call to establish it.
+   */
+  if (
+    passingChunks.length > 0 &&
+    kind === 'concept' &&
+    (passingChunks[0]?.similarity ?? 0) < TOPICAL_ONLY_CEILING
+  ) {
+    const subjectNames = await db.subject.findMany({
+      where: { id: { in: input.subjectIds } },
+      select: { name: true },
+    });
+    if (!(await isStudyQuestion(input.query, subjectNames.map((s) => s.name)))) {
+      passingChunks = [];
+    }
+  }
+
   let admittedByReader = false;
   if (passingChunks.length === 0 && schemes.length === 0) {
     const candidates = shareQueryVocabulary(
