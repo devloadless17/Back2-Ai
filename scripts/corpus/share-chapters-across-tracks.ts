@@ -179,34 +179,17 @@ async function main() {
    * is, it says so and exits non-zero; nobody should have to notice a wrong
    * number to find out the job did not finish.
    */
+  // Checked against PAIRS itself — the same definition the insert used. A
+  // second, hand-copied version of the rule here lacked the two duplicate
+  // rules above and reported 4,660 deliberately unwritten duplicate copies as
+  // "missing": the very drift this check exists to catch, inside the check.
   const missingRows = await db.$queryRaw<{ n: bigint }[]>`
-    WITH ch AS (
-      SELECT c.id, c.name, s.name AS subject, s.language, s.track_id
-        FROM chapters c JOIN subjects s ON s.id = c.subject_id
-    )
-    SELECT count(*)::bigint AS n FROM (
-      SELECT DISTINCT qc.question_id, target.id AS chapter_id
-        FROM ch source
-        JOIN question_chapters qc ON qc.chapter_id = source.id
-        JOIN questions q ON q.id = qc.question_id AND q.verified_status <> 'rejected'
-        JOIN ch target
-          ON target.subject = source.subject
-         AND target.language = source.language
-         AND target.name = source.name
-         AND target.track_id <> source.track_id
-       WHERE EXISTS (
-         SELECT 1
-           FROM chapter_content_chunks cl
-           JOIN content_chunks cc ON cc.id = cl.chunk_id
-           JOIN source_documents d ON d.id = cc.source_document_id
-           JOIN tracks tt ON tt.id = target.track_id
-          WHERE cl.chapter_id = source.id
-            AND tt.code = ANY(d.tracks))
-    ) implied
-    WHERE NOT EXISTS (
-      SELECT 1 FROM question_chapters qc2
-       WHERE qc2.question_id = implied.question_id
-         AND qc2.chapter_id = implied.chapter_id)`;
+    ${PAIRS}
+    SELECT count(*)::bigint AS n FROM pairs p
+     WHERE NOT EXISTS (
+       SELECT 1 FROM question_chapters qc2
+        WHERE qc2.question_id = p.question_id
+          AND qc2.chapter_id = p.chapter_id)`;
 
   const missing = Number(missingRows[0]?.n ?? 0);
   console.log(`  already present       ${planned - written}`);
