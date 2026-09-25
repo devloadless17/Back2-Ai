@@ -50,7 +50,10 @@ type PaperSpec = { year: number; session: string; questions: QuestionSpec[] };
 
 async function main() {
   const dry = process.argv.includes('--dry');
-  const files = (await readdir(DIR)).filter((f) => f.endsWith('.json'));
+  // `--paper 2023-1` loads one file. Without it every paper is deleted and
+  // re-inserted, and a student's attempts on those questions go with them.
+  const paper = process.argv.includes('--paper') ? process.argv[process.argv.indexOf('--paper') + 1] : null;
+  const files = (await readdir(DIR)).filter((f) => f.endsWith('.json') && (!paper || f === `${paper}.json`));
   if (!files.length) {
     console.log('no papers in ' + DIR);
     return;
@@ -113,7 +116,7 @@ async function main() {
           .digest('hex');
 
         if (!dry) {
-          await db.question.upsert({
+          const written = await db.question.upsert({
             where: { sourceRef },
             update: {
               chapterId,
@@ -134,7 +137,14 @@ async function main() {
               orderIndex: q.index,
               verifiedStatus: 'unverified',
             },
+            select: { id: true },
           });
+          // Practice and quizzes find a question through question_chapters;
+          // without its home row it is invisible there.
+          await db.$executeRaw`
+            INSERT INTO question_chapters (question_id, chapter_id)
+            VALUES (${written.id}::uuid, ${chapterId}::uuid)
+            ON CONFLICT DO NOTHING`;
         }
         inserted += 1;
       }
