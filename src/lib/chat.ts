@@ -386,6 +386,12 @@ export function systemPrompt(
    * seen.
    */
   question?: string,
+  /**
+   * The named subject, by name, for the rules that are a property of a subject
+   * rather than of a question — see `VERBATIM_SUBJECTS`. Null whenever no single
+   * subject has been named, which is the same condition as `subjectLanguage`.
+   */
+  subjectName?: string | null,
 ): string {
   // Asked for a solution to a problem they supplied, rather than asked about
   // a topic. Changes which set of hard rules applies — see below.
@@ -557,14 +563,91 @@ export function systemPrompt(
    */
   const documents = question && DOCUMENT_QUESTION.test(question) ? [DOCUMENT_PROMPT] : [];
 
+  /*
+   * A property of the SUBJECT, not of the question, so it is keyed off the
+   * subject and off nothing in the message. Every question in these four is
+   * marked this way, including the ones that do not look like definitions.
+   */
+  const verbatim = definitionsAreVerbatim(subjectName) ? [VERBATIM_PROMPT] : [];
+
   return [
     ...common,
     ...tierBlock,
     ...PER_KIND[classification.kind],
     ...unresolved,
     ...documents,
+    ...verbatim,
   ].join('\n');
 }
+
+/**
+ * The subjects whose answers are marked on the WORDING, by the name they carry
+ * in the database.
+ *
+ * Checked against the taxonomy on 2026-09-23 rather than transcribed from a
+ * seed file: these four names exist, all four are `language = 'ar'`, and there
+ * is no Latin-script edition of any of them to also match. A name that did not
+ * exist would leave dead code here that still read as a feature.
+ *
+ * أدب عربي is deliberately NOT here. Literature is examined by comprehension of
+ * a text, and what a candidate must reproduce is the extract in front of them
+ * rather than a definition out of a book.
+ *
+ * اجتماع and اقتصاد are Arabic humanities of the same shape and are not here
+ * either, because they were not asked for. Adding one is adding a string.
+ */
+const VERBATIM_SUBJECTS = new Set(['تاريخ', 'جغرافيا', 'تربية وطنية', 'فلسفة عامة']);
+
+/** Whether this subject's definitions must be reproduced rather than retold. */
+export function definitionsAreVerbatim(subjectName?: string | null): boolean {
+  return Boolean(subjectName && VERBATIM_SUBJECTS.has(subjectName.trim()));
+}
+
+/**
+ * Added for the Arabic-medium humanities, where the wording IS the answer.
+ *
+ * In تاريخ, جغرافيا, تربية وطنية and فلسفة عامة a definition is not a gist to be
+ * conveyed. The examiner has the textbook's sentence in front of them and the
+ * mark is awarded for the term, so a candidate who writes the same idea in
+ * their own words is marked down for it. A tutor that summarises the book is
+ * therefore teaching the student to lose marks while appearing to help — and
+ * the better the paraphrase, the more convincing the damage.
+ *
+ * This is the one place in this prompt where copying is the correct behaviour,
+ * so it is stated rather than left to be inferred from "answer only from the
+ * material". That rule governs WHERE the content comes from. It says nothing
+ * about whether the content may be reworded, and rewording is the model's
+ * default.
+ *
+ * NOT MEASURED. No experiment has compared answers with and without it, and
+ * there is no judge for "is this the book's sentence" yet. What stands behind
+ * it is the marking convention and the fact that nothing in this prompt said
+ * anything about wording before now. It is also the kind of block that could
+ * make answers worse by turning a tutor into a photocopier, which is what the
+ * closing paragraph is there to prevent.
+ */
+const VERBATIM_PROMPT = [
+  '',
+  'This subject is marked on the WORDING, not only on the idea. The examiner has the textbook\' own',
+  'sentence in front of them, and a candidate who writes the same thing in different words loses the',
+  'mark for it.',
+  '',
+  'So for anything the material states as a definition, a term, a principle, an article, a date, a name',
+  'or a figure:',
+  '- Reproduce it EXACTLY as the material writes it — its words, its order, in full. Do not paraphrase',
+  '  it, do not shorten it, do not modernise the wording, and do not fuse two of them into one.',
+  '- Set it out as a quotation, so the student can see which words are the book\' and which ones they',
+  '  have to be able to write down themselves.',
+  '- Never summarise in place of quoting. A summary of a definition is not a definition, and handing',
+  '  one over as though it were is the failure this rule exists to prevent.',
+  '- If the material does not define what was asked about, say that it does not. Do not compose a',
+  '  definition, and do not assemble one out of sentences written about something else. A fluent',
+  '  definition in the wrong words is worse than none, because the student cannot tell the difference.',
+  '',
+  'Then teach it. The quotation is what they must reproduce; it is not the whole answer. After it, in',
+  'your own words and clearly apart from it, say what it means, which term in it carries the mark, and',
+  'where it is used. The definition is the book\'. The explanation is yours.',
+].join('\n');
 
 /**
  * Added when the conversation is anchored to a marked attempt.
@@ -620,6 +703,14 @@ export type ChatTurnInput = {
    * before the subject picker existed and every one that chooses general help.
    */
   subjectLanguage?: Locale | null;
+  /**
+   * The named subject's own name, for the prompt rules that belong to a
+   * subject rather than to a question — see `definitionsAreVerbatim`.
+   *
+   * Null on the same condition as `subjectLanguage`: nobody has said what is
+   * being revised, so no per-subject rule can be asserted about it.
+   */
+  subjectName?: string | null;
   /** Prior turns in this conversation, oldest first. */
   history: { role: 'user' | 'assistant'; content: string }[];
   anchorQuestion?: {
@@ -1025,6 +1116,7 @@ export async function* runChatTurn(input: ChatTurnInput): AsyncGenerator<ChatEve
           input.locale,
           input.subjectLanguage ?? null,
           input.question,
+          input.subjectName ?? null,
         ) +
         (input.anchorAttempt ? `\n${CORRECTION_KEY_PROMPT}` : ''),
       /*

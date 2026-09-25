@@ -103,7 +103,10 @@ export const POST = route(async (request) => {
        * revising أدب عربي writes that paper in Arabic whether or not they typed
        * their question in arabizi.
        */
-      subject: { select: { language: true } },
+      // `name` as well as `language`: some prompt rules are properties of the
+      // subject itself rather than of the question — the Arabic humanities are
+      // marked on the textbook's exact wording. See `definitionsAreVerbatim`.
+      subject: { select: { language: true, name: true } },
       question: { select: { id: true, contentText: true, officialSolution: true, bareme: true } },
       attempt: { select: { submittedAnswer: true, score: true, maxScore: true } },
       messages: {
@@ -187,6 +190,13 @@ export const POST = route(async (request) => {
           subjectLanguage:
             session.subjectId && subjectIds.length === 1
               ? (session.subject?.language ?? null)
+              : null,
+          // Same condition, and deliberately so: a per-subject rule may only be
+          // applied when exactly one subject is in scope. Across a whole track it
+          // would assert one subject's marking convention over all of them.
+          subjectName:
+            session.subjectId && subjectIds.length === 1
+              ? (session.subject?.name ?? null)
               : null,
           history: session.messages.map((m) => ({ role: m.role, content: m.content })),
           anchorQuestion: session.question && {
