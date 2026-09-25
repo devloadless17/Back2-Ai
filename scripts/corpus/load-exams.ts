@@ -43,6 +43,13 @@ const ROOT = path.resolve(__dirname, '..', '..');
 const EXAMS_JSON = path.join(ROOT, 'corpus', 'exams.json');
 
 /**
+ * Subjects whose questions a different loader owns, and which the
+ * reconciliation pass at the end of this file must therefore never retire.
+ * See the comment there for what happened when it did.
+ */
+const MANUALLY_OWNED_SUBJECTS = ['تاريخ'];
+
+/**
  * Filename token -> the subject name(s) as seeded from the textbooks.
  *
  * More than one name per language, because the seeded name is whatever the
@@ -890,6 +897,21 @@ async function main() {
         sourceExamId: { in: [...touchedCycles] },
         sourceRef: { not: null },
         verifiedStatus: { not: 'rejected' },
+        // Subjects another loader owns are never retired from here.
+        //
+        // `load-history-exams-manual.ts` replaces what the extractor produces
+        // for تاريخ, because Lebanese history papers use a choose-2-of-3
+        // "المجموعة" structure the extractor does not parse and what it stores
+        // is mostly the marking scheme. Its rows are hand-transcribed and its
+        // refs are hashed from `history-manual:…`, so they are NEVER in
+        // `seenRefs` — which made every one of them look "no longer extracted".
+        //
+        // A full run retired the entire 638-question archive on 2026-09-23 and
+        // wrote the bad parse back over it. Nothing was lost (retiring is a
+        // flag) but the corpus served the wrong history for as long as it stood.
+        // Both hashes are bare sha256, so a stored ref cannot be recognised as
+        // manual after the fact; naming the subject is what can be checked.
+        chapter: { subject: { name: { notIn: MANUALLY_OWNED_SUBJECTS } } },
       },
       select: { id: true, sourceRef: true, contentText: true },
     });

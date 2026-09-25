@@ -35,6 +35,7 @@ retrieved and answered from, which is worse than not having it.
 """
 
 import argparse
+import functools
 import hashlib
 import json
 import re
@@ -1356,8 +1357,11 @@ ARABIC_TAUGHT_PROFILES = frozenset(
 _MARK_BRACKET = re.compile(r"[(（]([^()（）\n]{1,40})[)）]")
 # Longest first, "و" last: alternation takes the first that fits, so "و"
 # ahead of "واحدة" would leave "احدة" behind and reject a real mark.
+#
+# Economics and sociology count in points, not marks — "(نقطة)", "(0.5 نقطة)",
+# "(7 نقاط)" — so their marks read as zero until "نقطة" was a mark word too.
 _MARK_WORDS = re.compile(
-    r"العلامات|العلامة|علامتان|علامتين|علامات|علامة|واحدة|"
+    r"العلامات|العلامة|علامتان|علامتين|علامات|علامة|النقاط|النقطة|نقطتان|نقطتين|نقاط|نقطة|واحدة|"
     r"ثمانية|ثلاثة|أربعة|خمسة|سبعة|تسعة|عشرة|ستة|ثماني|ثمان|ثلاث|أربع|خمس|سبع|تسع|عشر|ست|"
     r"أرباع|ارباع|نصف|ربع|ثلث|"
     r"[\d٠-٩]+(?:[.,٫][\d٠-٩]+)?|\s|و"
@@ -1370,7 +1374,7 @@ _UNITS = {"ثلاث": 3, "ثلاثة": 3, "أربع": 4, "أربعة": 4, "خم�
 def bracket_mark(inner: str) -> float | None:
     """The value of one bracketed mark phrase, or None if it is not one."""
     inner = inner.strip()
-    if "علام" not in inner or _MARK_WORDS.sub("", inner).strip(" ،,:.-–"):
+    if not re.search(r"علام|نقط|نقاط", inner) or _MARK_WORDS.sub("", inner).strip(" ،,:.-–"):
         return None
     digits = re.search(r"[\d٠-٩]+(?:[.,٫][\d٠-٩]+)?", inner)
     if digits:
@@ -1383,13 +1387,13 @@ def bracket_mark(inner: str) -> float | None:
     # Not the "ربع" inside "أربع" (four).
     value += 0.25 * len(re.findall(r"(?<![أا])ربع", inner))
     value += (1 / 3) * len(re.findall(r"ثلث", inner))
-    if re.search(r"علامتان|علامتين", inner):
+    if re.search(r"علامتان|علامتين|نقطتان|نقطتين", inner):
         value += 2
     else:
         first = inner.split()[0] if inner.split() else ""
         if first in _UNITS:
             value += _UNITS[first]
-        elif first.startswith("علامة"):
+        elif first.startswith(("علامة", "نقطة")):
             value += 1
     return round(value, 2) or None
 
@@ -1415,6 +1419,119 @@ def exam_ocr_pages(pdf: Path) -> list | None:
         for page in pages
     ] or None
 
+# Papers whose text layer mis-maps the Arabic-Indic digits. See the note in
+# `read()` for what is wrong with them and why the list is frozen rather than
+# computed. Regenerate with `python scripts/corpus/broken_digits.py`, which
+# proves each one cites a document number that cannot exist.
+BROKEN_DIGIT_PAPERS = frozenset({
+    "90e1b0dd8922",  # gs/2016 1/geo.pdf
+    "7cb4af580d0d",  # gs/2018 2/geo.pdf
+    "dd214659c903",  # gs/2018 2/tarbeya.pdf
+    "8ad1a97db1e2",  # gs/2019 1/geo.pdf
+    "a1354c8bd7a0",  # gs/2019 1/tarbeya.pdf
+    "3ec12d84b61a",  # gs/2021 2/SG_Chim_2021_2_Ar.pdf
+    "5ca83f281600",  # gs/2023 1/SVSG_Tarbia_2023_1.pdf
+    "4266c21666e0",  # lh/2004 1/geography.pdf
+    "d631a94a2a24",  # lh/2005 2/greo_ar.pdf
+    "1c49744c6aad",  # lh/2015 2/bio_ar.pdf
+    "1d825c864193",  # lh/2016 1/geo.pdf
+    "de8d25a15547",  # lh/2016 2/bio_ar.pdf
+    "fd4eeed3c739",  # lh/2016 2/geo.pdf
+    "357446c1b0a2",  # lh/2017 1/geo.pdf
+    "5a7c00d3c2cb",  # lh/2017 2/bio_ar.pdf
+    "2a3c93f7ee5c",  # lh/2018 1/geo.pdf
+    "2bd10d7e415e",  # lh/2018 2/geo.pdf
+    "dfcd69179970",  # lh/2018 2/tarbeya.pdf
+    "75f66c67e0ac",  # lh/2019 1/geo.pdf
+    "665f03629531",  # lh/2021 1/LH_Geo_2021_1.pdf
+    "9ad83d563b4d",  # ls/2015 2/bio_ar.pdf
+    "00f637ca28b7",  # ls/2016 1/bio_ar.pdf
+    "c3ee0bb85888",  # ls/2016 2/bio_ar.pdf
+    "e361a5763438",  # ls/2017 1/phy_ar.pdf
+    "e5bf32ca98db",  # ls/2017 2/phy_ar.pdf
+    "a04ddca06fa2",  # ls/2018 2/bio_ar.pdf
+    "927773f9c2a1",  # se/2006 1/ejteme3_ar.pdf
+    "91b5fe33ede3",  # se/2006 1/ektesad_ar.pdf
+    "8e851f34bbe9",  # se/2007 1/geo.pdf
+    "ff530c533dfa",  # se/2018 2/tarbeya.pdf
+})
+
+
+@functools.lru_cache(maxsize=None)
+def sha256_of(pdf: Path) -> str:
+    """This paper's sha256, computed once per run.
+
+    CACHED BECAUSE IT IS NOW ON THE HOT PATH. Four places want this digest, and
+    each one was re-reading the whole PDF to get it. That was affordable while
+    they all ran once per paper at the end; `read()` now asks for it while
+    deciding how to read, so a full-corpus run gained a second pass over every
+    byte of 1,951 PDFs and went from forty minutes to two hours. Nothing mutates
+    a paper mid-run, so one read is enough.
+    """
+    return hashlib.sha256(pdf.read_bytes()).hexdigest()
+
+
+# "المستند رقم (2)", "مستند رقم ٣" — the noun, the optional "رقم", optional
+# brackets, one digit in either script. Deliberately narrow: this rewrites text,
+# and the only text it may touch is a document's number.
+_DOC_NUMBER = re.compile(r"(?:ال)?مستند(?:ين|ات)?\s*(?:رقم)?\s*\(?\s*([0-9٠-٩])")
+
+# The rest of a chain: "المستندين رقم (1) ورقم (4)" names two documents and only
+# the first carries the noun, so a noun-anchored pattern alone repairs half the
+# reference. Anchored to the end of a match above and applied repeatedly, never
+# searched for on its own — "رقم" is also how a law and an article are numbered
+# ("القانون رقم 382"), and those are not ours to rewrite.
+_DOC_ALSO = re.compile(r"\A\s*[،و]?\s*رقم\s*\(?\s*([0-9٠-٩])")
+_TO_LATIN = str.maketrans("٠١٢٣٤٥٦٧٨٩", "0123456789")
+
+
+def _document_digits(text: str) -> list:
+    """Every span in `text` that holds a document's number, in reading order."""
+    spans = []
+    for match in _DOC_NUMBER.finditer(text):
+        spans.append(match.span(1))
+        end = match.end()
+        while True:
+            nxt = _DOC_ALSO.match(text, end)
+            if not nxt:
+                break
+            spans.append(nxt.span(1))
+            end = nxt.end()
+    return spans
+
+
+def repair_document_numbers(pages: list, transcribed: list) -> list:
+    """The text layer's pages, with the document numbers the transcription read.
+
+    WHY POSITION AND NOT CONTENT. There is nothing in the broken page to match
+    on — the digit is simply the wrong character, and every other word around it
+    is fine. What the two readings do share is ORDER: the third document
+    reference on page 3 is the third document reference on page 3 in both. So
+    the nth reference on a page takes the nth transcribed digit.
+
+    THE GUARD IS THE COUNT. A page is repaired only when both readings found the
+    same number of references on it. If they disagree, the alignment is not
+    trustworthy and the page is left exactly as the text layer read it — a
+    missed repair, never a wrong one. Pages are matched by index, so a
+    transcription with a different page count repairs nothing.
+    """
+    if len(pages) != len(transcribed):
+        return pages
+
+    out = []
+    for page, other in zip(pages, transcribed):
+        mine = _document_digits(page)
+        theirs = [other[s:e].translate(_TO_LATIN) for s, e in _document_digits(other)]
+        if not mine or len(mine) != len(theirs):
+            out.append(page)
+            continue
+        # Right to left, so an earlier replacement cannot move a later span.
+        fixed = page
+        for (start, end), digit in reversed(list(zip(mine, theirs))):
+            fixed = fixed[:start] + digit + fixed[end:]
+        out.append(fixed)
+    return out
+
 
 def ocr_pages(pdf: Path) -> list | None:
     """Pages transcribed by `ocr_pdf.py`, if this paper has been read that way.
@@ -1431,7 +1548,7 @@ def ocr_pages(pdf: Path) -> list | None:
     """
     if not OCR_TEXT.exists():
         return None
-    digest = hashlib.sha256(pdf.read_bytes()).hexdigest()
+    digest = sha256_of(pdf)
 
     # ONLY `ocr_pdf.py`'s layout, `<something>__<first 8 of sha>`, is looked for.
     #
@@ -1474,6 +1591,41 @@ def read(pdf: Path) -> dict | None:
     # image: the PDF's own text is exact where it works, and OCR is a
     # reconstruction, so preferring it everywhere would trade certainty for
     # plausibility across the whole corpus to fix one eighth of it.
+    #
+    # "Failed" means one of two things, and length only sees the first.
+    #
+    # A paper can also extract a confident, fluent page that is WRONG. These
+    # thirty have `/Identity-H` fonts with no embedded font file, so the PDF's
+    # own `/ToUnicode` map is the only thing that says what a glyph means, and
+    # for the Arabic-Indic digits it lies: lh/2016 2/geo.pdf prints "المستند رقم
+    # (١)" and pypdf, pdfplumber and pypdfium2 all read "المستند رقم (0)". They
+    # agree because they are all reading the same broken map, and with no glyph
+    # program there is nothing to fall back on. The page has to be read again.
+    #
+    # It matters beyond the text a student sees: figure ownership matches a crop
+    # captioned "document 1" to a question that asks about "document 1", so a
+    # mis-read digit silently costs the question its figure. All 193 unresolved
+    # Arabic Geography crops had zero references before this.
+    #
+    # A FROZEN LIST, not a detector. `broken_digits.py` finds these by proving a
+    # paper cites a document that cannot exist, and regenerates this list. It is
+    # pasted here rather than imported because it is derived from `exams.json`,
+    # which is this file's own output — importing it would make extraction
+    # depend on the last extraction. Frozen, it also cannot fire on a paper that
+    # reads correctly today.
+    #
+    # AND THE TRANSCRIPTION IS NOT SUBSTITUTED WHOLE. Measured on lh/2016 2/
+    # geo.pdf: swapping the page for its transcription recovered every document
+    # number and took the paper from 17 marks and 9 sub-questions to 0 and 0.
+    # The marks are still there — 61 of them — but the text layer prints each
+    # one on the same line as its question and the transcription puts it on its
+    # own, so every mark-gated header rule stops seeing it. Plausible prose,
+    # useless structure, exactly as the note in `ocr_pages()` warns.
+    #
+    # So only the digits are taken. `repair_document_numbers` rewrites the digit
+    # inside "المستند رقم (N)" and nothing else, which cannot move a heading or
+    # detach a mark.
+    #
     # The papers in `ocr_whole_papers.json` take the transcription WHOLE. Their
     # text layer is not wrong in one character but throughout:
     # words out of order, vowel marks torn off their letters, brackets flipped,
@@ -1494,6 +1646,10 @@ def read(pdf: Path) -> dict | None:
         transcribed = ocr_pages(pdf)
         if transcribed:
             pages = transcribed
+    elif sha256_of(pdf)[:12] in BROKEN_DIGIT_PAPERS:
+        transcribed = ocr_pages(pdf)
+        if transcribed:
+            pages = repair_document_numbers(pages, transcribed)
 
     # Normalised before anything is matched against it.
     #
@@ -1734,7 +1890,7 @@ def read(pdf: Path) -> dict | None:
     rel = pdf.relative_to(EXAMS)
     return {
         "path": str(rel).replace("\\", "/"),
-        "sha256": hashlib.sha256(pdf.read_bytes()).hexdigest(),
+        "sha256": sha256_of(pdf),
         "track": rel.parts[0].upper(),
         "session": rel.parent.name,
         "file": pdf.stem,
@@ -1804,7 +1960,7 @@ def main() -> None:
     # the other's.
     parsed: dict = {}
     for pdf in files:
-        digest = hashlib.sha256(pdf.read_bytes()).hexdigest()
+        digest = sha256_of(pdf)
         if digest in seen:
             first = parsed.get(digest)
             if first and "error" not in first:
