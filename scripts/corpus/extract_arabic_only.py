@@ -62,6 +62,79 @@ def tidy_entry(entry: dict) -> dict:
     return entry
 
 
+# load-exams skips a statement shorter than this (its "too short to be usable").
+MIN_STATEMENT = 90
+
+
+def reshape(entry: dict) -> dict:
+    """Two structural repairs, for the Arabic-taught papers only.
+
+    A WHOLE PAPER READ AS ONE EXERCISE. A civics paper prints its questions
+    "١- … ٢- … ٣- … ٤-" with no exercise headings, so the extractor returns
+    one exercise with the numbered questions as its parts — and question 1 in
+    the title. Its parts are marked correctly (3 + 9 + 9 + 9 on gs/2008 1),
+    which is exactly why it failed: load-exams refuses any exercise worth more
+    than 20, and 25 civics exercises reached production with no barème at all.
+    Each numbered question is its own exercise, so it is split into them.
+
+    AN EXERCISE WITH NO PARTS can never be given its official answer, because
+    answers attach to parts. The extractor already gives an essay subject one
+    unlabelled part for exactly this reason; economics and sociology exercises
+    get the same, holding the exercise's own text. The question a student sees
+    is built from the title and statement, never the parts, so nothing is shown
+    twice.
+    """
+    out, n = [], 0
+    for e in entry["exercises"]:
+        marked = [p["marks"] for p in e["parts"] if isinstance(p.get("marks"), (int, float))]
+        if len(e["parts"]) >= 2 and sum(marked) > 20:
+            first = (e.get("title") or "").strip()
+            if first.count("(") > first.count(")"):
+                first += ")"
+            pieces = ([(first, ee.text_marks(first), None)] if len(first) >= 20 else []) + [
+                (p["text"], p.get("marks"), p.get("answer")) for p in e["parts"]
+            ]
+            # Grouped until each exercise reaches load-exams' 80-character
+            # floor. Civics questions are often one line — "حدّد طبيعة كلّ من
+            # المستندين… (علامة ونصف)" is 70 — and split one per exercise, 126
+            # real questions fell under it and were skipped. Neighbours share an
+            # exercise instead; each stays its own part, with its own mark and
+            # its own answer.
+            groups, current = [], []
+            for piece in pieces:
+                current.append(piece)
+                if len(" ".join(t for t, _, _ in current)) >= MIN_STATEMENT:
+                    groups.append(current)
+                    current = []
+            if current:
+                if groups:
+                    groups[-1].extend(current)
+                else:
+                    groups.append(current)
+            for group in groups:
+                n += 1
+                parts = []
+                for text, marks, answer in group:
+                    part = {"label": "", "text": text}
+                    if isinstance(marks, (int, float)):
+                        part["marks"] = marks
+                    if answer:
+                        part["answer"] = answer
+                    parts.append(part)
+                marks = sum(p["marks"] for p in parts if "marks" in p)
+                out.append({**e, "index": n, "title": "",
+                            "statement": "\n".join(t for t, _, _ in group),
+                            "marks": marks, "parts": parts})
+            continue
+        n += 1
+        e = {**e, "index": n}
+        if not e["parts"] and e.get("statement"):
+            e["parts"] = [{"label": "", "text": e["statement"]}]
+        out.append(e)
+    entry["exercises"] = out
+    return entry
+
+
 def main() -> None:
     index = json.loads((ROOT / "corpus" / "exams-ocr" / "index.json").read_text("utf-8"))
     files = sorted((ROOT / rel).resolve() for rel in index)
@@ -82,7 +155,9 @@ def main() -> None:
             parsed[digest] = row
             results.append(row)
 
-    good = [tidy_entry(r) for r in results if "error" not in r]
+    # Tidied again after the split: joining a title back to its parts can
+    # produce a bracket the first pass never saw (")علامة واحدة)").
+    good = [tidy_entry(reshape(tidy_entry(r))) for r in results if "error" not in r]
     OUT.write_text(json.dumps(good, ensure_ascii=False), encoding="utf-8")
     bad = [r for r in results if "error" in r]
     print(f"{len(results)} entries, {len(good)} extracted, {len(bad)} skipped -> {OUT.name}")
