@@ -98,7 +98,8 @@
     "refile:cross-language": "node --conditions=react-server --env-file=.env --import tsx scripts/refile-cross-language-questions.ts",
     "corpus:mathpix:batch": "node --conditions=react-server --env-file=.env --import tsx scripts/corpus/mathpix-batch.ts",
     "corpus:figures:fetch": "node --env-file=.env --import tsx scripts/corpus/fetch-mathpix-figures.ts",
-    "corpus:backup": "node --env-file=.env --import tsx scripts/corpus/backup.ts"
+    "corpus:backup": "node --env-file=.env --import tsx scripts/corpus/backup.ts",
+    "corpus:doc-crops": "node --conditions=react-server --env-file=.env --import tsx scripts/corpus/register-document-crops.ts"
   },
   "overrides": {
     "postcss": "$postcss",
