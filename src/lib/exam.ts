@@ -20,6 +20,7 @@ import {
 import type { Locale } from '@/lib/i18n/config';
 import { recomputeChapterMastery, resolveCreditChapter } from '@/lib/queries/progress';
 import { rescaleBaremes } from '@/lib/rescale-bareme';
+import { oneCopyEach, questionKey, seenQuestionKeys } from '@/lib/queries/seen-questions';
 import { LIVE_CHAPTER, OWN_EDITION_ONLY, paperScopeFor } from '@/lib/queries/taxonomy';
 import { retrieveGrounding } from '@/lib/retrieval';
 
@@ -125,14 +126,10 @@ const ASSEMBLED_PAPER_MINUTES = 120;
  * chapters, and never two large exercises from one chapter.
  */
 async function startFromRealPool(input: StartInput): Promise<{ id: string }> {
-  const [subject, seen] = await Promise.all([
+  const [subject, seenKeys] = await Promise.all([
     db.subject.findUnique({ where: { id: input.subjectId }, select: { name: true } }),
-    db.attempt.findMany({
-      where: { userId: input.userId, questionId: { not: null } },
-      select: { questionId: true },
-    }),
+    seenQuestionKeys(input.userId),
   ]);
-  const seenIds = new Set(seen.flatMap((a) => (a.questionId ? [a.questionId] : [])));
   const isLanguageArts = LANGUAGE_ARTS_SUBJECTS.has(subject?.name ?? '');
   const shared = SHARED_ACROSS_TRACKS.has(subject?.name ?? '');
 
@@ -182,21 +179,16 @@ async function startFromRealPool(input: StartInput): Promise<{ id: string }> {
   }));
 
   /*
-   * One copy of each exercise, in a shared subject.
+   * One copy of each exercise, and "seen" meaning any copy of it.
    *
-   * GS and LS sit the same paper and the corpus files it once per track, so a
-   * shared subject's pool holds the same exercise up to four times under four
-   * ids — history reaches 640 rows and 207 distinct texts. Left alone, a paper
-   * could set the same question twice, and a student who answered the GS copy
-   * would be offered the LS copy as "unseen".
+   * GS and LS sit the same paper and the corpus files it once per track, and a
+   * paper sometimes sits twice in one folder — history reached 640 rows and
+   * 207 distinct texts. Left alone, a paper could set the same question twice,
+   * and a student who answered one copy would be offered another as "unseen".
+   * Every subject, not only the shared ones: the duplicates are not only there.
    */
-  const textKey = (q: { contentText: string }) => q.contentText.replace(/\s+/g, '');
-  const seenTexts = new Set(allCopies.filter((q) => seenIds.has(q.id)).map(textKey));
-  const isSeen = (q: { id: string; contentText: string }) =>
-    shared ? seenTexts.has(textKey(q)) : seenIds.has(q.id);
-  const pool = shared
-    ? [...new Map(allCopies.map((q) => [textKey(q), q] as const)).values()]
-    : allCopies;
+  const isSeen = (q: { contentText: string }) => seenKeys.has(questionKey(q.contentText));
+  const pool = oneCopyEach(allCopies);
 
   /*
    * A paper that cannot be marked is not a paper.

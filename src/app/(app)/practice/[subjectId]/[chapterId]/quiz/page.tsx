@@ -9,6 +9,7 @@ import { requireUser } from '@/lib/auth/guards';
 import { db } from '@/lib/db';
 import { getTranslations } from '@/lib/i18n';
 import { dirForLanguage } from '@/lib/i18n/config';
+import { oneCopyEach, questionKey, seenQuestionKeys } from '@/lib/queries/seen-questions';
 import { getChapterForTrack } from '@/lib/queries/taxonomy';
 import { visualKeysFor } from '@/lib/visual-evidence';
 
@@ -56,7 +57,8 @@ export default async function ChapterQuizPage({
     bareme: true,
   } as const;
 
-  const unseen = await db.question.findMany({
+  const seenKeys = await seenQuestionKeys(user.id);
+  const candidates = await db.question.findMany({
     where: {
       /*
        * Every chapter this exercise belongs to, not only the one it is filed
@@ -72,8 +74,14 @@ export default async function ChapterQuizPage({
     },
     select,
     orderBy: [{ difficulty: 'asc' }, { createdAt: 'asc' }],
-    take: QUIZ_LENGTH,
+    // Over-fetched: `attempts: none` above is by row, so some of these are
+    // other copies of questions already answered, and some are each other.
+    take: QUIZ_LENGTH * 4,
   });
+  // Unseen in ANY copy, and one copy each — see `questionKey`.
+  const unseen = oneCopyEach(
+    candidates.filter((q) => !seenKeys.has(questionKey(q.contentText))),
+  ).slice(0, QUIZ_LENGTH);
 
   // Top up with seen questions when the chapter does not have enough fresh
   // ones — a three-question quiz is better than no quiz.
@@ -82,7 +90,9 @@ export default async function ChapterQuizPage({
       ? []
       : await db.question.findMany({
           where: {
-            chapterId: chapter.id,
+            // The same chapter membership as above: the filed chapter alone
+            // left a shared chapter's top-up drawing from a smaller pool.
+            alsoInChapters: { some: { chapterId: chapter.id } },
             verifiedStatus: { not: 'rejected' },
             id: { notIn: unseen.map((q) => q.id) },
           },
@@ -92,9 +102,11 @@ export default async function ChapterQuizPage({
         });
 
   // The one visual selector — the same call Nour's retrieval makes.
-  const visualKeys = await visualKeysFor([...unseen, ...topUp]);
+  // A seen question in the top-up may be another copy of an unseen one above.
+  const chosen = oneCopyEach([...unseen, ...topUp]);
+  const visualKeys = await visualKeysFor(chosen);
 
-  const questions: QuizQuestion[] = [...unseen, ...topUp].map((question) => ({
+  const questions: QuizQuestion[] = chosen.map((question) => ({
     id: question.id,
     questionType: question.questionType,
     contentText: question.contentText,

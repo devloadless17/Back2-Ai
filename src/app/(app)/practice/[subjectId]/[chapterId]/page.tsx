@@ -12,6 +12,7 @@ import { PUBLISHED_FILTER } from '@/lib/generation';
 import { getTranslations } from '@/lib/i18n';
 import { dirForLanguage } from '@/lib/i18n/config';
 import { getChapterForTrack } from '@/lib/queries/taxonomy';
+import { oneCopyEach, questionKey, seenQuestionKeys } from '@/lib/queries/seen-questions';
 import { visualKeysFor } from '@/lib/visual-evidence';
 
 export const metadata: Metadata = { title: 'Practice' };
@@ -37,7 +38,7 @@ export default async function ChapterPracticePage({
   const chapter = await getChapterForTrack(chapterId, user.trackId);
   if (!chapter) notFound();
 
-  const [questions, generated, mastery] = await Promise.all([
+  const [allCopies, generated, mastery, seenKeys] = await Promise.all([
     db.question.findMany({
       where: {
         /*
@@ -97,7 +98,13 @@ export default async function ChapterPracticePage({
       where: { userId_chapterId: { userId: user.id, chapterId: chapter.id } },
       select: { masteryScore: true, attemptsCount: true },
     }),
+    seenQuestionKeys(user.id),
   ]);
+
+  // One copy of each question, and "already answered" meaning any copy of it:
+  // see `questionKey`. Without this a chapter could list one exercise twice,
+  // and offer the second copy as new to a student who had answered the first.
+  const questions = oneCopyEach(allCopies);
 
   // The one visual selector — the same call Nour's retrieval makes.
   const visualKeys = await visualKeysFor(questions);
@@ -121,7 +128,8 @@ export default async function ChapterPracticePage({
        * and every criterion carries its own marks regardless.
        */
       marks: marksOf(question.bareme),
-      attemptedByYou: question._count.attempts > 0,
+      attemptedByYou:
+        question._count.attempts > 0 || seenKeys.has(questionKey(question.contentText)),
     })),
     ...generated.map((problem) => ({
       kind: 'generated' as const,
