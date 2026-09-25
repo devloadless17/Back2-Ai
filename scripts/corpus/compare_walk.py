@@ -75,7 +75,12 @@ def locate(text, needle, start):
     k = fflat.find(ftarget, k0)
     if k < 0:
         return -1, -1
-    return idx[k], idx[k + len(ftarget) - 1] + 1
+    # Take the last letter's diacritics too, or a fix leaves them behind and
+    # doubles them ("النصّ" + "ّ" -> "النصّّ").
+    z = idx[k + len(ftarget) - 1] + 1
+    while z < len(text) and DIAC.match(text[z]):
+        z += 1
+    return idx[k], z
 
 
 def main():
@@ -109,6 +114,7 @@ def main():
             for f in (ROOT / "corpus" / "text" / book).glob("page-*.md"):
                 shutil.copyfile(f, backup / f.name)
         was = text[a:z]
+        new = new + "".join(m.group(0) for m in SEP_RE.finditer(was))
         text = text[:a] + new + text[z:]
         save(book, text)
         st["log"].append({"was": was, "now": new, "at": a})
@@ -121,6 +127,26 @@ def main():
         st["cursor"] = z
         state_path(book).write_text(json.dumps(st, ensure_ascii=False, indent=1), encoding="utf-8")
         print(f"cursor -> {z}; next: {text[z:z+80]!r}")
+    elif cmd == "block":
+        # Replace everything from <start> (at or after the cursor) up to and
+        # including <end> with the text in a file: for a page too garbled to
+        # correct word by word, transcribed afresh from the scan.
+        start, end, src = rest
+        a, _ = locate(text, start, st["cursor"])
+        _, z = locate(text, end, max(a, 0))
+        if a < 0 or z < 0:
+            sys.exit("start or end not found after cursor")
+        new = Path(src).read_text(encoding="utf-8").strip()
+        was = text[a:z]
+        # A span that crosses page breaks must keep them, or save() never
+        # writes the later pages and their files go stale.
+        new = new + "".join(m.group(0) for m in SEP_RE.finditer(was))
+        text = text[:a] + new + text[z:]
+        save(book, text)
+        st["log"].append({"was": was, "now": new, "at": a, "block": True})
+        st["cursor"] = a + len(new)
+        state_path(book).write_text(json.dumps(st, ensure_ascii=False, indent=1), encoding="utf-8")
+        print(f"replaced {len(was)} chars with {len(new)}; cursor -> {st['cursor']}")
     elif cmd == "seek":
         # Jump to a passage anywhere in the book (pages stored out of order).
         a, z = locate(text, rest[0], 0)
