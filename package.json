@@ -9,7 +9,7 @@
     "dev": "next dev",
     "build": "prisma generate && next build",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "db:up": "docker compose up -d",
     "db:down": "docker compose down",
@@ -137,6 +137,7 @@
     "zod": "^3.24.1"
   },
   "devDependencies": {
+    "@eslint/eslintrc": "^3.3.7",
     "@google-cloud/documentai": "^9.6.2",
     "@types/katex": "^0.16.7",
     "@types/node": "^22.10.7",
@@ -145,6 +146,8 @@
     "@types/react-dom": "^19.0.3",
     "@types/web-push": "^3.6.4",
     "autoprefixer": "^10.4.20",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "^15.5.26",
     "pdf-lib": "^1.17.1",
     "postcss": "^8.5.1",
     "prisma": "^6.2.1",

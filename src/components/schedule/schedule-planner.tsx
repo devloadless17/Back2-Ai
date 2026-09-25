@@ -143,7 +143,11 @@ export function SchedulePlanner({
    * from a keyboard. Building this as drag-only would have made the feature
    * unavailable to most of the people using the product.
    */
-  function useChapter(chapter: { id: string; name: string }) {
+  // NOT a hook, despite what it was called. It sets three pieces of state from
+  // a drop or a click, and the `use` prefix made React's rules-of-hooks reject
+  // both call sites — correctly, on the name alone, since a hook may not be
+  // called from a callback.
+  function pickChapter(chapter: { id: string; name: string }) {
     setTitle(chapter.name);
     setChapterId(chapter.id);
     setDropActive(false);
@@ -539,7 +543,7 @@ export function SchedulePlanner({
                       event.preventDefault();
                       const id = event.dataTransfer.getData('text/chapter-id');
                       const name = event.dataTransfer.getData('text/plain');
-                      if (id && name) useChapter({ id, name });
+                      if (id && name) pickChapter({ id, name });
                     }}
                     className={cn(dropActive && 'border-primary bg-primary-soft')}
                   />
@@ -575,7 +579,7 @@ export function SchedulePlanner({
                           event.dataTransfer.effectAllowed = 'copy';
                         }}
                         onDragEnd={() => setDropActive(false)}
-                        onClick={() => useChapter(chapter)}
+                        onClick={() => pickChapter(chapter)}
                         className={cn(
                           'w-full cursor-grab rounded px-2.5 py-1.5 text-start text-caption',
                           'text-ink-muted transition-colors duration-150',

@@ -116,7 +116,7 @@ async function main() {
   }
 
   let merged = 0;
-  let moved = { passages: 0, questions: 0, mastery: 0 };
+  const moved = { passages: 0, questions: 0, mastery: 0 };
   const kept: string[] = [];
 
   for (const [key, list] of groups) {
