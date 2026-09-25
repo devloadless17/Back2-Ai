@@ -230,7 +230,19 @@ async function main() {
 
   console.log(`  cleared ${cleared} row(s). Each now renders its own content_text.`);
   console.log(`  backup: ${path.relative(ROOT, backupPath(run, database))}`);
-  console.log(`  rollback: npm run corpus:clear-untrusted -- --rollback ${run} --confirm-db ${database}`);
+  /*
+   * The rollback line repeats `--backup-dir` when one was given.
+   *
+   * Without it the line is wrong exactly where it is most needed: the VPS runs
+   * this in the ops container, where `corpus/` is mounted read-only, so every
+   * production run passes `--backup-dir ops-in` — and the line printed after it
+   * told the operator to look for the backup somewhere it was never written.
+   */
+  const backupDirFlag = BACKUP_DIR === 'corpus/.mapping' ? '' : ` --backup-dir ${BACKUP_DIR}`;
+  console.log(
+    `  rollback: npm run corpus:clear-untrusted -- --rollback ${run}` +
+      ` --confirm-db ${database}${backupDirFlag}`,
+  );
   console.log('');
 }
 
