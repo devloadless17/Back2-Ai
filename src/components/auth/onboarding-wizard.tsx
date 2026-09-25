@@ -234,17 +234,33 @@ export function OnboardingWizard({
   initial,
   onComplete,
   submitting,
+  serverError,
 }: {
   tracks: WizardTrack[];
   initial: WizardDetails;
   onComplete: (details: WizardDetails) => void;
   submitting?: boolean;
+  /**
+   * A problem the server found with one of these answers, reported only after
+   * the whole form was submitted — a taken email address, say.
+   *
+   * It carries the field as well as the message because the wizard has to open
+   * on the screen that owns it. Reopening at the beginning and saying nothing is
+   * indistinguishable from being sent back to the start for no reason.
+   */
+  serverError?: { field: keyof WizardDetails; message: string } | null;
 }) {
   const { t, format, locale } = useI18n();
 
+  const screens = useMemo(() => buildScreens(t, format, locale), [t, format, locale]);
+
   const [details, setDetails] = useState<WizardDetails>(initial);
-  const [index, setIndex] = useState(0);
-  const [error, setError] = useState<string | null>(null);
+  const [index, setIndex] = useState(() => {
+    if (!serverError) return 0;
+    const at = screens.findIndex((entry) => entry.key === serverError.field);
+    return at === -1 ? 0 : at;
+  });
+  const [error, setError] = useState<string | null>(serverError?.message ?? null);
   /*
    * Which permanent choices the student has acknowledged, by screen.
    *
@@ -255,7 +271,6 @@ export function OnboardingWizard({
    */
   const [confirmed, setConfirmed] = useState<Record<string, boolean>>({});
 
-  const screens = useMemo(() => buildScreens(t, format, locale), [t, format, locale]);
   const screen = screens[index] as Screen;
   const isLast = index === screens.length - 1;
   const progress = useMemo(() => ((index + 1) / screens.length) * 100, [index, screens.length]);

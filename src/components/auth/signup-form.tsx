@@ -61,7 +61,17 @@ export function SignupForm({ tracks }: { tracks: SignupTrack[] }) {
   const [card, setCard] = useState<CardFormState>(EMPTY_CARD);
   const [cardErrors, setCardErrors] = useState<CardErrors>({});
   const [error, setError] = useState<string | null>(null);
-  const [, setFieldErrors] = useState<Record<string, string>>({});
+  /*
+   * A problem the server found with a step-one answer.
+   *
+   * Held here rather than inside the wizard because it is only learned at the
+   * very end, on the submit that happens two screens later. It names the field
+   * so the wizard can reopen on it.
+   */
+  const [fieldError, setFieldError] = useState<{
+    field: keyof Details;
+    message: string;
+  } | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   /*
@@ -129,10 +139,10 @@ export function SignupForm({ tracks }: { tracks: SignupTrack[] }) {
       if (payload.error === 'EMAIL_TAKEN') {
         // The offending field is back on step one, so go back to it rather than
         // showing an error next to a control the student cannot correct here.
-        setFieldErrors({ email: t.auth.emailTaken });
+        setFieldError({ field: 'email', message: t.auth.emailTaken });
         setStep(1);
       } else if (payload.error === 'COUNTRY_UNAVAILABLE') {
-        setFieldErrors({ country: t.auth.countryHint });
+        setFieldError({ field: 'country', message: t.auth.countryHint });
         setStep(1);
       } else if (response.status === 429) {
         setError(t.auth.tooManyAttempts);
@@ -157,9 +167,10 @@ export function SignupForm({ tracks }: { tracks: SignupTrack[] }) {
           tracks={tracks}
           initial={details}
           submitting={submitting}
+          serverError={fieldError}
           onComplete={(collected: WizardDetails) => {
             setDetails(collected);
-            setFieldErrors({});
+            setFieldError(null);
             setError(null);
             setStep(2);
           }}
