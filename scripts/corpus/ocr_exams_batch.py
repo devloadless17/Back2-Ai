@@ -64,16 +64,25 @@ SCIENCE = re.compile(r"(phy|chim|chem|bio|svt|math|riyad)", re.I)
 PRICES = {"gpt-4.1-mini": (0.40, 1.60), "gpt-5.5": (5.0, 30.0)}
 
 
+# The subject is decided by the extractor's own `profile_for`, not by patterns
+# kept here. Two versions of this list were written by hand and each missed
+# papers the extractor reads: "ar.pdf" (SE's Arabic, 16 papers) has no "arab"
+# in it, and "geography.pdf" (5 LH papers) was thrown out as physics because
+# "geogra-phy" contains "phy". One mapping, shared, cannot disagree with itself.
+ARABIC_TAUGHT = {"arabic", "philosophy", "civics", "geography", "economics", "sociology"}
+
+
 def exam_pdfs() -> list:
+    import extract_exams as ee
+
     out = []
     for path in glob.glob(str(EXAMS / "**" / "*.pdf"), recursive=True):
         name = os.path.basename(path)
         if (
-            SUBJECT.search(name)
+            ee.profile_for(path) in ARABIC_TAUGHT
             and not HISTORY.search(name)
             and not TRANSLATED.search(name)
             and not ACCOMMODATION.search(name)
-            and not SCIENCE.search(name)
         ):
             out.append(Path(path))
     return sorted(out)
