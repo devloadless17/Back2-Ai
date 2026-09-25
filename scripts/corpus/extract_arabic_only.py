@@ -26,6 +26,42 @@ ROOT = Path(__file__).resolve().parents[2]
 OUT = ROOT / "corpus" / "exams-arabic.json"
 
 
+import re
+
+# Three repairs that are always right in Arabic text, applied to everything this
+# file writes, so a re-load cannot bring back what an earlier SQL patch fixed.
+# A fix made only in the database lasted until the next load rewrote the row.
+#
+#   a vowel mark cannot follow a space: it belongs to the letter before it
+#   ھ (Urdu heh) where Arabic ه belongs
+#   a mark bracket printed mirrored: ")علامة ونصف(" -> "(علامة ونصف)"
+_LOOSE_VOWEL = re.compile(r" +([ً-ْ])")
+# "علامة" may be stretched with tatweel ("عـلامـات"), and only one bracket may
+# be flipped (")علامة واحدة)"); both forms seen on production.
+_MARK_WORD = r"عـ*لـ*اـ*م"
+_MIRRORED_MARK = re.compile(rf"\)([^()\n]{{0,30}}{_MARK_WORD}[^()\n]{{0,30}})[()]")
+
+
+def tidy(text):
+    if not isinstance(text, str):
+        return text
+    text = _LOOSE_VOWEL.sub(r"\1", text).replace("ھ", "ه")
+    return _MIRRORED_MARK.sub(r"(\1)", text)
+
+
+def tidy_entry(entry: dict) -> dict:
+    for key in ("passage",):
+        entry[key] = tidy(entry.get(key))
+    for e in entry["exercises"]:
+        for key in ("title", "statement"):
+            e[key] = tidy(e.get(key))
+        for p in e["parts"]:
+            for key in ("text", "answer"):
+                if key in p:
+                    p[key] = tidy(p[key])
+    return entry
+
+
 def main() -> None:
     index = json.loads((ROOT / "corpus" / "exams-ocr" / "index.json").read_text("utf-8"))
     files = sorted((ROOT / rel).resolve() for rel in index)
@@ -46,7 +82,7 @@ def main() -> None:
             parsed[digest] = row
             results.append(row)
 
-    good = [r for r in results if "error" not in r]
+    good = [tidy_entry(r) for r in results if "error" not in r]
     OUT.write_text(json.dumps(good, ensure_ascii=False), encoding="utf-8")
     bad = [r for r in results if "error" in r]
     print(f"{len(results)} entries, {len(good)} extracted, {len(bad)} skipped -> {OUT.name}")

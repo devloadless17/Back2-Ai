@@ -39,6 +39,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import extract_exams as ee  # noqa: E402
 import ocr_pdf  # noqa: E402
+from extract_arabic_only import tidy  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
 EXAMS = ROOT / "corpus" / "exams-arabic.json"
@@ -240,7 +241,7 @@ def main() -> None:
             for n, p in enumerate(e["parts"]):
                 a = answers.get(f"E{e['index']}.P{n}")
                 if a and not p.get("answer"):
-                    p["answer"] = a
+                    p["answer"] = tidy(a)
                     attached += 1
         r["answersFound"] = sum(1 for e in r["exercises"] for p in e["parts"] if p.get("answer"))
     EXAMS.write_text(json.dumps(rows, ensure_ascii=False), "utf-8")

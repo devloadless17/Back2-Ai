@@ -94,6 +94,14 @@ def main() -> None:
     ap.add_argument("--workers", type=int, default=6)
     ap.add_argument("--max-usd", type=float, default=12.0)
     ap.add_argument("--estimate", action="store_true")
+    # Re-reading one subject's exam pages with a better model. gpt-4.1-mini
+    # drops about half the vowel marks, which Arabic literature cannot spare:
+    # its poems and its "اضبط بالشكل" questions are ABOUT the vowels. The answer
+    # key pages are left on the cheap reading — 174 pages instead of 442.
+    ap.add_argument("--profile", default=None, help="only papers of this extract_exams profile")
+    ap.add_argument("--exam-pages-only", action="store_true",
+                    help="skip pages from the answer key onward")
+    ap.add_argument("--redo", action="store_true", help="re-read pages already on disk")
     args = ap.parse_args()
 
     import pypdfium2 as pdfium
@@ -109,11 +117,22 @@ def main() -> None:
         index[path.relative_to(ROOT).as_posix()] = sha
         unique.setdefault(sha, path)
 
+    import extract_exams as ee
+
     tasks = []
     for sha, path in unique.items():
+        if args.profile and ee.profile_for(str(path)) != args.profile:
+            continue
         count = len(pdfium.PdfDocument(str(path)))
+        if args.exam_pages_only:
+            # Where the answer key starts, found on the existing reading.
+            read = [(OUT / sha / f"page-{n + 1:03d}.md") for n in range(count)]
+            texts = [p.read_text("utf-8") if p.exists() else "" for p in read]
+            count = next(
+                (i for i, t in enumerate(texts) if i > 0 and ee.SCHEME_HEAD.search(t[:600])), count
+            )
         for n in range(count):
-            if not (OUT / sha / f"page-{n + 1:03d}.md").exists():
+            if args.redo or not (OUT / sha / f"page-{n + 1:03d}.md").exists():
                 tasks.append((sha, path, n))
 
     pages_total = sum(len(pdfium.PdfDocument(str(p))) for p in unique.values())
