@@ -39,6 +39,7 @@
     "corpus:visual-smoke": "node --conditions=react-server --env-file=.env --import tsx scripts/corpus/visual-smoke.ts",
     "corpus:check-figures": "node --conditions=react-server --env-file=.env --import tsx scripts/corpus/check-figures.ts",
     "corpus:display-text": "node --conditions=react-server --env-file=.env --import tsx scripts/corpus/load-display-text.ts",
+    "corpus:clear-untrusted": "node --conditions=react-server --env-file=.env --import tsx scripts/corpus/clear-untrusted-latex.ts",
     "corpus:clear-mismatched": "node --conditions=react-server --env-file=.env --import tsx scripts/corpus/clear-mismatched-latex.ts",
     "corpus:extract-exams": "python scripts/corpus/extract_exams.py",
     "corpus:chunks": "node --conditions=react-server --env-file=.env --import tsx scripts/corpus/load-chunks.ts",
