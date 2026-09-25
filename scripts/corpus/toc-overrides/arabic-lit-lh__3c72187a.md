@@ -14,6 +14,17 @@ The two الأعلام studies — المتنبّي and جبران خليل جب
 right here rather than محاور, and their numbered sections are listed as lessons
 because each is a distinct study with its own heading in the book.
 
+The list once stopped after تعريف المقالة, although the book goes on: Samman,
+Maalouf, the Arab-theatre unit and Tagore are added from the contents on the
+book's page 10. Tawfiq al-Hakim's "بين اللغة العربية والأدب التمثيلي" is left
+out because its pages are not in the transcription. The database rows were
+added by scripts/corpus/lh-arabic-lit-missing-lessons.sql, which moves the
+grammar book's rows first; run that before re-seeding, never after.
+
+Where each lesson starts is set by hand in corpus/taxonomy (the title search
+matched author names in the previous lesson's questions); re-running
+taxonomy.py on this book loses those placements.
+
 Page numbers are omitted: the printed column cannot be paired back to its
 entries after the flattening.
 -->
@@ -63,3 +74,18 @@ entries after the flattening.
 الدرس الأول : التجارة وأثرها في بناء الأمّة: محيي الدين النصولي
 الدرس الثاني : الحياة في باريس: حليم أبو عزّ الدين
 الدرس الثالث : تعريف المقالة: أسعد نصر الله السكاف
+الدرس الرابع : مَن يعيد توابيتنا إلى الوطن: غادة السمّان
+الدرس الخامس : الطبيعة مدرسة دائمة: رشدي المعلوف
+
+المحور الثامن: إشكالية المسرح العربي
+الدرس الأول : مقوّمات المسرح العربي
+الدرس الثاني : تطوّر المسرح العربي في الأدب العربي الحديث
+الدرس الثالث : دور المسرح في النقد والتوعية والترفيه
+الدرس الرابع : من قضايا المسرح العربي
+الدرس الخامس : مأزق المسرح: سعد الله ونّوس
+
+المحور التاسع: الثقافة الأدبية العالمية: جنى الثمار ـ طاغور
+الدرس الأول : الهند في عصر طاغور
+الدرس الثاني : حياة طاغور وآثاره
+الدرس الثالث : جنى الثمار
+الدرس الرابع : شهادات في طاغور
