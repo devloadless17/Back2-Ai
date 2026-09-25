@@ -8,6 +8,7 @@ import remarkMath from 'remark-math';
 import type { PluggableList } from 'unified';
 
 import { cn } from '@/lib/cn';
+import { unwrapSoftBreaks } from '@/lib/soft-wrap';
 import { useI18n } from '@/lib/i18n/client';
 import { normalizeMathDelimiters } from '@/lib/math-delimiters';
 import { repairSymbolFont } from '@/lib/symbol-font';
@@ -176,11 +177,20 @@ export function MathText({
 const UNDECODABLE = /�/;
 
 export function bodyToRender(contentLatex: string | null | undefined, contentText: string): string {
-  if (!contentLatex) return contentText;
+  /*
+   * `unwrapSoftBreaks` on the way out, whichever column won.
+   *
+   * The stored text carries a newline at every printed line-wrap, and
+   * `remarkBreaks` below renders each one as a hard break — so a paragraph
+   * arrives as a column of ragged fragments. It rejoins only the breaks that
+   * cannot be deliberate, which leaves the numbered parts `remarkBreaks` exists
+   * to protect exactly where they were.
+   */
+  if (!contentLatex) return unwrapSoftBreaks(contentText);
   if (UNDECODABLE.test(contentLatex) && contentText && !UNDECODABLE.test(contentText)) {
-    return contentText;
+    return unwrapSoftBreaks(contentText);
   }
-  return contentLatex;
+  return unwrapSoftBreaks(contentLatex);
 }
 
 /**
