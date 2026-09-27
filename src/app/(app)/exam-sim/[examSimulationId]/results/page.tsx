@@ -55,7 +55,7 @@ export default async function ExamResultsPage({
     redirect(`/exam-sim/${simulation.id}`);
   }
 
-  // The one visual selector — the same call Nour's retrieval makes.
+  // The one visual selector — the same call Zaki's retrieval makes.
   const visualKeys = await visualKeysFor(simulation.questions.flatMap((s) => (s.question ? [s.question] : [])));
 
   /*
@@ -332,7 +332,7 @@ export default async function ExamResultsPage({
                     This rendered `MarkExplanation`, which predates the
                     `ExaminerMark` built for Practice. Two components for one
                     idea, and the exam's was the poorer of the two: no ✓ ◐ ×
-                    glyph, no Nour's note, no per-criterion provisional state.
+                    glyph, no Zaki's note, no per-criterion provisional state.
                     They were kept apart only because one was written first.
 
                     The shapes turned out to be identical — `bareme_result` is
@@ -362,7 +362,7 @@ export default async function ExamResultsPage({
                         title: results.some((item) => item.provisional)
                           ? t.examSim.provisionalMarking
                           : t.practice.examinerTitle,
-                        nourNote: t.practice.nourNote,
+                        zakiNote: t.practice.zakiNote,
                         provisional: t.practice.criterionProvisional,
                         repeated: t.practice.repeatedLoss,
                       }}

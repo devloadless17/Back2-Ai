@@ -63,7 +63,7 @@ export const GET = route(async (request) => {
     skip: query.offset,
   });
 
-  // The one visual selector — the same call Nour's retrieval makes.
+  // The one visual selector — the same call Zaki's retrieval makes.
   const visualKeys = await visualKeysFor(questions);
 
   return ok({

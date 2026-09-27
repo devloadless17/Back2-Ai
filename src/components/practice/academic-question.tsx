@@ -23,7 +23,7 @@ import { cn } from '@/lib/cn';
  * ONLY METADATA WE HAVE. Year and session come from `exam_cycles`; marks are
  * summed from the barème's own criteria. Paper number, question number on the
  * paper, and examiner region are NOT in this schema and must stay absent rather
- * than become invented UI — the same rule the evidence work in Nour follows.
+ * than become invented UI — the same rule the evidence work in Zaki follows.
  *
  * A question with no exam cycle behind it is textbook material and says
  * nothing about being official, because it is not.

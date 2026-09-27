@@ -70,19 +70,19 @@ export function Seal({
 }
 
 /* -------------------------------------------------------------------------
- * Nour.
+ * Zaki.
  * ---------------------------------------------------------------------- */
 
 /**
  * The mortarboard, small.
  *
- * Nour has a face in the product and it stays this size everywhere. A tutor
+ * Zaki has a face in the product and it stays this size everywhere. A tutor
  * who sits beside the student does not need to be the largest thing on the
  * screen, and scaling this up is precisely how an identity becomes a mascot.
  * It lives here rather than with the product fragments because it is part of
  * the brand, not part of any one surface.
  */
-export function NourMark({ className }: { className?: string }) {
+export function ZakiMark({ className }: { className?: string }) {
   return (
     <span
       aria-hidden

@@ -48,6 +48,17 @@ const C3 = path.join(ROOT, 'corpus/.mapping/figure-ownership.json');
 const EXAMS = path.join(ROOT, 'corpus/exams.json');
 
 const OWNED = new Set(['DIRECT_REFERENCE', 'CORROBORATED', 'CONTEXTUAL']);
+
+/*
+ * Subjects whose GATED crops passed the pre-registered audit (50 sampled, ≤ 1
+ * error) and are written ACTIVE. 2026-09-25: the all-subject audit FAILED, 5
+ * errors in 50, every one outside physics (a cut-off curve, a garbled scheme,
+ * unlabeled fragments of tables and karyotypes). All 27 physics crops in it
+ * were right, so physics got its own fresh sample of 50 unseen crops: 49
+ * right, and the one miss was panel (b) of a figure whose panel (a) is attached
+ * to the same exercise. Other subjects stay PENDING until they pass their own.
+ */
+const GATED_AUDIT_PASSED = new Set(['Physics', 'Physique']);
 const MEDIA: Record<string, string> = { '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp' };
 
 // ---------------------------------------------------------------------------
@@ -263,6 +274,8 @@ async function plan() {
       const locators = consumed.length > 0 ? locatorsFor(ex, consumed) : null;
       for (const q of qs) {
         if (ONLY_SUBJECT && q.subject.toLowerCase() !== ONLY_SUBJECT.toLowerCase()) continue;
+        // A gated crop goes live only in a subject whose own audit passed.
+        const promoted = tier === 'gated' && GATED_AUDIT_PASSED.has(q.subject);
         relations.push({
           questionId: q.id, occurrenceKey: key, role: ROLE[r.ownershipLevel] ?? 'exercise_context',
           consumers: locators && locators.length > 0 ? locators : null,
@@ -270,7 +283,7 @@ async function plan() {
           structuralConfidence: lower(c1Status.get(`${r.pdfSha256}#${ordinal}`)) ?? 'unresolved',
           geometricConfidence: GEO[geo] ?? 'none',
           semanticConfidence: sem.toLowerCase(),
-          tier, status, category,
+          tier, status: promoted ? 'active' : status, category: promoted ? 'gated/contextual (audited)' : category,
         });
         bump(counts.relationCategories, category);
       }

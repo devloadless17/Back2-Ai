@@ -22,15 +22,27 @@ import { cn } from '@/lib/cn';
  * reachable throughout — only its opacity moves — so nothing is hidden from a
  * screen reader or from the tab order.
  */
-export function AskWhy({ questionId }: { questionId: string }) {
+export function AskWhy({
+  questionId,
+  mode = 'why',
+}: {
+  questionId: string;
+  /**
+   * `solve` is for a part the paper has no answer for. There is nothing to
+   * explain, so Zaki is asked to solve it, and the button is always shown:
+   * hiding the only way forward behind a hover would leave the reader stuck.
+   */
+  mode?: 'why' | 'solve';
+}) {
   const { t } = useI18n();
   const { open, opening, failed } = useTutorSession();
+  const solve = mode === 'solve';
 
   return (
     <span className="inline-flex items-center gap-2">
       <button
         type="button"
-        onClick={() => void open({ questionId })}
+        onClick={() => void open(solve ? { questionId, ask: 'solve' } : { questionId })}
         disabled={opening}
         aria-busy={opening || undefined}
         className={cn(
@@ -40,11 +52,12 @@ export function AskWhy({ questionId }: { questionId: string }) {
           'disabled:opacity-50',
           // Visible by default (touch), faded on pointer devices until the
           // segment is hovered or something inside it takes focus.
-          'opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100',
+          !solve &&
+            'opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100',
           'focus-visible:opacity-100',
         )}
       >
-        {opening ? t.common.loading : t.oldCycles.askWhy}
+        {opening ? t.common.loading : solve ? t.oldCycles.solveWithZaki : t.oldCycles.askWhy}
       </button>
       {failed && <span className="text-caption text-mark">{t.common.unknownError}</span>}
     </span>

@@ -17,13 +17,13 @@ import { cn } from '@/lib/cn';
  * desktop navigation shown on a smaller screen, not a mobile design, and it
  * makes the four things a student actually does cost two interactions each.
  *
- * FOUR DESTINATIONS, AND NOTHING ELSE. Today, Study, Nour, Progress. They are
+ * FOUR DESTINATIONS, AND NOTHING ELSE. Today, Study, Zaki, Progress. They are
  * the student's mental model — where do I start, what do I practise, who do I
  * ask, where do I stand — and everything else in the product is reachable
  * underneath one of them or from the drawer, which stays exactly as it was.
  * Nothing is removed; the drawer is still there behind the menu button.
  *
- * NOUR CARRIES THE FACE, not a speech bubble. It is the one destination that is
+ * ZAKI CARRIES THE FACE, not a speech bubble. It is the one destination that is
  * a someone rather than a section, and the avatar is already drawn to survive
  * 22px — which is the size it is used at here.
  *
@@ -37,7 +37,7 @@ type Destination = {
   /** Also matched on its prefix, so a chapter page still lights up Study. */
   match: string[];
   label: string;
-  icon: 'today' | 'study' | 'nour' | 'progress';
+  icon: 'today' | 'study' | 'zaki' | 'progress';
 };
 
 export function BottomNav() {
@@ -66,7 +66,7 @@ export function BottomNav() {
       href: '/chat',
       match: ['/chat', '/upload'],
       label: t.nav.tutorShort,
-      icon: 'nour',
+      icon: 'zaki',
     },
     {
       href: '/progress',
@@ -123,7 +123,7 @@ export function BottomNav() {
 }
 
 function Glyph({ kind, active }: { kind: Destination['icon']; active: boolean }) {
-  if (kind === 'nour') {
+  if (kind === 'zaki') {
     /*
      * The tutor's own face, not a chat glyph. `ink="paper"` knocks the eyes and
      * mouth out in the surface colour, which is what this avatar expects when it

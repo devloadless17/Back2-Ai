@@ -1,4 +1,4 @@
-import { NourMark, Seal } from '@/components/marketing/identity';
+import { ZakiMark, Seal } from '@/components/marketing/identity';
 import { cn } from '@/lib/cn';
 
 /**
@@ -37,8 +37,8 @@ export type ScriptLabels = {
   missing: string;
   crit3: string;
   mark3: string;
-  nourNoteLabel: string;
-  nourNote: string;
+  zakiNoteLabel: string;
+  zakiNote: string;
 };
 
 /**
@@ -174,7 +174,7 @@ export function ExaminerScript({ labels, className }: { labels: ScriptLabels; cl
         </div>
 
         {/*
-          Nour, attached to the loss rather than filed underneath it.
+          Zaki, attached to the loss rather than filed underneath it.
 
           Indented to sit under the lost-mark passage and joined to it by a
           short rule, so she reads as a second hand annotating the same place
@@ -182,13 +182,13 @@ export function ExaminerScript({ labels, className }: { labels: ScriptLabels; cl
         */}
         <div className="border-t border-rule bg-primary-soft/50 px-5 py-4 sm:px-7 sm:py-5">
           <div className="flex gap-3.5">
-            <NourMark className="mt-0.5 size-8" />
+            <ZakiMark className="mt-0.5 size-8" />
             <div className="min-w-0">
               <p className="text-micro font-semibold uppercase tracking-[0.12em] text-primary">
-                {labels.nourNoteLabel}
+                {labels.zakiNoteLabel}
               </p>
               <p className="mt-1.5 max-w-prose text-meta leading-relaxed text-ink">
-                {labels.nourNote}
+                {labels.zakiNote}
               </p>
             </div>
           </div>

@@ -42,6 +42,12 @@ export type TutorAnchor = {
    * box that still expects them to type the chapter name themselves.
    */
   label?: string;
+  /**
+   * Ask on the student's behalf as soon as the conversation opens: `solve`
+   * for a question with no answer on the paper, `why` for a marked attempt.
+   * Only a fresh, anchored session acts on it — see `chat/[sessionId]/page.tsx`.
+   */
+  ask?: 'solve' | 'why';
 };
 
 export function useTutorSession() {
@@ -64,7 +70,7 @@ export function useTutorSession() {
           subjectId: anchor.subjectId,
         });
       }
-      router.push(`/chat/${session.id}`);
+      router.push(`/chat/${session.id}${anchor.ask ? `?ask=${anchor.ask}` : ''}`);
     } catch {
       setFailed(true);
       setOpening(false);

@@ -567,7 +567,7 @@ export function PracticeRunner({
             dir={paperDir}
             labels={{
               title: t.practice.examinerTitle,
-              nourNote: t.practice.nourNote,
+              zakiNote: t.practice.zakiNote,
               provisional: t.practice.criterionProvisional,
               repeated: t.practice.repeatedLoss,
             }}
@@ -581,14 +581,14 @@ export function PracticeRunner({
           student the model answer first teaches less than showing them what
           happened to THEIRS — they read the good version, recognise it, and
           never work out why their own lost the mark. So the sequence is: your
-          mark, how the barème awarded it, Nour on the difference, and only
+          mark, how the barème awarded it, Zaki on the difference, and only
           then this. Available, one tap, not hidden.
 
           THE LABEL IS TRUE. A past-exam question carries the ministry's
           solution; a generated problem carries one this system wrote, and both
           arrived under the same field and were labelled "Official solution".
           `solutionIsOfficial` now travels with it so the heading can be honest
-          — the same rule the evidence work in Nour follows.
+          — the same rule the evidence work in Zaki follows.
         */}
         {outcome.solution && (
           <details className="border-t border-rule">

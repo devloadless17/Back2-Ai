@@ -1,7 +1,7 @@
-import { MarginRule, NourMark, Seal } from '@/components/marketing/identity';
+import { MarginRule, ZakiMark, Seal } from '@/components/marketing/identity';
 import { cn } from '@/lib/cn';
 
-export { NourMark } from '@/components/marketing/identity';
+export { ZakiMark } from '@/components/marketing/identity';
 
 /**
  * Product fragments, for the public page.
@@ -117,7 +117,7 @@ const CRITERIA: Criterion[] = [
 
 export type ExaminerLabels = {
   title: string;
-  nourNote: string;
+  zakiNote: string;
   note: string;
   meta: string[];
 };
@@ -166,14 +166,14 @@ export function ExaminerFragment({
       </ul>
 
       {/*
-        Nour's note as a margin annotation, not another panel. A teacher writes
+        Zaki's note as a margin annotation, not another panel. A teacher writes
         in the margin beside the line that cost you the mark; the rule and the
         indent are doing the same job here.
       */}
       <div className="border-t border-rule bg-primary-soft/40 px-5 py-3.5">
         <div className="flex gap-3 border-s-2 border-primary ps-3">
           <div className="min-w-0">
-            <Eyebrow className="text-primary">{labels.nourNote}</Eyebrow>
+            <Eyebrow className="text-primary">{labels.zakiNote}</Eyebrow>
             <p className="mt-1 text-meta leading-relaxed text-ink">{labels.note}</p>
           </div>
         </div>
@@ -183,17 +183,17 @@ export function ExaminerFragment({
 }
 
 /* -------------------------------------------------------------------------
- * Nour.
+ * Zaki.
  * ---------------------------------------------------------------------- */
 
-export function NourFragment({
+export function ZakiFragment({
   labels,
   className,
   editorial = false,
 }: {
   labels: { name: string; question: string; answer: string; grounded: string };
   className?: string;
-  /** Larger, for the section where Nour is the subject rather than a support. */
+  /** Larger, for the section where Zaki is the subject rather than a support. */
   editorial?: boolean;
 }) {
   return (
@@ -208,7 +208,7 @@ export function NourFragment({
 
       <div className={cn('px-5', editorial ? 'py-6' : 'py-4')}>
         <div className="flex gap-3.5">
-          <NourMark className={cn('mt-0.5', editorial && 'size-8')} />
+          <ZakiMark className={cn('mt-0.5', editorial && 'size-8')} />
           <div className="min-w-0">
             <Eyebrow className="text-primary">{labels.name}</Eyebrow>
             <p

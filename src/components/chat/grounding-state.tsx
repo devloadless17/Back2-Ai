@@ -7,7 +7,7 @@ import { useI18n } from '@/lib/i18n/client';
 import { cn } from '@/lib/cn';
 
 /**
- * Nour declining to answer, and what to do about it.
+ * Zaki declining to answer, and what to do about it.
  *
  * A REFUSAL IS THE PRODUCT WORKING. Every other tutoring tool answers
  * everything; this one is built so a Lebanese candidate can tell which answers
@@ -17,7 +17,7 @@ import { cn } from '@/lib/cn';
  * marks. A student reading that learns the tutor failed. They should learn that
  * it refused.
  *
- * So: neutral ground, Nour's own face, and the recovery beneath it. No alert
+ * So: neutral ground, Zaki's own face, and the recovery beneath it. No alert
  * styling, no warning triangle, no red.
  *
  * TWO REFUSALS, NOT ONE, because the backend already distinguishes them and

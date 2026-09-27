@@ -4,7 +4,7 @@ import { cn } from '@/lib/cn';
 /**
  * How the Lebanese Bac gave and took the marks.
  *
- * THE PRODUCT'S SECOND CLAIM, after Nour's. Any tutor can say "incorrect".
+ * THE PRODUCT'S SECOND CLAIM, after Zaki's. Any tutor can say "incorrect".
  * This one can say which line of the ministry's own marking scheme the mark
  * was attached to, whether it was earned, and — separately — what to do
  * differently. The data for that has been stored since marking was built; the
@@ -20,7 +20,7 @@ import { cn } from '@/lib/cn';
  *
  * The screen was printing `justification`, so a student read an argument
  * written for somebody arbitrating against them. `explanation` is what was
- * written for them, and it is set apart as Nour's note rather than run
+ * written for them, and it is set apart as Zaki's note rather than run
  * together with the criterion — because a generated sentence sitting flush
  * under an official one reads as equally official, and that is the one blur
  * this product cannot afford.
@@ -138,7 +138,7 @@ export function ExaminerMark({
   dir?: 'ltr' | 'rtl';
   labels: {
     title: string;
-    nourNote: string;
+    zakiNote: string;
     provisional: string;
     /** "You have lost marks on this {times} times — {points} in total." */
     repeated: string;
@@ -214,14 +214,14 @@ export function ExaminerMark({
               </div>
 
               {/*
-                NOUR'S NOTE, indented and labelled, only where a mark was lost.
+                ZAKI'S NOTE, indented and labelled, only where a mark was lost.
                 A criterion that scored full marks has nothing to explain, and
                 `explanation` is empty on those by design.
               */}
               {outcome !== 'earned' && item.explanation && (
                 <div className="mt-2.5 ms-7 border-s-2 border-rule ps-3">
                   <p className="text-micro font-semibold uppercase tracking-wider text-ink-faint">
-                    {labels.nourNote}
+                    {labels.zakiNote}
                   </p>
                   <div className="mt-1 text-meta leading-relaxed text-ink-muted">
                     {/* Through MathText: an explanation of a lost mark in

@@ -365,7 +365,7 @@ describe('solution security (P0)', () => {
     expect((await solutionRoute()).status).toBe(200);
   });
 
-  it('Nour retrieval never receives a solution visual before reveal', async () => {
+  it('Zaki retrieval never receives a solution visual before reveal', async () => {
     const { selectVisualsFor } = await import('@/lib/visual-evidence');
     dbState.relations.push({
       questionId: QID, role: 'solution_material', status: 'active', consumers: null,

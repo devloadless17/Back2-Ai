@@ -30,7 +30,7 @@ import { cn } from '@/lib/cn';
  *
  * The tutor has a face and a name the student chooses. Both are the same idea:
  * a bubble labelled "Chat" is a feature you are offered, and somebody called
- * Nour who greets you by name is a person you have. The name is stored on the
+ * Zaki who greets you by name is a person you have. The name is stored on the
  * account, not in the browser, because one that vanished on the school computer
  * would undercut the only thing naming it was for.
  */

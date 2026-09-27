@@ -3,13 +3,15 @@
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
+import { useTutorSession } from '@/components/chat/use-tutor-session';
 import { ChoiceList } from '@/components/practice/choice-list';
+import { ExaminerMark, type MarkedCriterion } from '@/components/practice/examiner-mark';
 import { Button, LinkButton } from '@/components/ui/button';
 import { WorkingArea } from '@/components/ui/field';
 import { Alert, Badge } from '@/components/ui/feedback';
 import { MathText, QuestionBody } from '@/components/ui/math';
 import { Meter } from '@/components/ui/progress';
-import { RuledRow, Sheet, SheetBody, SheetFooter, SheetHeader } from '@/components/ui/sheet';
+import { Sheet, SheetBody, SheetFooter, SheetHeader } from '@/components/ui/sheet';
 import { cn } from '@/lib/cn';
 import { sendJson } from '@/lib/client/request';
 import { useI18n } from '@/lib/i18n/client';
@@ -39,20 +41,17 @@ export type QuizQuestion = {
 };
 
 type AttemptResponse = {
+  attemptId: string;
   isCorrect: boolean | null;
   score: number | null;
   maxScore: number | null;
-  baremeResult:
-    | {
-        criterion: string;
-        points_awarded: number;
-        points_possible: number;
-        justification: string;
-        /** Set when the criterion is ours rather than the examiner's. */
-        provisional?: boolean;
-      }[]
-    | null;
+  /** Each criterion, with `explanation` — the student-facing note on a lost mark. */
+  baremeResult: MarkedCriterion[] | null;
+  repeats?: Record<string, { times: number; pointsLost: number }>;
   solution: string | null;
+  solutionIsOfficial?: boolean;
+  /** The right option, for a multiple-choice question. */
+  correctOptionId?: string | null;
   needsHumanReview: boolean;
 };
 
@@ -72,6 +71,7 @@ export function QuizRunner({
 }) {
   const { t, formatScore, formatPercent } = useI18n();
   const router = useRouter();
+  const tutor = useTutorSession();
 
   const [index, setIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
@@ -153,19 +153,40 @@ export function QuizRunner({
           const outcome = outcomes.find((o) => o.questionId === q.id);
           if (!outcome) return null;
 
+          /*
+           * FOUR STATES, NOT THREE. An answer the marker declined (or an empty
+           * one with no barème) has no mark at all, and it used to be shown as
+           * "Incorrect" — telling a student they were wrong when nobody had
+           * judged it.
+           */
+          const unmarked = outcome.isCorrect === null && outcome.score === null;
           const correct =
             outcome.isCorrect === true ||
             (outcome.score !== null && outcome.maxScore !== null && outcome.score >= outcome.maxScore);
-          const partial =
-            outcome.isCorrect === null && (outcome.score ?? 0) > 0 && !correct;
+          const partial = !correct && !unmarked && (outcome.score ?? 0) > 0;
+          const tone = correct ? 'correct' : partial ? 'partial' : unmarked ? 'neutral' : 'mark';
+
+          const written = (answers[q.id] ?? '').trim();
+          const chosen = choices[q.id];
 
           return (
             <Sheet key={q.id}>
               <SheetHeader
                 title={`${t.practice.question} ${i + 1}`}
+                description={
+                  outcome.score !== null && outcome.maxScore !== null
+                    ? `${formatScore(outcome.score)} / ${formatScore(outcome.maxScore)}`
+                    : undefined
+                }
                 actions={
-                  <Badge tone={correct ? 'correct' : partial ? 'partial' : 'mark'}>
-                    {correct ? t.practice.correct : partial ? t.practice.partial : t.practice.incorrect}
+                  <Badge tone={tone}>
+                    {correct
+                      ? t.practice.correct
+                      : partial
+                        ? t.practice.partial
+                        : unmarked
+                          ? t.practice.notMarkedBadge
+                          : t.practice.incorrect}
                   </Badge>
                 }
               />
@@ -179,50 +200,131 @@ export function QuizRunner({
                 />
               </SheetBody>
 
-              {outcome.baremeResult?.some((item) => item.provisional) && (
-                <Alert tone="warning" className="mt-3">
-                  {t.examSim.provisionalNotice}
-                </Alert>
-              )}
-
-              {outcome.baremeResult && outcome.baremeResult.length > 0 && (
-                <SheetBody className="p-0">
-                  <div className="ruled">
-                    {outcome.baremeResult.map((item, j) => (
-                      <RuledRow key={j} className="flex-col items-stretch gap-1">
-                        <div className="flex items-baseline justify-between gap-3">
-                          <p className="min-w-0 text-body font-medium text-ink">{item.criterion}</p>
-                          <p
+              {/*
+                WHAT THEY WROTE, next to how it was judged. A mark with no
+                answer beside it cannot be understood a minute later.
+              */}
+              <SheetBody className="border-t border-rule">
+                <p className="mb-2 text-meta font-medium text-ink">{t.practice.yourAnswer}</p>
+                {q.questionType === 'mcq' && q.options ? (
+                  <ul className="space-y-2">
+                    {q.options.map((option) => {
+                      const isChosen = option.id === chosen;
+                      const isRight = option.id === outcome.correctOptionId;
+                      return (
+                        <li
+                          key={option.id}
+                          className={cn(
+                            'flex items-start gap-3 rounded border px-3 py-2.5',
+                            isRight
+                              ? 'border-correct/50 bg-correct-soft'
+                              : isChosen
+                                ? 'border-mark/50 bg-mark-soft'
+                                : 'border-rule',
+                          )}
+                        >
+                          <span
+                            aria-hidden
                             className={cn(
-                              'shrink-0 text-meta font-semibold tabular-nums',
-                              item.points_awarded >= item.points_possible
-                                ? 'text-correct'
-                                : item.points_awarded > 0
-                                  ? 'text-partial'
-                                  : 'text-mark',
+                              'w-4 shrink-0 text-sm font-semibold',
+                              isRight ? 'text-correct' : 'text-mark',
                             )}
                           >
-                            {formatScore(item.points_awarded)} / {formatScore(item.points_possible)}
-                          </p>
-                        </div>
-                        <p className="text-meta leading-snug text-ink-muted">{item.justification}</p>
-                      </RuledRow>
-                    ))}
-                  </div>
+                            {isRight ? '✓' : isChosen ? '×' : ''}
+                          </span>
+                          <MathText compact dir={paperDir} className="min-w-0 flex-1">
+                            {option.text}
+                          </MathText>
+                          {(isChosen || isRight) && (
+                            <span
+                              className={cn(
+                                'shrink-0 text-caption font-semibold',
+                                isRight ? 'text-correct' : 'text-mark',
+                              )}
+                            >
+                              {isRight ? t.practice.correctAnswer : t.practice.yourAnswer}
+                            </span>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                ) : written ? (
+                  <pre className="scroll-x max-h-56 overflow-y-auto whitespace-pre-wrap font-mono text-meta leading-relaxed text-ink">
+                    {written}
+                  </pre>
+                ) : (
+                  <p className="text-sm text-ink-muted">{t.examSim.notAnswered}</p>
+                )}
+              </SheetBody>
+
+              {(outcome.needsHumanReview || (unmarked && written)) && (
+                <SheetBody className="pt-0">
+                  <Alert tone="warning" title={t.practice.notMarkedTitle}>
+                    {t.practice.notMarkedBody}
+                  </Alert>
                 </SheetBody>
               )}
 
-              {outcome.solution && (
-                <>
-                  <SheetHeader title={t.practice.officialSolution} className="border-t" />
-                  <SheetBody>
+              {/*
+                Criterion by criterion, with Zaki's note on each lost mark —
+                the same view practice uses. This printed `justification`,
+                which is written for a teacher reviewing the mark, so the
+                student never saw what was wrong or how to fix it.
+              */}
+              {outcome.baremeResult && outcome.baremeResult.length > 0 && (
+                <div className="border-t border-rule">
+                  <ExaminerMark
+                    total={outcome.score ?? 0}
+                    max={outcome.maxScore ?? 0}
+                    criteria={outcome.baremeResult}
+                    repeats={outcome.repeats ? new Map(Object.entries(outcome.repeats)) : undefined}
+                    dir={paperDir}
+                    labels={{
+                      title: t.practice.examinerTitle,
+                      zakiNote: t.practice.zakiNote,
+                      provisional: t.practice.criterionProvisional,
+                      repeated: t.practice.repeatedLoss,
+                    }}
+                  />
+                </div>
+              )}
+
+              {outcome.solution ? (
+                <details className="border-t border-rule" open={!correct}>
+                  <summary className="cursor-pointer list-none px-5 py-3 text-meta font-medium text-ink transition-colors hover:bg-paper-sunken">
+                    {outcome.solutionIsOfficial === false
+                      ? t.practice.modelSolution
+                      : t.practice.officialSolution}
+                  </summary>
+                  <SheetBody className="pt-0">
                     <MathText dir={paperDir}>{outcome.solution}</MathText>
                   </SheetBody>
-                </>
+                </details>
+              ) : (
+                q.questionType !== 'mcq' && (
+                  <SheetBody className="border-t border-rule">
+                    <p className="text-meta text-ink-muted">{t.oldCycles.answerMissing}</p>
+                  </SheetBody>
+                )
+              )}
+
+              {/* The attempt goes with it, so Zaki reads what they wrote and
+                  can say which step went wrong. */}
+              {!correct && (
+                <SheetFooter className="justify-end">
+                  <Button
+                    onClick={() => void tutor.open({ attemptId: outcome.attemptId, ask: 'why' })}
+                    loading={tutor.opening}
+                  >
+                    {t.practice.whyWrong}
+                  </Button>
+                </SheetFooter>
               )}
             </Sheet>
           );
         })}
+        {tutor.failed && <Alert tone="error">{t.common.unknownError}</Alert>}
       </div>
     );
   }

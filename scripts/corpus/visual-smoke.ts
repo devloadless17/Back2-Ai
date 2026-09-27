@@ -6,7 +6,7 @@
  * WRITES NOTHING. It answers, for real papers, the rollout questions:
  *   - does the selector return the crop, and are the bytes in storage the
  *     bytes the asset row says (sha256)?
- *   - does Nour's loader receive exactly those bytes, in the same order?
+ *   - does Zaki's loader receive exactly those bytes, in the same order?
  *   - is solution material unreachable as question evidence?
  *   - does a proven-wrong legacy page stay suppressed, and a permitted one
  *     still fall back?
@@ -123,7 +123,7 @@ async function main() {
       ]);
       const sent = loaded.images.map((i) => sha256(Buffer.from(i.base64, 'base64')));
       const stored = await Promise.all(loaded.refs.map(async (r) => sha256(await getObject(r.key))));
-      check('bytes Nour receives = bytes the student is served', JSON.stringify(sent) === JSON.stringify(stored) && sent.length > 0);
+      check('bytes Zaki receives = bytes the student is served', JSON.stringify(sent) === JSON.stringify(stored) && sent.length > 0);
       const groups = selection.visuals.filter((v) => v.groupKey);
       if (groups.length) {
         const sizes = new Map<string, number>();

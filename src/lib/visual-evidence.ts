@@ -11,7 +11,7 @@ import {
 
 /**
  * Loads the rows `selectVisualEvidence` needs and applies it — the ONE path by
- * which both the student's pages and Nour's retrieval obtain an exercise's
+ * which both the student's pages and Zaki's retrieval obtain an exercise's
  * visuals. Neither side filters, orders or falls back on its own, so they
  * cannot drift apart: same exercise, same part, same phase → same keys.
  */

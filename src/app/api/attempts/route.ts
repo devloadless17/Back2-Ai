@@ -123,6 +123,7 @@ export const POST = route(async (request) => {
           questionType: true,
           contentText: true,
           officialSolution: true,
+          officialSolutionLatex: true,
           correctOptionId: true,
           bareme: true,
           chapter: { select: { subject: { select: { id: true, language: true, name: true } } } },
@@ -310,7 +311,14 @@ export const POST = route(async (request) => {
     baremeResult,
     repeats,
     needsHumanReview,
-    solution: isQuestion ? source.officialSolution : source.generatedSolution,
+    solution: isQuestion
+      ? source.officialSolutionLatex?.trim() || source.officialSolution
+      : source.generatedSolution,
+    /*
+     * The right option of a multiple-choice question, so a wrong answer can
+     * show which one it should have been. Sent only after the answer is in.
+     */
+    correctOptionId: isQuestion && source.questionType === 'mcq' ? source.correctOptionId : null,
     /*
      * WHOSE solution that is.
      *

@@ -78,8 +78,6 @@ import { dirForText, fixRtlLineDashes } from '@/lib/i18n/config';
 const REMARK = [remarkMath, [remarkGfm, { singleTilde: false }], remarkBreaks] as PluggableList;
 const REHYPE = [rehypeKatex];
 
-
-
 export function MathText({
   children,
   className,
@@ -261,27 +259,47 @@ export function QuestionBody({
 
       {images && images.length > 0 && (
         <div className="mt-4 flex flex-wrap gap-3">
-          {images.map((key) => (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              key={key}
-              /*
-               * Three kinds of key, and the distinction is about ownership.
-               *
-               * `/api/files/...` is the default because most images here are a
-               * student's own photographed work, and that route checks who owns
-               * the key before streaming a byte. A leading slash means a file
-               * served straight from `public/` — exam-paper figures, which are
-               * published documents with nothing private in them and no owner
-               * to check. Putting those behind the ownership route would mean
-               * inventing an owner for a page of a national exam.
-               */
-              src={key.startsWith('http') || key.startsWith('/') ? key : `/api/files/${key}`}
-              alt=""
-              className="max-h-72 w-auto max-w-full rounded border border-rule bg-paper-raised"
-              loading="lazy"
-            />
-          ))}
+          {images.map((key) => {
+            const src = key.startsWith('http') || key.startsWith('/') ? key : `/api/files/${key}`;
+            /*
+             * A `/figures/…-pN` key is a WHOLE printed page — the fallback when
+             * an exercise has no cropped documents yet. Capped at the height of
+             * a crop it shrank to an unreadable thumbnail, so a page gets the
+             * full width. Every figure opens at full size on a tap.
+             */
+            const wholePage = /^\/figures\/.+-p\d+\.\w+$/.test(key);
+            return (
+              <a
+                key={key}
+                href={src}
+                target="_blank"
+                rel="noreferrer"
+                className={cn(wholePage && 'w-full')}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  /*
+                   * Three kinds of key, and the distinction is about ownership.
+                   *
+                   * `/api/files/...` is the default because most images here are a
+                   * student's own photographed work, and that route checks who owns
+                   * the key before streaming a byte. A leading slash means a file
+                   * served straight from `public/` — exam-paper figures, which are
+                   * published documents with nothing private in them and no owner
+                   * to check. Putting those behind the ownership route would mean
+                   * inventing an owner for a page of a national exam.
+                   */
+                  src={src}
+                  alt=""
+                  className={cn(
+                    'rounded border border-rule bg-paper-raised',
+                    wholePage ? 'w-full' : 'max-h-96 w-auto max-w-full',
+                  )}
+                  loading="lazy"
+                />
+              </a>
+            );
+          })}
         </div>
       )}
     </div>

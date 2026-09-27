@@ -33,7 +33,7 @@ export default async function ExamSittingPage({
 
   const remaining = remainingSeconds(simulation);
 
-  // The one visual selector — the same call Nour's retrieval makes.
+  // The one visual selector — the same call Zaki's retrieval makes.
   const visualKeys = await visualKeysFor(simulation.questions.flatMap((s) => (s.question ? [s.question] : [])));
 
   const slots: ExamSlot[] = simulation.questions.map((slot) => {

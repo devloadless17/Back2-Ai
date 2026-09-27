@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { assertSameOrigin, created, fail, ok, parseBody, route, unauthorized } from '@/lib/api';
 import { apiUser } from '@/lib/auth/guards';
 import { db } from '@/lib/db';
+import { paperScopeFor, subjectIdsForTrack } from '@/lib/queries/taxonomy';
 
 /**
  * Conversations.
@@ -51,10 +52,22 @@ export const POST = route(async (request) => {
   // another question's correction key.
   const questionId = attemptQuestionId ?? body.questionId ?? null;
 
-  // An anchor question must be one this student is entitled to see.
+  // An anchor question must be one this student is entitled to see: filed in
+  // their track, offered by one of their chapters, or printed on a past paper
+  // their past-paper list shows them (a GS student reads the LS chemistry
+  // papers too, and "Ask" on one of those used to 404).
   if (questionId) {
+    const trackSubjects = await subjectIdsForTrack(user.trackId);
+    const paperSubjects = [...(await paperScopeFor(trackSubjects)).keys()];
     const question = await db.question.findFirst({
-      where: { id: questionId, chapter: { subject: { trackId: user.trackId ?? undefined } } },
+      where: {
+        id: questionId,
+        OR: [
+          { chapter: { subject: { trackId: user.trackId ?? undefined } } },
+          { alsoInChapters: { some: { chapter: { subject: { trackId: user.trackId ?? undefined } } } } },
+          { sourceExam: { subjectId: { in: paperSubjects } } },
+        ],
+      },
       select: { id: true },
     });
     if (!question) return fail(404, 'QUESTION_NOT_FOUND');

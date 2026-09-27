@@ -107,7 +107,7 @@ export default async function ChapterPracticePage({
   // and offer the second copy as new to a student who had answered the first.
   const questions = oneCopyEach(allCopies);
 
-  // The one visual selector — the same call Nour's retrieval makes.
+  // The one visual selector — the same call Zaki's retrieval makes.
   const visualKeys = await visualKeysFor(questions);
 
   const prepared: PracticeQuestion[] = [

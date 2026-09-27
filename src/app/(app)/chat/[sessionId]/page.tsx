@@ -27,10 +27,13 @@ export const metadata: Metadata = { title: 'Ask a question' };
  */
 export default async function ChatSessionPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ sessionId: string }>;
+  searchParams: Promise<{ ask?: string }>;
 }) {
   const { sessionId } = await params;
+  const { ask } = await searchParams;
   const user = await requireUser();
   const { t } = await getTranslations();
 
@@ -98,10 +101,26 @@ export default async function ChatSessionPage({
    * Chemistry" landed on the same empty box as a student who opened `/chat`
    * cold, and had to type the chapter's name back in themselves to get it.
    */
-  const autoPrompt =
-    configured && session.messages.length === 0 && !session.question && session.subjectId && session.title
-      ? format(t.chat.autoExplainPrompt, { label: session.title })
+  /*
+   * "Solve it with Zaki" and "Why is my answer wrong?" ask themselves too. The
+   * question (and the attempt, for `why`) is already anchored, so the prompt
+   * only has to say what the student wants done with it. Fresh sessions only:
+   * reloading a running conversation must not ask again.
+   */
+  const anchoredPrompt =
+    configured && session.messages.length === 0 && session.question
+      ? ask === 'solve'
+        ? t.chat.autoSolvePrompt
+        : ask === 'why' && session.attempt
+          ? t.chat.autoWhyPrompt
+          : null
       : null;
+
+  const autoPrompt =
+    anchoredPrompt ??
+    (configured && session.messages.length === 0 && !session.question && session.subjectId && session.title
+      ? format(t.chat.autoExplainPrompt, { label: session.title })
+      : null);
 
   /*
    * Provenance for answers written before this page load.

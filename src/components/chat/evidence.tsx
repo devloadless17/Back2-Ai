@@ -7,7 +7,7 @@ import { useI18n } from '@/lib/i18n/client';
 import { cn } from '@/lib/cn';
 
 /**
- * Where Nour got this from.
+ * Where Zaki got this from.
  *
  * THE MOST IMPORTANT COMPONENT IN THE PRODUCT, and the one that answers the
  * question a student cannot otherwise ask: why is this not just ChatGPT with a

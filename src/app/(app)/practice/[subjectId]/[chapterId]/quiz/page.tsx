@@ -102,7 +102,7 @@ export default async function ChapterQuizPage({
           take: QUIZ_LENGTH - unseen.length,
         });
 
-  // The one visual selector — the same call Nour's retrieval makes.
+  // The one visual selector — the same call Zaki's retrieval makes.
   // A seen question in the top-up may be another copy of an unseen one above.
   const chosen = oneCopyEach([...unseen, ...topUp]);
   const visualKeys = await visualKeysFor(chosen);

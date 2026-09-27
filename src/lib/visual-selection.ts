@@ -1,6 +1,6 @@
 /**
  * Which visuals accompany an exercise — the one rule the student's screen and
- * Nour both follow.
+ * Zaki both follow.
  *
  * Pure: no database, no storage. `visual-evidence.ts` loads the rows and calls
  * `selectVisualEvidence`; the student pages and retrieval both go through that

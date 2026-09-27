@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation';
 
 import {
   GhostNumeral,
-  NourMark,
+  ZakiMark,
   PaperRuling,
   Seal,
   SectionMark,
@@ -15,7 +15,7 @@ import { ExaminerScript } from '@/components/marketing/examiner-script';
 import {
   ExaminerFragment,
   NextMoveFragment,
-  NourFragment,
+  ZakiFragment,
   QuestionPlate,
   ReadinessPlate,
 } from '@/components/marketing/surfaces';
@@ -66,16 +66,16 @@ export default async function RootPage() {
 
   const examinerLabels = {
     title: m.examinerLabel,
-    nourNote: m.examinerNourNote,
+    zakiNote: m.examinerZakiNote,
     note: m.examinerNote,
     meta: [m.practiceSubject, m.practiceProvenance, m.examinerExercise],
   };
 
-  const nourLabels = {
-    name: m.nourName,
-    question: m.nourQuestion,
-    answer: m.nourAnswer,
-    grounded: m.nourGrounded,
+  const zakiLabels = {
+    name: m.zakiName,
+    question: m.zakiQuestion,
+    answer: m.zakiAnswer,
+    grounded: m.zakiGrounded,
   };
 
   const nextMoveLabels = {
@@ -147,7 +147,7 @@ export default async function RootPage() {
 
                 The marked script is the foreground and is allowed to be
                 bigger than everything around it, because "it marks you the way
-                the exam marks you" is the claim the page rests on. Nour sits
+                the exam marks you" is the claim the page rests on. Zaki sits
                 behind and below it, offset so only its top edge and its
                 grounding line show — the way a second sheet shows under the
                 first. The next-move card is a small third plane.
@@ -162,8 +162,8 @@ export default async function RootPage() {
                   className="relative z-30 lg:max-w-[30rem]"
                 />
 
-                <NourFragment
-                  labels={nourLabels}
+                <ZakiFragment
+                  labels={zakiLabels}
                   className="relative z-20 mt-4 lg:-mt-10 lg:ms-20 lg:max-w-[27rem]"
                 />
 
@@ -282,28 +282,28 @@ export default async function RootPage() {
                 missing: m.scriptMissing,
                 crit3: m.scriptCrit3,
                 mark3: m.scriptMark3,
-                nourNoteLabel: m.examinerNourNote,
-                nourNote: m.scriptNourNote,
+                zakiNoteLabel: m.examinerZakiNote,
+                zakiNote: m.scriptZakiNote,
               }}
             />
           </div>
         </section>
 
-        {/* ======================= 03 NOUR ======================= */}
+        {/* ======================= 03 ZAKI ======================= */}
         <section className="relative overflow-hidden border-b border-rule bg-primary-soft/40">
           <GhostNumeral className="-top-4 start-2 sm:start-8">03</GhostNumeral>
           <div className="relative mx-auto grid w-full max-w-[1180px] items-center gap-12 px-4 py-16 sm:px-6 sm:py-20 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:gap-16 lg:px-8">
-            <NourFragment labels={nourLabels} editorial className="order-2 lg:order-1" />
+            <ZakiFragment labels={zakiLabels} editorial className="order-2 lg:order-1" />
             <div className="order-1 max-w-xl lg:order-2">
-              <SectionMark index="03" label={m.secNour} />
-              <NourMark className="mt-5 size-10" />
+              <SectionMark index="03" label={m.secZaki} />
+              <ZakiMark className="mt-5 size-10" />
               <h2 className="mt-5 font-display text-heading font-semibold leading-tight tracking-tight text-ink sm:text-display">
-                {m.nourTitle}
+                {m.zakiTitle}
                 <br />
-                <span className="text-primary">{m.nourTitleAccent}</span>
+                <span className="text-primary">{m.zakiTitleAccent}</span>
               </h2>
               <p className="mt-5 max-w-prose text-body leading-relaxed text-ink-muted">
-                {m.nourBody}
+                {m.zakiBody}
               </p>
               <p className="mt-6 border-s-2 border-primary ps-4 text-meta leading-relaxed text-ink">
                 {m.evidenceBody}

@@ -99,7 +99,7 @@ export default async function ExamCyclePage({
 
   if (!cycle) notFound();
 
-  // The one visual selector — the same call Nour's retrieval makes.
+  // The one visual selector — the same call Zaki's retrieval makes.
   const visualKeys = await visualKeysFor(cycle.questions);
 
   /*
@@ -204,7 +204,10 @@ export default async function ExamCyclePage({
               fragments with the same hairline a mark scheme uses, rather than
               floating each one on its own card. */}
           <div className="ruled">
-            {cycle.questions.map((question) => (
+            {cycle.questions.map((question) => {
+              const solution =
+                question.officialSolutionLatex?.trim() || question.officialSolution?.trim() || null;
+              return (
               <section key={question.id} className="group px-5 py-5">
                 <QuestionBody
                   contentText={question.contentText}
@@ -213,8 +216,16 @@ export default async function ExamCyclePage({
                   dir={paperDir}
                 />
 
+                {/* No answer stored: say so, rather than showing nothing and
+                    leaving the student to wonder whether they missed it. */}
+                {!solution && (
+                  <p className="mt-3 rounded border border-rule bg-paper-sunken px-3 py-2 text-meta text-ink-muted">
+                    {t.oldCycles.answerMissing}
+                  </p>
+                )}
+
                 <div className="mt-3 flex flex-wrap items-center justify-end gap-3">
-                  <AskWhy questionId={question.id} />
+                  <AskWhy questionId={question.id} mode={solution ? 'why' : 'solve'} />
                   {/* Reporting a bad transcription matters most here: past
                       papers are the material students trust the most, so an OCR
                       error in one is the error most likely to be revised from —
@@ -222,12 +233,10 @@ export default async function ExamCyclePage({
                   <FlagButton itemType="tagged_question" itemId={question.id} />
                 </div>
 
-                <RevealableSolution
-                  solution={question.officialSolutionLatex || question.officialSolution}
-                  dir={paperDir}
-                />
+                <RevealableSolution solution={solution} dir={paperDir} />
               </section>
-            ))}
+              );
+            })}
           </div>
         </Sheet>
       )}

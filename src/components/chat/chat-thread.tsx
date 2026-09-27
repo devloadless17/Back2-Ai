@@ -704,7 +704,7 @@ export function ChatThread({
 
       {/*
         A TECHNICAL FAILURE, never a refusal. `GroundingState` above handles the
-        case where Nour declined; this is the case where something broke, and
+        case where Zaki declined; this is the case where something broke, and
         the two must not look alike — a student who reads an outage as caution
         will wait instead of retrying.
       */}
@@ -718,7 +718,7 @@ export function ChatThread({
               
               One line, caption size, no control — the picker already exists on
               a fresh conversation and a second selector here would be a second
-              way to do the same thing. The language code matters because Nour
+              way to do the same thing. The language code matters because Zaki
               answers in the SUBJECT's language, not the interface's: a student
               reading French in an English app should be able to see why.
             */}
