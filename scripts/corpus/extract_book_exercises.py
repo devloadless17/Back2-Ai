@@ -423,6 +423,11 @@ def main() -> None:
     ap.add_argument("--workers", type=int, default=6)
     ap.add_argument("--max-usd", type=float, default=2.0)
     ap.add_argument("--estimate", action="store_true")
+    ap.add_argument(
+        "--only-pages",
+        default="",
+        help="JSON [{folder,page}] from audit_book_column_order.py: read ONLY these pages",
+    )
     args = ap.parse_args()
 
     import pypdfium2 as pdfium
@@ -466,6 +471,24 @@ def main() -> None:
                 tasks.append((folder, chapter, page))
     tasks = list({(t[0], t[2]): t for t in tasks}.values())
 
+    skipped_books: dict = {}
+
+    # ONLY THE PAGES THAT NEED IT.
+    #
+    # Mathpix returns most exercise pages already in reading order — 1,005 of the
+    # 1,543 that carry a numbered list. The vision model was being paid to re-read
+    # those too. `audit_book_column_order.py` says which pages actually have their
+    # columns mixed, from the numbering alone and at no cost, and this restricts
+    # the run to them: 193 pages rather than 2,100.
+    if args.only_pages:
+        wanted_pages = {
+            (row["folder"], int(row["page"]))
+            for row in json.loads(Path(args.only_pages).read_text(encoding="utf-8"))
+        }
+        before = len(tasks)
+        tasks = [t for t in tasks if (t[0], t[2]) in wanted_pages]
+        print(f"--only-pages: {before} -> {len(tasks)} page(s)")
+
     no_zone = [(f, c["index"], c["title"][:40]) for f, c, p in plan if not p]
     print(f"{len(books)} book(s), {len(plan)} chapter(s), {sum(len(p) for *_, p in plan)} exercise page(s)")
     if no_zone:
@@ -498,7 +521,22 @@ def main() -> None:
             return
         with render_lock:
             if folder not in docs:
-                docs[folder] = pdfium.PdfDocument(str(find_pdf(folder)))
+                # A BOOK WITH NO PDF SKIPS ITSELF, it does not stop the run.
+                #
+                # `math-se-en` is in the catalogue and its scan is not in
+                # `corpus/crdp ebooks`. `find_pdf` raised SystemExit for it,
+                # which killed the whole run after the other 21 books had been
+                # planned — one absent file blocking every page behind it, and
+                # the pages already paid for in that run still cached, so the
+                # money was not lost but the work stopped.
+                try:
+                    docs[folder] = pdfium.PdfDocument(str(find_pdf(folder)))
+                except SystemExit as missing:
+                    if folder not in skipped_books:
+                        skipped_books[folder] = str(missing)
+                    docs[folder] = None
+            if docs[folder] is None:
+                return
             jpeg = ocr_pdf.render(docs[folder], page - 1)
         text, usage = ask(key, args.model, jpeg, page_text(folder, page), chapter["title"], before)
         try:
@@ -530,6 +568,8 @@ def main() -> None:
         print(f"STOPPED at the ${args.max_usd:.2f} cap — re-run to continue")
     if spent["bad"]:
         print(f"UNREADABLE reply (re-run to retry): {spent['bad']}")
+    for folder, why in skipped_books.items():
+        print(f"SKIPPED {folder}: {why}")
 
     # Assemble every book in the plan from whatever replies are on disk.
     for folder in books:

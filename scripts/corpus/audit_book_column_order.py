@@ -109,6 +109,7 @@ def pages_of(folder):
 def main():
     only = arg("--book")
     show = int(arg("--show", 0))
+    as_json = arg("--json")
 
     rows = list(csv.DictReader(io.open(CATALOG, encoding="utf-8-sig")))
     books = [r for r in rows if any(k in r["folder"] for k in SUBJECTS)]
@@ -121,6 +122,7 @@ def main():
     print(f"  {'-' * 38} {'-' * 6} {'-' * 7} {'-' * 6} {'-' * 8} {'-' * 8}")
 
     examples = []
+    mixed = []
     for r in books:
         folder = r["folder"]
         pages = pages_of(folder)
@@ -131,6 +133,8 @@ def main():
                 continue
             verdict = classify(nums)
             counts[verdict] += 1
+            if verdict == "interleaved":
+                mixed.append({"folder": folder, "page": int(p.stem.split("-")[1])})
             if verdict in ("interleaved", "page-number") and len(examples) < show:
                 examples.append((folder, p.name, verdict, nums[:10]))
         listed = sum(counts.values())
@@ -152,6 +156,11 @@ def main():
     print(f"  list restarts (nothing wrong)     {totals['restart']}")
     print(f"  already in order                  {totals['clean']}")
     print()
+    if as_json:
+        import json
+        Path(as_json).write_text(json.dumps(mixed, indent=1), encoding="utf-8")
+        print(f"  wrote {len(mixed)} page(s) to {as_json}")
+        print()
     for folder, page, verdict, nums in examples:
         print(f"    {folder} {page}  {verdict}  {nums}")
     if examples:
