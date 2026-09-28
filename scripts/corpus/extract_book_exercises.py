@@ -192,8 +192,51 @@ def exercise_zone(folder: str, chapter: dict) -> tuple:
     return [], ""
 
 
+def is_answers_heading(line: str) -> bool:
+    """A heading that opens an answers section, rather than prose mentioning one.
+
+    Short, carries one of the answer words, and is either marked as a heading or
+    shouted in capitals — `## AUTO-EVALUATION  REPONSES ET INDICATIONS`. A
+    sentence that happens to say "solutions" is not one.
+    """
+    text = line.strip()
+    if not text or len(text) > 70 or not ANSWERS.search(text):
+        return False
+    body = text.lstrip("#").strip()
+    return text.startswith("#") or not any(c.islower() for c in body)
+
+
+def drop_answer_pages(folder: str, pages: list) -> list:
+    """The pages of an exercise zone, minus the ones printing the answers.
+
+    THE CHAPTER TITLE IS NOT ENOUGH. `ANSWERS.search(chapter["title"])` skips a
+    chapter called "Self-Evaluation - Answers and Hints", and the books also put
+    the answers behind a heading on a PAGE inside an ordinary chapter. math-se-fr
+    page 284 opens "AUTO-EVALUATION  REPONSES ET INDICATIONS" and the rest of the
+    book is solutions; 28 of them reached students as exercises, including "Le
+    premier terme est 7, la raison est -3" and a page of true/false answers.
+
+    So answers territory starts at such a heading and runs until an exercise
+    heading opens a new section — the same shape as the marking-scheme territory
+    the exam pipeline tracks, for the same reason.
+    """
+    kept, in_answers = [], False
+    for page in pages:
+        lines = page_text(folder, page).splitlines()
+        for line in lines[:25]:
+            if is_answers_heading(line):
+                in_answers = True
+                break
+            m = HEADING.match(line)
+            if m and START.search(m.group(1).strip()) and not SKIP.search(m.group(1).strip()):
+                in_answers = False
+        if not in_answers:
+            kept.append(page)
+    return kept
+
+
 def exercise_pages(folder: str, chapter: dict) -> list:
-    return exercise_zone(folder, chapter)[0]
+    return drop_answer_pages(folder, exercise_zone(folder, chapter)[0])
 
 
 def tidy_math(text: str) -> str:

@@ -67,3 +67,7 @@ NOUR-VERIFICATION-DEBT.md
 
 # Local Claude Code settings (machine-specific permissions).
 .claude/settings.local.json
+
+# Dumps of one database, full of ids that mean nothing in another.
+.ai-exam-audit.json
+.ai-exam-catalog.json
