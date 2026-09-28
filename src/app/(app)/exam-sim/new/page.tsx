@@ -6,7 +6,7 @@ import { PageHeader } from '@/components/ui/sheet';
 import { requireUser } from '@/lib/auth/guards';
 import { db } from '@/lib/db';
 import { SHARED_ACROSS_TRACKS } from '@/lib/exam';
-import { PUBLISHED_FILTER } from '@/lib/generation';
+import { paperIsComplete } from '@/lib/ai-exam-production';
 import { getTranslations } from '@/lib/i18n';
 import {
   HAS_LIVE_QUESTIONS,
@@ -115,10 +115,9 @@ export default async function NewSimulationPage({
       select: { id: true, subjectId: true },
     }),
 
-    db.generatedProblem.groupBy({
-      by: ['chapterId'],
-      where: { chapter: { subjectId: { in: subjectIds } }, ...PUBLISHED_FILTER },
-      _count: { _all: true },
+    db.generatedExamPaper.findMany({
+      where: { subjectId: { in: subjectIds }, status: 'approved', publishedAt: { not: null } },
+      include: { problems: true },
     }),
 
     /*
@@ -150,7 +149,12 @@ export default async function NewSimulationPage({
     return totals;
   };
 
-  const generatedBySubject = foldBySubject(generatedRows);
+  const generatedBySubject = new Map<string, number>();
+  for (const paper of generatedRows) {
+    if (paperIsComplete(paper) && paper.problems.every((q) => q.verificationStatus === 'approved' && q.publishedAt)) {
+      generatedBySubject.set(paper.subjectId, (generatedBySubject.get(paper.subjectId) ?? 0) + paper.problems.length);
+    }
+  }
   const realBySubject = foldBySubject(realRows);
 
   // History, civics and geography draw on every track's papers — see
@@ -210,6 +214,8 @@ export default async function NewSimulationPage({
       durationIsOfficial: cycle.durationIsOfficial,
     })),
     generatedAvailable: generatedBySubject.get(subject.id) ?? 0,
+    generatedPapers: generatedRows.filter((p) => p.subjectId === subject.id && paperIsComplete(p) && p.problems.every((q) => q.verificationStatus === 'approved' && q.publishedAt))
+      .map((p) => ({ id: p.id, title: p.title, durationMinutes: p.durationMinutes })),
   }));
 
   return (

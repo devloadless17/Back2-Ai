@@ -3,12 +3,10 @@ import 'server-only';
 import type { ExamSourceMode, Prisma } from '@prisma/client';
 
 import { AuditAction, recordAudit } from '@/lib/audit';
-import { budgetState } from '@/lib/ai';
-import { rateLimit } from '@/lib/api';
 import { db } from '@/lib/db';
+import { paperIsComplete } from '@/lib/ai-exam-production';
 import { withShowableFigures } from '@/lib/exam-figure-gate';
-import { isAiConfigured, isEmbeddingConfigured } from '@/lib/env';
-import { PUBLISHED_FILTER, generateProblem } from '@/lib/generation';
+import { figureContext, parseExamFigures, type ExamFigure } from '@/lib/exam-figures';
 import {
   baremeMaxScore,
   checkOcrConsistency,
@@ -22,7 +20,7 @@ import type { Locale } from '@/lib/i18n/config';
 import { recomputeChapterMastery, resolveCreditChapter } from '@/lib/queries/progress';
 import { rescaleBaremes } from '@/lib/rescale-bareme';
 import { oneCopyEach, questionKey, seenQuestionKeys } from '@/lib/queries/seen-questions';
-import { LIVE_CHAPTER, OWN_EDITION_ONLY, paperScopeFor } from '@/lib/queries/taxonomy';
+import { OWN_EDITION_ONLY, paperScopeFor } from '@/lib/queries/taxonomy';
 import { retrieveGrounding } from '@/lib/retrieval';
 
 /**
@@ -66,6 +64,7 @@ export type StartInput = {
   subjectId: string;
   sourceMode: ExamSourceMode;
   examCycleId?: string | null;
+  generatedPaperId?: string;
 };
 
 export async function startSimulation(input: StartInput): Promise<{ id: string }> {
@@ -701,114 +700,26 @@ export function assemblePaper<T extends SelectableProblem>(
   return search(0, [], 0, new Set()) ?? [];
 }
 
-/**
- * At most this many live generations per `ai_generated` start. Each one is a
- * model call, an embedding, and a solver check run in series before the
- * student sees "Begin" resolve — five of them is already a slow click, and
- * `generateProblem` itself retries up to `MAX_ATTEMPTS` internally on a
- * duplicate or a bad parse, so the true worst case is a multiple of this.
- * Capped well under `AI_PAPER_QUESTION_COUNT` on purpose.
- *
- * `TUNABLE` — `src/lib/exam.ts`.
- */
-const LIVE_TOPUP_CAP = 3;
-
-/**
- * Fills the gap between what is approved and what a paper needs, by
- * generating live — explicitly chosen over leaving the student with
- * `NO_CONTENT` while the review queue sits unread. See the module comment on
- * `ai_generated` for why that queue is usually the reason this runs at all.
- *
- * SOLVER-PASSED ONLY. A human has not seen these, but the solver has: it
- * re-derives the final answer from the stated problem and the bareme is
- * cross-checked against it. `solver_failed` problems still reach the review
- * queue — seeing what the generator gets wrong is how the prompt improves —
- * they are just never handed to a student on a scored, timed sitting.
- *
- * Spread across chapters that do not already have an approved problem,
- * because a top-up that piles three fresh questions onto one chapter is not
- * the paper `chooseQuestions` is trying to build.
- */
-async function topUpWithLiveGeneration(
-  subjectId: string,
-  userId: string,
-  shortfall: number,
-  coveredChapterIds: string[],
-): Promise<SelectableProblem[]> {
-  if (!isAiConfigured() || !isEmbeddingConfigured()) return [];
-
-  const budget = await budgetState(userId);
-  if (budget.exhausted) return [];
-
-  const limit = rateLimit(`examsim-topup:${userId}`, LIVE_TOPUP_CAP, 60 * 60_000);
-  if (!limit.allowed) return [];
-
-  const chapters = await db.chapter.findMany({
-    where: { subjectId, ...LIVE_CHAPTER },
-    select: { id: true },
-    orderBy: { orderIndex: 'asc' },
+/** A sitting consumes an already produced, complete, human-approved paper. */
+export async function selectGeneratedPaper(subjectId: string, userId: string, paperId?: string) {
+  const papers = await db.generatedExamPaper.findMany({
+    where: { subjectId, ...(paperId ? { id: paperId } : {}), status: 'approved', publishedAt: { not: null } },
+    include: { problems: { orderBy: { paperOrder: 'asc' } } },
+    orderBy: { publishedAt: 'desc' }, take: 100,
   });
-  if (chapters.length === 0) return [];
-
-  const covered = new Set(coveredChapterIds);
-  const targets = [
-    ...chapters.filter((c) => !covered.has(c.id)),
-    ...chapters.filter((c) => covered.has(c.id)),
-  ];
-
-  const attempts = Math.min(shortfall, LIVE_TOPUP_CAP);
-  const created: SelectableProblem[] = [];
-
-  for (let i = 0; i < attempts && i < targets.length; i += 1) {
-    const outcome = await generateProblem({ chapterId: targets[i]!.id, requestedBy: userId });
-    if (outcome.status !== 'created' || !outcome.solverPassed) continue;
-
-    const problem = await db.generatedProblem.findUnique({
-      where: { id: outcome.problemId },
-      select: { id: true, chapterId: true, bareme: true, difficulty: true, contentText: true },
-    });
-    if (problem) created.push(problem);
-  }
-
-  return created;
+  const seen = await db.examSimulationQuestion.findMany({
+    where: { examSimulation: { userId }, generatedProblemId: { not: null } },
+    select: { generatedProblemId: true },
+  });
+  const seenIds = new Set(seen.map((s) => s.generatedProblemId));
+  const valid = papers.filter((p) => paperIsComplete(p) && p.problems.every((q) => q.verificationStatus === 'approved' && q.publishedAt));
+  const selected = valid.find((p) => p.problems.every((q) => !seenIds.has(q.id))) ?? valid[0];
+  if (!selected) throw new ExamError('NO_CONTENT', 'No complete reviewed AI paper is available for this subject.');
+  return selected;
 }
 
 export async function selectGeneratedQuestions(subjectId: string, userId: string) {
-  const pool = await db.generatedProblem.findMany({
-    where: { chapter: { subjectId }, ...PUBLISHED_FILTER },
-    select: { id: true, chapterId: true, bareme: true, difficulty: true, contentText: true },
-    orderBy: { publishedAt: 'desc' },
-    take: 60,
-  });
-
-  const shortfall = AI_PAPER_QUESTION_COUNT - pool.length;
-  const candidates =
-    shortfall > 0
-      ? [
-          ...pool,
-          ...(await topUpWithLiveGeneration(
-            subjectId,
-            userId,
-            shortfall,
-            pool.map((p) => p.chapterId),
-          )),
-        ]
-      : pool;
-
-  if (candidates.length === 0) {
-    throw new ExamError(
-      'NO_CONTENT',
-      'No approved generated problems are available for this subject yet, and a fresh one could ' +
-        'not be generated — check that the AI provider is configured and the budget is not exhausted.',
-    );
-  }
-
-  const chosen = chooseQuestions(candidates, AI_PAPER_QUESTION_COUNT);
-
-  // Easiest first, the way a real paper is ordered.
-  chosen.sort((a, b) => Number(a.difficulty ?? 0.5) - Number(b.difficulty ?? 0.5));
-
-  return chosen;
+  return (await selectGeneratedPaper(subjectId, userId)).problems;
 }
 
 /**
@@ -829,6 +740,7 @@ export async function composeGeneratedPaper(
       id: true,
       subjectId: true,
       sourceMode: true,
+      durationMinutes: true,
       status: true,
       _count: { select: { questions: true } },
     },
@@ -845,7 +757,9 @@ export async function composeGeneratedPaper(
     return { composed: false, questionCount: simulation._count.questions };
   }
 
-  const chosen = await selectGeneratedQuestions(simulation.subjectId, userId);
+  const paper = await selectGeneratedPaper(simulation.subjectId, userId);
+  if (paper.durationMinutes !== simulation.durationMinutes) throw new ExamError('NO_CONTENT', 'Start a new sitting with the reviewed paper duration.');
+  const chosen = paper.problems;
 
   await db.$transaction([
     db.examSimulationQuestion.createMany({
@@ -867,10 +781,11 @@ export async function composeGeneratedPaper(
 }
 
 async function startFromGeneratedPool(input: StartInput): Promise<{ id: string }> {
-  const chosen = await selectGeneratedQuestions(input.subjectId, input.userId);
+  const paper = await selectGeneratedPaper(input.subjectId, input.userId, input.generatedPaperId);
+  const chosen = paper.problems;
 
   const startedAt = new Date();
-  const duration = DEFAULT_DURATION_MINUTES;
+  const duration = paper.durationMinutes;
 
   const simulation = await db.examSimulation.create({
     data: {
@@ -949,6 +864,8 @@ const SIMULATION_INCLUDE = {
           contentText: true,
           contentLatex: true,
           generatedSolution: true,
+          figures: true,
+          generatedPaper: { select: { title: true } },
           chapter: { select: { id: true, name: true } },
         },
       },
@@ -1009,6 +926,7 @@ export function slotContent(slot: LoadedSimulation['questions'][number]): {
   contentText: string;
   contentLatex: string | null;
   contentImages: string[];
+  figures: ExamFigure[];
   chapterName: string | null;
   officialSolution: string | null;
   solutionIsOfficial: boolean;
@@ -1020,6 +938,7 @@ export function slotContent(slot: LoadedSimulation['questions'][number]): {
       contentText: slot.question.contentText,
       contentLatex: slot.question.contentLatex,
       contentImages: slot.question.contentImages,
+      figures: [],
       chapterName: slot.question.chapter?.name ?? null,
       officialSolution: slot.question.officialSolution,
       solutionIsOfficial: slot.question.sourceType === 'past_exam',
@@ -1031,6 +950,7 @@ export function slotContent(slot: LoadedSimulation['questions'][number]): {
       contentText: slot.generatedProblem.contentText,
       contentLatex: slot.generatedProblem.contentLatex,
       contentImages: [],
+      figures: parseExamFigures(slot.generatedProblem.figures),
       chapterName: slot.generatedProblem.chapter?.name ?? null,
       officialSolution: slot.generatedProblem.generatedSolution,
       // Model-written. Never an examiner's, whatever the column is called.
@@ -1042,6 +962,7 @@ export function slotContent(slot: LoadedSimulation['questions'][number]): {
     contentText: '',
     contentLatex: null,
     contentImages: [],
+    figures: [],
     chapterName: null,
     officialSolution: null,
     solutionIsOfficial: false,
@@ -1198,8 +1119,8 @@ export async function submitSimulation(
     return { status: simulation.status, questionCount: simulation._count.questions };
   }
 
-  await db.examSimulation.update({
-    where: { id: simulation.id },
+  await db.examSimulation.updateMany({
+    where: { id: simulation.id, status: 'in_progress' },
     data: { status: 'submitted', submittedAt: new Date() },
   });
 
@@ -1241,6 +1162,11 @@ export async function markSimulation(
     };
   }
 
+  if (simulation.status !== 'submitted') {
+    throw new ExamError('ALREADY_SUBMITTED', 'Only a submitted paper can be marked.');
+  }
+
+  let retryPending = false;
   const marks: MarkEntry[] = [];
   const touchedChapters = new Set<string>();
   const owner = await db.user.findUnique({
@@ -1248,175 +1174,187 @@ export async function markSimulation(
     select: { trackId: true },
   });
 
-  for (const slot of simulation.questions) {
-    // Already marked on an earlier pass. Carry its result into the tally so the
-    // totals are whole, and do not pay for the model call again.
-    if (slot.answer?.gradedAt) {
-      marks.push(
-        slot.answer.totalScore === null
-          ? { status: 'needs_human_review', totalScore: 0, maxScore: 0 }
-          : {
-              status: 'graded',
-              totalScore: Number(slot.answer.totalScore),
-              maxScore: Number(slot.answer.maxScore ?? 0),
-            },
-      );
-      continue;
-    }
-
-    const bareme = parseBareme(slot.baremeSnapshot);
-    const content = slotContent(slot);
-    const studentAnswer = answerTextOf(slot.answer);
-
-    /*
-     * No official scheme is not the same as no mark.
-     *
-     * 868 questions reached the corpus without a barème, and until now every
-     * one of them told the student their paper needed a human — honest, and
-     * useless, and falling almost entirely on the Arabic subjects. So the
-     * marker proposes the criteria instead, grounded in retrieved course
-     * material and labelled `graded_provisional` all the way to the results
-     * screen, where the student is told these are our reading of the question
-     * rather than the examiner's.
-     *
-     * The retrieval is deliberately NOT anchored on this question: anchoring
-     * returns the question and its own solution as context, and a criterion
-     * "grounded" in the question it was invented for is grounded in nothing.
-     */
-    const outcome = bareme
-      ? await gradeAgainstBareme({
-          questionText: content.contentText,
-          officialSolution: content.officialSolution,
-          bareme,
-          studentAnswer,
-          language: simulation.subject.language,
-          subject: simulation.subject.name,
-        })
-      : await gradeWithoutBareme({
-          questionText: content.contentText,
-          officialSolution: content.officialSolution,
-          bareme: [],
-          studentAnswer,
-          language: simulation.subject.language,
-          subject: simulation.subject.name,
-          statedMarks: statedMarksOf(content.contentText),
-          courseMaterial: (
-            await retrieveGrounding({
-              query: content.contentText,
-              subjectIds: [simulation.subject.id],
-              userId: input.userId,
-            })
-          ).context,
-        });
-
-    /*
-     * A question the marker could not mark is NOT a zero.
-     *
-     * It is excluded from both the awarded total and the available total, and
-     * its score is stored as null so the results screen can say "awaiting
-     * marking" rather than showing a 0 the student will read as a fail. The
-     * failure here is ours — the provider was unreachable, or returned
-     * something unusable — and presenting it as their mark would be a lie the
-     * student has no way to see through.
-     */
-    const needsHuman = outcome.status === 'needs_human_review';
-
-    marks.push({
-      status: outcome.status,
-      totalScore: outcome.totalScore,
-      maxScore: outcome.maxScore,
-    });
-
-    await db.examAnswer.upsert({
-      where: { examSimulationQuestionId: slot.id },
-      create: {
-        examSimulationQuestionId: slot.id,
-        submissionType: 'typed',
-        typedAnswer: '',
-        baremeResult: outcome.results as unknown as Prisma.InputJsonValue,
-        totalScore: needsHuman ? null : outcome.totalScore,
-        maxScore: needsHuman ? null : outcome.maxScore,
-        gradedAt: new Date(),
-      },
-      update: {
-        baremeResult: outcome.results as unknown as Prisma.InputJsonValue,
-        totalScore: needsHuman ? null : outcome.totalScore,
-        maxScore: needsHuman ? null : outcome.maxScore,
-        gradedAt: new Date(),
-      },
-    });
-
-    // Marking failures reach a human rather than sitting silently in a
-    // student's result. One item per paper, not one per question.
-    if (needsHuman && marks.filter((m) => m.status === 'needs_human_review').length === 1) {
-      await db.reviewQueueItem.create({
-        data: {
-          itemType: 'flagged_content',
-          itemId: simulation.id,
-          flagReason:
-            `Automatic marking failed on a submitted paper (${simulation.subject.name}). ` +
-            `Reason: ${outcome.reason ?? 'unknown'}. This paper needs marking by hand.`,
-          flaggedByUserId: null,
-        },
+  for (const originalSlot of simulation.questions) {
+    // Hold a database row lock through marking and persistence. Competing
+    // workers leave this paper to its active worker, before paying for AI.
+    // Each slot commits independently so a later failure preserves earlier marks.
+    await db.$transaction(async (tx) => {
+      const locked = await tx.$queryRaw<{ id: string }[]>`
+        SELECT id FROM exam_simulation_questions
+        WHERE id = ${originalSlot.id}::uuid FOR UPDATE SKIP LOCKED
+      `;
+      if (locked.length === 0) throw new Error('This question is already being marked.');
+      const answer = await tx.examAnswer.findUnique({
+        where: { examSimulationQuestionId: originalSlot.id },
       });
-    }
+      const slot = { ...originalSlot, answer };
+      // Already marked on an earlier pass. Carry its result into the tally so the
+      // totals are whole, and do not pay for the model call again.
+      if (slot.answer?.gradedAt) {
+        marks.push(
+          slot.answer.totalScore === null
+            ? { status: 'needs_human_review', totalScore: 0, maxScore: 0 }
+            : {
+                status: 'graded',
+                totalScore: Number(slot.answer.totalScore),
+                maxScore: Number(slot.answer.maxScore ?? 0),
+              },
+        );
+        return;
+      }
 
-    // Exam-sim answers count towards mastery, exactly like practice — this is
-    // the same student demonstrating the same knowledge.
-    const homeChapterId = slot.question?.chapter?.id ?? slot.generatedProblem?.chapter?.id ?? null;
-    /*
-     * Credited to THIS student's copy of the chapter, the way practice does.
-     * A mock paper in a shared subject can carry another track's question, and
-     * crediting its home chapter would post the mark where this student's
-     * progress page never looks.
-     */
-    const chapterId =
-      homeChapterId && slot.questionId
-        ? ((await resolveCreditChapter({
-            userTrackId: owner?.trackId ?? null,
-            questionId: slot.questionId,
-            questionChapterId: homeChapterId,
-            isGenerated: false,
-          })) ?? homeChapterId)
-        : homeChapterId;
-    if (chapterId) {
-      touchedChapters.add(chapterId);
-      await db.attempt.create({
-        data: {
-          chapterId,
-          userId: input.userId,
-          questionId: slot.questionId,
-          generatedProblemId: slot.generatedProblemId,
-          isCorrect: null,
-          submittedAnswer: studentAnswer.slice(0, 20_000),
-          // An unmarked answer contributes to the attempt count but carries no
-          // score, so the mastery formula skips it instead of reading it as a
-          // failure the student never made.
-          score: needsHuman ? null : outcome.totalScore,
+      const bareme = parseBareme(slot.baremeSnapshot);
+      const content = slotContent(slot);
+      const studentAnswer = answerTextOf(slot.answer);
+
+      /*
+       * No official scheme is not the same as no mark.
+       *
+       * 868 questions reached the corpus without a barème, and until now every
+       * one of them told the student their paper needed a human — honest, and
+       * useless, and falling almost entirely on the Arabic subjects. So the
+       * marker proposes the criteria instead, grounded in retrieved course
+       * material and labelled `graded_provisional` all the way to the results
+       * screen, where the student is told these are our reading of the question
+       * rather than the examiner's.
+       *
+       * The retrieval is deliberately NOT anchored on this question: anchoring
+       * returns the question and its own solution as context, and a criterion
+       * "grounded" in the question it was invented for is grounded in nothing.
+       */
+      const outcome = bareme
+        ? await gradeAgainstBareme({
+            questionText: content.contentText + figureContext(content.figures),
+            officialSolution: content.officialSolution,
+            bareme,
+            studentAnswer,
+            language: simulation.subject.language,
+            subject: simulation.subject.name,
+          })
+        : await gradeWithoutBareme({
+            questionText: content.contentText + figureContext(content.figures),
+            officialSolution: content.officialSolution,
+            bareme: [],
+            studentAnswer,
+            language: simulation.subject.language,
+            subject: simulation.subject.name,
+            statedMarks: slot.maxScore === null ? statedMarksOf(content.contentText) : Number(slot.maxScore),
+            courseMaterial: studentAnswer.trim().length === 0 ? '' : (
+              await retrieveGrounding({
+                query: content.contentText,
+                subjectIds: [simulation.subject.id],
+                userId: input.userId,
+              })
+            ).context,
+          });
+
+      /*
+       * A question the marker could not mark is NOT a zero.
+       *
+       * It is excluded from both the awarded total and the available total, and
+       * its score is stored as null so the results screen can say "awaiting
+       * marking" rather than showing a 0 the student will read as a fail. The
+       * failure here is ours — the provider was unreachable, or returned
+       * something unusable — and presenting it as their mark would be a lie the
+       * student has no way to see through.
+       */
+      const needsHuman = outcome.status === 'needs_human_review';
+      const retryable = needsHuman && outcome.retryable === true;
+      retryPending ||= retryable;
+
+      marks.push({
+        status: outcome.status,
+        totalScore: outcome.totalScore,
+        maxScore: outcome.maxScore,
+      });
+
+      await tx.examAnswer.upsert({
+        where: { examSimulationQuestionId: slot.id },
+        create: {
+          examSimulationQuestionId: slot.id,
+          submissionType: 'typed',
+          typedAnswer: '',
+          baremeResult: outcome.results as unknown as Prisma.InputJsonValue,
+          totalScore: needsHuman ? null : outcome.totalScore,
           maxScore: needsHuman ? null : outcome.maxScore,
-          context: 'exam_sim',
+          gradedAt: retryable ? null : new Date(),
+        },
+        update: {
+          baremeResult: outcome.results as unknown as Prisma.InputJsonValue,
+          totalScore: needsHuman ? null : outcome.totalScore,
+          maxScore: needsHuman ? null : outcome.maxScore,
+          gradedAt: retryable ? null : new Date(),
         },
       });
-    }
+
+      // Marking failures reach a human rather than sitting silently in a
+      // student's result. One item per paper, not one per question.
+      if (needsHuman && !retryable && marks.filter((m) => m.status === 'needs_human_review').length === 1) {
+        await tx.reviewQueueItem.create({
+          data: {
+            itemType: 'flagged_content',
+            itemId: simulation.id,
+            flagReason:
+              `Automatic marking failed on a submitted paper (${simulation.subject.name}). ` +
+              `Reason: ${outcome.reason ?? 'unknown'}. This paper needs marking by hand.`,
+            flaggedByUserId: null,
+          },
+        });
+      }
+
+      // Exam-sim answers count towards mastery, exactly like practice — this is
+      // the same student demonstrating the same knowledge.
+      const homeChapterId = slot.question?.chapter?.id ?? slot.generatedProblem?.chapter?.id ?? null;
+      /*
+       * Credited to THIS student's copy of the chapter, the way practice does.
+       * A mock paper in a shared subject can carry another track's question, and
+       * crediting its home chapter would post the mark where this student's
+       * progress page never looks.
+       */
+      const chapterId =
+        homeChapterId && slot.questionId
+          ? ((await resolveCreditChapter({
+              userTrackId: owner?.trackId ?? null,
+              questionId: slot.questionId,
+              questionChapterId: homeChapterId,
+              isGenerated: false,
+            })) ?? homeChapterId)
+          : homeChapterId;
+      if (chapterId && !needsHuman) {
+        touchedChapters.add(chapterId);
+        await tx.attempt.create({
+          data: {
+            chapterId,
+            userId: input.userId,
+            questionId: slot.questionId,
+            generatedProblemId: slot.generatedProblemId,
+            isCorrect: null,
+            submittedAnswer: studentAnswer.slice(0, 20_000),
+            score: outcome.totalScore,
+            maxScore: outcome.maxScore,
+            context: 'exam_sim',
+          },
+        });
+      }
+    }, { timeout: 15 * 60_000 });
   }
 
   const { totalScore, maxScore, unmarked } = tallyMarks(marks);
 
-  await db.examSimulation.update({
-    where: { id: simulation.id },
-    data: {
-      status: 'graded',
-      totalScore,
-      maxScore,
-      gradedAt: new Date(),
-    },
-  });
+  // A retrying worker must never overwrite a concurrent worker's completed
+  // total. Only terminal passes finalize the paper; partial totals stay hidden.
+  if (!retryPending) {
+    await db.examSimulation.updateMany({
+      where: { id: simulation.id, status: 'submitted' },
+      data: { status: 'graded', totalScore, maxScore, gradedAt: new Date() },
+    });
+  }
 
   for (const chapterId of touchedChapters) {
     await recomputeChapterMastery(input.userId, chapterId);
   }
 
-  await recordAudit({
+  if (!retryPending) await recordAudit({
     actorUserId: input.userId,
     action: AuditAction.EXAM_SIM_GRADED,
     targetType: 'exam_simulation',
@@ -1546,21 +1484,8 @@ export async function autoSubmitExpired(limit = 20): Promise<number> {
  * showed a partial mark permanently.
  */
 export async function markSubmitted(limit = 10): Promise<number> {
-  /*
-   * No staleness delay. An earlier version only picked up papers submitted more
-   * than five minutes ago, on the reasoning that a pass still running should not
-   * be restarted underneath itself — but that made every student wait five
-   * minutes for marking to *begin*, which is a worse outcome than the overlap it
-   * was avoiding. A freshly submitted paper is marked on the next tick.
-   *
-   * Overlap is handled where it should be, per slot: marking skips anything that
-   * already carries `gradedAt`, so two passes meeting on the same paper cost
-   * duplicate reads rather than duplicate marks. Keep the cron interval longer
-   * than a typical run and the two rarely meet at all.
-   *
-   * Oldest first, so a backlog drains in the order students submitted rather
-   * than punishing whoever finished earliest.
-   */
+  // Oldest first. Per-question database locks prevent overlapping workers
+  // from marking the same answer; completed slots are reused on retries.
   const pending = await db.examSimulation.findMany({
     where: { status: 'submitted' },
     select: { id: true, userId: true },

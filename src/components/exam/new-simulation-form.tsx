@@ -26,6 +26,7 @@ export type SimulationOption = {
   /** Real past-exam questions available to assemble a mock paper from. */
   realPoolCount: number;
   generatedAvailable: number;
+  generatedPapers?: { id: string; title: string; durationMinutes: number }[];
 };
 
 /**
@@ -78,6 +79,7 @@ export function NewSimulationForm({
       : start?.cycles[0]?.id) ?? '',
   );
   const [starting, setStarting] = useState(false);
+  const [generatedPaperId, setGeneratedPaperId] = useState('');
   const [error, setError] = useState<string | null>(null);
 
   const subject = options.find((option) => option.subjectId === subjectId);
@@ -86,6 +88,7 @@ export function NewSimulationForm({
   /* Five is the paper size; below that there is nothing to assemble. */
   const canUseMixed = (subject?.realPoolCount ?? 0) >= 5;
   const canUseGenerated = (subject?.generatedAvailable ?? 0) > 0;
+  const selectedGenerated = subject?.generatedPapers?.find((p) => p.id === generatedPaperId) ?? subject?.generatedPapers?.[0];
 
   async function begin() {
     if (!subjectId) return;
@@ -97,6 +100,7 @@ export function NewSimulationForm({
         subjectId,
         sourceMode: mode,
         ...(mode === 'real_cycle' ? { examCycleId: cycleId } : {}),
+        ...(mode === 'ai_generated' && selectedGenerated ? { generatedPaperId: selectedGenerated.id } : {}),
       });
       router.push(`/exam-sim/${simulation.id}`);
     } catch (err) {
@@ -230,6 +234,14 @@ export function NewSimulationForm({
               )}
             </div>
           )}
+          {mode === 'ai_generated' && selectedGenerated && <div className="space-y-2">
+            <Select aria-label={t.examSim.chooseCycle} value={selectedGenerated.id} onChange={(e) => setGeneratedPaperId(e.target.value)}>
+              {subject?.generatedPapers?.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}
+            </Select>
+            <p className="text-meta text-ink-muted">20 {t.common.points} · {formatDuration(selectedGenerated.durationMinutes, {
+              hours: t.examSim.durationHours, hoursMinutes: t.examSim.durationHoursMinutes, minutesOnly: t.examSim.durationMinutesOnly,
+            })}</p>
+          </div>}
         </SheetBody>
       </Sheet>
 

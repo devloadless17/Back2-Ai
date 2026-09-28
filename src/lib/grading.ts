@@ -109,6 +109,8 @@ export type GradingOutcome = {
   modelUsed: string | null;
   /** Populated when status is 'needs_human_review'. */
   reason?: string;
+  /** Temporary provider/response failure; a later marking pass may recover. */
+  retryable?: boolean;
   /** The criteria the model proposed, when it had to invent them. */
   provisionalBareme?: Bareme;
 };
@@ -437,6 +439,7 @@ export async function gradeAgainstBareme(input: GradeInput): Promise<GradingOutc
         maxScore,
         modelUsed: response.modelUsed,
         reason: `${unmatched.length} of ${input.bareme.length} criteria were not returned by the marker.`,
+        retryable: true,
       };
     }
 
@@ -464,6 +467,7 @@ export async function gradeAgainstBareme(input: GradeInput): Promise<GradingOutc
       maxScore,
       modelUsed: null,
       reason: err instanceof Error ? err.message : 'Unknown marking error.',
+      retryable: true,
     };
   }
 }
@@ -710,7 +714,19 @@ export type ProvisionalInput = GradeInput & {
  */
 export async function gradeWithoutBareme(input: ProvisionalInput): Promise<GradingOutcome> {
   if (input.studentAnswer.trim().length === 0) {
-    return { status: 'graded', results: [], totalScore: 0, maxScore: 0, modelUsed: null };
+    const maxScore = input.statedMarks ?? statedMarksOf(input.questionText);
+    if (maxScore !== null && maxScore > 0) {
+      return {
+        status: 'graded', totalScore: 0, maxScore, modelUsed: null,
+        results: [{ criterion: 'Unanswered question', points_awarded: 0,
+          points_possible: maxScore, justification: 'No answer was submitted for this question.',
+          explanation: '', provisional: false }],
+      };
+    }
+    return {
+      status: 'needs_human_review', results: [], totalScore: 0, maxScore: 0,
+      modelUsed: null, reason: 'The available marks for this unanswered question are unknown.',
+    };
   }
 
   const style = markingStyle(input.subject ?? '');
@@ -819,6 +835,7 @@ export async function gradeWithoutBareme(input: ProvisionalInput): Promise<Gradi
       maxScore: 0,
       modelUsed: null,
       reason: 'The marker could not be reached, or returned an unusable response.',
+      retryable: true,
     };
   }
 }

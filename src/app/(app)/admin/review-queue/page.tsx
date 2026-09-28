@@ -1,4 +1,6 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
+import { getTranslations } from '@/lib/i18n';
 
 import { ReviewQueue, type ReviewItem } from '@/components/admin/review-queue';
 import { requireAdmin } from '@/lib/auth/guards';
@@ -139,5 +141,6 @@ export default async function ReviewQueuePage() {
     };
   });
 
-  return <ReviewQueue items={prepared} />;
+  const { t } = await getTranslations();
+  return <div className="space-y-4"><Link href="/admin/ai-exams" className="text-primary underline">{t.examSim.modeAiGenerated}</Link><ReviewQueue items={prepared} /></div>;
 }

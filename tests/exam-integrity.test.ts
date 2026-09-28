@@ -58,9 +58,15 @@ describe('the sitting page payload', () => {
 
   it('still sends what the student legitimately needs', () => {
     // The guard must not be satisfiable by sending nothing.
-    for (const field of ['contentText', 'contentLatex', 'maxScore', 'savedAnswer']) {
+    for (const field of ['contentText', 'contentLatex', 'contentImages', 'maxScore', 'savedAnswer']) {
       expect(desk).toContain(field);
     }
+  });
+
+  it('passes exercise figures from the canonical selector to the question renderer', () => {
+    expect(desk).toContain('await visualKeysFor(');
+    expect(desk).toContain('visualKeys.get(slot.question.id)');
+    expect(runner).toContain('images={slot.contentImages}');
   });
 });
 

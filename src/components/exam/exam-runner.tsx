@@ -3,6 +3,9 @@
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
+import { ExamFigures } from '@/components/exam/exam-figures';
+import type { ExamFigure } from '@/lib/exam-figures';
+
 import { Button } from '@/components/ui/button';
 import { WorkingArea } from '@/components/ui/field';
 import { Alert, Badge } from '@/components/ui/feedback';
@@ -10,6 +13,7 @@ import { QuestionBody } from '@/components/ui/math';
 import { Sheet, SheetBody, SheetFooter, SheetHeader } from '@/components/ui/sheet';
 import { cn } from '@/lib/cn';
 import { sendForm, sendJson } from '@/lib/client/request';
+import { ExamDrafts } from '@/lib/client/exam-drafts';
 import { useI18n } from '@/lib/i18n/client';
 // Duration is locale-independent (mm:ss / h:mm:ss), so it comes straight from
 // the formatter rather than through the i18n context.
@@ -37,6 +41,7 @@ export type ExamSlot = {
   contentText: string;
   contentLatex: string | null;
   contentImages: string[];
+  figures: ExamFigure[];
   chapterName: string | null;
   /** The paper's extract, for a comprehension question. */
   passage: string | null;
@@ -98,8 +103,10 @@ export function ExamRunner({
   const [uploading, setUploading] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  /** Slots whose latest text the server has not confirmed. */
-  const [unsaved, setUnsaved] = useState<Set<string>>(() => new Set());
+  const [drafts] = useState(() => new ExamDrafts((slotId, answer) =>
+    sendJson(`/api/exam-sim/${simulationId}/answers`, 'POST', { slotId, answer }),
+  ));
+  const retryTimers = useRef<Set<number>>(new Set());
   const [notice, setNotice] = useState<string | null>(null);
 
   const slot = slots[index];
@@ -112,15 +119,25 @@ export function ExamRunner({
       setSubmitting(true);
 
       try {
+        try {
+          await drafts.flush();
+        } catch (error) {
+          // Expired answers can be refused, but the paper still needs closing.
+          if (!auto) throw error;
+        }
         await sendJson(`/api/exam-sim/${simulationId}/submit`, 'POST');
       } catch {
-        // Even a failed submit call must land the student somewhere real; the
-        // server-side sweep will mark an expired paper regardless.
-      } finally {
-        router.replace(`/exam-sim/${simulationId}/results${auto ? '?expired=1' : ''}`);
+        if (!auto) {
+          submittedRef.current = false;
+          setSubmitting(false);
+          setNotice(t.examSim.saveFailed);
+          return;
+        }
+        // At expiry the server closes the paper even if the connection failed.
       }
+      router.replace(`/exam-sim/${simulationId}/results${auto ? '?expired=1' : ''}`);
     },
-    [router, simulationId],
+    [drafts, router, simulationId, t.examSim.saveFailed],
   );
 
   // --- Countdown ----------------------------------------------------------
@@ -146,103 +163,60 @@ export function ExamRunner({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [submit]);
 
-  // --- Autosave -----------------------------------------------------------
-  /*
-   * Autosave, with retries.
-   *
-   * A failed save used to be dropped: the notice appeared and the write was
-   * gone, and because the debounce only re-fires when the text changes, a
-   * student who typed a paragraph, hit a failure and then stopped to think had
-   * that paragraph in memory only. Under load — which is exactly when saves
-   * fail — that is a lost answer in a timed paper.
-   *
-   * So a failure is queued and retried on a widening delay. The backoff matters
-   * as much as the retry: hundreds of clients hammering a struggling server at a
-   * fixed interval is the thing that keeps it struggling.
-   */
-  const save = useCallback(
-    async (slotId: string, value: string, attempt = 0) => {
-      setSaving(true);
-      try {
-        await sendJson(`/api/exam-sim/${simulationId}/answers`, 'POST', {
-          slotId,
-          answer: value,
-        });
-        setUnsaved((current) => {
-          if (!current.has(slotId)) return current;
-          const next = new Set(current);
-          next.delete(slotId);
-          return next;
-        });
-        setNotice(null);
-      } catch {
-        setUnsaved((current) => new Set(current).add(slotId));
-
-        if (attempt < RETRY_DELAYS_MS.length) {
-          // Tell them it is still trying. "Something went wrong" invites a
-          // student to do something about it, and there is nothing to do.
-          setNotice(t.examSim.saveRetrying);
-          const delay = RETRY_DELAYS_MS[attempt] as number;
-          window.setTimeout(() => void save(slotId, value, attempt + 1), delay);
-        } else {
-          // Out of retries. Say so plainly — at this point the honest advice is
-          // to keep the tab open, because the flush on hide is the last chance.
-          setNotice(t.examSim.saveFailed);
-        }
-      } finally {
-        setSaving(false);
+  // Save every changed slot, independently of which question is visible.
+  const save = useCallback(async (attempt = 0) => {
+    setSaving(true);
+    try {
+      await drafts.flush();
+      setNotice(null);
+    } catch {
+      setNotice(attempt < RETRY_DELAYS_MS.length ? t.examSim.saveRetrying : t.examSim.saveFailed);
+      if (attempt < RETRY_DELAYS_MS.length && !submittedRef.current) {
+        const timer = window.setTimeout(() => {
+          retryTimers.current.delete(timer);
+          void save(attempt + 1);
+        }, RETRY_DELAYS_MS[attempt]);
+        retryTimers.current.add(timer);
       }
-    },
-    [simulationId, t.examSim.saveRetrying, t.examSim.saveFailed],
-  );
+    } finally {
+      setSaving(false);
+    }
+  }, [drafts, t.examSim.saveRetrying, t.examSim.saveFailed]);
 
   useEffect(() => {
-    if (!slot) return undefined;
-    const value = answers[slot.id] ?? '';
-    if (value === (slot.savedAnswer ?? '')) return undefined;
-
-    const timer = window.setTimeout(() => void save(slot.id, value), AUTOSAVE_DELAY_MS);
+    if (drafts.pending().length === 0) return;
+    const timer = window.setTimeout(() => void save(), AUTOSAVE_DELAY_MS);
     return () => window.clearTimeout(timer);
-  }, [answers, slot, save]);
+  }, [answers, drafts, save]);
 
-  /*
-   * Flush on the way out.
-   *
-   * The debounce means up to AUTOSAVE_DELAY_MS of typing is only in memory. A
-   * closed tab, a locked phone or a crashed browser in that window silently
-   * loses the last sentence a student wrote under exam conditions — the one
-   * failure mode this product cannot shrug off.
-   *
-   * `visibilitychange` rather than `beforeunload`: mobile browsers frequently
-   * never fire the latter. `sendBeacon` because a normal fetch is cancelled
-   * when the page goes away, and it is fire-and-forget by design.
-   */
   useEffect(() => {
-    function flush() {
-      if (document.visibilityState !== 'hidden') return;
+    const timers = retryTimers.current;
+    return () => { for (const timer of timers) window.clearTimeout(timer); };
+  }, []);
 
-      for (const s of slots) {
-        const value = answers[s.id] ?? '';
-        // Anything the server has not confirmed, plus anything typed since the
-        // page loaded. `unsaved` is the one that catches a retry still in
-        // flight when the tab goes away.
-        const dirty = unsaved.has(s.id) || value !== (s.savedAnswer ?? '');
-        if (!dirty || value.trim().length === 0) continue;
-
-        const payload = new Blob([JSON.stringify({ slotId: s.id, answer: value })], {
+  useEffect(() => {
+    function flush(event: Event) {
+      if (event.type !== 'pagehide' && document.visibilityState !== 'hidden') return;
+      if (submittedRef.current) return;
+      for (const [slotId, answer] of drafts.pending()) {
+        const payload = new Blob([JSON.stringify({ slotId, answer })], {
           type: 'application/json',
         });
         navigator.sendBeacon?.(`/api/exam-sim/${simulationId}/answers`, payload);
       }
     }
-
     document.addEventListener('visibilitychange', flush);
     window.addEventListener('pagehide', flush);
     return () => {
       document.removeEventListener('visibilitychange', flush);
       window.removeEventListener('pagehide', flush);
     };
-  }, [answers, slots, simulationId, unsaved]);
+  }, [drafts, simulationId]);
+
+  function navigate(nextIndex: number) {
+    void save();
+    setIndex(nextIndex);
+  }
 
   async function uploadPhoto(file: File) {
     if (!slot) return;
@@ -254,6 +228,7 @@ export function ExamRunner({
     form.append('slotId', slot.id);
 
     try {
+      await drafts.flush();
       const response = await sendForm<{ status: string; notes: string | null }>(
         `/api/exam-sim/${simulationId}/answers`,
         form,
@@ -345,7 +320,7 @@ export function ExamRunner({
               </p>
             </div>
 
-            <Button variant="mark" size="sm" onClick={() => setConfirming(true)}>
+            <Button variant="mark" size="sm" onClick={() => setConfirming(true)} disabled={uploading || submitting}>
               {t.examSim.submitPaper}
             </Button>
           </div>
@@ -376,7 +351,7 @@ export function ExamRunner({
             <button
               key={s.id}
               type="button"
-              onClick={() => setIndex(i)}
+              onClick={() => navigate(i)}
               aria-current={i === index ? 'step' : undefined}
               /*
                * Answered is carried visually by fill and ink weight, which a
@@ -434,6 +409,7 @@ export function ExamRunner({
             dir={paperDir}
             passage={slot.passage}
           />
+          <ExamFigures figures={slot.figures} />
         </SheetBody>
 
         <SheetBody className="space-y-3 border-t border-rule">
@@ -449,10 +425,13 @@ export function ExamRunner({
           <WorkingArea
             id="answer"
             value={answers[slot.id] ?? ''}
-            onChange={(event) =>
-              setAnswers((current) => ({ ...current, [slot.id]: event.target.value }))
-            }
-            onBlur={() => void save(slot.id, answers[slot.id] ?? '')}
+            disabled={submitting || uploading}
+            onChange={(event) => {
+              const value = event.target.value;
+              drafts.set(slot.id, value);
+              setAnswers((current) => ({ ...current, [slot.id]: value }));
+            }}
+            onBlur={() => void save()}
             placeholder={t.practice.yourAnswerPlaceholder}
           />
 
@@ -490,13 +469,13 @@ export function ExamRunner({
         <SheetFooter className="justify-between">
           <Button
             variant="quiet"
-            onClick={() => setIndex((current) => Math.max(0, current - 1))}
+            onClick={() => navigate(Math.max(0, index - 1))}
             disabled={index === 0}
           >
             {t.common.previous}
           </Button>
           <Button
-            onClick={() => setIndex((current) => Math.min(slots.length - 1, current + 1))}
+            onClick={() => navigate(Math.min(slots.length - 1, index + 1))}
             disabled={index === slots.length - 1}
           >
             {t.common.next}

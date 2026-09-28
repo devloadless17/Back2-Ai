@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 
+import { ExamFigures } from '@/components/exam/exam-figures';
 import { TutorAnchor } from '@/components/chat/tutor-context';
 import { TutorButton } from '@/components/chat/tutor-button';
 import { ExaminerMark } from '@/components/practice/examiner-mark';
@@ -306,6 +307,7 @@ export default async function ExamResultsPage({
                     dir={paperDir}
                     passage={content.passage}
                   />
+                <ExamFigures figures={content.figures} />
                 </SheetBody>
 
                 {/* Student's answer */}

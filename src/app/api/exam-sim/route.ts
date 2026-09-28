@@ -17,6 +17,7 @@ const startSchema = z
     subjectId: z.string().uuid(),
     sourceMode: z.enum(['real_cycle', 'ai_generated', 'real_mixed']),
     examCycleId: z.string().uuid().optional(),
+  generatedPaperId: z.string().uuid().optional(),
   })
   .refine((body) => body.sourceMode !== 'real_cycle' || Boolean(body.examCycleId), {
     message: 'A real-cycle simulation needs an examCycleId.',
@@ -43,6 +44,7 @@ export const POST = route(async (request) => {
       subjectId: subject.id,
       sourceMode: body.sourceMode,
       examCycleId: body.examCycleId ?? null,
+      generatedPaperId: body.generatedPaperId,
     });
     return created({ id: simulation.id });
   } catch (err) {

@@ -312,6 +312,7 @@ model Subject {
   units           Unit[]
   chapters        Chapter[]
   examCycles      ExamCycle[]
+  generatedExamPapers GeneratedExamPaper[]
   examSimulations ExamSimulation[]
   readinessScores ReadinessScore[]
   userGrades      UserGrade[]
@@ -836,6 +837,10 @@ model GeneratedProblem {
   verificationNotes  String?            @map("verification_notes")
   modelUsed          String?            @map("model_used")
   promptVersion      String?            @map("prompt_version")
+  figures            Json               @default("[]")
+  qualityReport      Json?              @map("quality_report")
+  generatedPaperId    String?            @map("generated_paper_id") @db.Uuid
+  paperOrder         Int?               @map("paper_order")
   createdAt          DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
   /// Non-null only after review-queue approval. Nothing student-facing may
   /// select a generated problem with published_at IS NULL.
@@ -844,13 +849,32 @@ model GeneratedProblem {
   embedding Unsupported("vector(1536)")?
 
   chapter Chapter @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  generatedPaper GeneratedExamPaper? @relation(fields: [generatedPaperId], references: [id], onDelete: SetNull)
 
   attempts         Attempt[]
   examSimQuestions ExamSimulationQuestion[]
 
   @@index([chapterId, verificationStatus])
   @@index([publishedAt])
+  @@unique([generatedPaperId, paperOrder])
   @@map("generated_problems")
+}
+
+/// Complete AI papers are produced and reviewed before a student starts a timer.
+model GeneratedExamPaper {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  subjectId       String   @map("subject_id") @db.Uuid
+  title           String
+  blueprint       Json
+  durationMinutes Int      @map("duration_minutes")
+  totalMarks      Decimal  @map("total_marks") @db.Decimal(6, 2)
+  status          String   @default("draft")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  publishedAt     DateTime? @map("published_at") @db.Timestamptz(6)
+  problems        GeneratedProblem[]
+  subject         Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  @@index([subjectId, status])
+  @@map("generated_exam_papers")
 }
 
 // ===========================================================================

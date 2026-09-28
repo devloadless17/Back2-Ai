@@ -44,6 +44,7 @@ export default async function ExamSittingPage({
       contentText: content.contentText,
       contentLatex: content.contentLatex,
       contentImages: slot.question ? (visualKeys.get(slot.question.id) ?? []) : content.contentImages,
+      figures: content.figures,
       chapterName: content.chapterName,
       passage: content.passage,
       maxScore: slot.maxScore === null ? null : Number(slot.maxScore),
@@ -66,7 +67,7 @@ export default async function ExamSittingPage({
       durationIsOfficial={
         simulation.sourceMode !== 'real_cycle' || (simulation.examCycle?.durationIsOfficial ?? false)
       }
-      title={simulation.examCycle?.title ?? simulation.subject.name}
+      title={simulation.examCycle?.title ?? simulation.questions[0]?.generatedProblem?.generatedPaper?.title ?? simulation.subject.name}
       slots={slots}
       initialRemainingSeconds={remaining}
     />
