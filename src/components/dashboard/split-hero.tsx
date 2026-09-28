@@ -110,7 +110,7 @@ export async function SplitHero({
           {focus ? (
             <Link
               href={focus.href}
-              className="block rounded-lg bg-mark-soft px-3.5 py-3 text-meta font-semibold leading-snug text-mark hover:underline"
+              className="block rounded-lg bg-mark-soft px-3.5 py-3 text-meta font-medium leading-snug text-mark hover:underline"
             >
               {format(t.dashboard.focusThisWeek, {
                 chapter: focus.chapterName,

@@ -177,7 +177,7 @@ export function RingGauge({
         <div className="absolute inset-0 flex flex-col items-center justify-center">
           <span
             className={cn(
-              'font-semibold tabular-nums leading-none tracking-tight',
+              'font-medium tabular-nums leading-none tracking-tight',
               tone === 'brand' ? 'text-ink' : BAND_TEXT[band],
             )}
             style={{ fontSize: size * 0.24 }}
@@ -188,7 +188,7 @@ export function RingGauge({
       </div>
 
       <figcaption className="space-y-0.5 text-center">
-        <p className="text-meta font-semibold text-ink">{label}</p>
+        <p className="text-meta font-medium text-ink">{label}</p>
         {caption && <p className="text-caption leading-snug text-ink-muted">{caption}</p>}
       </figcaption>
     </figure>

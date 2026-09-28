@@ -168,7 +168,7 @@ function SourceItem({ source }: { source: EvidenceSource }) {
   const body = (
     <>
       <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-        <span className="text-caption font-semibold text-ink">{heading}</span>
+        <span className="text-caption font-medium text-ink">{heading}</span>
         {facts.length > 0 && (
           /* `tabular-nums` keeps a year and a mark count aligned between rows;
              the parent is `flex-wrap`, so this drops to its own line on a

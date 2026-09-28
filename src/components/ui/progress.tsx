@@ -78,7 +78,7 @@ export function Meter({ value, label, caption, size = 'md', tone = 'auto', class
         <div
           className={cn(
             'h-full transition-[width] duration-500 ease-soft',
-            tone === 'primary' ? 'bg-primary' : toneFor(target),
+            tone === 'primary' ? 'bg-progress' : toneFor(target),
           )}
           style={{ width: `${rendered * 100}%` }}
         />
@@ -134,7 +134,7 @@ export function SessionDots({
           key={i}
           className={cn(
             'h-[7px] w-[7px] rounded-full transition-colors duration-200',
-            i < done ? 'bg-primary' : i === done ? 'bg-primary/40 ring-2 ring-primary/25' : 'bg-rule-strong',
+            i < done ? 'bg-progress' : i === done ? 'bg-progress/40 ring-2 ring-progress/25' : 'bg-rule-strong',
           )}
         />
       ))}

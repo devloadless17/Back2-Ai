@@ -23,12 +23,12 @@ export default async function VerifyEmailPage() {
   return (
     <div className="flex min-h-dvh items-center justify-center px-4 py-12 sm:px-6">
       <div className="w-full max-w-sm space-y-6">
-        <Link href="/" className="block text-body font-semibold">
+        <Link href="/" className="block text-body font-medium">
           {t.common.appName}
         </Link>
 
         <div className="space-y-1">
-          <h1 className="text-title font-semibold sm:text-heading">{t.auth.verifyTitle}</h1>
+          <h1 className="text-title font-bold sm:text-heading">{t.auth.verifyTitle}</h1>
           <p className="text-meta text-ink-muted">{t.auth.unverifiedBody}</p>
         </div>
 

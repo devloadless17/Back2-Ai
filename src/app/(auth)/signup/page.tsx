@@ -29,13 +29,13 @@ export default async function SignupPage() {
 
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-lg flex-col px-4 py-10 sm:px-6 sm:py-14">
-      <Link href="/" className="mb-8 block text-body font-semibold">
+      <Link href="/" className="mb-8 block text-body font-medium">
         {t.common.appName}
       </Link>
 
       <div className="space-y-6">
         <div className="space-y-1">
-          <h1 className="text-title font-semibold sm:text-heading">{t.auth.signupTitle}</h1>
+          <h1 className="text-title font-bold sm:text-heading">{t.auth.signupTitle}</h1>
           <p className="text-meta text-ink-muted">{t.auth.signupSubtitle}</p>
         </div>
 

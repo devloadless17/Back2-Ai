@@ -62,7 +62,7 @@ export default async function ReadinessReportPage() {
 
       <div className="mb-5 flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-xl font-semibold text-ink">{t.report.title}</h1>
+          <h1 className="text-xl font-bold text-ink">{t.report.title}</h1>
           <p className="mt-1 text-caption text-ink-faint">{identity}</p>
         </div>
         <PrintButton label={t.report.print} />
@@ -93,7 +93,7 @@ export default async function ReadinessReportPage() {
             className="rounded-lg border border-rule p-5 break-inside-avoid"
           >
             <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <h2 className="text-sm font-semibold text-ink">{subject.subjectName}</h2>
+              <h2 className="text-sm font-bold text-ink">{subject.subjectName}</h2>
               <span className="text-sm text-ink">
                 {subject.mark === null ? (
                   <span className="text-caption text-ink-faint">{t.report.notEnough}</span>
@@ -116,7 +116,7 @@ export default async function ReadinessReportPage() {
 
             {subject.priority.length > 0 && (
               <>
-                <p className="mt-4 text-caption font-semibold uppercase tracking-wider text-ink-faint">
+                <p className="mt-4 text-caption font-medium uppercase tracking-wider text-ink-faint">
                   {t.report.focus}
                 </p>
                 <ul className="mt-1.5 divide-y divide-rule">

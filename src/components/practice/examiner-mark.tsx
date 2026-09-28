@@ -147,7 +147,7 @@ export function ExaminerMark({
   return (
     <section>
       <header className="flex items-baseline justify-between gap-4 border-b border-rule px-5 py-3">
-        <h3 className="text-micro font-semibold uppercase tracking-[0.12em] text-ink-faint">
+        <h3 className="text-micro font-bold uppercase tracking-[0.12em] text-ink-faint">
           {labels.title}
         </h3>
         {/*
@@ -155,7 +155,7 @@ export function ExaminerMark({
           well above the criteria. It is the first thing the student came back
           for; everything under it explains it.
         */}
-        <p className="shrink-0 text-xl font-semibold tabular-nums text-ink">
+        <p className="shrink-0 text-xl font-bold tabular-nums text-ink">
           {formatScore(total)}
           <span className="text-base text-ink-faint"> / {formatScore(max)}</span>
         </p>
@@ -178,7 +178,7 @@ export function ExaminerMark({
                 <span
                   aria-hidden
                   className={cn(
-                    'shrink-0 text-sm font-semibold',
+                    'shrink-0 text-sm font-medium',
                     outcome === 'earned'
                       ? 'text-correct'
                       : outcome === 'partial'
@@ -201,7 +201,7 @@ export function ExaminerMark({
 
                 <p
                   className={cn(
-                    'shrink-0 tabular-nums text-meta font-semibold',
+                    'shrink-0 tabular-nums text-meta font-medium',
                     outcome === 'earned'
                       ? 'text-correct'
                       : outcome === 'partial'
@@ -220,7 +220,7 @@ export function ExaminerMark({
               */}
               {outcome !== 'earned' && item.explanation && (
                 <div className="mt-2.5 ms-7 border-s-2 border-rule ps-3">
-                  <p className="text-micro font-semibold uppercase tracking-wider text-ink-faint">
+                  <p className="text-micro font-medium uppercase tracking-wider text-ink-faint">
                     {labels.zakiNote}
                   </p>
                   <div className="mt-1 text-meta leading-relaxed text-ink-muted">

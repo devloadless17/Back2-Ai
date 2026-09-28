@@ -98,7 +98,7 @@ export default async function SubjectChaptersPage({
           {[...byUnit.entries()].map(([unitName, unitChapters]) => (
             <section key={unitName || 'ungrouped'}>
               {unitName && (
-                <h2 className="mb-2 px-1 text-caption font-semibold uppercase tracking-wider text-ink-faint">
+                <h2 className="mb-2 px-1 text-caption font-bold uppercase tracking-wider text-ink-faint">
                   {unitName}
                 </h2>
               )}

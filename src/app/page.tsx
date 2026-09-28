@@ -110,12 +110,12 @@ export default async function RootPage() {
               <div className="max-w-xl">
                 <div className="flex items-center gap-3">
                   <Seal />
-                  <p className="text-micro font-semibold uppercase tracking-[0.14em] text-primary">
+                  <p className="text-micro font-medium uppercase tracking-[0.14em] text-primary">
                     {m.eyebrow}
                   </p>
                 </div>
 
-                <h1 className="mt-6 font-display text-[2.35rem] font-semibold leading-[1.05] tracking-[-0.03em] text-ink sm:text-[3.1rem] lg:text-[3.6rem]">
+                <h1 className="mt-6 font-display text-[2.35rem] font-bold leading-[1.05] tracking-[-0.03em] text-ink sm:text-[3.1rem] lg:text-[3.6rem]">
                   {m.headline}
                   <br />
                   <span className="text-primary">{m.headlineAccent}</span>
@@ -128,7 +128,7 @@ export default async function RootPage() {
                 <div className="mt-8 flex flex-wrap items-center gap-3">
                   <Link
                     href="/signup"
-                    className="inline-flex min-h-12 items-center gap-2 rounded-sm bg-primary px-6 text-body font-semibold text-on-primary transition-colors hover:bg-primary-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+                    className="inline-flex min-h-12 items-center gap-2 rounded-sm bg-primary px-6 text-body font-medium text-on-primary transition-colors hover:bg-primary-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
                   >
                     {m.finalCta}
                     <span aria-hidden>→</span>
@@ -209,7 +209,7 @@ export default async function RootPage() {
           <div className="relative mx-auto grid w-full max-w-[1180px] gap-10 px-4 py-16 sm:px-6 sm:py-20 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)] lg:gap-16 lg:px-8">
             <div className="max-w-xl">
               <SectionMark index="01" label={m.secPractice} />
-              <h2 className="mt-5 font-display text-heading font-semibold leading-tight tracking-tight text-ink sm:text-display">
+              <h2 className="mt-5 font-display text-heading font-bold leading-tight tracking-tight text-ink sm:text-display">
                 {m.practiceTitle}
               </h2>
               <p className="mt-5 max-w-prose text-body leading-relaxed text-ink-muted">
@@ -248,7 +248,7 @@ export default async function RootPage() {
                 shouted and, on this ground, read as a label rather than as a
                 sentence.
               */}
-              <h2 className="mt-6 font-display text-heading font-semibold leading-[1.12] tracking-tight sm:text-display">
+              <h2 className="mt-6 font-display text-heading font-bold leading-[1.12] tracking-tight sm:text-display">
                 {m.examinerHeadA}{' '}
                 <span className="text-correct-bright">{m.examinerHeadB}</span>
               </h2>
@@ -297,7 +297,7 @@ export default async function RootPage() {
             <div className="order-1 max-w-xl lg:order-2">
               <SectionMark index="03" label={m.secZaki} />
               <ZakiMark className="mt-5 size-10" />
-              <h2 className="mt-5 font-display text-heading font-semibold leading-tight tracking-tight text-ink sm:text-display">
+              <h2 className="mt-5 font-display text-heading font-bold leading-tight tracking-tight text-ink sm:text-display">
                 {m.zakiTitle}
                 <br />
                 <span className="text-primary">{m.zakiTitleAccent}</span>
@@ -323,7 +323,7 @@ export default async function RootPage() {
           <div className="relative mx-auto grid w-full max-w-[1180px] gap-12 px-4 py-16 sm:px-6 sm:py-20 lg:grid-cols-2 lg:gap-16 lg:px-8">
             <div className="max-w-xl">
               <SectionMark index="04" label={m.secProgress} />
-              <h2 className="mt-5 font-display text-heading font-semibold leading-tight tracking-tight text-ink sm:text-display">
+              <h2 className="mt-5 font-display text-heading font-bold leading-tight tracking-tight text-ink sm:text-display">
                 {m.progressTitle}
                 <br />
                 <span className="text-primary">{m.progressTitleAccent}</span>
@@ -357,7 +357,7 @@ export default async function RootPage() {
           <div className="mx-auto grid w-full max-w-[1180px] items-center gap-10 px-4 py-14 sm:px-6 sm:py-16 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.8fr)] lg:gap-16 lg:px-8">
             <div className="max-w-xl">
               <SectionMark index="05" label={m.secNextMove} />
-              <h2 className="mt-5 font-display text-title font-semibold leading-tight tracking-tight text-ink sm:text-heading">
+              <h2 className="mt-5 font-display text-title font-bold leading-tight tracking-tight text-ink sm:text-heading">
                 {m.nextMoveTitle}{' '}
                 <span className="text-primary">{m.nextMoveTitleAccent}</span>
               </h2>
@@ -381,7 +381,7 @@ export default async function RootPage() {
           <div className="relative mx-auto w-full max-w-[1180px] px-4 py-16 sm:px-6 sm:py-24 lg:px-8">
             <div className="max-w-2xl">
               <SectionMark index="06" label={m.secBac} tone="dark" />
-              <h2 className="mt-5 font-display text-heading font-semibold leading-tight tracking-tight sm:text-display">
+              <h2 className="mt-5 font-display text-heading font-bold leading-tight tracking-tight sm:text-display">
                 {m.bacTitle}
                 <br />
                 <span className="text-correct-bright">{m.bacTitleAccent}</span>
@@ -392,7 +392,7 @@ export default async function RootPage() {
             {/* The tracks, large and confident. This is the line a Lebanese
                 candidate recognises instantly and nobody else does. */}
             <div className="mt-12 border-y border-paper/15 py-8">
-              <p className="text-micro font-semibold uppercase tracking-[0.14em] text-paper/50">
+              <p className="text-micro font-medium uppercase tracking-[0.14em] text-paper/50">
                 {m.tracksLabel}
               </p>
               <p className="figure mt-4 text-[2rem] leading-none text-paper sm:text-[3rem]">
@@ -402,7 +402,7 @@ export default async function RootPage() {
               </p>
             </div>
 
-            <p className="mt-10 text-micro font-semibold uppercase tracking-[0.14em] text-paper/50">
+            <p className="mt-10 text-micro font-medium uppercase tracking-[0.14em] text-paper/50">
               {m.languagesLabel}
             </p>
             <div className="mt-5 grid gap-px overflow-hidden rounded-lg bg-paper/15 md:grid-cols-3">
@@ -415,7 +415,7 @@ export default async function RootPage() {
                   <p
                     dir={item.dir}
                     lang={item.lang}
-                    className="font-display text-title font-semibold text-paper"
+                    className="font-display text-title font-bold text-paper"
                   >
                     {item.name}
                   </p>
@@ -459,7 +459,7 @@ export default async function RootPage() {
             />
             <div className="order-1 max-w-xl lg:order-2">
               <SectionMark index="07" label={m.secMock} />
-              <h2 className="mt-5 font-display text-heading font-semibold leading-tight tracking-tight text-ink sm:text-display">
+              <h2 className="mt-5 font-display text-heading font-bold leading-tight tracking-tight text-ink sm:text-display">
                 {m.mockTitle}
                 <br />
                 <span className="text-primary">{m.mockTitleAccent}</span>
@@ -478,7 +478,7 @@ export default async function RootPage() {
         */}
         <section id="how" className="border-b border-rule bg-paper-sunken/60">
           <div className="mx-auto w-full max-w-[1180px] px-4 py-12 sm:px-6 sm:py-14 lg:px-8">
-            <h2 className="font-display text-title font-semibold tracking-tight text-ink sm:text-heading">
+            <h2 className="font-display text-title font-bold tracking-tight text-ink sm:text-heading">
               {m.loopTitle}
             </h2>
             <ol className="mt-7 grid gap-x-6 gap-y-5 sm:grid-cols-5">
@@ -497,7 +497,7 @@ export default async function RootPage() {
           <div className="mx-auto w-full max-w-[1180px] px-4 py-14 sm:px-6 sm:py-16 lg:px-8">
             <div className="flex flex-wrap items-end justify-between gap-4">
               <div className="max-w-xl">
-                <h2 className="font-display text-title font-semibold tracking-tight text-ink sm:text-heading">
+                <h2 className="font-display text-title font-bold tracking-tight text-ink sm:text-heading">
                   {m.previewTitle}
                 </h2>
                 <p className="mt-2 text-body text-ink-muted">{m.previewSubtitle}</p>
@@ -514,10 +514,10 @@ export default async function RootPage() {
         <section id="pricing" className="border-b border-rule">
           <div className="mx-auto flex w-full max-w-[1180px] flex-col gap-6 px-4 py-12 sm:px-6 sm:py-14 lg:flex-row lg:items-center lg:justify-between lg:px-8">
             <div className="max-w-xl">
-              <p className="text-micro font-semibold uppercase tracking-[0.14em] text-primary">
+              <p className="text-micro font-medium uppercase tracking-[0.14em] text-primary">
                 {m.pricingTitle}
               </p>
-              <p className="mt-3 font-display text-title font-semibold text-ink">
+              <p className="mt-3 font-display text-title font-bold text-ink">
                 {m.pricingHeading}
               </p>
               <p className="mt-2 max-w-prose text-meta leading-relaxed text-ink-muted">
@@ -526,7 +526,7 @@ export default async function RootPage() {
             </div>
             <Link
               href="/signup"
-              className="inline-flex min-h-12 shrink-0 items-center gap-2 self-start rounded-sm bg-primary px-6 text-body font-semibold text-on-primary transition-colors hover:bg-primary-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus lg:self-auto"
+              className="inline-flex min-h-12 shrink-0 items-center gap-2 self-start rounded-sm bg-primary px-6 text-body font-medium text-on-primary transition-colors hover:bg-primary-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus lg:self-auto"
             >
               {m.pricingCta}
               <span aria-hidden>→</span>
@@ -544,7 +544,7 @@ export default async function RootPage() {
           <PaperRuling tone="dark" />
           <div className="relative mx-auto w-full max-w-[1180px] px-4 py-24 text-center sm:px-6 sm:py-32 lg:px-8">
             <Seal tone="paper" className="mx-auto size-11" />
-            <h2 className="mx-auto mt-10 max-w-3xl font-display text-heading font-semibold leading-[1.12] tracking-tight sm:text-display lg:text-hero">
+            <h2 className="mx-auto mt-10 max-w-3xl font-display text-heading font-bold leading-[1.12] tracking-tight sm:text-display lg:text-hero">
               {m.finalTitle}
               <br />
               <span className="text-correct-bright">{m.finalTitleAccent}</span>
@@ -555,7 +555,7 @@ export default async function RootPage() {
             <div className="mt-10 flex flex-col items-center gap-5">
               <Link
                 href="/signup"
-                className="inline-flex min-h-12 items-center gap-2 rounded-sm bg-paper px-8 text-body font-semibold text-ink transition-colors hover:bg-paper-sunken focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-paper"
+                className="inline-flex min-h-12 items-center gap-2 rounded-sm bg-paper px-8 text-body font-medium text-ink transition-colors hover:bg-paper-sunken focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-paper"
               >
                 {m.finalCta}
                 <span aria-hidden>→</span>
@@ -575,7 +575,7 @@ export default async function RootPage() {
         <div className="mx-auto flex w-full max-w-[1180px] flex-wrap items-center justify-between gap-4 px-4 py-8 sm:px-6 lg:px-8">
           <div className="flex items-center gap-3">
             <Seal className="size-7 [clip-path:polygon(0_0,calc(100%-5px)_0,100%_5px,100%_100%,0_100%)]" />
-            <p className="text-lead font-semibold tracking-tight text-ink">
+            <p className="text-lead font-bold tracking-tight text-ink">
               BAC<span className="text-primary">²</span>
             </p>
           </div>

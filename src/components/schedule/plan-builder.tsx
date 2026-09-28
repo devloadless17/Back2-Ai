@@ -323,7 +323,7 @@ export function PlanBuilder({ hasExam }: { hasExam: boolean }) {
 
             {selectedDay ? (
               <div className="rounded-xl border border-rule p-4">
-                <h3 className="mb-3 text-sm font-semibold">{selectedDay}</h3>
+                <h3 className="mb-3 text-sm font-bold">{selectedDay}</h3>
                 <ul className="space-y-3">
                   {selected.map((session, index) => (
                     <li key={index} className="flex flex-wrap items-baseline gap-x-3 gap-y-1">

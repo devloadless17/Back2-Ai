@@ -14,6 +14,17 @@ import type { Config } from 'tailwindcss';
 const config: Config = {
   content: ['./src/**/*.{ts,tsx}'],
   theme: {
+    /*
+     * Three weights and no others: 400 for reading, 500 for buttons and
+     * labels, 700 for headings. Set outside `extend` so `font-semibold` and
+     * `font-extrabold` stop existing — Tajawal has no 600 cut, and a weight
+     * the Arabic font lacks is one the browser fakes.
+     */
+    fontWeight: {
+      normal: '400',
+      medium: '500',
+      bold: '700',
+    },
     extend: {
       colors: {
         paper: 'hsl(var(--paper) / <alpha-value>)',
@@ -24,12 +35,12 @@ const config: Config = {
         'ink-faint': 'hsl(var(--ink-faint) / <alpha-value>)',
         rule: 'hsl(var(--rule) / <alpha-value>)',
         'rule-strong': 'hsl(var(--rule-strong) / <alpha-value>)',
-        /** The spine: indigo. Current state and the primary action only. */
+        /** The spine: blue. Current state and the primary action only. */
         primary: 'hsl(var(--primary) / <alpha-value>)',
         'primary-hover': 'hsl(var(--primary-hover) / <alpha-value>)',
         'primary-soft': 'hsl(var(--primary-soft) / <alpha-value>)',
         'on-primary': 'hsl(var(--on-primary) / <alpha-value>)',
-        /** Violet: the lighter half of the brand, for gradients and secondary emphasis. */
+        /** Gold: secondary emphasis. The same hue as `achieve`. */
         accent: 'hsl(var(--accent) / <alpha-value>)',
         'accent-hover': 'hsl(var(--accent-hover) / <alpha-value>)',
         'accent-soft': 'hsl(var(--accent-soft) / <alpha-value>)',
@@ -41,6 +52,14 @@ const config: Config = {
         partial: 'hsl(var(--partial) / <alpha-value>)',
         'partial-soft': 'hsl(var(--partial-soft) / <alpha-value>)',
         focus: 'hsl(var(--focus) / <alpha-value>)',
+        /** Green, for progress fills only. Words that mean "earned" use `correct`. */
+        progress: 'hsl(var(--progress) / <alpha-value>)',
+        'progress-soft': 'hsl(var(--progress-soft) / <alpha-value>)',
+        /** Yellow, for achievements: `achieve` for words, `achieve-bright` for badges. */
+        achieve: 'hsl(var(--achieve) / <alpha-value>)',
+        'achieve-soft': 'hsl(var(--achieve-soft) / <alpha-value>)',
+        'achieve-bright': 'hsl(var(--achieve-bright) / <alpha-value>)',
+        'on-achieve': 'hsl(var(--on-achieve) / <alpha-value>)',
         'mark-bright': 'hsl(var(--mark-bright) / <alpha-value>)',
         'correct-bright': 'hsl(var(--correct-bright) / <alpha-value>)',
         'partial-bright': 'hsl(var(--partial-bright) / <alpha-value>)',

@@ -6,6 +6,8 @@ import { useEffect, useState, type ComponentType } from 'react';
 
 import { cn } from '@/lib/cn';
 import { LanguageSwitcher } from '@/components/shell/language-switcher';
+import { ThemeSwitcher } from '@/components/shell/theme-switcher';
+import type { Theme } from '@/lib/theme';
 import { useI18n } from '@/lib/i18n/client';
 
 import {
@@ -65,10 +67,12 @@ export function Sidebar({
   user,
   counts,
   standing,
+  theme,
 }: {
   user: SidebarUser;
   counts: SidebarCounts;
   standing: SidebarStanding;
+  theme: Theme;
 }) {
   const { t } = useI18n();
   const pathname = usePathname();
@@ -182,7 +186,7 @@ export function Sidebar({
         >
           <IconMenu />
         </button>
-        <Link href="/dashboard" className="text-body font-semibold">
+        <Link href="/dashboard" className="text-body font-medium">
           {t.common.appName}
         </Link>
       </div>
@@ -198,7 +202,7 @@ export function Sidebar({
 
       <aside
         className={cn(
-          'fixed inset-y-0 start-0 z-50 flex w-64 flex-col border-e border-rule bg-paper-raised',
+          'shell-navy fixed inset-y-0 start-0 z-50 flex w-64 flex-col bg-paper-raised text-ink',
           'transition-transform duration-200 ease-soft lg:sticky lg:top-0 lg:h-dvh',
           /*
            * Logical transform: RTL slides in from the right, LTR from the left.
@@ -218,7 +222,7 @@ export function Sidebar({
       >
         <div className="flex items-center justify-between border-b border-rule px-4 py-4">
           <Link href="/dashboard" className="group min-w-0">
-            <span className="block text-body font-semibold leading-none">{t.common.appName}</span>
+            <span className="block text-body font-medium leading-none">{t.common.appName}</span>
             {user.trackCode && (
               <span className="label mt-1.5 block">{user.trackCode}</span>
             )}
@@ -293,6 +297,9 @@ export function Sidebar({
           <div className="mt-2.5">
             <LanguageSwitcher />
           </div>
+          <div className="mt-1.5">
+            <ThemeSwitcher initial={theme} />
+          </div>
 
           <form action="/api/auth/logout" method="post" className="mt-2">
             <button
@@ -326,24 +333,24 @@ function NavLink({
       href={href}
       aria-current={active ? 'page' : undefined}
       className={cn(
-        'group relative flex items-center gap-2.5 border-s-2 px-3 py-2 text-body',
+        'group relative flex items-center gap-2.5 rounded-lg px-3 py-2 text-body font-medium',
         'transition-colors duration-150',
         active
-          ? 'border-s-primary bg-primary-soft/60 font-semibold text-ink'
-          : 'border-s-transparent text-ink-muted hover:bg-paper-sunken hover:text-ink',
+          ? 'bg-primary-soft text-ink'
+          : 'text-ink-muted hover:bg-paper-sunken hover:text-ink',
       )}
     >
       <Icon
         className={cn(
           'h-[18px] w-[18px] shrink-0',
-          active ? 'text-primary' : 'text-ink-faint',
+          active ? 'text-primary' : 'text-ink-muted',
         )}
       />
       <span className="min-w-0 flex-1 truncate">{label}</span>
       {badge !== undefined && badge > 0 && (
         <span
           className={cn(
-            'shrink-0 rounded-sm border px-1.5 py-0.5 text-micro font-semibold leading-none tabular-nums',
+            'shrink-0 rounded-sm border px-1.5 py-0.5 text-micro font-medium leading-none tabular-nums',
             'border-rule-strong bg-paper-sunken text-ink-muted',
           )}
         >

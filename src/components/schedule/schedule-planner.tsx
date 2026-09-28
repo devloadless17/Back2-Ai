@@ -411,7 +411,7 @@ export function SchedulePlanner({
                   <li key={day} className="px-5 py-3">
                     <p
                       className={cn(
-                        'mb-2 text-caption font-semibold uppercase tracking-wide',
+                        'mb-2 text-caption font-medium uppercase tracking-wide',
                         day === today ? 'text-primary' : 'text-ink-faint',
                       )}
                     >
@@ -584,7 +584,7 @@ export function SchedulePlanner({
                           'w-full cursor-grab rounded px-2.5 py-1.5 text-start text-caption',
                           'text-ink-muted transition-colors duration-150',
                           'hover:bg-primary-soft hover:text-ink active:cursor-grabbing',
-                          chapterId === chapter.id && 'bg-primary-soft font-semibold text-ink',
+                          chapterId === chapter.id && 'bg-primary-soft font-medium text-ink',
                         )}
                       >
                         {chapter.name}
@@ -721,7 +721,7 @@ function ViewButton({
       onClick={onClick}
       aria-pressed={active}
       className={cn(
-        'rounded px-2.5 py-1 text-caption font-semibold transition-colors duration-150',
+        'rounded px-2.5 py-1 text-caption font-medium transition-colors duration-150',
         active ? 'bg-primary-soft text-primary' : 'text-ink-faint hover:bg-paper-sunken hover:text-ink',
       )}
     >

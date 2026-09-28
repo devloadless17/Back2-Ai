@@ -180,7 +180,7 @@ export default async function ExamResultsPage({
             />
             <SheetBody className="space-y-3">
               {max === null || max === 0 ? (
-                <p className="text-title font-semibold text-ink-faint">
+                <p className="text-title font-bold text-ink-faint">
                   {t.examSim.grading}
                 </p>
               ) : (
@@ -310,7 +310,7 @@ export default async function ExamResultsPage({
 
                 {/* Student's answer */}
                 <SheetBody className="border-t border-rule bg-paper-sunken/40">
-                  <p className="mb-1.5 text-caption font-semibold uppercase tracking-wide text-ink-faint">
+                  <p className="mb-1.5 text-caption font-medium uppercase tracking-wide text-ink-faint">
                     {t.practice.yourAnswer}
                   </p>
                   {studentText.trim().length > 0 ? (

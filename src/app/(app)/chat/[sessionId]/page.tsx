@@ -214,11 +214,11 @@ export default async function ChatSessionPage({
       {session.attempt && (
         <details className="sticky top-0 z-20 mb-5 rounded-lg bg-paper-raised shadow-sheet" open>
           <summary className="flex cursor-pointer list-none flex-wrap items-center gap-2 rounded-lg px-4 py-2.5 marker:hidden hover:bg-paper-sunken/60">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-primary-soft px-2.5 py-1 text-caption font-semibold text-primary">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-primary-soft px-2.5 py-1 text-caption font-medium text-primary">
               {t.chat.anchoredAttempt}
             </span>
             {session.attempt.score !== null && session.attempt.maxScore !== null ? (
-              <span className="numeric text-meta font-semibold text-ink">
+              <span className="numeric text-meta font-medium text-ink">
                 {Number(session.attempt.score)} / {Number(session.attempt.maxScore)}
               </span>
             ) : null}
@@ -228,7 +228,7 @@ export default async function ChatSessionPage({
           </summary>
 
           <div className="border-t border-rule px-4 py-3">
-            <p className="mb-1.5 text-caption font-semibold uppercase tracking-wide text-ink-faint">
+            <p className="mb-1.5 text-caption font-medium uppercase tracking-wide text-ink-faint">
               {t.practice.yourAnswer}
             </p>
             {session.attempt.submittedAnswer?.trim() ? (

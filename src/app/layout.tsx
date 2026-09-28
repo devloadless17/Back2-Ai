@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 
 import { I18nProvider } from '@/lib/i18n/client';
 import { dirFor, getDictionary, getLocale } from '@/lib/i18n';
+import { getTheme } from '@/lib/theme.server';
 
 // Self-hosted, and vendored through npm rather than fetched at build time.
 //
@@ -19,8 +20,14 @@ import { dirFor, getDictionary, getLocale } from '@/lib/i18n';
 // already makes about runtime. These packages carry the identical Google
 // subsets and unicode-ranges, so the browser still downloads only the scripts
 // a page actually uses; the build just no longer asks anyone's permission.
-import '@fontsource-variable/cairo';
-import '@fontsource-variable/inter';
+import '@fontsource-variable/plus-jakarta-sans';
+// Tajawal is not a variable font, so each weight is its own file. Only the
+// three the design uses (400 lessons, 500 buttons and labels, 700 headings),
+// and only the Arabic subset: Latin inside Arabic text falls through to
+// Plus Jakarta Sans, so a formula in an Arabic paper matches the English one.
+import '@fontsource/tajawal/arabic-400.css';
+import '@fontsource/tajawal/arabic-500.css';
+import '@fontsource/tajawal/arabic-700.css';
 
 import './globals.css';
 import 'katex/dist/katex.min.css';
@@ -29,12 +36,11 @@ import 'katex/dist/katex.min.css';
  * Fonts are self-hosted, so a student on a slow Beirut connection does not wait
  * on fonts.googleapis.com to see their own dashboard, and an exam runner never
  * depends on a third party being reachable. The families are wired to
- * --font-cairo and --font-inter in globals.css.
+ * --font-jakarta and --font-tajawal in globals.css.
  *
- * Cairo carries both scripts: it has a real Arabic cut, so an Arabic-track
- * student gets the designed voice rather than a silent system substitution.
- * Both are variable fonts, so every weight the design uses comes out of one
- * file per script instead of one file per weight.
+ * Plus Jakarta Sans carries English and French; Tajawal carries Arabic.
+ * Weights are three and only three: 400 for reading, 500 for buttons and
+ * labels, 700 for headings.
  */
 
 export const metadata: Metadata = {
@@ -48,7 +54,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: '#5B4FE8',
+  themeColor: '#2563EB',
   width: 'device-width',
   initialScale: 1,
 };
@@ -64,18 +70,14 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const locale = await getLocale();
   const dictionary = getDictionary(locale);
   const dir = dirFor(locale);
+  const theme = await getTheme();
 
   return (
     /*
-     * `data-theme="light"` is stamped, not left to the device.
+     * `data-theme` is always stamped, never left to the device: the student's
+     * choice from the theme switch (a cookie), or light when there is none.
      *
-     * The palette supports dark and the tokens are all defined for it, but the
-     * dark rules are written as `:root:not([data-theme='light'])` inside a
-     * `prefers-color-scheme` query — so pinning the attribute here switches the
-     * whole product to light in one line and leaves that work intact for the
-     * day a toggle is wanted.
-     *
-     * The reason is practical rather than aesthetic. This is shown on other
+     * Light by default for a practical rather than aesthetic reason. This is shown on other
      * people's machines and projectors, where nobody controls the OS setting,
      * and a product that renders dark for half its audience is a product whose
      * screenshots and demo never match.
@@ -83,7 +85,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     <html
       lang={locale}
       dir={dir}
-      data-theme="light"
+      data-theme={theme}
       suppressHydrationWarning
     >
       <body className="min-h-dvh bg-paper">

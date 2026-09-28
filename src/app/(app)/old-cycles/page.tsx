@@ -125,7 +125,7 @@ export default async function OldCyclesPage({
         <p className="mb-4">
           <Link
             href="/old-cycles"
-            className="text-meta font-semibold text-primary underline-offset-2 hover:underline"
+            className="text-meta font-medium text-primary underline-offset-2 hover:underline"
           >
             {t.oldCycles.showAllSubjects}
           </Link>

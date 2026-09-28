@@ -91,7 +91,7 @@ export async function WelcomeHero({
             <p className="text-caption font-bold uppercase tracking-[0.08em] text-on-primary">
               {t.dashboard.heroEyebrow}
             </p>
-            <h1 className="mt-2 font-display text-display font-extrabold text-on-primary sm:text-hero">
+            <h1 className="mt-2 font-display text-display font-bold text-on-primary sm:text-hero">
               {title}
             </h1>
             <p className="numeric mt-2 text-body text-on-primary">{summary}</p>
@@ -100,7 +100,7 @@ export async function WelcomeHero({
           {/* From two days. One day is a session, not a run — and a chip that
               appears the first time anyone opens the app teaches nothing. */}
           {streak >= 2 ? (
-            <p className="rounded-lg bg-on-primary/15 px-3.5 py-2.5 text-meta font-bold text-on-primary">
+            <p className="rounded-lg bg-achieve-bright px-3.5 py-2.5 text-meta font-medium text-on-achieve">
               {formatPlural(locale, streak, t.dashboard.heroStreakBadge)}
             </p>
           ) : null}
@@ -145,7 +145,7 @@ function HeroStat({ value, label }: { value: React.ReactNode; label: string }) {
   return (
     <div className="flex flex-col-reverse">
       <dt className="mt-1 text-caption text-on-primary">{label}</dt>
-      <dd className="numeric font-display text-heading font-extrabold leading-none text-on-primary">
+      <dd className="numeric font-display text-heading font-bold leading-none text-on-primary">
         {value}
       </dd>
     </div>

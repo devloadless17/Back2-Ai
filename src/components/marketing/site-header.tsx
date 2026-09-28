@@ -63,7 +63,7 @@ export function SiteHeader({
         */}
         <Link
           href="/"
-          className="shrink-0 rounded-sm text-lead font-semibold tracking-tight text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-focus"
+          className="shrink-0 rounded-sm text-lead font-bold tracking-tight text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-focus"
         >
           BAC<span className="text-primary">²</span>
         </Link>
@@ -89,7 +89,7 @@ export function SiteHeader({
           </Link>
           <Link
             href="/signup"
-            className="inline-flex min-h-11 items-center rounded-sm bg-primary px-4 text-meta font-semibold text-on-primary transition-colors hover:bg-primary-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+            className="inline-flex min-h-11 items-center rounded-sm bg-primary px-4 text-meta font-medium text-on-primary transition-colors hover:bg-primary-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
           >
             {start}
           </Link>

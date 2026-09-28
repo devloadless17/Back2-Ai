@@ -108,7 +108,7 @@ export default async function SummariesPage() {
                       >
                         {subject.name}
                       </span>
-                      <span className="text-center text-micro font-semibold text-white/70">
+                      <span className="text-center text-micro font-medium text-white/70">
                         {subject.readable}
                       </span>
                     </span>

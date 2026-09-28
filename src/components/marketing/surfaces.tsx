@@ -54,7 +54,7 @@ export function Surface({
 
 function Eyebrow({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
-    <p className={cn('text-micro font-semibold uppercase tracking-[0.12em]', className)}>
+    <p className={cn('text-micro font-medium uppercase tracking-[0.12em]', className)}>
       {children}
     </p>
   );
@@ -265,9 +265,9 @@ export function NextMoveFragment({
       <div className="p-5 ps-6">
         <Eyebrow className="text-primary">{labels.eyebrow}</Eyebrow>
         <p className="mt-2 text-caption text-ink-faint">{labels.subject}</p>
-        <p className="text-lead font-semibold leading-snug text-ink">{labels.chapter}</p>
+        <p className="text-lead font-bold leading-snug text-ink">{labels.chapter}</p>
         <p className="mt-2 max-w-prose text-meta leading-relaxed text-ink-muted">{labels.reason}</p>
-        <p className="mt-3 text-meta font-semibold text-primary">
+        <p className="mt-3 text-meta font-medium text-primary">
           {labels.cta} <span aria-hidden>→</span>
         </p>
       </div>

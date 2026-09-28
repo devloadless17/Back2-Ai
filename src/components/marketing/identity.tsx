@@ -62,7 +62,7 @@ export function Seal({
         className,
       )}
     >
-      <span className="font-display text-[0.9rem] font-semibold leading-none tracking-tight">
+      <span className="font-display text-[0.9rem] font-medium leading-none tracking-tight">
         B<sup className="text-[0.55em] font-normal">2</sup>
       </span>
     </span>
@@ -176,7 +176,7 @@ export function SectionMark({
   return (
     <p
       className={cn(
-        'flex items-center gap-2.5 text-micro font-semibold uppercase tracking-[0.16em]',
+        'flex items-center gap-2.5 text-micro font-medium uppercase tracking-[0.16em]',
         className,
       )}
     >

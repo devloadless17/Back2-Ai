@@ -2,6 +2,9 @@ import type { Dictionary } from './en';
 
 export const ar: Dictionary = {
   common: {
+    theme: 'المظهر',
+    themeLight: 'فاتح',
+    themeDark: 'داكن',
     appName: 'البكالوريا الثانية',
     save: 'حفظ',
     saving: 'جارٍ الحفظ…',

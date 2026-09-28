@@ -53,11 +53,11 @@ export function ReadinessPanel({
 
     return (
       <section className="rounded-2xl border border-rule bg-paper-raised p-5 sm:p-6">
-        <p className="text-micro font-semibold uppercase tracking-[0.12em] text-ink-faint">
+        <p className="text-micro font-medium uppercase tracking-[0.12em] text-ink-faint">
           {labels.title}
         </p>
 
-        <p className="mt-2.5 text-base font-semibold leading-snug text-ink">
+        <p className="mt-2.5 text-base font-medium leading-snug text-ink">
           {labels.emptyTitle}
         </p>
         <p className="mt-1.5 max-w-prose text-sm leading-relaxed text-ink-muted">
@@ -72,7 +72,7 @@ export function ReadinessPanel({
         <div className="mt-4">
           <div className="h-1.5 w-full overflow-hidden rounded-full bg-paper-sunken">
             <div
-              className="h-full rounded-full bg-primary transition-[width] duration-500"
+              className="h-full rounded-full bg-progress transition-[width] duration-500"
               style={{ width: `${pct}%` }}
             />
           </div>
@@ -91,7 +91,7 @@ export function ReadinessPanel({
 
   return (
     <section className="rounded-2xl border border-rule bg-paper-raised p-5 sm:p-6">
-      <p className="text-micro font-semibold uppercase tracking-[0.12em] text-ink-faint">
+      <p className="text-micro font-medium uppercase tracking-[0.12em] text-ink-faint">
         {labels.title}
       </p>
 

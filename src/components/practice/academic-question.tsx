@@ -83,7 +83,7 @@ export function AcademicQuestion({
     <article className={cn('', className)}>
       <header className="border-b border-rule pb-3">
         {official && (
-          <p className="text-micro font-semibold uppercase tracking-[0.14em] text-primary">
+          <p className="text-micro font-medium uppercase tracking-[0.14em] text-primary">
             {labels.officialBac}
           </p>
         )}
@@ -91,7 +91,7 @@ export function AcademicQuestion({
         <div className="mt-1 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
           <div className="min-w-0">
             {meta?.subjectName && (
-              <p className="break-words text-sm font-semibold text-ink">{meta.subjectName}</p>
+              <p className="break-words text-sm font-medium text-ink">{meta.subjectName}</p>
             )}
             {facts.length > 0 && (
               <p className="text-caption tabular-nums text-ink-faint">{facts.join(' · ')}</p>
@@ -109,7 +109,7 @@ export function AcademicQuestion({
             question itself.
           */}
           {meta?.marks ? (
-            <p className="shrink-0 text-caption font-semibold tabular-nums text-ink-muted">
+            <p className="shrink-0 text-caption font-medium tabular-nums text-ink-muted">
               {labels.marks.replace('{count}', formatMarks(meta.marks))}
             </p>
           ) : null}

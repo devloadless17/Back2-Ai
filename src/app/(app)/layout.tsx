@@ -6,6 +6,7 @@ import { requireSession } from '@/lib/auth/guards';
 import { db } from '@/lib/db';
 import { getSidebarStanding } from '@/lib/queries/standing';
 import { markOutOf20 } from '@/lib/standing';
+import { getTheme } from '@/lib/theme.server';
 
 /**
  * Authenticated shell.
@@ -29,7 +30,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const session = await requireSession();
   const { user } = session;
 
-  const [flashcardsDue, unreadNotifications, pendingReview, track, standing] = await Promise.all([
+  const [flashcardsDue, unreadNotifications, pendingReview, track, standing, theme] = await Promise.all([
     db.flashcardState.count({
       where: { userId: user.id, dueDate: { lte: startOfToday() } },
     }),
@@ -37,6 +38,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     user.role === 'admin' ? db.reviewQueueItem.count({ where: { status: 'pending' } }) : Promise.resolve(0),
     user.trackId ? db.track.findUnique({ where: { id: user.trackId }, select: { code: true } }) : null,
     getSidebarStanding(user.id, user.trackId, user.preferredLanguage),
+    getTheme(),
   ]);
 
   const counts: SidebarCounts = { flashcardsDue, unreadNotifications, pendingReview };
@@ -60,6 +62,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           }}
           counts={counts}
           standing={sidebarStanding}
+          theme={theme}
         />
 
         {/*

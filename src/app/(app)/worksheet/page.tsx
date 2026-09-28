@@ -94,7 +94,7 @@ export default async function WorksheetPage({
       <div className="print:hidden">
         <BackLink href={parentHref} label={parentLabel} />
 
-        <h1 className="mb-1 text-xl font-semibold text-ink">{t.worksheet.title}</h1>
+        <h1 className="mb-1 text-xl font-bold text-ink">{t.worksheet.title}</h1>
         <p className="mb-5 max-w-prose text-caption text-ink-faint">{t.worksheet.subtitle}</p>
 
         {/* GET, so the URL is the worksheet. See the note above. */}
@@ -171,7 +171,7 @@ export default async function WorksheetPage({
         <>
           <div className="mb-4 flex items-start justify-between gap-4">
             <div>
-              <h2 className="text-lg font-semibold text-ink">{worksheet.subjectName}</h2>
+              <h2 className="text-lg font-bold text-ink">{worksheet.subjectName}</h2>
               <p className="text-caption text-ink-faint">
                 {worksheet.chapterNames.slice(0, 3).join(' · ')}
                 {' · '}
@@ -187,7 +187,7 @@ export default async function WorksheetPage({
             {worksheet.questions.map((q, i) => (
               <li key={q.id} className="break-inside-avoid border-t border-rule pt-4">
                 <div className="mb-1 flex flex-wrap items-baseline justify-between gap-2">
-                  <span className="text-caption font-semibold text-ink">
+                  <span className="text-caption font-medium text-ink">
                     {i + 1}. {q.chapterName}
                   </span>
                   <span className="text-caption text-ink-faint">
@@ -212,11 +212,11 @@ export default async function WorksheetPage({
                 own sheet and a teacher can stop the printer before it.
               */}
               <div className="mt-10 border-t-2 border-rule pt-6 print:break-before-page">
-                <h2 className="mb-4 text-lg font-semibold text-ink">{t.worksheet.answerKey}</h2>
+                <h2 className="mb-4 text-lg font-bold text-ink">{t.worksheet.answerKey}</h2>
                 <ol className="space-y-5">
                   {worksheet.questions.map((q, i) => (
                     <li key={q.id} className="break-inside-avoid">
-                      <p className="text-caption font-semibold text-ink">
+                      <p className="text-caption font-medium text-ink">
                         {i + 1}. {q.chapterName}
                         {q.totalMarks ? ` — ${q.totalMarks} ${t.common.points}` : ''}
                       </p>

@@ -145,7 +145,7 @@ export default async function ExamCyclePage({
       */}
       <Link
         href={`/old-cycles?subject=${cycle.subject.id}`}
-        className="mb-3 inline-flex items-center gap-1 text-meta font-semibold text-primary underline-offset-2 hover:underline"
+        className="mb-3 inline-flex items-center gap-1 text-meta font-medium text-primary underline-offset-2 hover:underline"
       >
         <span aria-hidden="true">&larr;</span>
         {t.oldCycles.title}

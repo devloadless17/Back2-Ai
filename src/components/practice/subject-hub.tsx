@@ -59,7 +59,7 @@ export async function SubjectHub({
     <>
       <div className="mb-5 flex flex-wrap items-end justify-between gap-4 border-b border-rule pb-4">
         <div className="min-w-0">
-          <h1 className="text-title font-semibold sm:text-heading">{subjectName}</h1>
+          <h1 className="text-title font-bold sm:text-heading">{subjectName}</h1>
           <p className="text-meta text-ink-muted">
             {format(t.hub.subtitle, { chapters: counts.chapters, questions: counts.questions })}
           </p>
@@ -275,7 +275,7 @@ function HubCard({
       </span>
 
       <span className="min-w-0 flex-1">
-        <span className="block text-sm font-semibold text-ink">{title}</span>
+        <span className="block text-sm font-medium text-ink">{title}</span>
         <span className="mt-0.5 block text-caption leading-snug text-ink-muted">
           {disabled ? (emptyHint ?? hint) : hint}
         </span>

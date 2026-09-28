@@ -116,7 +116,7 @@ export function TodayTasks({ tasks }: { tasks: TodayTaskView[] }) {
               <Link
                 href={task.taskType ? TASK_HREF[task.taskType] : '/schedule'}
                 className={cn(
-                  'text-body font-semibold hover:underline',
+                  'text-body font-medium hover:underline',
                   isDone && 'text-ink-faint line-through',
                 )}
               >

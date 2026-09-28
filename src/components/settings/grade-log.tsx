@@ -282,7 +282,7 @@ export function GradeLog({
                       </div>
 
                       <div className="flex shrink-0 items-baseline gap-3">
-                        <p className="text-lg font-semibold tabular-nums">
+                        <p className="text-lg font-bold tabular-nums">
                           {entry.grade === null ? '—' : formatScore(entry.grade)}
                           <span className="text-meta font-normal text-ink-faint">
                             {' / '}

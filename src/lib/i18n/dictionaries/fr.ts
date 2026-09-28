@@ -2,6 +2,9 @@ import type { Dictionary } from './en';
 
 export const fr: Dictionary = {
   common: {
+    theme: 'Thème',
+    themeLight: 'Clair',
+    themeDark: 'Sombre',
     appName: 'Bac II',
     save: 'Enregistrer',
     saving: 'Enregistrement…',

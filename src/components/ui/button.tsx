@@ -30,10 +30,9 @@ const VARIANTS = {
    * primary per screen") was broken by the escape hatch offered for the case
    * that needs two. Nothing used it yet, which is the moment to make it true.
    *
-   * Tinted because a solid violet cannot carry a label: white on --accent
-   * measures 2.83 in light mode. The tint also does the job better — a filled
-   * violet beside a filled indigo reads as two primaries competing, where a
-   * tinted one reads as the lighter-weight offer it is. 4.66 light, 7.96 dark.
+   * Tinted rather than filled: a filled gold beside a filled blue reads as two
+   * primaries competing, where a tinted one reads as the lighter-weight offer
+   * it is.
    */
   accent: 'bg-accent-soft text-accent-hover border-accent/30 hover:bg-accent/20',
   secondary: 'bg-paper-raised text-ink border-rule-strong hover:bg-paper-sunken',

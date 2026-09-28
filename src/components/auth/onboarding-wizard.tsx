@@ -312,7 +312,7 @@ export function OnboardingWizard({
         </div>
         <div className="h-1 w-full overflow-hidden rounded-full bg-paper-sunken">
           <div
-            className="h-full rounded-full bg-primary transition-[width] duration-300"
+            className="h-full rounded-full bg-progress transition-[width] duration-300"
             style={{ width: `${progress}%` }}
             role="progressbar"
             aria-valuenow={index + 1}
@@ -324,7 +324,7 @@ export function OnboardingWizard({
       </div>
 
       <div className="space-y-1">
-        <h2 className="text-lead font-semibold leading-snug">{screen.title}</h2>
+        <h2 className="text-lead font-bold leading-snug">{screen.title}</h2>
         <p className="text-meta text-ink-muted">{screen.encouragement}</p>
       </div>
 
@@ -422,7 +422,7 @@ function LockConfirmation({
     <Alert tone="warning" title={t.auth.wizardPermanentTitle}>
       <p>{t.auth.wizardPermanentBody}</p>
 
-      <label htmlFor={id} className="mt-3 flex cursor-pointer items-start gap-2.5 font-semibold">
+      <label htmlFor={id} className="mt-3 flex cursor-pointer items-start gap-2.5 font-medium">
         <input
           id={id}
           type="checkbox"

@@ -226,7 +226,7 @@ export function QuizRunner({
                           <span
                             aria-hidden
                             className={cn(
-                              'w-4 shrink-0 text-sm font-semibold',
+                              'w-4 shrink-0 text-sm font-medium',
                               isRight ? 'text-correct' : 'text-mark',
                             )}
                           >
@@ -238,7 +238,7 @@ export function QuizRunner({
                           {(isChosen || isRight) && (
                             <span
                               className={cn(
-                                'shrink-0 text-caption font-semibold',
+                                'shrink-0 text-caption font-medium',
                                 isRight ? 'text-correct' : 'text-mark',
                               )}
                             >

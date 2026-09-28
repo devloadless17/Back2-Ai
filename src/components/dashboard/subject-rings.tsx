@@ -136,7 +136,7 @@ export async function SubjectRings({
                     we cannot — an empty ring with a dash in it tells a student
                     nothing they did not already know. Plain text, so the ring
                     never has to animate for this to be readable. */}
-                <span className="numeric font-display font-extrabold" style={{ fontSize: s.mark }}>
+                <span className="numeric font-display font-bold" style={{ fontSize: s.mark }}>
                   {subject.mark !== null
                     ? `${subject.mark}/20`
                     : subject.attemptsCount > 0
@@ -152,7 +152,7 @@ export async function SubjectRings({
                   {subject.subjectName}
                 </span>
 
-                <span className={`mt-1 inline-flex items-center gap-1 text-micro font-semibold ${style.ink}`}>
+                <span className={`mt-1 inline-flex items-center gap-1 text-micro font-medium ${style.ink}`}>
                   <BandIcon band={band} width={11} height={11} />
                   {bandLabels[band]}
                 </span>
@@ -203,7 +203,7 @@ export async function StreakBanner({ streak }: { streak: number }) {
   if (streak < 2) return null;
 
   return (
-    <p className="mb-3 flex items-center gap-2.5 rounded-lg bg-partial-soft px-3.5 py-2.5 text-meta font-semibold text-partial">
+    <p className="mb-3 flex items-center gap-2.5 rounded-lg bg-achieve-soft px-3.5 py-2.5 text-meta font-medium text-achieve">
       <span aria-hidden="true" className="text-base leading-none">
         ⬤
       </span>

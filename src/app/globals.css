@@ -5,15 +5,12 @@
 /* ---------------------------------------------------------------------------
  * Design tokens
  *
- * Warm off-white paper, mint-to-amber accent, soft-shouldered cards floating on
- * tinted shadow. Warm and confident rather than austere — a study tool a
- * seventeen-year-old opens by choice, not an instrument they endure.
- *
- * Mint is the spine: brand, primary action, focus, the chart ramp. Amber is its
- * warm partner and carries gradients and secondary emphasis. The three
- * status colours — teal, amber, rose — are reserved for what a mark is worth
- * and are never used decoratively, because a student learns their meaning in
- * the first session and must be able to trust it afterwards.
+ * Soft white paper, navy ink, white cards on a faint blue-tinted shadow.
+ * Blue is the spine: brand, primary action, focus, the chart ramp. Green
+ * fills progress and yellow marks an achievement. The three status colours —
+ * green, amber, rose — are reserved for what a mark is worth and are never
+ * used decoratively, because a student learns their meaning in the first
+ * session and must be able to trust it afterwards.
  *
  * Every status colour here is dark enough to read as text on white. The bright
  * versions from the design live in the viz ramp and in fills, where contrast is
@@ -21,63 +18,56 @@
  * ------------------------------------------------------------------------- */
 
 :root {
-  /* Surfaces. Paper is a warm off-white; cards are true white so they lift.
-   * The ground stays one per cent off the cards for the reason it always did:
-   * at 95% the sunken surface pushed --ink-muted under the 4.5 floor, so the
-   * separation below that is carried by shadow rather than by tone. */
   /* ---------------------------------------------------------------------
-   * WARMED, 2026-09-18. The palette was indigo on lavender — correct,
-   * measured, and cold. A student opening this at eleven at night before a
-   * national exam should feel met by it, and a cool violet-grey reads as
-   * institutional software.
+   * RE-SKINNED, 2026-09-28, to the "Study Space" look: a soft white ground,
+   * navy ink, a navy sidebar, and three colours with one job each.
+   *   Blue   (--primary)  actions: buttons, links, the current page.
+   *   Green  (--progress) progress: bars and dots that fill as work is done.
+   *   Yellow (--achieve)  achievements: the rare "well done" moment.
+   * The mark bands (rose, amber, green) keep their meaning. Every text pair
+   * below was measured against WCAG AA on the sunken surface; the ratio sits
+   * beside the value where it was close.
    *
-   * The ground is now a warm off-white and the spine is a deep mint. Every
-   * value below was SOLVED rather than picked: relative luminance is
-   * hue-dependent, so a mint at the indigo's old lightness is much brighter
-   * and drops white text under the floor. Each pair was computed against
-   * WCAG AA on the darkest surface it can land on, and the ratio is recorded
-   * beside it. Changing a hue here means recomputing, not eyeballing.
+   * Paper is a soft white; cards are true white so they lift.
    * ------------------------------------------------------------------- */
-  --paper: 40 38% 96%;
+  --paper: 220 38% 97%;
   --paper-raised: 0 0% 100%;
-  --paper-sunken: 38 40% 95%;
+  --paper-sunken: 220 36% 95%;
 
-  /* Ink. Warm near-black, in the ground's own hue family so text never reads
-   * as a foreign layer laid on top of the paper.
-   *   ink        13.08 on the sunken surface
-   *   ink-muted   4.75 */
-  --ink: 28 20% 16%;
-  --ink-muted: 28 10% 42%;
-  --ink-faint: 28 11% 43%;   /* 4.57 on sunken — the lightest that clears 4.5 */
+  /* Ink. Navy near-black, in the ground's own hue family.
+   *   ink        14.84 on the sunken surface
+   *   ink-muted   6.02 */
+  --ink: 224 44% 14%;
+  --ink-muted: 222 16% 38%;
+  --ink-faint: 222 13% 42%;  /* 5.11 on sunken */
 
   /* Rules, kept faint. The card edge is now carried by shadow, not by a line. */
-  --rule: 38 35% 91%;
-  --rule-strong: 36 32% 84%;
+  --rule: 220 30% 91%;
+  --rule-strong: 220 26% 84%;
 
-  /* The spine: deep mint. Dark enough to carry white text, which a light mint
-   * cannot — the friendly pale mint lives in --primary-soft, as a ground.
-   *   white on primary        4.56
-   *   white on primary-hover  6.23
-   *   ink on primary-soft    13.34 */
-  --primary: 168 62% 32%;
-  --primary-hover: 168 64% 26%;
-  --primary-soft: 168 55% 95%;
+  /* The spine: blue, for actions.
+   *   white on primary        5.20
+   *   white on primary-hover  7.29
+   *   ink on primary-soft    15.09 */
+  --primary: 221 83% 53%;
+  --primary-hover: 224 76% 45%;
+  --primary-soft: 214 100% 96%;
   --on-primary: 0 0% 100%;
 
-  /* Amber — gradients, secondary emphasis, the warm half of the brand. */
-  --accent: 28 70% 38%;      /* warm amber, white on it 5.05 */
+  /* Gold — achievements and secondary emphasis. Same hue as --achieve. */
+  --accent: 38 92% 30%;      /* deep gold, white on it 5.40 */
   /* Doubles as the text colour of the accent chip in `feedback.tsx`, which
    * sits on --accent-soft. */
-  --accent-hover: 28 72% 30%;  /* also the chip's text on --accent-soft: 6.55 */
-  --accent-soft: 34 80% 95%;
+  --accent-hover: 36 90% 25%;  /* also the chip's text on --accent-soft */
+  --accent-soft: 48 96% 92%;
 
-  /* Status. Rose is the examiner's pen; teal and amber are the bands above it.
+  /* Status. Rose is the examiner's pen; green and amber are the bands above it.
    * Text-weight values: the display versions are --viz-* and --*-bright. */
   --mark: 343 62% 46%;
   --mark-soft: 350 100% 96%;
-  /* 29%, not 30%: 30% measured 4.42 on the sunken surface. */
-  --correct: 172 62% 29%;
-  --correct-soft: 170 60% 94%;
+  /* 4.73 on the sunken surface. */
+  --correct: 142 72% 28%;
+  --correct-soft: 140 60% 94%;
   /* 34%, not 36%: at 36% this measured 4.44 on paper, a hair under the 4.5
    * floor, and amber is a mark band a student is meant to read at a glance. */
   --partial: 30 88% 34%;
@@ -86,10 +76,23 @@
   /* Display-weight status, for rings, chips and fills where the shape carries
    * the contrast. These are the design's own values. */
   --mark-bright: 349 100% 68%;
-  --correct-bright: 170 61% 47%;
+  --correct-bright: 142 71% 45%;
   --partial-bright: 32 100% 62%;
 
-  --focus: 168 62% 32%;      /* the spine, so a focus ring belongs to the brand */
+  /* Progress: a fill, never text (use --correct for green words). 3.86 on
+   * sunken, over the 3.0 floor for graphics. */
+  --progress: 142 70% 32%;
+  --progress-soft: 140 60% 94%;
+
+  /* Achievement: text-weight gold for words, bright yellow for badges and
+   * trophies where the shape carries the contrast. The same hue as --accent. */
+  --achieve: 38 92% 30%;
+  --achieve-soft: 48 96% 92%;
+  --achieve-bright: 45 96% 52%;
+  /* Words on a bright yellow badge stay navy in both themes: 10.06 here. */
+  --on-achieve: 224 44% 14%;
+
+  --focus: 221 83% 53%;      /* the spine, so a focus ring belongs to the brand */
 
   /* The welcome banner's gradient, stop by stop.
    *
@@ -109,16 +112,16 @@
    * button and a 3px rule elsewhere, and nothing ever prints white on it —
    * darkening the token to fix a surface that misuses it would be paying for
    * this banner everywhere else in the product. */
-  --hero-from: 168 62% 32%;
-  --hero-mid: 160 55% 34%;
-  --hero-to: 28 70% 38%;     /* mint running into amber, all three carry white */
+  --hero-from: 221 83% 48%;
+  --hero-mid: 224 76% 44%;
+  --hero-to: 228 70% 38%;    /* blue deepening to navy; white on them 6.15, 7.51, 9.71 */
 
-  /* Chart ramp — indigo through violet, monotone in lightness so it still
+  /* Chart ramp — pale blue through navy, monotone in lightness so it still
    * reads as an ordered scale in greyscale. */
-  --viz-1: 168 55% 85%;
-  --viz-2: 168 50% 66%;
-  --viz-3: 168 62% 44%;
-  --viz-4: 172 66% 26%;
+  --viz-1: 214 95% 87%;
+  --viz-2: 213 90% 70%;
+  --viz-3: 221 83% 53%;
+  --viz-4: 226 70% 32%;
 
   /* Soft shoulders. A 22px card and a 999px pill; the corner is part of the
    * voice, not a leftover. */
@@ -176,7 +179,7 @@
   --bubble-face: linear-gradient(
     180deg,
     hsl(var(--paper-raised)) 0%,
-    hsl(250 40% 98%) 100%
+    hsl(220 40% 98%) 100%
   );
   --bubble-shadow: 0 1px 2px hsl(var(--primary) / 0.06),
     0 10px 20px hsl(var(--primary) / 0.10), 0 24px 46px hsl(var(--primary) / 0.13);
@@ -197,16 +200,15 @@
    * layout.tsx). These two names were previously generated by next/font at
    * build time; everything below reads them through var(), so the stacks and
    * the RTL overrides further down did not have to change. */
-  --font-cairo: 'Cairo Variable';
-  --font-inter: 'Inter Variable';
+  --font-jakarta: 'Plus Jakarta Sans Variable';
+  --font-tajawal: 'Tajawal';
 
-  /* Cairo carries the headings — it is a display face with a full Arabic cut,
-   * so an Arabic-track student gets the same typographic voice rather than a
-   * silent substitution. Inter runs the interface. */
-  --font-display: var(--font-cairo), 'Cairo', ui-sans-serif, system-ui, sans-serif;
-  --font-serif: var(--font-cairo), 'Cairo', Georgia, 'Times New Roman', serif;
-  --font-sans: var(--font-inter), 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI',
-    Roboto, 'Helvetica Neue', Arial, sans-serif;
+  /* One family for English and French: Plus Jakarta Sans, at 400 for
+   * reading, 500 for buttons and labels, 700 for headings. */
+  --font-display: var(--font-jakarta), 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-jakarta), 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-jakarta), 'Plus Jakarta Sans', ui-sans-serif, system-ui, -apple-system,
+    'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   --font-mono: ui-monospace, 'Cascadia Mono', 'Segoe UI Mono', 'Liberation Mono', Menlo, Consolas,
     monospace;
 }
@@ -215,8 +217,8 @@
  * Dark
  *
  * Students revise at night. The palette holds its hue family rather than going
- * neutral: the ground is an indigo-black, not a grey, so the same lavender voice
- * survives and the accent still belongs to the page.
+ * neutral: the ground is a navy-black, not a grey, so blue still belongs to
+ * the page.
  *
  * Two inversions worth naming, because they are not simple lightness flips:
  *
@@ -245,82 +247,75 @@
   :root:not([data-theme='light']) {
     color-scheme: dark;
 
-    /* Warmed alongside the light theme. Lightness is what carries contrast,
-     * so these keep the old values and move hue — every pair recomputed:
-     * ink 14.09 on the darkest surface, muted 7.69, faint 5.72, and the dark
-     * ink on primary 10.16. */
-    --paper: 28 18% 9%;
-    --paper-raised: 28 14% 13%;
-    --paper-sunken: 28 20% 7%;
+    /* Navy night, the light theme's hues carried over. Measured on the card
+     * surface (--paper-raised), the lightest ground text sits on:
+     *   ink 15.30, ink-muted 8.28, ink-faint 6.11, primary 6.89
+     *   on-primary on primary 7.29, primary on primary-soft 5.64 */
+    --paper: 224 40% 8%;
+    --paper-raised: 224 34% 12%;
+    --paper-sunken: 224 44% 6%;
 
-    --ink: 34 25% 94%;
-    --ink-muted: 30 12% 70%;
-    --ink-faint: 30 10% 60%;
+    --ink: 220 40% 95%;
+    --ink-muted: 220 18% 72%;
+    --ink-faint: 220 14% 62%;
 
-    --rule: 30 14% 20%;
-    --rule-strong: 30 14% 29%;
+    --rule: 224 26% 19%;
+    --rule-strong: 224 24% 28%;
 
-    --primary: 168 58% 64%;
-    --primary-hover: 168 62% 72%;
-    --primary-soft: 170 30% 18%;
-    --on-primary: 28 30% 10%;
+    --primary: 213 94% 68%;
+    --primary-hover: 213 97% 78%;
+    --primary-soft: 221 50% 20%;
+    --on-primary: 224 50% 10%;
 
-    --accent: 34 80% 70%;
-    --accent-hover: 34 88% 80%;
-    --accent-soft: 30 34% 20%;
+    --accent: 45 96% 62%;
+    --accent-hover: 48 96% 74%;
+    --accent-soft: 40 40% 17%;
 
     --mark: 349 95% 72%;
     --mark-soft: 345 42% 19%;
-    --correct: 170 58% 56%;
-    --correct-soft: 170 38% 15%;
+    --correct: 142 60% 58%;
+    --correct-soft: 142 35% 15%;
     --partial: 33 92% 64%;
     --partial-soft: 33 46% 17%;
 
     --mark-bright: 349 100% 72%;
-    --correct-bright: 170 61% 52%;
+    --correct-bright: 142 65% 52%;
     --partial-bright: 32 100% 66%;
 
-    --focus: 245 92% 78%;
+    --progress: 142 60% 50%;
+    --progress-soft: 142 35% 15%;
+    --achieve: 45 96% 62%;       /* 8.40 on --achieve-soft */
+    --achieve-soft: 40 40% 17%;
+    --achieve-bright: 45 96% 58%;
 
-    /* The banner inverts here: light stops, dark ink. --on-primary measures
-     * 6.00, 5.70 and 8.40 against these three, so unlike the light palette
-     * nothing needs to move. */
-    --hero-from: 245 85% 74%;
-    --hero-mid: 247 87% 73%;
-    --hero-to: 264 80% 79%;
+    --focus: 213 94% 68%;
 
-    --viz-1: 250 34% 27%;
-    --viz-2: 247 55% 43%;
-    --viz-3: 245 78% 62%;
-    --viz-4: 250 96% 84%;
+    /* The banner inverts: light blue stops under dark ink (--on-primary
+     * 7.29, 7.17 and 7.84 across the sweep). */
+    --hero-from: 213 94% 68%;
+    --hero-mid: 217 91% 70%;
+    --hero-to: 221 83% 74%;
 
-    /* Inverted, like every other surface here. On a dark ground a shadow does
-     * nothing, so the lift is carried by the face being lighter than the paper
-     * behind it, and the sheen drops to a trace — a bright inset edge on a dark
-     * card reads as a border someone forgot to remove.
-     *
-     * Flat, with no gradient at all, and that is a measurement rather than a
-     * preference. `--ink-faint` — which is what "Tap to reveal" is printed in —
-     * measures 4.62 on --paper-raised, already close to the floor. Lifting the top
-     * of the card to 16% to light it took that to 4.31, and the highest top stop
-     * that still clears 4.5 is 14%: a one per cent gradient, which is not a
-     * gradient, it is a rounding error with a comment attached. The lift here is
-     * the card being lighter than the page behind it, which is how every other
-     * dark surface in this file works. */
-    /* The same six a shade deeper, so a saturated cap does not glare on a dark
-     page. Still nothing prints on them. */
+    /* Reversed: on a dark ground "more" has to run dark-to-light. */
+    --viz-1: 224 40% 25%;
+    --viz-2: 221 60% 42%;
+    --viz-3: 213 90% 60%;
+    --viz-4: 213 97% 80%;
+
+    /* The same six a shade deeper, so a cap does not glare on a dark page. */
     --subject-1: 196 28% 31%;
     --subject-2: 214 24% 34%;
     --subject-3: 234 20% 38%;
     --subject-4: 264 18% 40%;
     --subject-5: 302 18% 37%;
     --subject-6: 96 20% 29%;
+
+    /* Flat, and lifted by being lighter than the page: a shadow does nothing
+     * against a dark ground. */
     --bubble-face: hsl(var(--paper-raised));
-    --bubble-shadow: 0 2px 6px hsl(250 40% 3% / 0.5), 0 18px 40px hsl(250 40% 3% / 0.45);
-    /* Deeper black, not a brighter indigo — on a dark ground the light theme's
-     * tinted lift reads as a glow escaping from under the card. */
-    --bubble-shadow-raised: 0 4px 10px hsl(250 40% 3% / 0.6),
-      0 26px 56px hsl(250 40% 3% / 0.55);
+    --bubble-shadow: 0 2px 6px hsl(224 50% 3% / 0.5), 0 18px 40px hsl(224 50% 3% / 0.45);
+    --bubble-shadow-raised: 0 4px 10px hsl(224 50% 3% / 0.6),
+      0 26px 56px hsl(224 50% 3% / 0.55);
     --bubble-sheen: inset 0 1px 0 hsl(0 0% 100% / 0.07);
   }
 }
@@ -328,87 +323,114 @@
 :root[data-theme='dark'] {
   color-scheme: dark;
 
-  --paper: 250 30% 9%;
-  --paper-raised: 250 24% 13%;
-  --paper-sunken: 252 32% 7%;
+  /* Navy night, the light theme's hues carried over. Measured on the card
+   * surface (--paper-raised), the lightest ground text sits on:
+   *   ink 15.30, ink-muted 8.28, ink-faint 6.11, primary 6.89
+   *   on-primary on primary 7.29, primary on primary-soft 5.64 */
+  --paper: 224 40% 8%;
+  --paper-raised: 224 34% 12%;
+  --paper-sunken: 224 44% 6%;
 
-  --ink: 250 30% 94%;
-  --ink-muted: 250 14% 68%;
-  --ink-faint: 250 12% 56%;
+  --ink: 220 40% 95%;
+  --ink-muted: 220 18% 72%;
+  --ink-faint: 220 14% 62%;
 
-  --rule: 250 20% 20%;
-  --rule-strong: 250 20% 29%;
+  --rule: 224 26% 19%;
+  --rule-strong: 224 24% 28%;
 
-  --primary: 245 85% 74%;
-  --primary-hover: 245 92% 82%;
-  --primary-soft: 246 38% 21%;
-  --on-primary: 250 45% 11%;
+  --primary: 213 94% 68%;
+  --primary-hover: 213 97% 78%;
+  --primary-soft: 221 50% 20%;
+  --on-primary: 224 50% 10%;
 
-  --accent: 264 80% 79%;
-  --accent-hover: 264 88% 86%;
-  --accent-soft: 264 34% 23%;
+  --accent: 45 96% 62%;
+  --accent-hover: 48 96% 74%;
+  --accent-soft: 40 40% 17%;
 
   --mark: 349 95% 72%;
   --mark-soft: 345 42% 19%;
-  --correct: 170 58% 56%;
-  --correct-soft: 170 38% 15%;
+  --correct: 142 60% 58%;
+  --correct-soft: 142 35% 15%;
   --partial: 33 92% 64%;
   --partial-soft: 33 46% 17%;
 
   --mark-bright: 349 100% 72%;
-  --correct-bright: 170 61% 52%;
+  --correct-bright: 142 65% 52%;
   --partial-bright: 32 100% 66%;
 
-  --focus: 245 92% 78%;
+  --progress: 142 60% 50%;
+  --progress-soft: 142 35% 15%;
+  --achieve: 45 96% 62%;       /* 8.40 on --achieve-soft */
+  --achieve-soft: 40 40% 17%;
+  --achieve-bright: 45 96% 58%;
 
-  /* Light stops, dark ink — see the note in the media query above. */
-  --hero-from: 245 85% 74%;
-  --hero-mid: 247 87% 73%;
-  --hero-to: 264 80% 79%;
+  --focus: 213 94% 68%;
 
-  --viz-1: 250 34% 27%;
-  --viz-2: 247 55% 43%;
-  --viz-3: 245 78% 62%;
-  --viz-4: 250 96% 84%;
+  /* The banner inverts: light blue stops under dark ink (--on-primary
+   * 7.29, 7.17 and 7.84 across the sweep). */
+  --hero-from: 213 94% 68%;
+  --hero-mid: 217 91% 70%;
+  --hero-to: 221 83% 74%;
 
-  /* Inverted, like every other surface here. On a dark ground a shadow does
-   * nothing, so the lift is carried by the face being lighter than the paper
-   * behind it, and the sheen drops to a trace — a bright inset edge on a dark
-   * card reads as a border someone forgot to remove.
-   *
-   * Flat, with no gradient at all, and that is a measurement rather than a
-   * preference. `--ink-faint` — which is what "Tap to reveal" is printed in —
-   * measures 4.62 on --paper-raised, already close to the floor. Lifting the top
-   * of the card to 16% to light it took that to 4.31, and the highest top stop
-   * that still clears 4.5 is 14%: a one per cent gradient, which is not a
-   * gradient, it is a rounding error with a comment attached. The lift here is
-   * the card being lighter than the page behind it, which is how every other
-   * dark surface in this file works. */
-  /* The same six a shade deeper, so a saturated cap does not glare on a dark
-     page. Still nothing prints on them. */
+  /* Reversed: on a dark ground "more" has to run dark-to-light. */
+  --viz-1: 224 40% 25%;
+  --viz-2: 221 60% 42%;
+  --viz-3: 213 90% 60%;
+  --viz-4: 213 97% 80%;
+
+  /* The same six a shade deeper, so a cap does not glare on a dark page. */
   --subject-1: 196 28% 31%;
   --subject-2: 214 24% 34%;
   --subject-3: 234 20% 38%;
   --subject-4: 264 18% 40%;
   --subject-5: 302 18% 37%;
   --subject-6: 96 20% 29%;
+
+  /* Flat, and lifted by being lighter than the page: a shadow does nothing
+   * against a dark ground. */
   --bubble-face: hsl(var(--paper-raised));
-  --bubble-shadow: 0 2px 6px hsl(250 40% 3% / 0.5), 0 18px 40px hsl(250 40% 3% / 0.45);
-  /* Deeper black, not a brighter indigo — on a dark ground the light theme's
-   * tinted lift reads as a glow escaping from under the card. */
-  --bubble-shadow-raised: 0 4px 10px hsl(250 40% 3% / 0.6),
-    0 26px 56px hsl(250 40% 3% / 0.55);
+  --bubble-shadow: 0 2px 6px hsl(224 50% 3% / 0.5), 0 18px 40px hsl(224 50% 3% / 0.45);
+  --bubble-shadow-raised: 0 4px 10px hsl(224 50% 3% / 0.6),
+    0 26px 56px hsl(224 50% 3% / 0.55);
   --bubble-sheen: inset 0 1px 0 hsl(0 0% 100% / 0.07);
+}
+
+/* The navy sidebar.
+ *
+ * The rail is written with the same tokens as the page (bg-paper-raised,
+ * text-ink, bg-primary-soft for the current item), so it is turned navy by
+ * redefining those tokens on the rail and nowhere else. Every child — the
+ * group labels, the language switch, the logout link — follows without a
+ * class of its own. Measured on the navy ground:
+ *   ink 15.94, ink-muted 9.37, ink-faint 7.05, primary 7.15
+ *   on the current item's ground: ink 10.14, primary 4.55 */
+.shell-navy {
+  --paper-raised: 224 56% 17%;
+  --paper-sunken: 224 48% 23%;
+  --ink: 0 0% 100%;
+  --ink-muted: 220 30% 80%;
+  --ink-faint: 220 22% 70%;
+  --rule: 224 40% 25%;
+  --rule-strong: 224 36% 32%;
+  --primary: 213 94% 72%;
+  --primary-soft: 221 70% 32%;
+  --on-primary: 224 56% 17%;
+  --mark: 349 95% 76%;
+  --focus: 213 94% 72%;
 }
 
 /* Arabic needs its own stacks — a Latin serif has no Arabic glyphs, so the
  * browser silently substitutes and the page loses its typographic voice. */
 :root:lang(ar),
 [dir='rtl'] {
-  --font-display: var(--font-cairo), 'Cairo', 'Noto Sans Arabic', 'Segoe UI', Tahoma, sans-serif;
-  --font-serif: var(--font-cairo), 'Cairo', 'Noto Naskh Arabic', 'Amiri', serif;
-  --font-sans: var(--font-cairo), 'Cairo', 'Noto Sans Arabic', 'Segoe UI', Tahoma, system-ui,
+  /* Tajawal first; its files hold only Arabic glyphs, so Latin letters and
+   * digits inside Arabic text fall through to Plus Jakarta Sans. */
+  --font-display: var(--font-tajawal), var(--font-jakarta), 'Noto Sans Arabic', 'Segoe UI', Tahoma,
     sans-serif;
+  --font-serif: var(--font-tajawal), var(--font-jakarta), 'Noto Sans Arabic', 'Segoe UI', Tahoma,
+    sans-serif;
+  --font-sans: var(--font-tajawal), var(--font-jakarta), 'Noto Sans Arabic', 'Segoe UI', Tahoma,
+    system-ui, sans-serif;
 }
 
 @layer base {
@@ -431,7 +453,7 @@
   h2,
   h3,
   h4 {
-    @apply font-display font-extrabold text-ink;
+    @apply font-display font-bold text-ink;
     letter-spacing: -0.011em;
     text-wrap: balance;
   }
@@ -800,7 +822,7 @@
   /* Headings take the display face. */
   .display {
     font-family: var(--font-display);
-    font-weight: 800;
+    font-weight: 700;
   }
 
   /* The ruled rhythm of a mark scheme. */
@@ -840,7 +862,7 @@
     text-align: start;
   }
   .prose-exam th {
-    @apply font-semibold bg-paper-raised;
+    @apply font-medium bg-paper-raised;
   }
 
   .prose-exam .katex {
@@ -874,12 +896,12 @@
   /* Small caps label — the workhorse of this design. Used for every field
    * name, column header and section marker. */
   .label {
-    @apply text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-faint;
+    @apply text-[11px] font-medium uppercase tracking-[0.08em] text-ink-faint;
   }
 
   /* A figure printed as a mark: tabular, tight, unmistakably a number. */
   .figure {
-    @apply font-semibold tabular-nums text-ink;
+    @apply font-medium tabular-nums text-ink;
     letter-spacing: -0.02em;
   }
 

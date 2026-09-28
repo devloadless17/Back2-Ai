@@ -769,7 +769,7 @@ export function ChatThread({
                 )}
                 <div className="min-w-0 flex-1 space-y-1.5">
                   <div className="flex items-center justify-between gap-2">
-                    <p className="text-caption font-semibold uppercase tracking-wide text-ink-faint">
+                    <p className="text-caption font-medium uppercase tracking-wide text-ink-faint">
                       {attaching ? t.upload.reading : t.upload.checkTranscription}
                     </p>
                     <button

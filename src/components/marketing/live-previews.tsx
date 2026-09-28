@@ -74,7 +74,7 @@ function FlipPreview() {
           <button
             type="button"
             onClick={() => setFlipped(false)}
-            className="mt-2 text-caption font-semibold text-primary underline-offset-2 hover:underline"
+            className="mt-2 text-caption font-medium text-primary underline-offset-2 hover:underline"
           >
             {t.marketing.flipHint}
           </button>
@@ -145,7 +145,7 @@ function MasteryPreview() {
             stroke={7}
             className={style.ink.replace('text-', 'stroke-')}
           >
-            <span className="numeric font-display text-meta font-extrabold">
+            <span className="numeric font-display text-meta font-bold">
               {Math.round(mastery * 100)}%
             </span>
           </MasteryRing>
@@ -154,7 +154,7 @@ function MasteryPreview() {
             <p className="text-sm font-bold text-ink">{t.marketing.masterySubject}</p>
             {/* Band, never by colour alone: icon and word travel with the tint,
                 the same triple the dashboard uses. */}
-            <p className={`mt-1 inline-flex items-center gap-1 text-micro font-semibold ${style.ink}`}>
+            <p className={`mt-1 inline-flex items-center gap-1 text-micro font-medium ${style.ink}`}>
               <BandIcon band={band} width={11} height={11} />
               {t.dashboard.bandDeveloping}
             </p>

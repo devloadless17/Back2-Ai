@@ -312,7 +312,7 @@ export function ExamRunner({
       <header className="sticky top-0 z-20 -mx-4 border-b border-rule bg-paper-raised/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="min-w-0">
-            <p className="truncate text-body font-semibold text-ink">{title}</p>
+            <p className="truncate text-body font-medium text-ink">{title}</p>
             <p className="text-caption text-ink-faint">
               {subjectName}
               {/* Where the clock came from. Said once, quietly, because the
@@ -335,7 +335,7 @@ export function ExamRunner({
               </p>
               <p
                 className={cn(
-                  'font-mono text-xl font-semibold tabular-nums leading-none',
+                  'font-mono text-xl font-bold tabular-nums leading-none',
                   urgent ? 'text-mark' : 'text-ink',
                 )}
                 role="timer"
@@ -402,7 +402,7 @@ export function ExamRunner({
                     : 'border border-rule bg-paper-raised text-ink-muted hover:bg-paper-sunken',
               )}
             >
-              <span className="numeric text-meta font-semibold">{i + 1}</span>
+              <span className="numeric text-meta font-medium">{i + 1}</span>
               {s.maxScore !== null ? (
                 <span className="numeric text-micro opacity-70">{s.maxScore}pt</span>
               ) : null}

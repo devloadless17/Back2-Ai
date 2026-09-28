@@ -212,7 +212,7 @@ export function PaperPassage({
   const { t } = useI18n();
   return (
     <details open className={cn('rounded-lg border border-rule bg-paper-raised', className)}>
-      <summary className="cursor-pointer select-none px-4 py-2.5 text-meta font-semibold text-ink">
+      <summary className="cursor-pointer select-none px-4 py-2.5 text-meta font-medium text-ink">
         {t.practice.passageTitle}
       </summary>
       <div className="max-h-[28rem] overflow-y-auto border-t border-rule px-4 py-3">

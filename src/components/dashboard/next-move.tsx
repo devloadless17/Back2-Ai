@@ -64,7 +64,7 @@ export function NextMove({
       <span aria-hidden className="absolute inset-y-0 start-0 w-[3px] bg-primary" />
 
       <div className="p-5 ps-6 sm:p-6 sm:ps-7">
-        <p className="text-micro font-semibold uppercase tracking-[0.12em] text-primary">
+        <p className="text-micro font-medium uppercase tracking-[0.12em] text-primary">
           {eyebrow}
         </p>
 
@@ -86,7 +86,7 @@ export function NextMove({
               The largest type on the page after the readiness figure. A next
               action set at body size is a suggestion among suggestions.
             */}
-            <h2 className="mt-0.5 text-lg font-semibold leading-snug text-ink sm:text-xl">
+            <h2 className="mt-0.5 text-lg font-bold leading-snug text-ink sm:text-xl">
               {title}
             </h2>
           </div>

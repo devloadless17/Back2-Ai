@@ -64,7 +64,7 @@ export function Modal({
       )}
     >
       <div className="flex items-start justify-between gap-4 border-b border-rule px-5 py-3.5">
-        <h2 className="text-sm font-semibold text-ink">{title}</h2>
+        <h2 className="text-sm font-bold text-ink">{title}</h2>
         <button
           type="button"
           onClick={onClose}

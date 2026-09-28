@@ -258,7 +258,7 @@ export function ReviewSession({ cards }: { cards: DueCard[] }) {
                     type="button"
                     onClick={() => gradeCard(value)}
                     className={cn(
-                      'flex flex-col items-center gap-0.5 rounded-lg border-2 bg-paper-raised px-3 py-2.5 font-semibold',
+                      'flex flex-col items-center gap-0.5 rounded-lg border-2 bg-paper-raised px-3 py-2.5 font-medium',
                       'transition-[transform,background-color,border-color] duration-200 ease-soft',
                       '',
                       'motion-reduce:transform-none motion-reduce:hover:transform-none',

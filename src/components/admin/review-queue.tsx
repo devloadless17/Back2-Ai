@@ -122,7 +122,7 @@ export function ReviewQueue({ items }: { items: ReviewItem[] }) {
                 <MathText>{item.solution}</MathText>
                 {item.finalAnswer && (
                   <p className="mt-3 text-meta text-ink">
-                    <span className="font-semibold">{t.examSim.awarded}: </span>
+                    <span className="font-medium">{t.examSim.awarded}: </span>
                     {item.finalAnswer}
                   </p>
                 )}
@@ -138,7 +138,7 @@ export function ReviewQueue({ items }: { items: ReviewItem[] }) {
                   {item.bareme.map((criterion, index) => (
                     <RuledRow key={index} className="justify-between">
                       <span className="min-w-0 text-body text-ink">{criterion.criterion}</span>
-                      <span className="shrink-0 tabular-nums text-meta font-semibold text-ink-muted">
+                      <span className="shrink-0 tabular-nums text-meta font-medium text-ink-muted">
                         {criterion.points}
                       </span>
                     </RuledRow>

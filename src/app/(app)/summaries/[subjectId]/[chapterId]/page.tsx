@@ -69,7 +69,7 @@ export default async function ChapterSummaryPage({
               <ul className="ruled">
                 {content.passages.map((passage) => (
                   <li key={passage.id} className="px-5 py-4">
-                    <p className="text-micro font-semibold uppercase tracking-[0.1em] text-ink-faint">
+                    <p className="text-micro font-medium uppercase tracking-[0.1em] text-ink-faint">
                       {passage.title ||
                         t.evidence.kinds[passage.kind as keyof typeof t.evidence.kinds] ||
                         passage.kind}

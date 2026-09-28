@@ -47,7 +47,7 @@ export function AskWhy({
         aria-busy={opening || undefined}
         className={cn(
           'rounded-full border border-rule-strong bg-paper-raised px-3 py-1',
-          'text-caption font-semibold text-primary',
+          'text-caption font-medium text-primary',
           'transition-opacity duration-150 hover:bg-primary-soft',
           'disabled:opacity-50',
           // Visible by default (touch), faded on pointer devices until the

@@ -46,7 +46,7 @@ export function RecurringLossesCard({
           {losses.map((loss) => (
             <li key={`${loss.subjectName}-${loss.criterion}`} className="px-5 py-4">
               <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-                <span className="text-caption font-semibold uppercase tracking-wider text-ink-faint">
+                <span className="text-caption font-medium uppercase tracking-wider text-ink-faint">
                   {loss.subjectName}
                 </span>
                 <span className="text-caption text-danger">

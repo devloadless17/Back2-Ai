@@ -239,19 +239,19 @@ export default async function ProgressPage() {
             <table className="w-full min-w-[42rem] text-sm">
               <thead>
                 <tr className="border-b border-rule">
-                  <th scope="col" className="label px-5 py-2 text-start font-semibold">
+                  <th scope="col" className="label px-5 py-2 text-start font-medium">
                     {t.settings.track}
                   </th>
-                  <th scope="col" className="label px-3 py-2 text-end font-semibold">
+                  <th scope="col" className="label px-3 py-2 text-end font-medium">
                     {t.standing.predictedMark}
                   </th>
-                  <th scope="col" className="label px-3 py-2 text-end font-semibold">
+                  <th scope="col" className="label px-3 py-2 text-end font-medium">
                     {t.standing.mastery}
                   </th>
-                  <th scope="col" className="label px-3 py-2 text-start font-semibold">
+                  <th scope="col" className="label px-3 py-2 text-start font-medium">
                     {t.standing.practised}
                   </th>
-                  <th scope="col" className="label px-3 py-2 text-start font-semibold">
+                  <th scope="col" className="label px-3 py-2 text-start font-medium">
                     {t.performance.trend}
                   </th>
                 </tr>

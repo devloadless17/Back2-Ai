@@ -183,7 +183,7 @@ export function TutorDock({
                     type="button"
                     onClick={() => setRenaming(true)}
                     title={t.chat.dockRenameLabel}
-                    className="-mx-1 block max-w-full truncate rounded px-1 text-start text-meta font-semibold text-ink transition-colors hover:bg-paper-sunken"
+                    className="-mx-1 block max-w-full truncate rounded px-1 text-start text-meta font-medium text-ink transition-colors hover:bg-paper-sunken"
                   >
                     {shown}
                   </button>
@@ -199,7 +199,7 @@ export function TutorDock({
 
           <div className="space-y-3 px-4 py-3">
             {context ? (
-              <p className="rounded bg-primary-soft px-3 py-2 text-caption font-semibold text-ink">
+              <p className="rounded bg-primary-soft px-3 py-2 text-caption font-medium text-ink">
                 {format(t.chat.dockContext, { label: context.label })}
               </p>
             ) : (
@@ -288,7 +288,7 @@ export function TutorDock({
 }
 
 const CHIP =
-  'rounded-full border border-rule-strong bg-paper-raised px-3 py-1.5 text-caption font-semibold ' +
+  'rounded-full border border-rule-strong bg-paper-raised px-3 py-1.5 text-caption font-medium ' +
   'text-ink transition-colors duration-150 hover:bg-paper-sunken ' +
   'disabled:pointer-events-none disabled:opacity-50';
 
@@ -370,12 +370,12 @@ function NameField({
               onCancel();
             }
           }}
-          className="min-w-0 flex-1 rounded border border-rule-strong bg-paper px-2 py-1 text-meta font-semibold text-ink outline-none focus:border-primary"
+          className="min-w-0 flex-1 rounded border border-rule-strong bg-paper px-2 py-1 text-meta font-medium text-ink outline-none focus:border-primary"
         />
         <button
           type="button"
           onClick={() => onSave(draft)}
-          className="rounded px-1.5 py-1 text-caption font-semibold text-primary hover:bg-primary-soft"
+          className="rounded px-1.5 py-1 text-caption font-medium text-primary hover:bg-primary-soft"
         >
           {save}
         </button>

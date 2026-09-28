@@ -106,7 +106,7 @@ export function PlanPicker({
                           {format(t.billing.saveAnnual, { percent: annualSavingPercent() })}
                         </Badge>
                       )}
-                      <span className="text-meta font-semibold tabular-nums text-ink">
+                      <span className="text-meta font-medium tabular-nums text-ink">
                         {labels[plan].price}
                       </span>
                     </>

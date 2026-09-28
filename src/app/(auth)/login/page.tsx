@@ -37,7 +37,7 @@ export default async function LoginPage() {
           <p className="text-caption font-bold uppercase tracking-[0.08em] text-on-primary">
             {t.common.appName}
           </p>
-          <p className="mt-4 font-display text-heading font-extrabold leading-snug text-on-primary">
+          <p className="mt-4 font-display text-heading font-bold leading-snug text-on-primary">
             {t.marketing.loginQuote}
           </p>
           <p className="mt-3 text-body text-on-primary">{t.marketing.loginQuoteSub}</p>
@@ -46,12 +46,12 @@ export default async function LoginPage() {
 
       <div className="flex items-center justify-center px-4 py-12 sm:px-6">
         <div className="w-full max-w-sm space-y-6">
-          <Link href="/" className="block text-body font-semibold">
+          <Link href="/" className="block text-body font-medium">
             {t.common.appName}
           </Link>
 
           <div className="space-y-1">
-            <h1 className="text-title font-semibold sm:text-heading">{t.auth.loginTitle}</h1>
+            <h1 className="text-title font-bold sm:text-heading">{t.auth.loginTitle}</h1>
             <p className="text-meta text-ink-muted">{t.auth.loginSubtitle}</p>
           </div>
 

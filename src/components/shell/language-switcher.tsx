@@ -65,7 +65,7 @@ export function LanguageSwitcher() {
             onClick={() => choose(code)}
             aria-current={active ? 'true' : undefined}
             className={cn(
-              'rounded px-2 py-1 text-caption font-semibold transition-colors duration-150',
+              'rounded px-2 py-1 text-caption font-medium transition-colors duration-150',
               active
                 ? 'bg-primary-soft text-primary'
                 : 'text-ink-faint hover:bg-paper-sunken hover:text-ink',

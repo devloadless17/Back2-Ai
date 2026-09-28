@@ -16,6 +16,9 @@ const p = (forms: PluralForms): PluralForms => forms;
 
 export const en = {
   common: {
+    theme: 'Theme',
+    themeLight: 'Light',
+    themeDark: 'Dark',
     appName: 'Bac II',
     save: 'Save',
     saving: 'Saving…',

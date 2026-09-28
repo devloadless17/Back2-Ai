@@ -107,7 +107,7 @@ export function ExaminerScript({ labels, className }: { labels: ScriptLabels; cl
         <header className="border-b border-rule-strong px-5 pb-4 pt-5 sm:px-7 sm:pt-6">
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
-              <p className="font-display text-lead font-semibold leading-none tracking-tight text-ink">
+              <p className="font-display text-lead font-bold leading-none tracking-tight text-ink">
                 {labels.subject}
               </p>
               <p className="mt-1.5 text-micro uppercase tracking-[0.12em] text-ink-faint">
@@ -118,7 +118,7 @@ export function ExaminerScript({ labels, className }: { labels: ScriptLabels; cl
           </div>
 
           <div className="mt-4 flex items-baseline justify-between gap-4 border-t border-rule pt-3">
-            <p className="text-micro font-semibold uppercase tracking-[0.12em] text-ink">
+            <p className="text-micro font-medium uppercase tracking-[0.12em] text-ink">
               {labels.exercise}
             </p>
             <p className="figure text-micro uppercase tracking-[0.1em] text-ink-faint">
@@ -131,7 +131,7 @@ export function ExaminerScript({ labels, className }: { labels: ScriptLabels; cl
         <div className="px-5 py-5 sm:px-7 sm:py-6">
           <p className="text-meta font-medium text-ink">{labels.question}</p>
 
-          <p className="mt-5 text-micro font-semibold uppercase tracking-[0.12em] text-ink-faint">
+          <p className="mt-5 text-micro font-medium uppercase tracking-[0.12em] text-ink-faint">
             {labels.answerLabel}
           </p>
 
@@ -162,7 +162,7 @@ export function ExaminerScript({ labels, className }: { labels: ScriptLabels; cl
             */}
             <MarkedPassage criterion={labels.crit3} mark={labels.mark3} outcome="lost">
               <div className="rounded-sm border border-dashed border-mark/45 bg-mark-soft/40 px-3.5 py-3">
-                <p className="text-micro font-semibold uppercase tracking-[0.1em] text-mark">
+                <p className="text-micro font-medium uppercase tracking-[0.1em] text-mark">
                   {labels.missingLabel}
                 </p>
                 <p className="mt-1.5 text-meta italic leading-relaxed text-ink-muted">
@@ -184,7 +184,7 @@ export function ExaminerScript({ labels, className }: { labels: ScriptLabels; cl
           <div className="flex gap-3.5">
             <ZakiMark className="mt-0.5 size-8" />
             <div className="min-w-0">
-              <p className="text-micro font-semibold uppercase tracking-[0.12em] text-primary">
+              <p className="text-micro font-medium uppercase tracking-[0.12em] text-primary">
                 {labels.zakiNoteLabel}
               </p>
               <p className="mt-1.5 max-w-prose text-meta leading-relaxed text-ink">

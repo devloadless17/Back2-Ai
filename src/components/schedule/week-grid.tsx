@@ -130,7 +130,7 @@ export function WeekGrid({
     <section className="mt-5" aria-label={t.schedule.thisWeek}>
       {/* --- Week navigation --------------------------------------------- */}
       <div className="mb-3 flex items-center justify-between gap-3">
-        <h3 className="text-sm font-semibold text-ink">
+        <h3 className="text-sm font-bold text-ink">
           {offset === 0 ? t.schedule.thisWeek : fullDayLabel(days[0] as string)}
         </h3>
 
@@ -165,7 +165,7 @@ export function WeekGrid({
               aria-current={isToday ? 'date' : undefined}
             >
               <div className="flex items-baseline justify-between gap-3">
-                <h4 className={cn('text-sm', isToday ? 'font-semibold text-ink' : 'text-ink-muted')}>
+                <h4 className={cn('text-sm', isToday ? 'font-bold text-ink' : 'text-ink-muted')}>
                   {fullDayLabel(day)}
                   {isToday && (
                     <span className="ms-2 text-caption font-medium text-primary">
@@ -233,7 +233,7 @@ export function WeekGrid({
               <h4
                 className={cn(
                   'mb-2 text-caption',
-                  isToday ? 'font-semibold text-primary' : 'text-ink-muted',
+                  isToday ? 'font-medium text-primary' : 'text-ink-muted',
                 )}
               >
                 {dayLabel(day)}

@@ -70,7 +70,7 @@ export function SheetHeader({
       )}
     >
       <div className="min-w-0 space-y-0.5">
-        <h2 className="text-lead font-semibold">{title}</h2>
+        <h2 className="text-lead font-bold">{title}</h2>
         {description && <p className="text-meta text-ink-muted">{description}</p>}
       </div>
       {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
@@ -140,7 +140,7 @@ export function PageHeader({
           `display` it is unmistakably the top of the hierarchy and nothing
           below it needs a box to be told apart from it.
         */}
-        <h1 className="text-heading font-semibold tracking-tight sm:text-display">{title}</h1>
+        <h1 className="text-heading font-bold tracking-tight sm:text-display">{title}</h1>
         {/*
           `max-w-prose` rather than a fixed 2xl: the comfortable measure for a
           sentence depends on the size of the type in it, and this line is set
