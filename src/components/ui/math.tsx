@@ -8,6 +8,7 @@ import remarkMath from 'remark-math';
 import type { PluggableList } from 'unified';
 
 import { cn } from '@/lib/cn';
+import { FigureViewer } from '@/components/ui/figure-viewer';
 import { unwrapSoftBreaks } from '@/lib/soft-wrap';
 import { useI18n } from '@/lib/i18n/client';
 import { normalizeMathDelimiters } from '@/lib/math-delimiters';
@@ -268,37 +269,22 @@ export function QuestionBody({
              * full width. Every figure opens at full size on a tap.
              */
             const wholePage = /^\/figures\/.+-p\d+\.\w+$/.test(key);
-            return (
-              <a
-                key={key}
-                href={src}
-                target="_blank"
-                rel="noreferrer"
-                className={cn(wholePage && 'w-full')}
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  /*
-                   * Three kinds of key, and the distinction is about ownership.
-                   *
-                   * `/api/files/...` is the default because most images here are a
-                   * student's own photographed work, and that route checks who owns
-                   * the key before streaming a byte. A leading slash means a file
-                   * served straight from `public/` — exam-paper figures, which are
-                   * published documents with nothing private in them and no owner
-                   * to check. Putting those behind the ownership route would mean
-                   * inventing an owner for a page of a national exam.
-                   */
-                  src={src}
-                  alt=""
-                  className={cn(
-                    'rounded border border-rule bg-paper-raised',
-                    wholePage ? 'w-full' : 'max-h-96 w-auto max-w-full',
-                  )}
-                  loading="lazy"
-                />
-              </a>
-            );
+            /*
+             * Three kinds of key, and the distinction is about ownership.
+             *
+             * `/api/files/...` is the default because most images here are a
+             * student's own photographed work, and that route checks who owns
+             * the key before streaming a byte. A leading slash means a file
+             * served straight from `public/` — exam-paper figures, which are
+             * published documents with nothing private in them and no owner
+             * to check. Putting those behind the ownership route would mean
+             * inventing an owner for a page of a national exam.
+             *
+             * Opened in place, full screen and zoomable, not in a new tab: a
+             * student in a timed sitting should not have to leave the paper
+             * to read its figure.
+             */
+            return <FigureViewer key={key} src={src} wide={wholePage} />;
           })}
         </div>
       )}
