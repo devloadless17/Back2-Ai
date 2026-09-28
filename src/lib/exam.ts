@@ -6,6 +6,7 @@ import { AuditAction, recordAudit } from '@/lib/audit';
 import { budgetState } from '@/lib/ai';
 import { rateLimit } from '@/lib/api';
 import { db } from '@/lib/db';
+import { withShowableFigures } from '@/lib/exam-figure-gate';
 import { isAiConfigured, isEmbeddingConfigured } from '@/lib/env';
 import { PUBLISHED_FILTER, generateProblem } from '@/lib/generation';
 import {
@@ -150,6 +151,7 @@ async function startFromRealPool(input: StartInput): Promise<{ id: string }> {
       bareme: true,
       difficulty: true,
       contentText: true,
+      contentImages: true,
       questionType: true,
       ...(shared
         ? {
@@ -199,7 +201,17 @@ async function startFromRealPool(input: StartInput): Promise<{ id: string }> {
    * and still totals zero, which would put an unmarkable question on a real
    * sitting and score the student out of less than the paper is worth.
    */
-  const markable = pool.filter((q) => (scoreOf(parseBareme(q.bareme)) ?? 0) > 0);
+  const withMarks = pool.filter((q) => (scoreOf(parseBareme(q.bareme)) ?? 0) > 0);
+
+  /*
+   * Nor is a question that points at a figure nobody can see.
+   *
+   * Most chemistry, maths and biology figures have no crop yet, so "read
+   * figure 2" would reach a timed paper without figure 2. Those questions stay
+   * in practice, where the tutor can help; they are left off a scored sitting.
+   * Language arts are exempt: their "document" is the reading text.
+   */
+  const markable = isLanguageArts ? withMarks : (await withShowableFigures(withMarks)).kept;
 
   if (markable.length === 0) {
     throw new ExamError(
