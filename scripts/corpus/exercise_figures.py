@@ -62,6 +62,7 @@ POSITIONS = CORPUS / ".mapping" / "positioned-structure.json"
 OWNERSHIP = CORPUS / ".mapping" / "figure-ownership.json"
 
 SCIENCE = re.compile(r"(phy|chim|chem|bio|svt|sv_|math|riyad)", re.I)
+GEOGRAPHY = re.compile(r"(geo|greo)", re.I)
 ARABIC_EDITION = re.compile(r"(_ar\b|_ar[._]|arab|_dr\.pdf|_ar\.pdf)", re.I)
 OWNING_LEVELS = {"EXERCISE", "QUESTION", "SUBQUESTION", "EXERCISE_CONTEXT", "EXERCISE_SHARED"}
 
@@ -193,11 +194,11 @@ def figure_boxes(page, y0, y1):
                 continue
             b = [min(f(x["x0"]) for x in segment), min(f(x["top"]) for x in segment),
                  max(f(x["x1"]) for x in segment), max(f(x["bottom"]) for x in segment)]
-            real = sum(1 for x in segment if re.search(r"[A-Za-zÀ-ÿ]{3,}", x["text"]))
+            real = sum(1 for x in segment if re.search(r"[A-Za-zÀ-ÿء-ي]{3,}", x["text"]))
             if real >= 3 and b[2] - b[0] > 120:
                 running.append(b)
             # A cut sentence has a real word in it; "h = 80 m" and "A" are labels.
-            if any(re.search(r"[A-Za-zÀ-ÿ]{4,}", x["text"]) for x in segment):
+            if any(re.search(r"[A-Za-zÀ-ÿء-ي]{4,}", x["text"]) for x in segment):
                 segments.append(b)
             if w is not None:
                 segment = [w]
@@ -217,7 +218,7 @@ def figure_boxes(page, y0, y1):
                 break
         # Judged on the drawing alone, before labels are added: a cluster
         # holding a paragraph is a framed text block, not a figure.
-        text_words = [w for w in page.extract_words() if inside(box(w), m, 1) and re.search(r"[A-Za-zÀ-ÿ]{3,}", w["text"])]
+        text_words = [w for w in page.extract_words() if inside(box(w), m, 1) and re.search(r"[A-Za-zÀ-ÿء-ي]{3,}", w["text"])]
         if len(text_words) > TEXT_FRAME_WORDS:
             continue
         # Labels: very short words against the drawing ("R", "Doc.4", "A",
@@ -288,13 +289,62 @@ def owned_exercises():
     return owned
 
 
+HEADING_LINE = re.compile(
+    r"^(?:(?:premier|première|deuxième|second|seconde|troisième|quatrième|cinquième|sixième)\s+exercice"
+    r"|(?:first|second|third|fourth|fifth|sixth)\s+exercise"
+    r"|(?:exercice|exercise|problème|problem)\s*(?:n°\s*)?(?:[ivx]+|\d+)\b"
+    r"|(?:i|ii|iii|iv|v|vi|vii)\s*[-–.]\s*\(\s*\d)",
+    re.I,
+)
+
+
+def heading_containers(pdf_path, n_exercises, paper_pages):
+    """Exercise spans from the paper's printed headings, for a paper C1 never positioned.
+
+    Only when the headings found are exactly as many as the exercises the
+    extractor recorded: then heading k starts exercise k, and ordinals line up
+    with how load-exams keyed the questions. Any other count returns nothing,
+    because a crop given to the wrong exercise is worse than no crop.
+    """
+    with pdfplumber.open(str(pdf_path)) as pdf:
+        pages = pdf.pages[: paper_pages or len(pdf.pages)]
+        starts = []
+        for n, page in enumerate(pages, start=1):
+            rows = {}
+            for w in page.extract_words():
+                rows.setdefault(round(f(w["top"]) / 3), []).append(w)
+            for ws in sorted(rows.values(), key=lambda ws: f(ws[0]["top"])):
+                ws.sort(key=lambda w: f(w["x0"]))
+                line = " ".join(w["text"] for w in ws)
+                if HEADING_LINE.match(line.strip()):
+                    starts.append((n, f(ws[0]["top"]), f(page.height)))
+        if len(starts) != n_exercises or n_exercises == 0:
+            return []
+        containers = []
+        for k, (page_no, top, height) in enumerate(starts):
+            end_page, end_top = (starts[k + 1][0], starts[k + 1][1]) if k + 1 < len(starts) else (len(pages), None)
+            spans = []
+            for p in range(page_no, end_page + 1):
+                y0 = top if p == page_no else 0.0
+                y1 = end_top if (p == end_page and end_top is not None) else f(pages[p - 1].height)
+                if p == end_page and end_top is not None and p != page_no and end_top <= 5:
+                    continue
+                spans.append({"page": p, "yStart": y0, "yEnd": y1, "pageHeight": f(pages[p - 1].height)})
+            containers.append({"ordinal": k + 1, "index": k + 1, "spans": spans, "startsInScheme": False})
+        return containers
+
+
 def plan():
     positions = json.loads(POSITIONS.read_text("utf-8"))
     owned = owned_exercises()
     jobs = []
     for p in positions:
         name = os.path.basename(p["paper"])
-        if not SCIENCE.search(name) or ARABIC_EDITION.search(name):
+        # Geography is taught in Arabic, so its papers ARE the Arabic edition;
+        # the Arabic-edition rule applies to the sciences only.
+        if GEOGRAPHY.search(name):
+            pass
+        elif not SCIENCE.search(name) or ARABIC_EDITION.search(name):
             continue
         pdf = CORPUS / "exams" / p["paper"]
         if not pdf.exists():
@@ -303,7 +353,34 @@ def plan():
             if (p["sha256"], c["ordinal"]) in owned or c.get("startsInScheme"):
                 continue
             jobs.append((p, c, pdf))
+
+    # Science papers Mathpix never read have no C1 positions: their exercises
+    # are found from the printed headings instead (see heading_containers).
+    positioned = {p["sha256"] for p in positions}
+    seen = set()
+    for e in json.loads((CORPUS / "exams.json").read_text("utf-8")):
+        path = e["path"].replace("\\", "/")
+        name = os.path.basename(path)
+        if e["sha256"] in positioned or e["sha256"] in seen:
+            continue
+        if not SCIENCE.search(name) or ARABIC_EDITION.search(name) or GEOGRAPHY.search(name):
+            continue
+        pdf = CORPUS / "exams" / path
+        if not pdf.exists():
+            continue
+        seen.add(e["sha256"])
+        try:
+            containers = heading_containers(pdf, len(e["exercises"]), e.get("paperPages"))
+        except Exception:  # noqa: BLE001 — an unreadable paper is skipped, not fatal
+            containers = []
+        HEADING_PAPERS[e["sha256"]] = bool(containers)
+        p = {"paper": path, "sha256": e["sha256"]}
+        for c in containers:
+            jobs.append((p, c, pdf))
     return jobs
+
+
+HEADING_PAPERS = {}
 
 
 def detect(p, c, pdf_path, plumber_cache):
@@ -346,12 +423,21 @@ def main():
     ap.add_argument("--sheet", type=int, default=0, help="contact sheet of N random exercises with a detection")
     ap.add_argument("--seed", type=int, default=7)
     ap.add_argument("--paper", default=None)
+    ap.add_argument("--match", default=None, help="only papers whose path matches this regex")
+    ap.add_argument("--only-headings", action="store_true", help="only papers positioned from their headings")
     args = ap.parse_args()
 
     jobs = plan()
     if args.paper:
         jobs = [j for j in jobs if j[0]["paper"] == args.paper]
-    print(f"{len(jobs)} science exercises with no owned crop")
+    if args.only_headings:
+        jobs = [j for j in jobs if j[0]["sha256"] in HEADING_PAPERS]
+    if args.match:
+        jobs = [j for j in jobs if re.search(args.match, j[0]["paper"], re.I)]
+    print(f"{len(jobs)} exercises with no owned crop")
+    if HEADING_PAPERS:
+        ok = sum(1 for v in HEADING_PAPERS.values() if v)
+        print(f"  papers without C1 positions: {len(HEADING_PAPERS)}, exercises found by heading on {ok}")
 
     cache, docs = {}, {}
     results = []

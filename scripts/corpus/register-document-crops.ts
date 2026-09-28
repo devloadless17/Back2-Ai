@@ -65,14 +65,53 @@ type Exercise = { index: number; statement: string; parts?: Array<{ label: strin
 type ExamRow = { path: string; sha256: string; passage?: string | null; exercises: Exercise[] };
 
 /** Every document number an exercise's own text cites. */
-const CITES = /(?:ال)?مستند(?:ين|ات)?\s*(?:رقم)?\s*[()]?\s*([0-9٠-٩])/g;
-const TO_LATIN = (d: string) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d) >= 0 ? '٠١٢٣٤٥٦٧٨٩'.indexOf(d) : d);
+// Digits in all three forms the papers use: 1, ١ (Arabic-Indic) and ۱ (the
+// Persian forms the older text layer emits, which this pattern used to miss).
+const CITES = /(?:ال)?مستند(?:ين|ات)?\s*(?:رقم)?\s*[()]?\s*([0-9٠-٩۰-۹])/g;
+// The damaged text layer puts the number BEFORE the word: "۱مستند رقم".
+const CITES_BEFORE = /([0-9٠-٩۰-۹])\s*\)?\s*(?:ال)?مستند/g;
+const TO_LATIN = (d: string) => {
+  for (const digits of ['٠١٢٣٤٥٦٧٨٩', '۰۱۲۳۴۵۶۷۸۹']) if (digits.includes(d)) return String(digits.indexOf(d));
+  return d;
+};
+
+/*
+ * The same citation written as a word. "المستند الثاني" / "المستند الأول" /
+ * "المستند الثالث" appear 94 times in the papers these crops come from, and
+ * the digit pattern above read none of them, so those crops matched no
+ * question at all.
+ */
+const ORDINAL: Record<string, number> = {
+  'الأول': 1, 'الاول': 1, 'الأولى': 1, 'الاولى': 1,
+  'الثاني': 2, 'الثانية': 2,
+  'الثالث': 3, 'الثالثة': 3,
+  'الرابع': 4, 'الرابعة': 4,
+  'الخامس': 5, 'الخامسة': 5,
+  'السادس': 6, 'السادسة': 6,
+};
+const CITES_WORD = /(?:ال)?مستند\s+(ال[أا]ول[ىه]?|الثاني[ةه]?|الثالث[ةه]?|الرابع[ةه]?|الخامس[ةه]?|السادس[ةه]?)/g;
+// "المستندين رقم (1) و(2)": the plural cites two, and the digit pattern kept only the first.
+const CITES_PAIR = /(?:ال)?مستند(?:ين|ات)\s*(?:رقم)?\s*[()]?\s*([0-9٠-٩۰-۹])\s*[()]?\s*(?:و|،|,|-)\s*[()]?\s*([0-9٠-٩۰-۹])/g;
 
 function citedNumbers(text: string): Set<number> {
   const out = new Set<number>();
   for (const m of text.matchAll(CITES)) {
     const n = Number(TO_LATIN(m[1]!));
     if (Number.isFinite(n)) out.add(n);
+  }
+  for (const m of text.matchAll(CITES_BEFORE)) {
+    const n = Number(TO_LATIN(m[1]!));
+    if (Number.isFinite(n)) out.add(n);
+  }
+  for (const m of text.matchAll(CITES_WORD)) {
+    const n = ORDINAL[m[1]!.replace(/ه$/, 'ة')];
+    if (n) out.add(n);
+  }
+  for (const m of text.matchAll(CITES_PAIR)) {
+    for (const d of [m[1]!, m[2]!]) {
+      const n = Number(TO_LATIN(d));
+      if (Number.isFinite(n)) out.add(n);
+    }
   }
   return out;
 }
@@ -100,13 +139,66 @@ async function main() {
   const crops = new Map<string, Crop>();
   for (const c of JSON.parse(raw) as Crop[]) crops.set(`${c.paperSha256}/${c.file}`, c);
 
-  // Refuse any paper whose numbering repeats — see the note at the top.
+  /*
+   * The marking scheme's copies go first, by page.
+   *
+   * A repeated number is usually the scheme reprinting its documents beside
+   * the answers, and the extractor knows how many pages the question paper
+   * itself runs to (`paperPages`). 41 of the repeats sat past that page.
+   * Refusing the whole paper for them threw away its real documents too, so
+   * crops after the paper's last page are dropped first, and a paper is
+   * refused only if its numbering still repeats among what is left.
+   */
+  const paperPages = new Map<string, number>();
+  for (const e of JSON.parse(readFileSync(EXAMS, 'utf-8')) as Array<{ sha256: string; paperPages?: number }>) {
+    if (e.sha256 && e.paperPages) paperPages.set(e.sha256, e.paperPages);
+  }
+  let schemeCopies = 0;
+  for (const [key, c] of crops) {
+    const last = paperPages.get(c.paperSha256);
+    if (last && c.page > last) {
+      crops.delete(key);
+      schemeCopies++;
+    }
+  }
+
+  // Refuse any paper whose numbering still repeats — see the note at the top.
   const byPaper = new Map<string, Crop[]>();
   for (const c of crops.values()) byPaper.set(c.paperSha256, [...(byPaper.get(c.paperSha256) ?? []), c]);
+  /*
+   * NUMBERED PER EXERCISE. Sociology and civics papers often restart their
+   * numbering in each exercise: documents 1-4 for the first, 1-2 for the
+   * second. Read in page order, each restart opens a new group. When the
+   * groups are exactly as many as the paper's exercises, group k belongs to
+   * exercise k — and a crop is still linked only if that exercise's own text
+   * cites its number. Any other count, and the paper stays refused: guessing
+   * which exercise a "document 1" belongs to would show a student the wrong one.
+   */
+  const exercisesIn = new Map<string, number>();
+  for (const e of JSON.parse(readFileSync(EXAMS, 'utf-8')) as Array<{ sha256: string; exercises?: unknown[] }>) {
+    if (e.sha256) exercisesIn.set(e.sha256, e.exercises?.length ?? 0);
+  }
+  const groupOf = new Map<Crop, number>();
   const refused = new Set<string>();
+  let grouped = 0;
   for (const [sha, cs] of byPaper) {
     const ns = cs.map((c) => c.documentNumber).filter((n): n is number => n !== null);
-    if (new Set(ns).size !== ns.length) refused.add(sha);
+    if (new Set(ns).size === ns.length) continue;
+    const ordered = [...cs].sort((a, b) => a.page - b.page || a.readingOrder - b.readingOrder);
+    let group = 1;
+    let previous = 0;
+    const groups = new Map<Crop, number>();
+    for (const c of ordered) {
+      if (c.documentNumber !== null && c.documentNumber <= previous) group++;
+      if (c.documentNumber !== null) previous = c.documentNumber;
+      groups.set(c, group);
+    }
+    if (group > 1 && group === exercisesIn.get(sha)) {
+      for (const [c, g] of groups) groupOf.set(c, g);
+      grouped++;
+    } else {
+      refused.add(sha);
+    }
   }
 
   // Exercise rows, keyed exactly as load-exams.ts keys them.
@@ -166,8 +258,10 @@ async function main() {
 
     const owners: string[] = [];
     let ordinals = 0;
+    const onlyOrdinal = groupOf.get(crop);
     for (const [key, cited] of citesBy) {
       if (!key.startsWith(`${crop.paperSha256}#`)) continue;
+      if (onlyOrdinal !== undefined && key !== `${crop.paperSha256}#${onlyOrdinal}`) continue;
       if (!cited.has(crop.documentNumber)) continue;
       ordinals++;
       owners.push(...(questionsAt.get(key) ?? []));
@@ -190,8 +284,10 @@ async function main() {
     database: dbName,
     mode: APPLY ? 'apply' : 'dry-run',
     evidenceRun,
-    manifestCrops: crops.size,
+    manifestCrops: crops.size + schemeCopies,
+    schemeCopiesDropped: schemeCopies,
     papersRefusedForRepeatedNumbers: refused.size,
+    papersNumberedPerExercise: grouped,
     planned: {
       assets: new Set(planned.map((p) => p.contentHash)).size,
       occurrences: planned.length,
