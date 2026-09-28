@@ -1,39 +1,54 @@
 import 'server-only';
 
+import { db } from '@/lib/db';
 import { visualKeysFor } from '@/lib/visual-evidence';
 
 /**
- * A question that points at something printed on the paper: a figure, a
- * graph, a curve, a diagram, a map.
+ * A question that points at a picture printed on the paper.
  *
- * Measured 2026-09-28 on the local corpus: 1,764 past-exam questions point at
- * a figure and 965 of them have none the app can show, because only the
- * physics crops have passed their audit. On a timed, marked mock paper, "use
- * the graph in figure 2" with no figure is a question the student cannot do
- * and is still scored on.
- *
- * "document" and المستند are left out on purpose. In the language subjects and
- * in civics they name the reading text, which is shown with the question from
- * `source_passage`, not a picture. "Document 2" with a number is kept: in the
- * sciences that is a figure.
+ * STRICT ON PURPOSE. The first version also matched "document 2", "graph",
+ * "courbe" and "curve", and a hand audit of 12 flagged exercises found 3 real
+ * figures: the rest asked the student to DRAW a curve ("Tracer la courbe",
+ * "Plot the curve", "sa courbe représentative") or cited a "Doc. 4" that is a
+ * boxed paragraph or a table already in the text. It dropped three good
+ * questions for every broken one. Only words that name a printed picture are
+ * kept here; the stronger signal is the figure rows themselves (below).
  */
-const NEEDS_FIGURE =
-  /\b(?:fig(?:ure)?s?\.?\s*\d|figure|doc(?:ument)?\.?\s*\d|graph(?:e|ique)?|courbe|curve|diagram(?:me)?|sch[ée]ma|ci-contre|opposite)\b|الشكل|الرسم البياني|المنحنى|الخريطة|الخارطة/i;
+const NAMES_A_PICTURE =
+  /\bfig(?:ure)?s?\.?\s*\d|\bfigure\s+(?:ci-contre|ci-dessous|ci-dessus|suivante)|\b(?:adjacent|opposite|following|above|below)\s+(?:figure|diagram|drawing)|\bci-contre\b|\bsch[ée]ma|\bdiagram|الشكل|الخريطة|الخارطة|الرسم التخطيطي/i;
 
 export function needsFigure(text: string): boolean {
-  return NEEDS_FIGURE.test(text);
+  return NAMES_A_PICTURE.test(text);
 }
 
 /**
  * Drop the questions that need a figure the app cannot show.
  *
- * Decided by `visualKeysFor`, the same selector the exam screen uses to show
- * figures, so "can be shown" here and "is shown" there cannot disagree.
+ * A question needs a figure when a crop of one exists for it (any status: a
+ * pending crop is a figure found on the paper and not yet approved), or when
+ * its text names a printed picture. It can show one when `visualKeysFor` — the
+ * selector the exam screen uses — returns a key, so "can be shown" here and
+ * "is shown" there cannot disagree.
  */
 export async function withShowableFigures<T extends { id: string; contentText: string; contentImages?: string[] }>(
   pool: T[],
 ): Promise<{ kept: T[]; dropped: number }> {
-  const needing = pool.filter((q) => needsFigure(q.contentText));
+  if (pool.length === 0) return { kept: pool, dropped: 0 };
+
+  const withRows = new Set(
+    (
+      await db.questionVisual.findMany({
+        where: {
+          questionId: { in: pool.map((q) => q.id) },
+          role: { not: 'solution_material' },
+          status: { not: 'rejected' },
+        },
+        select: { questionId: true },
+      })
+    ).map((r) => r.questionId),
+  );
+
+  const needing = pool.filter((q) => withRows.has(q.id) || needsFigure(q.contentText));
   if (needing.length === 0) return { kept: pool, dropped: 0 };
 
   const keys = await visualKeysFor(
