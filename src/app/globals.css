@@ -147,17 +147,18 @@
    * every word on the plate. The colour is then free to be a colour. See
    * `.subject-cap`.
    */
-  /* BLUE, 2026-09-28. The six are now one family of blues, each running
-   * into the same sky blue (--subject-glow), so the dashboard reads as one
-   * product. They still differ a little, which is all they were asked to do.
-   * Only the white ring plate sits on them, so no text contrast is at stake. */
-  --subject-1: 221 83% 53%;
-  --subject-2: 212 88% 47%;
-  --subject-3: 228 72% 52%;
-  --subject-4: 204 86% 44%;
-  --subject-5: 234 66% 56%;
-  --subject-6: 216 80% 42%;
-  --subject-glow: 205 95% 70%;
+  /* PALE BLUE, 2026-09-28. Saturated blues read as loud and cheap across
+   * nine cards, so the six are now pale, quiet blues at one lightness, each
+   * running into the same soft blue (--subject-glow). Only the hue shifts a
+   * little between subjects. The white ring plate sits on them, lifted by
+   * its shadow; no text does. */
+  --subject-1: 216 70% 94%;
+  --subject-2: 210 65% 93%;
+  --subject-3: 222 60% 94%;
+  --subject-4: 205 60% 93%;
+  --subject-5: 228 55% 94%;
+  --subject-6: 214 50% 92%;
+  --subject-glow: 220 50% 86%;
 
   --radius-sm: 8px;
   --radius: 14px;
@@ -294,14 +295,14 @@
     --viz-3: 213 90% 60%;
     --viz-4: 213 97% 80%;
 
-    /* The same six blues a shade deeper, so a cap does not glare on a dark page. */
-    --subject-1: 221 70% 42%;
-    --subject-2: 212 75% 38%;
-    --subject-3: 228 60% 44%;
-    --subject-4: 204 75% 36%;
-    --subject-5: 234 55% 46%;
-    --subject-6: 216 68% 34%;
-    --subject-glow: 205 80% 56%;
+    /* The same quiet blues as dim navy, so a cap does not glare on a dark page. */
+    --subject-1: 220 32% 19%;
+    --subject-2: 214 32% 18%;
+    --subject-3: 226 30% 20%;
+    --subject-4: 208 30% 18%;
+    --subject-5: 232 28% 20%;
+    --subject-6: 218 26% 17%;
+    --subject-glow: 222 36% 25%;
 
     /* Flat, and lifted by being lighter than the page: a shadow does nothing
      * against a dark ground. */
@@ -371,14 +372,14 @@
   --viz-3: 213 90% 60%;
   --viz-4: 213 97% 80%;
 
-  /* The same six blues a shade deeper, so a cap does not glare on a dark page. */
-  --subject-1: 221 70% 42%;
-  --subject-2: 212 75% 38%;
-  --subject-3: 228 60% 44%;
-  --subject-4: 204 75% 36%;
-  --subject-5: 234 55% 46%;
-  --subject-6: 216 68% 34%;
-  --subject-glow: 205 80% 56%;
+  /* The same quiet blues as dim navy, so a cap does not glare on a dark page. */
+  --subject-1: 220 32% 19%;
+  --subject-2: 214 32% 18%;
+  --subject-3: 226 30% 20%;
+  --subject-4: 208 30% 18%;
+  --subject-5: 232 28% 20%;
+  --subject-6: 218 26% 17%;
+  --subject-glow: 222 36% 25%;
 
   /* Flat, and lifted by being lighter than the page: a shadow does nothing
    * against a dark ground. */
