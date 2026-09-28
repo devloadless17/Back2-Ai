@@ -1457,6 +1457,37 @@ BROKEN_DIGIT_PAPERS = frozenset({
 })
 
 
+# A space the font put inside a word, before the ta marbuta that ends it.
+#
+# ة never begins an Arabic word, so a space in front of one is always the
+# font's and never the writer's. On these papers the shadda is emitted as a
+# separately positioned glyph and the position jump arrives as a space, so
+# "الشخصيّة" extracts as "الشخصي ة" and "العامّة" as "العام ة".
+_ORPHAN_TA = re.compile(r"(?<=[ء-ي])[ \t]+(ة)(?![ء-ي])")
+
+# Farsi heh for Arabic heh. U+06BE is not an Arabic letter and appears here only
+# because the font's map reaches for it: "ھذا" for "هذا", "مفھوم" for "مفهوم".
+_FARSI_HEH = str.maketrans({"ھ": "ه"})
+
+
+def repair_arabic_spacing(text: str) -> str:
+    """Undo the two spacing faults these fonts introduce, and only those two.
+
+    WHAT IS NOT DONE HERE, deliberately. A lone alef after a word looks like the
+    same fault — "خامس ا" for "خامسًا" — and joining it is wrong. Counted over
+    the whole corpus, the words that rule would produce are زبطا, دحا, لاؽظبدا,
+    ؼشكخا: they come from papers whose text layer is destroyed beyond this,
+    where the surrounding letters are already gibberish, and joining two pieces
+    of gibberish makes a longer piece. The ta-marbuta rule produces العامة,
+    البشرية, الاقتصادية, اللبنانية — real words, every one of the commonest.
+    That difference is the whole reason one rule is here and the other is not.
+
+    Neither rule can fire on correct Arabic: ة cannot start a word and U+06BE is
+    not an Arabic letter at all.
+    """
+    return _ORPHAN_TA.sub(r"\1", text).translate(_FARSI_HEH)
+
+
 @functools.lru_cache(maxsize=None)
 def sha256_of(pdf: Path) -> str:
     """This paper's sha256, computed once per run.
@@ -1668,6 +1699,7 @@ def read(pdf: Path) -> dict | None:
     # "ثانياً" written with a Persian yeh matches nothing.
     PERSIAN = str.maketrans({"ی": "ي", "ک": "ك", "ۀ": "ه", "ﻻ": "لا"})
     pages = [unicodedata.normalize("NFKC", page).translate(PERSIAN) for page in pages]
+    pages = [repair_arabic_spacing(page) for page in pages]
     joined = "".join(pages)
     if len(joined.strip()) < 300:
         return {"path": str(pdf.relative_to(EXAMS)), "error": "no text layer"}
