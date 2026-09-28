@@ -129,26 +129,13 @@
   /*
    * Subject identity, six tints.
    *
-   * Not the `--viz-*` ramp, which is four steps of the same indigo and cannot
+   * Not the `--viz-*` ramp, which is four steps of one blue by lightness and cannot
    * tell chemistry from philosophy. Not the semantic colours either: `--mark`
    * is the examiner's pen and means lost marks, `--correct` and `--partial`
    * mean what they say, and a subject that happened to land on red would be
    * making a claim about the student's work. These six carry no meaning beyond
    * "a different subject from the one above it", which is the only thing they
    * are asked to say. Reds and ambers are left out of the set on purpose.
-   *
-   * MUTED, AND OUT OF THE SEMANTIC BANDS. They were indigo, violet, cyan,
-   * azure, green and magenta at 48-78% saturation, which against a warm
-   * off-white canvas and a deep mint primary read as a different product
-   * bolted onto this one — six loud hues from outside the system. They are now
-   * 20-30% saturation and sit in one cool family, the way book cloth does on
-   * cream.
-   *
-   * Every hue stays clear of `--correct` (172), `--partial` (30) and `--mark`
-   * (343), which is the rule above enforced in numbers. A first pass at this
-   * used terracotta and ochre and had to be pulled: at hue 18 and 45 they sat
-   * beside the amber that means partial credit, and a mint at 168 sat on top
-   * of the teal that means a mark was earned.
    *
    * Nothing is ever printed on them. The first version was pale — 92 to 96%
    * lightness — because the subject card printed five different band colours
@@ -160,12 +147,17 @@
    * every word on the plate. The colour is then free to be a colour. See
    * `.subject-cap`.
    */
-  --subject-1: 196 30% 36%;  /* slate teal */
-  --subject-2: 214 26% 40%;  /* steel */
-  --subject-3: 234 22% 44%;  /* indigo slate */
-  --subject-4: 264 20% 46%;  /* muted violet */
-  --subject-5: 302 20% 43%;  /* muted plum */
-  --subject-6: 96 22% 34%;   /* moss */
+  /* BLUE, 2026-09-28. The six are now one family of blues, each running
+   * into the same sky blue (--subject-glow), so the dashboard reads as one
+   * product. They still differ a little, which is all they were asked to do.
+   * Only the white ring plate sits on them, so no text contrast is at stake. */
+  --subject-1: 221 83% 53%;
+  --subject-2: 212 88% 47%;
+  --subject-3: 228 72% 52%;
+  --subject-4: 204 86% 44%;
+  --subject-5: 234 66% 56%;
+  --subject-6: 216 80% 42%;
+  --subject-glow: 205 95% 70%;
 
   --radius-sm: 8px;
   --radius: 14px;
@@ -302,13 +294,14 @@
     --viz-3: 213 90% 60%;
     --viz-4: 213 97% 80%;
 
-    /* The same six a shade deeper, so a cap does not glare on a dark page. */
-    --subject-1: 196 28% 31%;
-    --subject-2: 214 24% 34%;
-    --subject-3: 234 20% 38%;
-    --subject-4: 264 18% 40%;
-    --subject-5: 302 18% 37%;
-    --subject-6: 96 20% 29%;
+    /* The same six blues a shade deeper, so a cap does not glare on a dark page. */
+    --subject-1: 221 70% 42%;
+    --subject-2: 212 75% 38%;
+    --subject-3: 228 60% 44%;
+    --subject-4: 204 75% 36%;
+    --subject-5: 234 55% 46%;
+    --subject-6: 216 68% 34%;
+    --subject-glow: 205 80% 56%;
 
     /* Flat, and lifted by being lighter than the page: a shadow does nothing
      * against a dark ground. */
@@ -378,13 +371,14 @@
   --viz-3: 213 90% 60%;
   --viz-4: 213 97% 80%;
 
-  /* The same six a shade deeper, so a cap does not glare on a dark page. */
-  --subject-1: 196 28% 31%;
-  --subject-2: 214 24% 34%;
-  --subject-3: 234 20% 38%;
-  --subject-4: 264 18% 40%;
-  --subject-5: 302 18% 37%;
-  --subject-6: 96 20% 29%;
+  /* The same six blues a shade deeper, so a cap does not glare on a dark page. */
+  --subject-1: 221 70% 42%;
+  --subject-2: 212 75% 38%;
+  --subject-3: 228 60% 44%;
+  --subject-4: 204 75% 36%;
+  --subject-5: 234 55% 46%;
+  --subject-6: 216 68% 34%;
+  --subject-glow: 205 80% 56%;
 
   /* Flat, and lifted by being lighter than the page: a shadow does nothing
    * against a dark ground. */
@@ -524,9 +518,9 @@
    */
   .subject-cap {
     background-image: linear-gradient(
-      165deg,
+      135deg,
       hsl(var(--tint)) 0%,
-      hsl(var(--tint) / 0.82) 100%
+      hsl(var(--subject-glow)) 100%
     );
   }
 
