@@ -218,24 +218,13 @@ export function selectVisualEvidence(input: SelectionInput): VisualSelection {
     };
   }
 
-  // No active canonical relation at all: the legacy page, unless the audit
-  // proved it wrong.
-  if (input.legacyImages.length > 0) {
-    if (input.legacyVerdict && SUPPRESSED_LEGACY.has(input.legacyVerdict)) {
-      return { ...empty, legacySuppressed: true };
-    }
-    const visuals = input.legacyImages.map((key) => ({
-      key,
-      occurrenceId: null,
-      groupKey: null,
-      groupPart: null,
-      groupSize: null,
-      label: null,
-    }));
-    return { ...empty, source: 'legacy', visuals, keys: [...input.legacyImages] };
-  }
-
-  return empty;
+  // No active canonical relation at all: nothing, never the legacy page. A
+  // legacy image is the WHOLE scanned page — letterhead, other exercises,
+  // often the cover — and a student shown "page 1" under a question about a
+  // nutrient table (LH chemistry 2019, the table already in the text) said
+  // they cannot use a whole page at all. An exercise gets its figure when its
+  // crop is active, and until then the text stands alone.
+  return { ...empty, legacySuppressed: input.legacyImages.length > 0 };
 }
 
 // ---------------------------------------------------------------------------

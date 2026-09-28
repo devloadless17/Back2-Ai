@@ -143,9 +143,9 @@ async function main() {
   });
   if (permitted) {
     const s = (await selectVisualsFor([permitted.question])).get(permitted.question.id)!;
-    check(`permitted legacy page still falls back (${permitted.question.id})`,
-      s.source === 'legacy' && JSON.stringify(s.keys) === JSON.stringify(permitted.question.contentImages));
-  } else check('a permitted legacy row exists to test', false);
+    check(`an uncropped exercise shows no whole page (${permitted.question.id})`,
+      s.keys.length === 0 && s.legacySuppressed);
+  } else check('an uncropped legacy row exists to test', false);
   const wrongRow = await db.legacyImageAudit.findFirst({
     where: { verdict: { in: ['wrong_exercise', 'wrong_page', 'header_only'] }, question: { visuals: { none: { status: 'active' } } } },
     select: { verdict: true, question: { select: { id: true, contentText: true, contentImages: true } } },

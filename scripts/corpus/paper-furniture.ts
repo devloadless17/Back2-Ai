@@ -69,6 +69,7 @@ const LETTERHEAD_COMPACT = new RegExp(
       'مشروع',
       'العادية',
       'الاستثنائية',
+      'للمكفوفين',
       `${WEEKDAY.replace(/\s/g, '')}${DIGIT}{1,2}\\S{2,8}${DIGIT}{0,4}`,
       `دورة(?:العام|سنة)${DIGIT}{0,4}\\S{0,12}`,
       'امتحاناتالشهادةالثانوية\\S{0,20}',
@@ -89,7 +90,24 @@ const MAX_FURNITURE = 60;
 
 function isFooter(line: string): boolean {
   if (line.trim().length > MAX_FURNITURE) return false;
-  return FOOTER_LINE.test(line) || LETTERHEAD_COMPACT.test(line.replace(/[\sـ]+/g, ''));
+  // Vowel marks dropped too: "الاستثنائيّة" is printed with a shadda.
+  return FOOTER_LINE.test(line) || LETTERHEAD_COMPACT.test(line.replace(/[\sـً-ْ]+/g, ''));
+}
+
+/*
+ * Furniture in the MIDDLE of a statement. When a paper runs onto a second
+ * page, the reader emits that page's header between the questions and the
+ * document printed below them: "…covers the baby's need of calcium. /
+ * الاستثنائيّة / الثلاثاء 30 تموز 2019 / للمكفوفين / Nutrient Mass …". A student
+ * saw exactly that. Only the unambiguous shapes count here: never a bare
+ * "2/3", which mid-text can be a real fraction or a table cell, and never a
+ * mark label, which mid-text is the mark of the question above it.
+ */
+const SMALL_FRACTION = /^\s*[1-9]\s*\/\s*[1-9]\s*$/;
+/** Mid-text, a bare "number" is a wrapped word ("a real / number"); the form field has a colon. */
+const BARE_FIELD = /^\s*(?:nom|name|num[ée]ro|number|الاسم|الرقم)\s*$/i;
+function isInteriorFurniture(line: string): boolean {
+  return isFooter(line) && !SMALL_FRACTION.test(line) && !BARE_FIELD.test(line);
 }
 
 export type Stripped = { text: string; removed: string[] };
@@ -112,6 +130,9 @@ export function stripPaperFurniture(text: string): Stripped {
   // A lone mark label is the last sub-question's own mark: keep the block
   // from it downward, dropping only the footers below it.
   const cut = new Set(marks.length >= 2 ? [...marks, ...footers] : footers);
+  lines.forEach((line, i) => {
+    if (line.trim() && isInteriorFurniture(line)) cut.add(i);
+  });
   if (cut.size === 0) return { text, removed: [] };
 
   const removed: string[] = [];

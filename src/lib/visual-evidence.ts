@@ -67,8 +67,8 @@ function asLocators(value: unknown): ConsumerLocator[] | null {
  * DEPLOY-ORDER SAFETY. This code can reach an environment before the
  * `20260921120000_visual_evidence` migration has been applied there. Only the
  * two Prisma codes for a missing table or column are absorbed, and they are
- * treated as "no canonical rows" — which is exactly the behaviour before this
- * feature: the legacy page, with no verdict suppressing it. Any other error
+ * treated as "no canonical rows", so the exercise shows its text and no
+ * picture (a whole legacy page is never shown). Any other error
  * still throws. Logged once, by code only.
  */
 let schemaGapLogged = false;
@@ -80,7 +80,7 @@ async function orEmptyIfUnmigrated<T>(query: Promise<T[]>): Promise<T[]> {
     if (code === 'P2021' || code === 'P2022') {
       if (!schemaGapLogged) {
         schemaGapLogged = true;
-        console.warn(`[visual-evidence] visual tables not migrated here (${code}); using legacy images only`);
+        console.warn(`[visual-evidence] visual tables not migrated here (${code}); showing no visuals`);
       }
       return [];
     }

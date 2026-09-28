@@ -231,12 +231,13 @@ describe('C4 acceptance', () => {
     expect(selectVisualEvidence(input({ relations: [doc2] })).keys).toEqual([doc2.storageKey]);
   });
 
-  it('11. an unresolved legacy association is preserved, not guessed', () => {
-    const s = selectVisualEvidence(input({ legacyImages: ['/figures/abc-p1.png'], legacyVerdict: 'unresolved' }));
-    expect(s.source).toBe('legacy');
-    expect(s.keys).toEqual(['/figures/abc-p1.png']);
-    // And with no verdict at all (untraced), the same.
-    expect(selectVisualEvidence(input({ legacyImages: ['/figures/x-p1.png'] })).keys).toEqual(['/figures/x-p1.png']);
+  it('11. a whole legacy page is never shown, whatever its verdict', () => {
+    for (const legacyVerdict of ['unresolved', 'correct', 'no_crop_on_page', null] as const) {
+      const s = selectVisualEvidence(input({ legacyImages: ['/figures/abc-p1.png'], legacyVerdict }));
+      expect(s.source).toBe('none');
+      expect(s.keys).toEqual([]);
+      expect(s.legacySuppressed).toBe(true);
+    }
   });
 });
 
@@ -285,9 +286,9 @@ describe('legacy fallback', () => {
     });
   }
 
-  it('pending canonical rows do not displace a permitted legacy page', () => {
+  it('pending canonical rows show nothing, and do not bring back the legacy page', () => {
     const pending = row('p', { status: 'pending' });
-    expect(selectVisualEvidence(input({ relations: [pending], legacyImages: ['/figures/p.png'] })).source).toBe('legacy');
+    expect(selectVisualEvidence(input({ relations: [pending], legacyImages: ['/figures/p.png'] })).keys).toEqual([]);
   });
 
   it('a canonical exercise never falls back to the whole legacy page for a narrow part', () => {
@@ -436,7 +437,7 @@ describe('panels and parity', () => {
 });
 
 describe('deploy-order safety', () => {
-  it('an unmigrated database degrades to the legacy page, and only for missing-table errors', async () => {
+  it('an unmigrated database degrades to no visuals, and only for missing-table errors', async () => {
     const { db } = await import('@/lib/db');
     const { selectVisualsFor } = await import('@/lib/visual-evidence');
     const original = db.questionVisual.findMany;
@@ -445,7 +446,7 @@ describe('deploy-order safety', () => {
     (db.questionVisual as { findMany: unknown }).findMany = async () => {
       throw Object.assign(new Error('relation does not exist'), { code: 'P2021' });
     };
-    expect((await selectVisualsFor([q])).get('q-legacy')!.keys).toEqual(['/figures/p1.png']);
+    expect((await selectVisualsFor([q])).get('q-legacy')!.keys).toEqual([]);
 
     (db.questionVisual as { findMany: unknown }).findMany = async () => {
       throw Object.assign(new Error('connection refused'), { code: 'P1001' });

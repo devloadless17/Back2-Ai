@@ -42,6 +42,26 @@ describe('stripPaperFurniture', () => {
     expect(stripPaperFurniture(text).text).toBe('اشرح التنظيمات الإدارية.');
   });
 
+  it('removes a second page header printed between the questions and the document', () => {
+    const text = [
+      '5.2.2. Verify whether this amount of milk covers the baby’s need of calcium.',
+      'الاستثنائيّة ',
+      'الثلاثاء 30 تموز 2019 ',
+      'للمكفوفين',
+      'Nutrient Mass ',
+      'Calcium 145 mg ',
+      'Document - 1',
+    ].join('\n');
+    expect(stripPaperFurniture(text).text).toBe(
+      '5.2.2. Verify whether this amount of milk covers the baby’s need of calcium.\nNutrient Mass \nCalcium 145 mg \nDocument - 1',
+    );
+  });
+
+  it('keeps a small fraction and a mark in the middle of a statement', () => {
+    const text = 'a) Calculate p(A).\n2/3\n(1 point)\nb) Let a be a real\nnumber\nsuch that p(B) = a.';
+    expect(stripPaperFurniture(text).text).toBe(text);
+  });
+
   it('leaves real content alone', () => {
     for (const text of [
       'Calculate the probability.\n7/12',
