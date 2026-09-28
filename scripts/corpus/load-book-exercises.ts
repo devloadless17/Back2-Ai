@@ -38,6 +38,7 @@ import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 
 import { PrismaClient, type Language, type QuestionType } from '@prisma/client';
+import { hasCorruptByte } from './book-exercise-guards';
 
 const db = new PrismaClient();
 const ROOT = path.resolve(__dirname, '..', '..');
@@ -106,6 +107,7 @@ async function main() {
   let retired = 0;
   let linked = 0;
   let held = 0;
+  let corruptHeld = 0;
   const problems: string[] = [];
 
   for (const file of files) {
@@ -117,7 +119,12 @@ async function main() {
       continue;
     }
     const { exercises } = JSON.parse(await readFile(path.join(DIR, file), 'utf8')) as { exercises: Exercise[] };
-    const loadable = exercises.filter((e) => e.held.length === 0);
+
+    // A reply corrupted to a NUL byte is held, not stripped — see hasCorruptByte.
+    const corrupted = exercises.filter(hasCorruptByte);
+    corruptHeld += corrupted.length;
+
+    const loadable = exercises.filter((e) => e.held.length === 0 && !hasCorruptByte(e));
     held += exercises.length - loadable.length;
 
     const doc = await db.sourceDocument.findUnique({ where: { bookKey: folder }, select: { id: true } });
@@ -222,6 +229,9 @@ async function main() {
   console.log(`  unchanged  ${unchanged}`);
   console.log(`  retired    ${retired}`);
   console.log(`  held back  ${held} (figures, fragments, ungrounded: not loaded)`);
+  if (corruptHeld > 0) {
+    console.log(`  of those, ${corruptHeld} held for a NUL byte where a letter should be`);
+  }
   console.log(`  home links written  ${linked}`);
   for (const p of [...new Set(problems)]) console.log(`  PROBLEM  ${p}`);
   if (dry) console.log('\n  --dry: nothing written.');
