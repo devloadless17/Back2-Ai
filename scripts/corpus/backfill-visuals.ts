@@ -57,8 +57,33 @@ const OWNED = new Set(['DIRECT_REFERENCE', 'CORROBORATED', 'CONTEXTUAL']);
  * were right, so physics got its own fresh sample of 50 unseen crops: 49
  * right, and the one miss was panel (b) of a figure whose panel (a) is attached
  * to the same exercise. Other subjects stay PENDING until they pass their own.
+ *
+ * 2026-09-28: per-subject audits, sheets and verdicts in corpus/crop-audit/.
+ * All three failed as Mathpix cut them (chemistry 8/50): panel captions left
+ * outside the box ("Curve c", "Setup (a)"), and pieces of a larger figure (half
+ * a variation table, one karyotype cell, one of two photographed lots).
+ * recut_captions.py takes the whole image or drawn frame a piece belongs to,
+ * adds the caption, and holds back table cells and fragments (listed in
+ * crop-fragments.json, kept PENDING below). Re-audited on fresh seeds:
+ * chemistry 0/50, maths 0/50, biology 0/41 (all of them).
  */
-const GATED_AUDIT_PASSED = new Set(['Physics', 'Physique']);
+const GATED_AUDIT_PASSED = new Set([
+  'Physics', 'Physique', 'Chemistry', 'Chimie', 'Mathematics', 'Mathematiques', 'Life Sciences', 'Sciences de la vie',
+]);
+
+/*
+ * Crops recut_captions.py found to be pieces of something larger (a lone arrow,
+ * one arrow of a variation table). They stay PENDING whatever their subject's
+ * audit says, so the student sees the whole page instead.
+ */
+const FRAGMENTS_FILE = path.join(ROOT, 'corpus/.mapping/crop-fragments.json');
+const FRAGMENTS = new Set<string>(
+  existsSync(FRAGMENTS_FILE)
+    ? (JSON.parse(readFileSync(FRAGMENTS_FILE, 'utf-8')) as Array<{ paperSha256: string; cropName: string }>).map(
+        (f) => `${f.paperSha256}|${f.cropName}`,
+      )
+    : [],
+);
 const MEDIA: Record<string, string> = { '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp' };
 
 // ---------------------------------------------------------------------------
@@ -275,7 +300,7 @@ async function plan() {
       for (const q of qs) {
         if (ONLY_SUBJECT && q.subject.toLowerCase() !== ONLY_SUBJECT.toLowerCase()) continue;
         // A gated crop goes live only in a subject whose own audit passed.
-        const promoted = tier === 'gated' && GATED_AUDIT_PASSED.has(q.subject);
+        const promoted = tier === 'gated' && GATED_AUDIT_PASSED.has(q.subject) && !FRAGMENTS.has(key);
         relations.push({
           questionId: q.id, occurrenceKey: key, role: ROLE[r.ownershipLevel] ?? 'exercise_context',
           consumers: locators && locators.length > 0 ? locators : null,
