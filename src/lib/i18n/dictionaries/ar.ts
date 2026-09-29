@@ -637,6 +637,11 @@ export const ar: Dictionary = {
   },
 
   chat: {
+    searchLabel: 'ابحث في محادثاتك',
+    searchPlaceholder: 'ابحث عمّا سألت عنه…',
+    searchNoResults: 'لا محادثة تطابق ذلك.',
+    deleteSession: 'حذف',
+    deleteConfirm: 'حذف نهائي',
     readingFrom: 'يقرأ {count} مقاطع من {source}…',
     subjectPickTitle: 'شو بدنا ندرس؟',
     subjectPickHint: 'اختر مادة ليأتي الجواب من منهجها. بتقدر تغيّرها بعدين.',

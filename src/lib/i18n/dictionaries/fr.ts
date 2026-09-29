@@ -620,6 +620,11 @@ export const fr: Dictionary = {
   },
 
   chat: {
+    searchLabel: 'Rechercher dans vos conversations',
+    searchPlaceholder: 'Rechercher ce que vous avez demandé…',
+    searchNoResults: 'Aucune conversation ne correspond.',
+    deleteSession: 'Supprimer',
+    deleteConfirm: 'Supprimer définitivement',
     readingFrom: 'Lecture de {count} passages de {source}…',
     subjectPickTitle: 'On révise quoi ?',
     subjectPickHint: 'Choisissez une matière pour que les réponses viennent de ce programme. Modifiable ensuite.',

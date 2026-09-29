@@ -644,6 +644,11 @@ export const en = {
   },
 
   chat: {
+    searchLabel: 'Search your conversations',
+    searchPlaceholder: 'Search what you asked…',
+    searchNoResults: 'No conversation matches that.',
+    deleteSession: 'Delete',
+    deleteConfirm: 'Delete for good',
     readingFrom: 'Reading {count} passages from {source}…',
     subjectPickTitle: 'What are we studying?',
     subjectPickHint: 'Pick a subject so answers come from that syllabus. You can change it later.',
