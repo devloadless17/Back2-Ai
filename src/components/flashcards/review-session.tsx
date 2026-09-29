@@ -56,9 +56,34 @@ export function ReviewSession({ cards }: { cards: DueCard[] }) {
   const [leaving, setLeaving] = useState(false);
   const [reviewed, setReviewed] = useState(0);
   const [lapses, setLapses] = useState(0);
+  const [generatedAnswers, setGeneratedAnswers] = useState<Record<string, string>>({});
+  const [answerLoading, setAnswerLoading] = useState(false);
 
   const card = queue[index];
   const total = cards.length;
+
+  async function revealAnswer() {
+    if (!card) return;
+    setFlipped(true);
+    if (card.source !== 'question' || card.officialSolutionLatex || card.officialSolution ||
+        card.generatedAnswer || generatedAnswers[card.cardId]) return;
+
+    setAnswerLoading(true);
+    try {
+      const result = await sendJson<{ status: string; answer?: string }>(
+        '/api/flashcards/answer',
+        'POST',
+        { questionId: card.cardId },
+      );
+      if (result.status === 'ok' && result.answer) {
+        setGeneratedAnswers((current) => ({ ...current, [card.cardId]: result.answer! }));
+      }
+    } catch {
+      // The existing no-solution state remains truthful when generation fails.
+    } finally {
+      setAnswerLoading(false);
+    }
+  }
 
   /*
    * Keyboard review.
@@ -83,7 +108,7 @@ export function ReviewSession({ cards }: { cards: DueCard[] }) {
       if (!flipped) {
         if (event.key === ' ' || event.key === 'Enter') {
           event.preventDefault();
-          setFlipped(true);
+          void revealAnswer();
         }
         return;
       }
@@ -187,7 +212,7 @@ export function ReviewSession({ cards }: { cards: DueCard[] }) {
       <FlipCard
         className={cn('transition-opacity duration-150', leaving ? 'opacity-0' : 'animate-fade-in')}
         flipped={flipped}
-        onFlip={() => setFlipped(true)}
+        onFlip={() => void revealAnswer()}
         label={flipped ? t.flashcards.answer : t.flashcards.tapToReveal}
         front={
           <>
@@ -235,11 +260,21 @@ export function ReviewSession({ cards }: { cards: DueCard[] }) {
         }
         back={
           <>
-            <SheetHeader title={t.flashcards.answer} description={card.chapterName} />
+            <SheetHeader
+              title={t.flashcards.answer}
+              description={card.chapterName}
+              actions={
+                card.generatedAnswer || generatedAnswers[card.cardId]
+                  ? <Badge tone="accent">AI · Textbook</Badge>
+                  : undefined
+              }
+            />
             <SheetBody className="flex flex-1 items-center justify-center text-center">
-              {card.officialSolutionLatex || card.officialSolution ? (
+              {answerLoading ? (
+                <p className="text-sm text-ink-muted">Building an answer from your textbook…</p>
+              ) : card.officialSolutionLatex || card.officialSolution || card.generatedAnswer || generatedAnswers[card.cardId] ? (
                 <MathText dir={dirForLanguage(card.subjectLanguage)}>
-                  {card.officialSolutionLatex ?? card.officialSolution ?? ''}
+                  {card.officialSolutionLatex ?? card.officialSolution ?? card.generatedAnswer ?? generatedAnswers[card.cardId] ?? ''}
                 </MathText>
               ) : (
                 <p className="text-sm text-ink-muted">{t.flashcards.noSolution}</p>
@@ -283,7 +318,7 @@ export function ReviewSession({ cards }: { cards: DueCard[] }) {
               </div>
             </>
           ) : (
-            <Button variant="primary" fullWidth onClick={() => setFlipped(true)}>
+            <Button variant="primary" fullWidth onClick={() => void revealAnswer()}>
               {t.flashcards.showAnswer}
               <kbd className="ms-1.5 hidden font-mono text-micro font-normal opacity-70 sm:inline">
                 space

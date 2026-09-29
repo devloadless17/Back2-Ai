@@ -64,6 +64,7 @@ export type DueCard = {
   contentLatex: string | null;
   officialSolution: string | null;
   officialSolutionLatex: string | null;
+  generatedAnswer: string | null;
   chapterId: string;
   chapterName: string;
   subjectName: string;
@@ -221,6 +222,7 @@ const CARD_SELECT = {
   easiness: true,
   intervalDays: true,
   repetitions: true,
+  generatedAnswer: true,
   question: {
     select: {
       id: true,
@@ -248,6 +250,7 @@ type CardRow = {
   easiness: unknown;
   intervalDays: number;
   repetitions: number;
+  generatedAnswer: string | null;
   question: {
     id: string;
     contentText: string;
@@ -312,6 +315,7 @@ function toCard(row: CardRow, aheadOfSchedule: boolean): DueCard | null {
       contentLatex: null,
       officialSolution: card.back,
       officialSolutionLatex: null,
+      generatedAnswer: null,
       chapterId: card.chapter.id,
       chapterName: card.chapter.name,
       subjectName: card.chapter.subject.name,
@@ -330,6 +334,7 @@ function toCard(row: CardRow, aheadOfSchedule: boolean): DueCard | null {
     contentLatex: question.contentLatex,
     officialSolution: question.officialSolution,
     officialSolutionLatex: question.officialSolutionLatex,
+    generatedAnswer: row.generatedAnswer,
     chapterId: question.chapter.id,
     chapterName: question.chapter.name,
     subjectName: question.chapter.subject.name,

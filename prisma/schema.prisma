@@ -1041,6 +1041,11 @@ model FlashcardState {
   repetitions     Int       @default(0)
   dueDate         DateTime  @default(dbgenerated("CURRENT_DATE")) @map("due_date") @db.Date
   lastReviewedAt  DateTime? @map("last_reviewed_at") @db.Timestamptz(6)
+  /// AI-written study answer for a question whose official correction is absent.
+  /// Kept on the student's card, never on the official question corpus.
+  generatedAnswer      String?   @map("generated_answer")
+  generatedAnswerModel String?   @map("generated_answer_model")
+  generatedAnswerAt    DateTime? @map("generated_answer_at") @db.Timestamptz(6)
 
   user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   question      Question?      @relation(fields: [questionId], references: [id], onDelete: Cascade)
