@@ -85,6 +85,56 @@ export type ChatEvent =
   | { type: 'retracted'; messageId: string; reason: string }
   | { type: 'error'; message: string };
 
+const LEGACY_WITHDRAWAL_MARKERS = [
+  'i started an answer i could not verify against the curriculum',
+  "je n'ai pas pu vérifier par rapport au programme",
+  'لم أتمكن من التحقق منها مقابل المنهج',
+];
+
+function isLegacyWithdrawal(content: string): boolean {
+  const folded = content.toLocaleLowerCase();
+  return LEGACY_WITHDRAWAL_MARKERS.some((marker) => folded.includes(marker));
+}
+
+/**
+ * Recover the exercise that an older build erased after verification.
+ *
+ * The user message was saved before generation, so even legacy conversations
+ * still contain the question. A short retry such as "solve it" must reuse that
+ * saved question rather than asking the student to paste it again.
+ */
+export function savedQuestionForRetry(
+  current: string,
+  history: { role: 'user' | 'assistant'; content: string }[],
+): string | null {
+  const retry = current.trim();
+  if (retry.length === 0 || retry.length > 120) return null;
+
+  const retryCue =
+    /(?:\b(?:solve|answer|continue|again|retry|try|it|that|why|please|plz)\b|\b(?:répond\w*|résou\w*|encore|continue\w*)\b|حل|جاوب|كمل|لماذا|ليش|\?{2,})/iu;
+  if (!retryCue.test(retry)) return null;
+
+  for (let i = history.length - 1; i >= 0; i -= 1) {
+    const message = history[i];
+    if (message?.role !== 'assistant' || !isLegacyWithdrawal(message.content)) continue;
+
+    for (let j = i - 1; j >= 0; j -= 1) {
+      const prior = history[j];
+      if (prior?.role === 'user' && prior.content.trim()) return prior.content.trim();
+    }
+  }
+
+  return null;
+}
+
+export function historyWithoutLegacyWithdrawals(
+  history: { role: 'user' | 'assistant'; content: string }[],
+): { role: 'user' | 'assistant'; content: string }[] {
+  return history.filter(
+    (message) => message.role !== 'assistant' || !isLegacyWithdrawal(message.content),
+  );
+}
+
 export type CitedSource = {
   id: string;
   kind: RetrievalSource['kind'];
@@ -764,6 +814,12 @@ export async function* runChatTurn(input: ChatTurnInput): AsyncGenerator<ChatEve
     data: { updatedAt: new Date() },
   });
 
+  const savedQuestion = savedQuestionForRetry(input.question, input.history);
+  const questionForAnswer = savedQuestion ?? input.question;
+  if (savedQuestion) {
+    input = { ...input, history: historyWithoutLegacyWithdrawals(input.history) };
+  }
+
   /*
    * Not every message is a question about the syllabus, and only a question
    * about the syllabus can be off it.
@@ -779,7 +835,9 @@ export async function* runChatTurn(input: ChatTurnInput): AsyncGenerator<ChatEve
    * greeting, because answering a real question with no material behind it is
    * a worse failure than greeting somebody twice.
    */
-  const intent = classifyChatIntent(input.question);
+  const intent = savedQuestion
+    ? { intent: 'curriculum' as const, signal: 'saved-question-retry' }
+    : classifyChatIntent(input.question);
   if (intent.intent === 'planning') {
     yield* planningTurn(input, intent);
     return;
@@ -796,7 +854,7 @@ export async function* runChatTurn(input: ChatTurnInput): AsyncGenerator<ChatEve
   let grounding: GroundingResult;
   try {
     grounding = await retrieveGrounding({
-      query: input.question,
+      query: questionForAnswer,
       subjectIds: input.subjectIds,
       userId: input.userId,
       anchorQuestion: input.anchorQuestion ?? null,
@@ -988,7 +1046,7 @@ export async function* runChatTurn(input: ChatTurnInput): AsyncGenerator<ChatEve
   // an answer about a circuit with no record that nobody had seen the circuit.
   // `generalKnowledgeTurn` already persists `notice + answer` for exactly this
   // reason; this path did not.
-  const absentVisual = missingVisual(input.question);
+  const absentVisual = missingVisual(questionForAnswer);
   //
   // THREE WAYS THE FIGURE CAN ALREADY BE PRESENT, and the notice must stand
   // down for all of them.
@@ -1024,7 +1082,7 @@ export async function* runChatTurn(input: ChatTurnInput): AsyncGenerator<ChatEve
    * speak as though it had looked. So the state is named to the model instead
    * of hidden from it.
    */
-  const visualEvidence = visualEvidenceState(images.length > 0, input.question);
+  const visualEvidence = visualEvidenceState(images.length > 0, questionForAnswer);
 
   const visualNotice =
     absentVisual && visualEvidence === 'absent'
@@ -1082,7 +1140,9 @@ export async function* runChatTurn(input: ChatTurnInput): AsyncGenerator<ChatEve
     ...(input.anchorAttempt ? ['', formatAttempt(input.anchorAttempt)] : []),
     '',
     '# Student question',
-    input.question,
+    savedQuestion
+      ? `${savedQuestion}\n\nLatest student instruction: ${input.question}`
+      : input.question,
   ].join('\n');
 
   let answer = '';
@@ -1103,7 +1163,7 @@ export async function* runChatTurn(input: ChatTurnInput): AsyncGenerator<ChatEve
           grounding.classification,
           input.locale,
           input.subjectLanguage ?? null,
-          input.question,
+          questionForAnswer,
           input.subjectName ?? null,
         ) +
         (input.anchorAttempt ? `\n${CORRECTION_KEY_PROMPT}` : ''),
@@ -1157,7 +1217,7 @@ export async function* runChatTurn(input: ChatTurnInput): AsyncGenerator<ChatEve
   }
 
   const verdict = await verifyAgainstContext({
-    query: input.question,
+    query: questionForAnswer,
     answer,
     context: grounding.context,
   });
