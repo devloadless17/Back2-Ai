@@ -412,6 +412,30 @@ const SCIENCE_EXAM_STYLE_PROMPT = [
   '- After the exam answer, add at most a short "Why" section for the steps a student usually misses.',
 ].join('\n');
 
+const BIOLOGY_SUBJECTS = new Set(['Life Sciences', 'Sciences de la vie']);
+
+/**
+ * Biology corrections often mix usable answer lines with headings or an
+ * incomplete mark allocation. Keep the ministry's wording when it exists and
+ * make any necessary completion visibly separate, so generated prose is never
+ * mistaken for the official answer.
+ */
+const BIOLOGY_OFFICIAL_ANSWER_PROMPT = [
+  '',
+  'For this Life Sciences question, preserve the official answer whenever one is supplied:',
+  '- Reproduce every usable official answer line for the requested part verbatim, in its original order and',
+  '  under the same sub-question number. Do not paraphrase, summarise, translate, or replace biological terms.',
+  '- Ignore obvious scan furniture such as an exercise title, page number, or a bare mark value; those are not',
+  '  answer content. Never present them as the answer.',
+  '- If the official answer is complete, return it as the exam-ready answer. Add no tutorial or alternative',
+  '  wording unless the student explicitly asks for an explanation.',
+  '- If it is missing or incomplete, keep the available official lines unchanged, then put only the missing',
+  '  response under a separate "Curriculum completion" heading. Write that completion as concise exam sentences',
+  '  using the exact biological terminology of the Lebanese programme.',
+  '- Never blend a curriculum completion into the quoted official answer or imply that generated wording came',
+  '  from the ministry correction.',
+].join('\n');
+
 /**
  * Added when the question points at something that was not supplied.
  *
@@ -678,6 +702,11 @@ export function systemPrompt(
       ? [SCIENCE_EXAM_STYLE_PROMPT]
       : [];
 
+  const biologyOfficialAnswer =
+    subjectName && BIOLOGY_SUBJECTS.has(subjectName.trim()) && tier === 'exact_match'
+      ? [BIOLOGY_OFFICIAL_ANSWER_PROMPT]
+      : [];
+
   /*
    * A property of the SUBJECT, not of the question, so it is keyed off the
    * subject and off nothing in the message. Every question in these four is
@@ -692,6 +721,7 @@ export function systemPrompt(
     ...unresolved,
     ...documents,
     ...examStyle,
+    ...biologyOfficialAnswer,
     ...verbatim,
   ].join('\n');
 }

@@ -58,6 +58,33 @@ describe('science answers are written the way the paper is marked', () => {
   });
 });
 
+describe('Life Sciences preserves the official correction', () => {
+  const biologyRule = (subject: string, tier: 'exact_match' | 'concept_level' = 'exact_match') =>
+    systemPrompt(tier, concept, 'en', 'en', bioQuestion, subject);
+
+  it('copies English and French biology corrections verbatim', () => {
+    for (const subject of ['Life Sciences', 'Sciences de la vie']) {
+      const prompt = biologyRule(subject);
+      expect(prompt).toContain('Reproduce every usable official answer line');
+      expect(prompt).toContain('verbatim, in its original order');
+      expect(prompt).toContain('Do not paraphrase, summarise, translate');
+    }
+  });
+
+  it('separates a missing-answer completion from ministry wording', () => {
+    const prompt = biologyRule('Life Sciences');
+    expect(prompt).toContain('Curriculum completion');
+    expect(prompt).toContain('Never blend a curriculum completion');
+    expect(prompt).toContain('imply that generated wording came');
+  });
+
+  it('does not apply the correction-copying rule to concepts or other sciences', () => {
+    expect(biologyRule('Life Sciences', 'concept_level')).not.toContain('Curriculum completion');
+    expect(biologyRule('Physics')).not.toContain('Curriculum completion');
+    expect(biologyRule('Chemistry')).not.toContain('Curriculum completion');
+  });
+});
+
 describe('everything else is unchanged', () => {
   it('a concept question keeps the answer-only-from-the-material rule', () => {
     expect(systemPrompt('concept_level', concept, 'en', 'en', 'What is a plasmocyte?', 'Life Sciences')).toContain(
