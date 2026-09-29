@@ -44,7 +44,7 @@ async function main() {
     if (stranded.length) console.log('  report only. Re-run with --apply --confirm-db <database>.');
     return;
   }
-  const [{ d }] = await db.$queryRaw<Array<{ d: string }>>`SELECT current_database() AS d`;
+  const d = (await db.$queryRaw<Array<{ d: string }>>`SELECT current_database() AS d`)[0]!.d;
   if (arg('confirm-db') !== d) throw new Error(`refusing to write: connected to "${d}", --confirm-db says "${arg('confirm-db') ?? '(none)'}"`);
 
   const table = `backup_follow_attempts_${new Date().toISOString().replace(/\D/g, '').slice(0, 14)}`;
