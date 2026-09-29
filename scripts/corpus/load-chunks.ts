@@ -624,8 +624,13 @@ async function main() {
       pruned += stale.count;
     }
 
-    // Then remove passages no chapter points at any more.
-    const orphaned = await db.contentChunk.deleteMany({ where: { chapters: { none: {} } } });
+    // Then remove passages no chapter points at any more — except one a
+    // student's flashcard was made from. generated_cards cascades on its
+    // source passage, so deleting it silently deleted the student's cards:
+    // a rehearsal against a production copy lost 35 of 122 this way.
+    const orphaned = await db.contentChunk.deleteMany({
+      where: { chapters: { none: {} }, generatedCards: { none: {} } },
+    });
     orphans += orphaned.count;
   }
 
