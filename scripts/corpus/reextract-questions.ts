@@ -39,10 +39,21 @@ import { db } from '../../src/lib/db';
  * The result goes to `content_latex`, which the renderer prefers, and NOT over
  * `content_text`. That column is what the original reader returned and is the
  * only evidence of what it saw; overwriting it would destroy the ability to
- * judge any future reader against it. `embedding` is cleared so retrieval
- * matches the text now shown rather than the wreckage it replaced.
+ * judge any future reader against it. The embedding is preserved because it
+ * was built from `content_text`, which this repair deliberately does not alter;
+ * clearing it would make the repaired question disappear from retrieval until
+ * a paid embedding backfill ran.
  */
 const CORPUS_ROOT = 'corpus/exams';
+const GIT_POPPLER = 'C:/Program Files/Git/mingw64/bin';
+const PDFTOTEXT =
+  process.platform === 'win32' && existsSync(path.join(GIT_POPPLER, 'pdftotext.exe'))
+    ? path.join(GIT_POPPLER, 'pdftotext.exe')
+    : 'pdftotext';
+const PDFINFO =
+  process.platform === 'win32' && existsSync(path.join(GIT_POPPLER, 'pdfinfo.exe'))
+    ? path.join(GIT_POPPLER, 'pdfinfo.exe')
+    : 'pdfinfo';
 /** Shorter than this and a question's opening can match the wrong exercise. */
 const MIN_ANCHOR = 32;
 /** Below this the extraction is a scanned page returning nothing useful. */
@@ -59,6 +70,16 @@ const MIN_EXTRACT = 200;
  * The test suite caught it; the name is the fix.
  */
 const FRACTIONS_SCRIPT = 'scripts/corpus/fraction-bars.py';
+const SKIP_FRACTIONS = process.argv.includes('--no-fractions');
+
+/*
+ * The helper is optional and may be installed but unusable (for example a
+ * broken MiKTeX dependency on Windows). Retrying it for every page turns one
+ * harmless fallback into hundreds of slow failures and makes a corpus repair
+ * effectively impossible. After its first failure, use Poppler directly for
+ * the rest of this run.
+ */
+let fractionHelperAvailable = !SKIP_FRACTIONS;
 
 type Row = {
   id: string;
@@ -115,15 +136,19 @@ function normalise(text: string): string {
  * fractions rather than an error, which is what it had before this existed.
  */
 function layoutTextWithFractions(pdf: string, page: number): string {
-  try {
-    const out = execFileSync('python', [FRACTIONS_SCRIPT, pdf, String(page)], {
-      encoding: 'buffer',
-      maxBuffer: 20_000_000,
-    });
-    const text = out.toString('utf8');
-    if (text.trim().length > 0) return text;
-  } catch {
-    // fall through to poppler
+  if (fractionHelperAvailable) {
+    try {
+      const out = execFileSync('python', [FRACTIONS_SCRIPT, pdf, String(page)], {
+        encoding: 'buffer',
+        maxBuffer: 20_000_000,
+        stdio: ['ignore', 'pipe', 'ignore'],
+      });
+      const text = out.toString('utf8');
+      if (text.trim().length > 0) return text;
+      fractionHelperAvailable = false;
+    } catch {
+      fractionHelperAvailable = false;
+    }
   }
   return layoutText(pdf, page, page);
 }
@@ -131,7 +156,7 @@ function layoutTextWithFractions(pdf: string, page: number): string {
 function layoutText(pdf: string, from: number, to: number): string {
   try {
     return execFileSync(
-      'pdftotext',
+      PDFTOTEXT,
       /*
        * UTF-8 explicitly. Without it poppler falls back to Latin-1 and every
        * character outside it is dropped rather than substituted — α vanishes to
@@ -147,9 +172,21 @@ function layoutText(pdf: string, from: number, to: number): string {
   }
 }
 
+function layoutPages(pdf: string): string[] {
+  try {
+    const text = execFileSync(PDFTOTEXT, ['-layout', '-enc', 'UTF-8', pdf, '-'], {
+      encoding: 'utf8',
+      maxBuffer: 40_000_000,
+    });
+    return text.split('\f').filter((page) => page.trim().length > 0);
+  } catch {
+    return [];
+  }
+}
+
 function pageCount(pdf: string): number {
   try {
-    const info = execFileSync('pdfinfo', [pdf], { encoding: 'utf8' });
+    const info = execFileSync(PDFINFO, [pdf], { encoding: 'utf8' });
     return Number(/Pages:\s+(\d+)/.exec(info)?.[1] ?? 0);
   } catch {
     return 0;
@@ -245,8 +282,9 @@ async function main() {
           if (!file.toLowerCase().endsWith('.pdf')) continue;
           if (!matchesLanguage(file, lang)) continue;
           const pdf = path.join(dir, file);
-          const total = pageCount(pdf);
-          const pages = Array.from({ length: total }, (_, i) => layoutTextWithFractions(pdf, i + 1));
+          const pages = SKIP_FRACTIONS
+            ? layoutPages(pdf)
+            : Array.from({ length: pageCount(pdf) }, (_, i) => layoutTextWithFractions(pdf, i + 1));
           if (pages.join('').trim().length > MIN_EXTRACT) docs.push({ pdf, pages });
         }
       }
@@ -339,7 +377,7 @@ async function main() {
 
     if (!dry) {
       await db.$executeRaw`
-        UPDATE questions SET content_latex = ${body}, embedding = NULL WHERE id = ${row.id}::uuid`;
+        UPDATE questions SET content_latex = ${body} WHERE id = ${row.id}::uuid`;
     }
     rewritten += 1;
   }
