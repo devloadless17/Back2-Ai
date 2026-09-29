@@ -133,6 +133,7 @@ export async function answerPhotoQuestion(input: PhotoQaInput): Promise<PhotoAns
     query,
     subjectIds: input.subjectIds,
     userId: input.userId,
+    hasAttachedImage: true,
   });
 
   if (grounding.tier === 'ungrounded_refused' || !grounding.context.trim()) {
@@ -177,6 +178,9 @@ export async function answerPhotoQuestion(input: PhotoQaInput): Promise<PhotoAns
         ].join('\n'),
       },
     ],
+    // OCR captures wording; it does not capture the spatial evidence in a map,
+    // graph or document panel. The answering model must inspect the original.
+    images: [input.image],
     schema: ANSWER_SCHEMA as unknown as Record<string, unknown>,
     schemaName: 'photo_answer',
     effort: 'high',

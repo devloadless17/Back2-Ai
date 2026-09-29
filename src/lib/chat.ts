@@ -935,6 +935,7 @@ export async function* runChatTurn(input: ChatTurnInput): AsyncGenerator<ChatEve
       query: questionForAnswer,
       subjectIds: input.subjectIds,
       userId: input.userId,
+      hasAttachedImage: Boolean(input.imageKey),
       anchorQuestion: input.anchorQuestion ?? null,
       // So a comprehension part can be answered against the passage the student
       // pasted several messages ago, rather than refused for want of a text that

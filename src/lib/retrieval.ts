@@ -1004,6 +1004,8 @@ export type RetrievalInput = {
    */
   subjectIds: string[];
   userId: string;
+  /** A photographed page the answering model will receive with this turn. */
+  hasAttachedImage?: boolean;
   /**
    * When the student is asking about a specific question they are looking at,
    * that question is used as tier-1 grounding directly — there is no reason to
@@ -1373,6 +1375,50 @@ export async function retrieveGrounding(input: RetrievalInput): Promise<Groundin
       };
     }
 
+    /*
+     * A document uploaded earlier is real evidence too. This search must happen
+     * before the comprehension refusal: the old order returned "show me the
+     * document" without ever looking in the student's document library.
+     */
+    const documentHits = await searchUserReferences(queryVector, input.userId, 4);
+    const documents = documentHits.filter((r) => r.similarity >= PERSONAL_REFERENCE_THRESHOLD);
+    if (documents.length > 0) {
+      return {
+        tier: 'personal_reference',
+        topSimilarity: documents[0]?.similarity ?? null,
+        requiresVerification: true,
+        classification,
+        sources: documents.map(referenceSource),
+        context: documents
+          .map((r) => `## From your document "${r.fileName ?? 'untitled'}"\n${(r.extractedText ?? '').slice(0, 4000)}`)
+          .join('\n\n'),
+      };
+    }
+
+    /*
+     * A photographed map, graph or table often has little OCR text. The image
+     * is nevertheless attached to the model later in the chat/photo pipeline,
+     * so text retrieval must not reject it before the model gets to see it.
+     */
+    if (input.hasAttachedImage) {
+      return {
+        tier: 'personal_reference',
+        topSimilarity: null,
+        requiresVerification: false,
+        classification,
+        sources: [
+          {
+            id: 'attached-image',
+            kind: 'user_reference',
+            label: 'The page you attached',
+            similarity: 1,
+            text: input.query.slice(0, 500),
+          },
+        ],
+        context: `## The photographed page\nThe original image is attached to this turn. Read its documents, maps, graphs and tables directly.\n\n## Transcribed question\n${input.query}`,
+      };
+    }
+
     return {
       tier: 'ungrounded_refused',
       topSimilarity: topQuestion?.similarity ?? null,
@@ -1624,14 +1670,46 @@ export async function retrieveGrounding(input: RetrievalInput): Promise<Groundin
   }
 
   let admittedByReader = false;
+  let admittedQuestions: QuestionHit[] = [];
   if (passingChunks.length === 0 && schemes.length === 0) {
-    const candidates = shareQueryVocabulary(
+    const chunkCandidates = shareQueryVocabulary(
       input.query,
       chunkHits.filter((c) => c.similarity >= COVERAGE_FLOOR),
       COVERAGE_CANDIDATES,
     );
+
+    /*
+     * Civics corrections are often the strongest surviving course material.
+     * Its textbook extraction is sparse, while official papers contain short,
+     * exact answers. Previously those answers were considered only for an exact
+     * pasted question or an essay, so ordinary civics concepts were labelled
+     * outside the curriculum even when an official correction answered them.
+     */
+    const questionCandidates = shareQueryVocabulary(
+      input.query,
+      questionHits
+        .filter(
+          (q) =>
+            q.similarity >= COVERAGE_FLOOR &&
+            (q.officialSolution?.trim().length ?? 0) >= 20,
+        )
+        .map((question) => ({
+          question,
+          chapterName: question.chapterName,
+          // Put the answer first so the bounded coverage snippet reads it even
+          // when the original multi-part exercise is long.
+          contentText: `${question.officialSolution}\n\nQuestion: ${readable(question)}`,
+        })),
+      COVERAGE_CANDIDATES,
+    );
+
+    const candidates = [...questionCandidates, ...chunkCandidates].slice(
+      0,
+      COVERAGE_CANDIDATES * 2,
+    );
     if (candidates.length > 0 && (await coveredByMaterial(input.query, candidates))) {
-      passingChunks = preferExplanations(candidates, input.query);
+      passingChunks = preferExplanations(chunkCandidates, input.query);
+      admittedQuestions = questionCandidates.map((candidate) => candidate.question);
       admittedByReader = true;
     }
   }
@@ -1690,7 +1768,11 @@ export async function retrieveGrounding(input: RetrievalInput): Promise<Groundin
    */
   passingChunks = passingChunks.slice(0, HANDED_OVER);
 
-  if (passingChunks.length > 0 || standaloneSchemes.length > 0) {
+  if (
+    passingChunks.length > 0 ||
+    standaloneSchemes.length > 0 ||
+    admittedQuestions.length > 0
+  ) {
     /*
      * The scheme sits inside `context`, not beside it.
      *
@@ -1704,16 +1786,35 @@ export async function retrieveGrounding(input: RetrievalInput): Promise<Groundin
       ...passingChunks.map(
         (c) => `## ${c.chapterName} — ${c.title ?? c.kind}\n${c.contentLatex ?? c.contentText}`,
       ),
+      ...admittedQuestions.map((question) =>
+        formatQuestionContext(
+          readable(question),
+          question.officialSolution,
+          question.sourcePassage,
+        ),
+      ),
       ...(schemes.length > 0 ? [formatMarkingSchemes(schemes)] : []),
     ];
 
+    const admittedQuestionSources = await Promise.all(
+      admittedQuestions.map(questionSourceWithVisuals),
+    );
+
     return {
       tier: 'concept_level',
-      topSimilarity: passingChunks[0]?.similarity ?? schemes[0]?.similarity ?? null,
+      topSimilarity:
+        passingChunks[0]?.similarity ??
+        admittedQuestions[0]?.similarity ??
+        schemes[0]?.similarity ??
+        null,
       admittedByReader,
       requiresVerification: true,
       classification,
-      sources: [...passingChunks.map(chunkSource), ...schemes.map(schemeSource)],
+      sources: [
+        ...passingChunks.map(chunkSource),
+        ...admittedQuestionSources,
+        ...schemes.map(schemeSource),
+      ],
       context: material.join('\n\n'),
     };
   }
