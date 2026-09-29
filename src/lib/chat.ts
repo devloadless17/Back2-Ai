@@ -383,6 +383,35 @@ const DOCUMENT_PROMPT = [
  */
 const DOCUMENT_QUESTION = /المستند|المستندات|المستندين|الوثيقة|الوثائق|\bdocuments?\b/i;
 
+/** Science subjects, by the names they carry in the database (en and fr editions). */
+const SCIENCE_SUBJECTS = new Set([
+  'Life Sciences', 'Sciences de la vie', 'Physics', 'Physique', 'Chemistry', 'Chimie', 'Mathematics', 'Mathematiques',
+]);
+
+/** Subjects whose barèmes do not score a document's type, source and issue. */
+const NO_DOCUMENT_PRESENTATION = new Set([...SCIENCE_SUBJECTS, 'English', 'Francais', 'أدب عربي']);
+
+/**
+ * How a science answer is written on a Lebanese paper.
+ *
+ * The verbs are the barème's own: each one names what earns the point. Kept
+ * short on purpose — the answer an examiner reads is short, and the tutoring
+ * belongs after it, not woven through it.
+ */
+const SCIENCE_EXAM_STYLE_PROMPT = [
+  '',
+  'Write the answer the way it is written on the exam paper, then teach:',
+  '- Answer each sub-question in order, under its own number, in short exam sentences.',
+  '- Follow the verb: Analyze = describe the variation, citing values from the document, then state the trend;',
+  '  Interpret / Explain = link what is observed to the biological, physical or chemical mechanism;',
+  '  Deduce / Conclude = one short conclusion; Justify = the conclusion plus the evidence that proves it;',
+  '  Calculate = formula, substitution, result with its unit.',
+  '- Use the exact terms of the Lebanese programme (e.g. plasmocyte, LT8, HLA, TCR, perforin; not a',
+  '  vague description of them).',
+  '- Do not add a type/source presentation of documents: this subject does not mark it.',
+  '- After the exam answer, add at most a short "Why" section for the steps a student usually misses.',
+].join('\n');
+
 /**
  * Added when the question points at something that was not supplied.
  *
@@ -528,7 +557,34 @@ export function systemPrompt(
           '  far as the stated data allows, then say precisely which reading you would need. Do not claim',
           '  what an unseen figure shows.',
         ]
-      : [
+      : tier === 'exact_match'
+        ? /*
+           * A RECOGNISED EXAM QUESTION, whose official solution may be missing.
+           *
+           * Most LS Life Sciences rows carry no usable official solution (only 9
+           * have one, and on real papers it is junk like "1 Exercise"). Under the
+           * rule below, "answer only from the material", the tutor then refused
+           * the course knowledge the question examines: asked to name the cell
+           * that secretes antibodies it said the material "does not give a more
+           * specific name" — the answer is plasmocyte. Measured 2026-09-29 on the
+           * live site: 6 of 16 LS biology answers refused a part this way.
+           *
+           * The knowledge a Lebanese question examines is programme content, so
+           * supplying it IS the task. What stays forbidden is what the rule was
+           * really for: invented data and invented marking.
+           */
+          [
+            '- The material below is an official Lebanese exam question. Where its official solution is given,',
+            '  follow it.',
+            '- Where the solution is missing, incomplete, or only a mark allocation, answer each part yourself from',
+            '  the standard content of the Lebanese programme for this subject: the facts, terms and mechanisms a',
+            '  candidate is expected to know (the name of a cell, the steps of a mechanism, the molecules involved).',
+            '  That knowledge is what the question examines, so supplying it is the task, not a gap to report.',
+            '- Do not invent DATA: every value must come from the question or a document it supplies. If a part',
+            '  depends on a document or figure that was not supplied, say so for that part and answer the rest.',
+            '- Do not invent a barème, a mark allocation, or an exam convention.',
+          ]
+        : [
           '- Answer ONLY from the material given below. It is the entire basis you are permitted to use.',
           '- If the material does not cover part of what was asked, say which part it does not cover. Do not fill',
           '  the gap from general knowledge, however confident you are.',
@@ -599,7 +655,28 @@ export function systemPrompt(
    * marked the same way either way — so keying this off the classification
    * would drop the instruction on half the questions it belongs to.
    */
-  const documents = question && DOCUMENT_QUESTION.test(question) ? [DOCUMENT_PROMPT] : [];
+  /*
+   * Not in the sciences or the languages. The type/source/issue marks exist in
+   * the humanities barèmes; a biology "Document 2" is a graph to analyse, and
+   * the English word matched there too — 14 of 16 LS biology answers opened
+   * each document with "Type / Source / Issue addressed", which earns nothing
+   * on that paper. Unnamed subjects keep the old behaviour (translated
+   * humanities editions say "document" too).
+   */
+  const documents =
+    question && DOCUMENT_QUESTION.test(question) && !(subjectName && NO_DOCUMENT_PRESENTATION.has(subjectName.trim()))
+      ? [DOCUMENT_PROMPT]
+      : [];
+
+  /*
+   * Science answers written the way the paper is marked. The same live check
+   * found most LS biology answers ran 4,000-6,700 characters of tutoring prose
+   * around the points an examiner looks for.
+   */
+  const examStyle =
+    subjectName && SCIENCE_SUBJECTS.has(subjectName.trim()) && (tier === 'exact_match' || suppliedProblem)
+      ? [SCIENCE_EXAM_STYLE_PROMPT]
+      : [];
 
   /*
    * A property of the SUBJECT, not of the question, so it is keyed off the
@@ -614,6 +691,7 @@ export function systemPrompt(
     ...PER_KIND[classification.kind],
     ...unresolved,
     ...documents,
+    ...examStyle,
     ...verbatim,
   ].join('\n');
 }
