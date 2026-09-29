@@ -14,7 +14,7 @@ import { definitionsAreVerbatim, systemPrompt } from '@/lib/chat';
 const concept = { kind: 'concept', confidence: 'high', signal: 'test' } as const;
 const essay = { kind: 'essay', confidence: 'high', signal: 'test' } as const;
 
-const has = (prompt: string) => prompt.includes('marked on the WORDING');
+const has = (prompt: string) => prompt.includes('marked on the SOURCE WORDING');
 
 // `kind` is widened deliberately: with the default alone TypeScript narrows the
 // parameter to the literal type of `concept`, and the essay case below — the
@@ -43,10 +43,18 @@ describe('the four subjects it applies to', () => {
     expect(definitionsAreVerbatim(' تاريخ ')).toBe(true);
   });
 
-  it('asks for the explanation as well as the quotation', () => {
-    // Without this the block turns the tutor into a photocopier, which is a
-    // different way of being useless to a student.
-    expect(forSubject('تاريخ')).toContain('The explanation is yours');
+  it('returns the source-faithful answer by default without adding a paraphrase', () => {
+    const prompt = forSubject('تاريخ');
+    expect(prompt).toContain('reproduce that solution');
+    expect(prompt).toContain('verbatim and in full');
+    expect(prompt).toContain('Return only the source-faithful exam-ready answer by default');
+    expect(prompt).toContain('never mix your wording');
+  });
+
+  it('applies the same whole-answer rule to philosophy essays', () => {
+    const prompt = forSubject('فلسفة عامة', essay);
+    expect(prompt).toContain('Do not paraphrase, summarise, shorten');
+    expect(prompt).toContain('Preserve lists as lists');
   });
 });
 

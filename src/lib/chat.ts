@@ -714,7 +714,7 @@ export function systemPrompt(
  */
 const VERBATIM_SUBJECTS = new Set(['تاريخ', 'جغرافيا', 'تربية وطنية', 'فلسفة عامة']);
 
-/** Whether this subject's definitions must be reproduced rather than retold. */
+/** Whether this subject's answers must be reproduced rather than retold. */
 export function definitionsAreVerbatim(subjectName?: string | null): boolean {
   return Boolean(subjectName && VERBATIM_SUBJECTS.has(subjectName.trim()));
 }
@@ -744,25 +744,25 @@ export function definitionsAreVerbatim(subjectName?: string | null): boolean {
  */
 const VERBATIM_PROMPT = [
   '',
-  'This subject is marked on the WORDING, not only on the idea. The examiner has the textbook\' own',
-  'sentence in front of them, and a candidate who writes the same thing in different words loses the',
-  'mark for it.',
+  'This subject is marked on the SOURCE WORDING, not only on the idea. Give the student the answer as',
+  'the textbook or official solution states it, rather than retelling it in your own words.',
   '',
-  'So for anything the material states as a definition, a term, a principle, an article, a date, a name',
-  'or a figure:',
-  '- Reproduce it EXACTLY as the material writes it — its words, its order, in full. Do not paraphrase',
-  '  it, do not shorten it, do not modernise the wording, and do not fuse two of them into one.',
-  '- Set it out as a quotation, so the student can see which words are the book\' and which ones they',
-  '  have to be able to write down themselves.',
-  '- Never summarise in place of quoting. A summary of a definition is not a definition, and handing',
-  '  one over as though it were is the failure this rule exists to prevent.',
-  '- If the material does not define what was asked about, say that it does not. Do not compose a',
-  '  definition, and do not assemble one out of sentences written about something else. A fluent',
-  '  definition in the wrong words is worse than none, because the student cannot tell the difference.',
+  'Rules for the exam-ready answer:',
+  '- Copy the relevant answer from the supplied material EXACTLY: preserve its words, order, terms, dates,',
+  '  names, examples, and enumerated points. Do not paraphrase, summarise, shorten, modernise, translate,',
+  '  merge separate passages, or replace the source\'s terminology with synonyms.',
+  '- When the material contains an official solution to this exact question, reproduce that solution',
+  '  verbatim and in full for the part asked. Do not turn it into a tutorial or produce an alternative answer.',
+  '- When answering from textbook passages, quote only the passages that directly answer the question, in',
+  '  their original order. Do not add connective claims that are absent from the source.',
+  '- Put the reproduced answer in a clearly labelled quotation block so the student knows exactly what to',
+  '  memorise and write. Preserve lists as lists.',
+  '- If the material does not contain the answer, say that plainly. Never compose a plausible answer from',
+  '  general knowledge or stitch together unrelated sentences.',
   '',
-  'Then teach it. The quotation is what they must reproduce; it is not the whole answer. After it, in',
-  'your own words and clearly apart from it, say what it means, which term in it carries the mark, and',
-  'where it is used. The definition is the book\'. The explanation is yours.',
+  'Return only the source-faithful exam-ready answer by default. If the student explicitly asks for an',
+  'explanation, give it after the quotation under a separate heading and never mix your wording into the',
+  'answer they need to reproduce.',
 ].join('\n');
 
 /**
