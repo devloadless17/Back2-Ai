@@ -12,8 +12,9 @@
  *
  * FILLS, NEVER REPLACES. A question is written only when its official solution
  * is missing or is extraction debris shorter than 80 characters ("1 Exercise",
- * "1 1/2" — what most LS biology rows held). A real solution already there,
- * from any other loader, is left alone.
+ * "1 1/2" — what most LS biology rows held), or when an earlier run of this
+ * script wrote it (its backup tables say which). A real solution already
+ * there, from any other loader, is left alone.
  *
  * Questions are found by the key load-exams.ts gives them:
  * sha256(`${subjectId}:${pdfSha256}:${exercise.index}:${order}`), tried for
@@ -98,13 +99,24 @@ async function main() {
   }
   for (let i = rows.length - 1; i >= 0; i--) if (rows[i]!.verifiedStatus === 'rejected') rows.splice(i, 1);
 
-  const changes = rows.filter((r) => (r.officialSolution ?? '').trim().length < JUNK_BELOW);
+  // Rows an earlier run of this script filled may be rewritten: a re-run with
+  // more answers (e.g. --keep-mismatched) must reach exercises it already filled.
+  const ours = new Set<string>();
+  const backups = await db.$queryRaw<Array<{ t: string }>>`
+    SELECT table_name AS t FROM information_schema.tables WHERE table_name ~ '^backup_science_answers_[0-9]{14}$'`;
+  for (const { t } of backups) {
+    for (const r of await db.$queryRawUnsafe<Array<{ id: string }>>(`SELECT id::text AS id FROM ${t}`)) ours.add(r.id);
+  }
+
+  const changes = rows.filter((r) =>
+    (r.officialSolution ?? '').trim().length < JUNK_BELOW ||
+    (ours.has(r.id) && r.officialSolution !== wanted.get(r.sourceRef!)));
   const bySubject = new Map<string, number>();
   for (const r of changes) bySubject.set(r.chapter.subject.name, (bySubject.get(r.chapter.subject.name) ?? 0) + 1);
 
   console.log(`  exercises with answers   ${wanted.size / Math.max(1, subjects.length)}`);
   console.log(`  questions found          ${rows.length}`);
-  console.log(`  to fill (empty or junk)  ${changes.length}`);
+  console.log(`  to fill or refresh       ${changes.length}`);
   console.log(`  kept (real solution)     ${rows.length - changes.length}`);
   for (const [k, v] of [...bySubject].sort((a, b) => b[1] - a[1])) console.log(`    ${String(v).padStart(4)}  ${k}`);
 

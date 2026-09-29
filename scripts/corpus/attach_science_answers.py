@@ -196,6 +196,8 @@ def main():
     ap.add_argument("--estimate", action="store_true")
     ap.add_argument("--match", default=None, help="only papers whose path matches this regex")
     ap.add_argument("--workers", type=int, default=3)
+    ap.add_argument("--keep-mismatched", action="store_true",
+                    help="keep answers whose printed label differs from the part's; marked unchecked")
     args = ap.parse_args()
 
     jobs, seen = [], set()
@@ -254,22 +256,30 @@ def main():
                 stats["parts"] += 1
                 a = byid.get(iid) or {}
                 lo, hi = a.get("from"), a.get("to")
-                answer = None
+                answer, unchecked = None, False
                 if isinstance(lo, int) and isinstance(hi, int):
                     if 1 <= lo <= hi <= len(lines) and hi - lo <= 60:
                         answer = tidy("\n".join(lines[lo - 1:hi]))
                         if answer and not labels_agree(label, answer):
-                            answer = None
                             stats["label_mismatch"] += 1
+                            if args.keep_mismatched:
+                                unchecked = True
+                            else:
+                                answer = None
                         else:
                             stats["answered"] += 1
                     else:
                         stats["rejected_range"] += 1
-                parts_out.append({"label": label, "answer": answer})
+                part = {"label": label, "answer": answer}
+                if unchecked:
+                    # The key printed another label here. Kept on request, unverified.
+                    part["unchecked"] = True
+                parts_out.append(part)
             exercises.append({"order": order, "index": ex["index"], "parts": parts_out})
         out.append({"paper": p["path"], "sha256": p["sha256"], "exercises": exercises})
     OUT.write_text(json.dumps(out, ensure_ascii=False, indent=1), "utf-8")
-    print(f"{len(out)} papers -> {OUT.name}: {stats['answered']} of {stats['parts']} parts answered, {stats['rejected_range']} bad ranges and {stats['label_mismatch']} label mismatches dropped")
+    print(f"{len(out)} papers -> {OUT.name}: {stats['answered']} of {stats['parts']} parts answered, {stats['rejected_range']} bad ranges and {stats['label_mismatch']} label mismatches "
+          f"{'kept, marked unchecked' if args.keep_mismatched else 'dropped'}")
 
 
 if __name__ == "__main__":
