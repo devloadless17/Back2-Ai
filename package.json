@@ -37,6 +37,7 @@
     "corpus:exams": "node --conditions=react-server --env-file=.env --import tsx scripts/corpus/load-exams.ts",
     "corpus:book-exercises": "node --conditions=react-server --env-file=.env --import tsx scripts/corpus/load-book-exercises.ts",
     "corpus:strip-furniture": "node --conditions=react-server --env-file=.env --import tsx scripts/corpus/strip-paper-furniture.ts",
+    "corpus:follow-attempts": "node --conditions=react-server --env-file=.env --import tsx scripts/corpus/follow-refiled-attempts.ts",
     "corpus:exercise-figures": "node --conditions=react-server --env-file=.env --import tsx scripts/corpus/register-exercise-figures.ts",
     "corpus:sync-chapters": "node --conditions=react-server --env-file=.env --import tsx scripts/corpus/sync-chapters-by-name.ts",
     "corpus:science-answers": "node --conditions=react-server --env-file=.env --import tsx scripts/corpus/load-science-answers.ts",
