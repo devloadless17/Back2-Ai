@@ -26,6 +26,14 @@
  *
  * Embeddings are left null; `npm run ingest -- --embed-missing` fills them
  * in afterwards, same as every other content in this corpus.
+ *
+ * `--fill-empty` is the safe mode for adding tracks. It never deletes: a
+ * paper that already has questions is skipped, so no student attempt is lost.
+ * And it may create a missing exam, but only where that track's PDF is
+ * byte-identical to the LH paper the transcription was typed from, as
+ * recorded in history-twins.json (history_twins.py; production has no PDFs).
+ * CRDP lists the same history paper under several tracks; that is the case
+ * this covers, and a track that sat a different paper is left alone.
  */
 
 import { createHash } from 'node:crypto';
@@ -48,8 +56,20 @@ type QuestionSpec = {
 };
 type PaperSpec = { year: number; session: string; questions: QuestionSpec[] };
 
+type Twins = Record<string, { lhSource: boolean; twins: string[] }>;
+let twins: Twins | null = null;
+
+/** Why this track may get the transcription, or null when it may not. */
+async function sameAsTranscribed(trackCode: string, spec: PaperSpec): Promise<string | null> {
+  twins ??= JSON.parse(await readFile(path.join(ROOT, 'scripts', 'corpus', 'history-twins.json'), 'utf8')) as Twins;
+  const entry = twins[`${trackCode} ${spec.year}-${spec.session.replace('session', '')}`];
+  return entry?.lhSource ? 'PDF identical to the transcribed LH paper' : null;
+}
+
 async function main() {
   const dry = process.argv.includes('--dry');
+  const fillEmpty = process.argv.includes('--fill-empty');
+  const created: string[] = [];
   // `--paper 2023-1` loads one file. Without it every paper is deleted and
   // re-inserted, and a student's attempts on those questions go with them.
   const paper = process.argv.includes('--paper') ? process.argv[process.argv.indexOf('--paper') + 1] : null;
@@ -77,7 +97,7 @@ async function main() {
       });
       if (!subject) continue;
 
-      const cycle = await db.examCycle.findUnique({
+      let cycle = await db.examCycle.findUnique({
         where: {
           subjectId_year_session_language: {
             subjectId: subject.id,
@@ -88,6 +108,30 @@ async function main() {
         },
         select: { id: true },
       });
+      if (fillEmpty) {
+        // Never touch a paper that already has questions: deleting them would
+        // take students' attempts with them.
+        if (cycle && (await db.question.count({ where: { sourceExamId: cycle.id } })) > 0) continue;
+        const proof = await sameAsTranscribed(track.code, spec);
+        if (!proof) continue;
+        created.push(`${track.code} ${spec.year}-${spec.session}${cycle ? ' (empty exam filled)' : ''}: ${proof}`);
+        if (!cycle) {
+          if (dry) {
+            inserted += spec.questions.length;
+            continue;
+          }
+          cycle = await db.examCycle.create({
+            data: {
+              subjectId: subject.id,
+              year: spec.year,
+              session: spec.session,
+              language: 'ar',
+              title: `${SUBJECT_NAME} ${track.code} ${spec.year} — ${spec.session.replace('session', 'session ')}`,
+            },
+            select: { id: true },
+          });
+        }
+      }
       if (!cycle) continue; // extract_exams.py never saw a paper for this track - don't invent one
 
       const chapters = await db.chapter.findMany({
@@ -152,6 +196,10 @@ async function main() {
   }
 
   console.log(`${papers} paper(s), ${deleted} old question row(s) removed, ${inserted} written${dry ? ' (dry run)' : ''}`);
+  if (created.length) {
+    console.log(`\n${dry ? 'Would create' : 'Created'} ${created.length} exam(s):`);
+    for (const c of created) console.log('  ' + c);
+  }
   if (missingChapters.size) {
     console.log('\nNo chapter row for:');
     for (const m of missingChapters) console.log('  ' + m);

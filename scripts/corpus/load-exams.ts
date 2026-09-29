@@ -41,7 +41,11 @@ import { embed } from '../../src/lib/ai/embeddings';
 
 const db = new PrismaClient();
 const ROOT = path.resolve(__dirname, '..', '..');
-const EXAMS_JSON = path.join(ROOT, 'corpus', 'exams.json');
+// `--from corpus/exams-arabic.json` loads another extraction without swapping
+// files over corpus/exams.json, which belongs to the science pipeline.
+const EXAMS_JSON = process.argv.includes('--from')
+  ? path.resolve(process.argv[process.argv.indexOf('--from') + 1]!)
+  : path.join(ROOT, 'corpus', 'exams.json');
 
 /**
  * Subjects whose questions a different loader owns, and which the
@@ -376,7 +380,7 @@ async function main() {
   try {
     exams = JSON.parse(await readFile(EXAMS_JSON, 'utf8')) as Exam[];
   } catch {
-    console.error('corpus/exams.json not found — run: python scripts/corpus/extract_exams.py');
+    console.error(`${EXAMS_JSON} not found — run: python scripts/corpus/extract_exams.py`);
     process.exitCode = 1;
     return;
   }

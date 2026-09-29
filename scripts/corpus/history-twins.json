@@ -1,0 +1,717 @@
+{
+ "GS 2004-1": {
+  "lhSource": false,
+  "twins": [
+   "LS"
+  ]
+ },
+ "LH 2004-1": {
+  "lhSource": true,
+  "twins": [
+   "SE"
+  ]
+ },
+ "LS 2004-1": {
+  "lhSource": false,
+  "twins": [
+   "GS"
+  ]
+ },
+ "SE 2004-1": {
+  "lhSource": true,
+  "twins": [
+   "LH"
+  ]
+ },
+ "GS 2004-2": {
+  "lhSource": false,
+  "twins": [
+   "LS"
+  ]
+ },
+ "LH 2004-2": {
+  "lhSource": true,
+  "twins": []
+ },
+ "LS 2004-2": {
+  "lhSource": false,
+  "twins": [
+   "GS"
+  ]
+ },
+ "GS 2005-1": {
+  "lhSource": false,
+  "twins": [
+   "LS"
+  ]
+ },
+ "LH 2005-1": {
+  "lhSource": true,
+  "twins": [
+   "SE"
+  ]
+ },
+ "LS 2005-1": {
+  "lhSource": false,
+  "twins": [
+   "GS"
+  ]
+ },
+ "SE 2005-1": {
+  "lhSource": true,
+  "twins": [
+   "LH"
+  ]
+ },
+ "GS 2005-2": {
+  "lhSource": false,
+  "twins": [
+   "LS"
+  ]
+ },
+ "LH 2005-2": {
+  "lhSource": true,
+  "twins": [
+   "SE"
+  ]
+ },
+ "LS 2005-2": {
+  "lhSource": false,
+  "twins": [
+   "GS"
+  ]
+ },
+ "SE 2005-2": {
+  "lhSource": true,
+  "twins": [
+   "LH"
+  ]
+ },
+ "GS 2006-1": {
+  "lhSource": false,
+  "twins": [
+   "LS"
+  ]
+ },
+ "LH 2006-1": {
+  "lhSource": true,
+  "twins": [
+   "SE"
+  ]
+ },
+ "LS 2006-1": {
+  "lhSource": false,
+  "twins": [
+   "GS"
+  ]
+ },
+ "SE 2006-1": {
+  "lhSource": true,
+  "twins": [
+   "LH"
+  ]
+ },
+ "GS 2006-2": {
+  "lhSource": false,
+  "twins": [
+   "LS"
+  ]
+ },
+ "LH 2006-2": {
+  "lhSource": true,
+  "twins": [
+   "SE"
+  ]
+ },
+ "LS 2006-2": {
+  "lhSource": false,
+  "twins": [
+   "GS"
+  ]
+ },
+ "SE 2006-2": {
+  "lhSource": true,
+  "twins": [
+   "LH"
+  ]
+ },
+ "GS 2007-1": {
+  "lhSource": false,
+  "twins": [
+   "LS"
+  ]
+ },
+ "LH 2007-1": {
+  "lhSource": true,
+  "twins": [
+   "SE"
+  ]
+ },
+ "LS 2007-1": {
+  "lhSource": false,
+  "twins": [
+   "GS"
+  ]
+ },
+ "SE 2007-1": {
+  "lhSource": true,
+  "twins": [
+   "LH"
+  ]
+ },
+ "GS 2007-2": {
+  "lhSource": false,
+  "twins": [
+   "LS"
+  ]
+ },
+ "LH 2007-2": {
+  "lhSource": true,
+  "twins": [
+   "SE"
+  ]
+ },
+ "LS 2007-2": {
+  "lhSource": false,
+  "twins": [
+   "GS"
+  ]
+ },
+ "SE 2007-2": {
+  "lhSource": true,
+  "twins": [
+   "LH"
+  ]
+ },
+ "GS 2008-1": {
+  "lhSource": false,
+  "twins": [
+   "LS"
+  ]
+ },
+ "LH 2008-1": {
+  "lhSource": true,
+  "twins": []
+ },
+ "LS 2008-1": {
+  "lhSource": false,
+  "twins": [
+   "GS"
+  ]
+ },
+ "SE 2008-1": {
+  "lhSource": false,
+  "twins": []
+ },
+ "GS 2008-2": {
+  "lhSource": true,
+  "twins": [
+   "LH",
+   "LS",
+   "SE"
+  ]
+ },
+ "LH 2008-2": {
+  "lhSource": true,
+  "twins": [
+   "GS",
+   "LS",
+   "SE"
+  ]
+ },
+ "LS 2008-2": {
+  "lhSource": true,
+  "twins": [
+   "GS",
+   "LH",
+   "SE"
+  ]
+ },
+ "SE 2008-2": {
+  "lhSource": true,
+  "twins": [
+   "GS",
+   "LH",
+   "LS"
+  ]
+ },
+ "LH 2009-1": {
+  "lhSource": true,
+  "twins": [
+   "SE"
+  ]
+ },
+ "SE 2009-1": {
+  "lhSource": true,
+  "twins": [
+   "LH"
+  ]
+ },
+ "GS 2009-2": {
+  "lhSource": false,
+  "twins": []
+ },
+ "LH 2009-2": {
+  "lhSource": true,
+  "twins": [
+   "LS",
+   "SE"
+  ]
+ },
+ "LS 2009-2": {
+  "lhSource": true,
+  "twins": [
+   "LH",
+   "SE"
+  ]
+ },
+ "SE 2009-2": {
+  "lhSource": true,
+  "twins": [
+   "LH",
+   "LS"
+  ]
+ },
+ "LS 2010-2": {
+  "lhSource": false,
+  "twins": []
+ },
+ "GS 2011-1": {
+  "lhSource": false,
+  "twins": [
+   "LS"
+  ]
+ },
+ "LH 2011-1": {
+  "lhSource": true,
+  "twins": []
+ },
+ "LS 2011-1": {
+  "lhSource": false,
+  "twins": [
+   "GS"
+  ]
+ },
+ "SE 2011-1": {
+  "lhSource": false,
+  "twins": []
+ },
+ "GS 2011-2": {
+  "lhSource": true,
+  "twins": [
+   "LH",
+   "LS",
+   "SE"
+  ]
+ },
+ "LH 2011-2": {
+  "lhSource": true,
+  "twins": [
+   "GS",
+   "LS",
+   "SE"
+  ]
+ },
+ "LS 2011-2": {
+  "lhSource": true,
+  "twins": [
+   "GS",
+   "LH",
+   "SE"
+  ]
+ },
+ "SE 2011-2": {
+  "lhSource": true,
+  "twins": [
+   "GS",
+   "LH",
+   "LS"
+  ]
+ },
+ "LH 2012-1": {
+  "lhSource": false,
+  "twins": [
+   "SE"
+  ]
+ },
+ "LS 2012-1": {
+  "lhSource": false,
+  "twins": []
+ },
+ "SE 2012-1": {
+  "lhSource": false,
+  "twins": [
+   "LH"
+  ]
+ },
+ "GS 2012-2": {
+  "lhSource": false,
+  "twins": [
+   "LH",
+   "LS"
+  ]
+ },
+ "LH 2012-2": {
+  "lhSource": false,
+  "twins": [
+   "GS",
+   "LS"
+  ]
+ },
+ "LS 2012-2": {
+  "lhSource": false,
+  "twins": [
+   "GS",
+   "LH"
+  ]
+ },
+ "GS 2013-1": {
+  "lhSource": false,
+  "twins": [
+   "LS"
+  ]
+ },
+ "LH 2013-1": {
+  "lhSource": true,
+  "twins": []
+ },
+ "LS 2013-1": {
+  "lhSource": false,
+  "twins": [
+   "GS"
+  ]
+ },
+ "GS 2013-2": {
+  "lhSource": true,
+  "twins": [
+   "LH",
+   "LS"
+  ]
+ },
+ "LH 2013-2": {
+  "lhSource": true,
+  "twins": [
+   "GS",
+   "LS"
+  ]
+ },
+ "LS 2013-2": {
+  "lhSource": true,
+  "twins": [
+   "GS",
+   "LH"
+  ]
+ },
+ "GS 2015-1": {
+  "lhSource": true,
+  "twins": [
+   "LH",
+   "LS"
+  ]
+ },
+ "LH 2015-1": {
+  "lhSource": true,
+  "twins": [
+   "GS",
+   "LS"
+  ]
+ },
+ "LS 2015-1": {
+  "lhSource": true,
+  "twins": [
+   "GS",
+   "LH"
+  ]
+ },
+ "GS 2015-2": {
+  "lhSource": true,
+  "twins": [
+   "LH",
+   "LS",
+   "SE"
+  ]
+ },
+ "LH 2015-2": {
+  "lhSource": true,
+  "twins": [
+   "GS",
+   "LS",
+   "SE"
+  ]
+ },
+ "LS 2015-2": {
+  "lhSource": true,
+  "twins": [
+   "GS",
+   "LH",
+   "SE"
+  ]
+ },
+ "SE 2015-2": {
+  "lhSource": true,
+  "twins": [
+   "GS",
+   "LH",
+   "LS"
+  ]
+ },
+ "GS 2016-1": {
+  "lhSource": true,
+  "twins": [
+   "LH",
+   "LS"
+  ]
+ },
+ "LH 2016-1": {
+  "lhSource": true,
+  "twins": [
+   "GS",
+   "LS"
+  ]
+ },
+ "LS 2016-1": {
+  "lhSource": true,
+  "twins": [
+   "GS",
+   "LH"
+  ]
+ },
+ "GS 2016-2": {
+  "lhSource": true,
+  "twins": [
+   "LH",
+   "LS"
+  ]
+ },
+ "LH 2016-2": {
+  "lhSource": true,
+  "twins": [
+   "GS",
+   "LS"
+  ]
+ },
+ "LS 2016-2": {
+  "lhSource": true,
+  "twins": [
+   "GS",
+   "LH"
+  ]
+ },
+ "GS 2017-1": {
+  "lhSource": false,
+  "twins": [
+   "LS"
+  ]
+ },
+ "LH 2017-1": {
+  "lhSource": true,
+  "twins": [
+   "SE"
+  ]
+ },
+ "LS 2017-1": {
+  "lhSource": false,
+  "twins": [
+   "GS"
+  ]
+ },
+ "SE 2017-1": {
+  "lhSource": true,
+  "twins": [
+   "LH"
+  ]
+ },
+ "GS 2017-2": {
+  "lhSource": false,
+  "twins": [
+   "LS"
+  ]
+ },
+ "LH 2017-2": {
+  "lhSource": true,
+  "twins": []
+ },
+ "LS 2017-2": {
+  "lhSource": false,
+  "twins": [
+   "GS"
+  ]
+ },
+ "GS 2018-1": {
+  "lhSource": false,
+  "twins": [
+   "LS"
+  ]
+ },
+ "LH 2018-1": {
+  "lhSource": true,
+  "twins": []
+ },
+ "LS 2018-1": {
+  "lhSource": false,
+  "twins": [
+   "GS"
+  ]
+ },
+ "GS 2018-2": {
+  "lhSource": false,
+  "twins": [
+   "LS"
+  ]
+ },
+ "LH 2018-2": {
+  "lhSource": true,
+  "twins": []
+ },
+ "LS 2018-2": {
+  "lhSource": false,
+  "twins": [
+   "GS"
+  ]
+ },
+ "SE 2018-2": {
+  "lhSource": false,
+  "twins": []
+ },
+ "GS 2019-1": {
+  "lhSource": false,
+  "twins": [
+   "LS"
+  ]
+ },
+ "LH 2019-1": {
+  "lhSource": true,
+  "twins": [
+   "LS",
+   "SE"
+  ]
+ },
+ "LS 2019-1": {
+  "lhSource": true,
+  "twins": [
+   "GS",
+   "LH",
+   "SE"
+  ]
+ },
+ "SE 2019-1": {
+  "lhSource": true,
+  "twins": [
+   "LH",
+   "LS"
+  ]
+ },
+ "LH 2019-2": {
+  "lhSource": true,
+  "twins": [
+   "LS",
+   "SE"
+  ]
+ },
+ "LS 2019-2": {
+  "lhSource": true,
+  "twins": [
+   "LH",
+   "SE"
+  ]
+ },
+ "SE 2019-2": {
+  "lhSource": true,
+  "twins": [
+   "LH",
+   "LS"
+  ]
+ },
+ "GS 2021-1": {
+  "lhSource": false,
+  "twins": [
+   "LS"
+  ]
+ },
+ "LH 2021-1": {
+  "lhSource": true,
+  "twins": [
+   "SE"
+  ]
+ },
+ "LS 2021-1": {
+  "lhSource": false,
+  "twins": [
+   "GS"
+  ]
+ },
+ "SE 2021-1": {
+  "lhSource": true,
+  "twins": [
+   "LH"
+  ]
+ },
+ "GS 2021-2": {
+  "lhSource": false,
+  "twins": [
+   "LS"
+  ]
+ },
+ "LH 2021-2": {
+  "lhSource": true,
+  "twins": [
+   "SE"
+  ]
+ },
+ "LS 2021-2": {
+  "lhSource": false,
+  "twins": [
+   "GS"
+  ]
+ },
+ "SE 2021-2": {
+  "lhSource": true,
+  "twins": [
+   "LH"
+  ]
+ },
+ "GS 2023-1": {
+  "lhSource": false,
+  "twins": [
+   "LS"
+  ]
+ },
+ "LS 2023-1": {
+  "lhSource": false,
+  "twins": [
+   "GS"
+  ]
+ },
+ "GS 2024-1": {
+  "lhSource": true,
+  "twins": [
+   "LH",
+   "LS",
+   "SE"
+  ]
+ },
+ "LH 2024-1": {
+  "lhSource": true,
+  "twins": [
+   "GS",
+   "LS",
+   "SE"
+  ]
+ },
+ "LS 2024-1": {
+  "lhSource": true,
+  "twins": [
+   "GS",
+   "LH",
+   "SE"
+  ]
+ },
+ "SE 2024-1": {
+  "lhSource": true,
+  "twins": [
+   "GS",
+   "LH",
+   "LS"
+  ]
+ }
+}

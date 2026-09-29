@@ -3,6 +3,7 @@
 
     python scripts/corpus/attach_answers.py --estimate
     python scripts/corpus/attach_answers.py --max-usd 3
+    python scripts/corpus/attach_answers.py --missing-only --max-usd 1   (second pass)
 
 Reads corpus/exams-arabic.json (from extract_arabic_only.py), finds each
 paper's answer key in its transcription (corpus/exams-ocr/<sha8>/), and writes
@@ -168,24 +169,36 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--max-usd", type=float, default=3.0)
     ap.add_argument("--estimate", action="store_true")
+    # A second pass, run after the first: asked about a whole paper, the model
+    # often answers some parts and silently skips the rest (se/2009 1/geo.pdf:
+    # 1 of 6, with every answer plainly in the key). Asked again about only the
+    # parts still without an answer, the list is short and it answers them.
+    # Its own cache, keyed the same way, so the first pass's is untouched.
+    ap.add_argument("--missing-only", action="store_true",
+                    help="ask only about parts that still have no answer")
     args = ap.parse_args()
+    cache_dir = OCR / "answers-missing" if args.missing_only else CACHE
 
     rows = json.loads(EXAMS.read_text("utf-8"))
     by_sha = {}
     for r in rows:
         by_sha.setdefault(r["sha256"][:8], r)
-    CACHE.mkdir(parents=True, exist_ok=True)
+    cache_dir.mkdir(parents=True, exist_ok=True)
 
     todo, results = [], {}
     no_key = 0
     for sha8, entry in by_sha.items():
         scheme = scheme_text(sha8)
         parts = parts_of(entry)
+        if args.missing_only:
+            answered = {f"E{e['index']}.P{n}" for e in entry["exercises"]
+                        for n, p in enumerate(e["parts"]) if p.get("answer")}
+            parts = [p for p in parts if p[0] not in answered]
         if not scheme or not parts:
             no_key += 1
             continue
         sig = hashlib.sha256(json.dumps(parts, ensure_ascii=False).encode()).hexdigest()[:16]
-        cached = CACHE / f"{sha8}.json"
+        cached = cache_dir / f"{sha8}.json"
         if cached.exists():
             data = json.loads(cached.read_text("utf-8"))
             if data.get("sig") == sig and "raw" in data:
@@ -214,7 +227,7 @@ def main() -> None:
             return
         raw, usage = ask(key, parts, scheme)
         answers, kept, rejected = validate(raw, parts, scheme)
-        (CACHE / f"{sha8}.json").write_text(
+        (cache_dir / f"{sha8}.json").write_text(
             json.dumps({"sig": sig, "raw": raw, "answers": answers}, ensure_ascii=False), "utf-8"
         )
         with lock:
