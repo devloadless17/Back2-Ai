@@ -67,8 +67,15 @@ export async function getNextUp(
     const untouched = subject.chapters.find((chapter) => chapter.attemptsCount === 0);
     if (!untouched) continue;
 
-    const hasQuestions = await db.question.count({
-      where: { chapterId: untouched.chapterId, verifiedStatus: { not: 'rejected' } },
+    /*
+     * What the chapter can SERVE (`question_chapters`), which is what the
+     * practice page lists — not what is FILED under it. Counting filed rows
+     * sent a student to "Caractéristiques de position" on production, where
+     * its one question had no `question_chapters` row, and the page it opened
+     * said there were no questions.
+     */
+    const hasQuestions = await db.questionChapter.count({
+      where: { chapterId: untouched.chapterId, question: { verifiedStatus: { not: 'rejected' } } },
       take: 1,
     });
     if (hasQuestions === 0) continue;

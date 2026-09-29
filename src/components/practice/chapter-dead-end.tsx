@@ -43,31 +43,40 @@ export async function ChapterDeadEnd({
 }) {
   const { t } = await getTranslations();
 
-  const [passages, sibling] = await Promise.all([
+  const [passages, here, practisable] = await Promise.all([
     db.chapterContentChunk.count({ where: { chapterId } }),
+    db.chapter.findUnique({ where: { id: chapterId }, select: { orderIndex: true } }),
     /*
-     * The nearest sibling that can actually be practised. Ordered by position in
-     * the book rather than by question count: a student working through a
-     * syllabus wants the next thing, not the busiest thing.
-     *
-     * `alsoHasQuestions`, not `questions`: the first is what a chapter may ASK
-     * and is what the quiz selects on, the second is only where an exercise was
-     * filed. 178 chapters have nothing filed under them and questions they can
-     * serve, so the filed relation would skip straight past them — offering a
-     * chapter further down the book, or reporting no sibling at all, while the
-     * index right next to it shows the skipped one as practisable. Same
-     * distinction as `listChapters`; see 6be57e6.
+     * The chapters that can actually be practised. `alsoHasQuestions`, not
+     * `questions`: the first is what a chapter may ASK and is what the quiz
+     * selects on, the second is only where an exercise was filed. 178 chapters
+     * have nothing filed under them and questions they can serve, so the filed
+     * relation would skip straight past them. Same distinction as
+     * `listChapters`; see 6be57e6.
      */
-    db.chapter.findFirst({
+    db.chapter.findMany({
       where: {
         subjectId,
         id: { not: chapterId },
         alsoHasQuestions: { some: { question: { verifiedStatus: { not: 'rejected' } } } },
       },
-      select: { id: true, name: true },
-      orderBy: { orderIndex: 'asc' },
+      select: { id: true, name: true, orderIndex: true },
     }),
   ]);
+
+  /*
+   * The NEAREST of them in the book, the next one on a tie: a student working
+   * through a syllabus wants the chapter beside this one. Taking the first in
+   * the book sent a student on "Caractéristiques de position" (chapter 22) to
+   * "Système linéaire" (chapter 1).
+   */
+  const at = here?.orderIndex ?? 0;
+  const sibling =
+    [...practisable].sort(
+      (a, b) =>
+        Math.abs(a.orderIndex - at) - Math.abs(b.orderIndex - at) ||
+        (a.orderIndex > at ? -1 : 1) - (b.orderIndex > at ? -1 : 1),
+    )[0] ?? null;
 
   const offers: { href: string; label: string; primary?: boolean }[] = [];
   if (passages > 0) {

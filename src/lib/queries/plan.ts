@@ -47,6 +47,13 @@ export type PlanSession = {
   subjectId: string | null;
   subjectName: string | null;
   /**
+   * Whether the chapter has questions to practise (what the practice page
+   * lists). The planner schedules every chapter of the syllabus, and one with
+   * nothing to practise yet is opened on its reading page instead of on an
+   * empty practice screen. Null when the session has no chapter.
+   */
+  practisable: boolean | null;
+  /**
    * Answers marked in this session's chapter inside the reconciliation window.
    *
    * Null when the session has no chapter, so nothing could be counted. Zero is
@@ -68,6 +75,8 @@ export type PlanTodo = {
   chapterId: string | null;
   chapterName: string | null;
   subjectId: string | null;
+  /** As on PlanSession: false opens the chapter's reading page. */
+  practisable: boolean | null;
 };
 
 export type PlanExam = {
@@ -116,7 +125,7 @@ export async function getPlan(userId: string, now: Date = new Date()): Promise<P
         source: true,
         status: true,
         chapterId: true,
-        chapter: { select: { name: true, subjectId: true, subject: { select: { name: true } } } },
+        chapter: { select: { name: true, subjectId: true, subject: { select: { name: true } }, _count: { select: { alsoHasQuestions: { where: { question: { verifiedStatus: { not: 'rejected' } } } } } } } },
       },
       orderBy: [{ scheduledDate: 'asc' }, { createdAt: 'asc' }],
     }),
@@ -128,7 +137,7 @@ export async function getPlan(userId: string, now: Date = new Date()): Promise<P
         content: true,
         isDone: true,
         linkedAction: true,
-        linkedChapter: { select: { id: true, name: true, subjectId: true } },
+        linkedChapter: { select: { id: true, name: true, subjectId: true, _count: { select: { alsoHasQuestions: { where: { question: { verifiedStatus: { not: 'rejected' } } } } } } } },
       },
       orderBy: { createdAt: 'desc' },
       // A backlog is a list, not an archive. Past this, the page is the problem.
@@ -165,6 +174,7 @@ export async function getPlan(userId: string, now: Date = new Date()): Promise<P
       chapterName: row.chapter?.name ?? null,
       subjectId: row.chapter?.subjectId ?? null,
       subjectName: row.chapter?.subject?.name ?? null,
+      practisable: row.chapter ? row.chapter._count.alsoHasQuestions > 0 : null,
       answersMarked:
         row.chapterId === null
           ? null
@@ -182,6 +192,7 @@ export async function getPlan(userId: string, now: Date = new Date()): Promise<P
       chapterId: todo.linkedChapter?.id ?? null,
       chapterName: todo.linkedChapter?.name ?? null,
       subjectId: todo.linkedChapter?.subjectId ?? null,
+      practisable: todo.linkedChapter ? todo.linkedChapter._count.alsoHasQuestions > 0 : null,
     })),
     exams: exams.map((exam) => ({
       id: exam.id,

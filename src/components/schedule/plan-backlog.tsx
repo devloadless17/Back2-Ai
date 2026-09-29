@@ -53,7 +53,11 @@ export function PlanBacklog({ items, todayKey }: { items: PlanTodo[]; todayKey: 
   const actionHref = (item: PlanTodo): string | null => {
     if (item.linkedAction === 'flashcards') return '/flashcards/review';
     if (item.linkedAction === 'exam_sim') return '/exam-sim';
-    if (item.subjectId && item.chapterId) return `/practice/${item.subjectId}/${item.chapterId}`;
+    if (item.subjectId && item.chapterId) {
+      return item.practisable === false
+        ? `/summaries/${item.subjectId}/${item.chapterId}`
+        : `/practice/${item.subjectId}/${item.chapterId}`;
+    }
     return null;
   };
 

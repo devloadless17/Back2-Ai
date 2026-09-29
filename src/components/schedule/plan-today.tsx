@@ -135,10 +135,14 @@ export function destinationFor(session: {
   taskType: PlanSession['taskType'];
   chapterId: string | null;
   subjectId: string | null;
+  practisable?: boolean | null;
 }): string {
   if (session.taskType === 'flashcards') return '/flashcards/review';
   if (session.taskType === 'exam_drill') return '/exam-sim';
   if (session.subjectId && session.chapterId) {
+    // The planner schedules every chapter; one with no questions yet is
+    // studied by reading it, not opened on an empty practice screen.
+    if (session.practisable === false) return `/summaries/${session.subjectId}/${session.chapterId}`;
     return `/practice/${session.subjectId}/${session.chapterId}`;
   }
   return '/practice';
