@@ -570,6 +570,9 @@ export const fr: Dictionary = {
     answer: 'Réponse',
     tapToReveal: 'Toucher pour révéler',
     noSolution: 'Aucune correction n’a été enregistrée pour cette question.',
+    answerFromBookLoading: 'Préparation d’une réponse à partir de votre manuel…',
+    answerFromBook: 'IA · Manuel',
+    answerFromExam: 'IA · Épreuve officielle',
     title: 'Fiches de révision',
     subtitle: 'Répétition espacée sur les questions déjà rencontrées.',
     scope: 'Portée de la révision',
@@ -874,6 +877,9 @@ export const fr: Dictionary = {
     minutesPerDay: 'Minutes par jour',
     dayOff: 'Jour de repos',
     noDayOff: 'Aucun jour de repos',
+    sunday: 'Dimanche',
+    saturday: 'Samedi',
+    friday: 'Vendredi',
     planWithExam:
       'Pondéré selon vos chapitres les plus faibles, avec une montée en charge à l’approche de l’examen.',
     planWithoutExam:

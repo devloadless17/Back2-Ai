@@ -45,8 +45,14 @@ export function ReferenceManager({ references }: { references: ReferenceItem[] }
       router.refresh();
     } catch (err) {
       setError(
-        err instanceof ApiRequestError && err.code === 'NO_TEXT_EXTRACTED'
-          ? `${t.upload.readFailed} ${t.upload.readFailedHint}`
+        err instanceof ApiRequestError
+          ? err.code === 'NO_TEXT_EXTRACTED'
+            ? `${t.upload.readFailed} ${t.upload.readFailedHint}`
+            : err.code === 'UNSUPPORTED_FILE_TYPE'
+              ? t.upload.wrongType
+              : err.code === 'FILE_TOO_LARGE'
+                ? t.upload.tooBig
+                : t.common.unknownError
           : t.common.unknownError,
       );
     } finally {
@@ -73,7 +79,7 @@ export function ReferenceManager({ references }: { references: ReferenceItem[] }
             <input
               ref={inputRef}
               type="file"
-              accept="application/pdf,text/plain,image/png,image/jpeg,image/webp"
+              accept="application/pdf,text/plain,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/png,image/jpeg,image/webp"
               className="sr-only"
               onChange={(event) => {
                 const file = event.target.files?.[0];

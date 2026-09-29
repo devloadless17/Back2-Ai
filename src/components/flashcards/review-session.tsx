@@ -235,7 +235,7 @@ export function ReviewSession({ cards }: { cards: DueCard[] }) {
                     <Badge tone="accent">{t.flashcards.fromTextbook}</Badge>
                   )}
                   {card.source === 'generated' && card.generatedFrom === 'exam' && (
-                    <Badge tone="accent">AI · Exam</Badge>
+                    <Badge tone="accent">{t.flashcards.answerFromExam}</Badge>
                   )}
                   {card.aheadOfSchedule && (
                     <Badge tone="partial">{t.flashcards.aheadOfSchedule}</Badge>
@@ -265,13 +265,13 @@ export function ReviewSession({ cards }: { cards: DueCard[] }) {
               description={card.chapterName}
               actions={
                 card.generatedAnswer || generatedAnswers[card.cardId]
-                  ? <Badge tone="accent">AI · Textbook</Badge>
+                  ? <Badge tone="accent">{t.flashcards.answerFromBook}</Badge>
                   : undefined
               }
             />
             <SheetBody className="flex flex-1 items-center justify-center text-center">
               {answerLoading ? (
-                <p className="text-sm text-ink-muted">Building an answer from your textbook…</p>
+                <p className="text-sm text-ink-muted">{t.flashcards.answerFromBookLoading}</p>
               ) : card.officialSolutionLatex || card.officialSolution || card.generatedAnswer || generatedAnswers[card.cardId] ? (
                 <MathText dir={dirForLanguage(card.subjectLanguage)}>
                   {card.officialSolutionLatex ?? card.officialSolution ?? card.generatedAnswer ?? generatedAnswers[card.cardId] ?? ''}

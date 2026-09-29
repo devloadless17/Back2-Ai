@@ -175,7 +175,7 @@ export function PlanBuilder({ hasExam }: { hasExam: boolean }) {
               >
                 {['45', '60', '90', '120', '150', '180'].map((value) => (
                   <option key={value} value={value}>
-                    {value} min
+                    {format(t.schedule.minutes, { count: Number(value) })}
                   </option>
                 ))}
               </Select>
@@ -184,9 +184,9 @@ export function PlanBuilder({ hasExam }: { hasExam: boolean }) {
           <Field label={t.schedule.dayOff}>
             {(field) => (
               <Select {...field} value={restWeekday} onChange={(e) => setRestWeekday(e.target.value)}>
-                <option value="0">Sunday</option>
-                <option value="6">Saturday</option>
-                <option value="5">Friday</option>
+                <option value="0">{t.schedule.sunday}</option>
+                <option value="6">{t.schedule.saturday}</option>
+                <option value="5">{t.schedule.friday}</option>
                 <option value="none">{t.schedule.noDayOff}</option>
               </Select>
             )}
