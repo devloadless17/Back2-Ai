@@ -338,6 +338,30 @@ const FIELD = 20;
  * the rerank call below for what each buys.
  */
 const HANDED_OVER = 12;
+const HUMANITIES_HANDED_OVER = 20;
+
+const SCIENTIFIC_SUBJECT = [
+  /math/i,
+  /physics|physique/i,
+  /chemistry|chimie/i,
+  /life sciences|sciences de la vie/i,
+];
+
+export function isScientificSubjectName(name: string): boolean {
+  return SCIENTIFIC_SUBJECT.some((pattern) => pattern.test(name));
+}
+
+/**
+ * Retrieval depth by subject family.
+ *
+ * The local handover benchmark records 100% source recall for Arabic at k=20,
+ * while k=12 still leaves the weakest philosophy and humanities subjects well
+ * below that. Scientific subjects stay at their validated k=12 as requested;
+ * this larger window is isolated to prose-heavy non-science material.
+ */
+export function retrievalHandoverLimit(subjectName: string): number {
+  return isScientificSubjectName(subjectName) ? HANDED_OVER : HUMANITIES_HANDED_OVER;
+}
 
 /**
  * How far the best hit stands above the rest of the field.
@@ -1672,6 +1696,16 @@ export async function retrieveGrounding(input: RetrievalInput): Promise<Groundin
   let admittedByReader = false;
   let admittedQuestions: QuestionHit[] = [];
   if (passingChunks.length === 0 && schemes.length === 0) {
+    const subjectRows = await db.subject.findMany({
+      where: { id: { in: input.subjectIds } },
+      select: { id: true, name: true },
+    });
+    const nonScienceSubjectIds = new Set(
+      subjectRows
+        .filter((subject) => !isScientificSubjectName(subject.name))
+        .map((subject) => subject.id),
+    );
+
     const chunkCandidates = shareQueryVocabulary(
       input.query,
       chunkHits.filter((c) => c.similarity >= COVERAGE_FLOOR),
@@ -1690,6 +1724,7 @@ export async function retrieveGrounding(input: RetrievalInput): Promise<Groundin
       questionHits
         .filter(
           (q) =>
+            nonScienceSubjectIds.has(q.subjectId) &&
             q.similarity >= COVERAGE_FLOOR &&
             (q.officialSolution?.trim().length ?? 0) >= 20,
         )
@@ -1766,7 +1801,15 @@ export async function retrieveGrounding(input: RetrievalInput): Promise<Groundin
    * `rerank.ts` and the comparison script stay — they are how this was settled,
    * and how it would be re-opened if the embedding model ever changed.
    */
-  passingChunks = passingChunks.slice(0, HANDED_OVER);
+  let handover = HANDED_OVER;
+  if (passingChunks.length > HANDED_OVER) {
+    const topSubject = await db.subject.findUnique({
+      where: { id: passingChunks[0]!.subjectId },
+      select: { name: true },
+    });
+    if (topSubject) handover = retrievalHandoverLimit(topSubject.name);
+  }
+  passingChunks = passingChunks.slice(0, handover);
 
   if (
     passingChunks.length > 0 ||
