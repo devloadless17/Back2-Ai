@@ -400,6 +400,37 @@ export function lexicalAgreement(a: string, b: string): number {
 }
 
 /**
+ * Whether a student's text is a literal subquestion of a stored exercise.
+ *
+ * `lexicalAgreement` is deliberately symmetric and therefore rejects a short
+ * part copied from a long multi-part paper. That is correct for paraphrases,
+ * but wrong for a verbatim part such as "5- Specify whether...": the database
+ * stores the whole exercise while the student naturally pastes only part 5.
+ *
+ * This check is asymmetric and intentionally strict. It needs at least seven
+ * meaningful words and almost all of them must occur in the stored question.
+ * Short generic stems ("calculate the value", "justify your answer") cannot
+ * promote a neighbouring exercise to the authoritative exact-match tier.
+ */
+export function subquestionAgreement(query: string, exercise: string): number {
+  const words = (text: string) =>
+    new Set(
+      text
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[^\p{Letter}\p{Number}\s]+/gu, ' ')
+        .split(/\s+/)
+        .filter((word) => word.length > 3 && !['solve', 'please', 'plz', 'question'].includes(word)),
+    );
+  const asked = words(query);
+  if (asked.size < 7) return 0;
+  const stored = words(exercise);
+  let shared = 0;
+  for (const word of asked) if (stored.has(word)) shared += 1;
+  return shared / asked.size;
+}
+
+/**
  * Text that explains something, and text that asks you to do something.
  *
  * A textbook chapter is mostly exercises. "Démontrez que (v_n) est une suite
@@ -1265,12 +1296,15 @@ export async function retrieveGrounding(input: RetrievalInput): Promise<Groundin
   const questionLead = relevanceLead(questionHits.map((q) => q.similarity));
 
   const questionAgreement = topQuestion ? lexicalAgreement(input.query, readable(topQuestion)) : 0;
+  const subquestionMatch = topQuestion
+    ? subquestionAgreement(input.query, readable(topQuestion)) >= 0.9
+    : false;
 
   if (
     topQuestion &&
     topQuestion.similarity >= EXACT_MATCH_THRESHOLD &&
     questionLead >= RELEVANCE_LEAD &&
-    questionAgreement >= EXACT_MATCH_AGREEMENT
+    (questionAgreement >= EXACT_MATCH_AGREEMENT || subquestionMatch)
   ) {
     return {
       tier: 'exact_match',

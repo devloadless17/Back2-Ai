@@ -225,18 +225,6 @@ function scopeNote(subjects: string[], locale: Locale): string {
   return `${lead[locale]}${list}.`;
 }
 
-const RETRACTION_TEXT: Record<Locale, string> = {
-  fr:
-    "J'ai commencé une réponse que je n'ai pas pu vérifier par rapport au programme. Je préfère la retirer " +
-    "plutôt que de te laisser réviser sur quelque chose d'incertain. Reformule ta question, ou demande à ton enseignant.",
-  en:
-    "I started an answer I could not verify against the curriculum. I would rather withdraw it than leave you " +
-    'revising from something uncertain. Try rephrasing, or ask your teacher.',
-  ar:
-    'بدأت إجابة لم أتمكن من التحقق منها مقابل المنهج. أفضّل سحبها بدلاً من أن تراجع على معلومة غير مؤكدة. ' +
-    'أعد صياغة سؤالك، أو اسأل أستاذك.',
-};
-
 /**
  * What the student is told when the question needs a passage we do not have.
  *
@@ -1210,34 +1198,28 @@ export async function* runChatTurn(input: ChatTurnInput): AsyncGenerator<ChatEve
   }
 
   /*
-   * The answer failed verification after it was already on screen.
+   * A verifier disagreement is evidence for review, not permission to erase.
    *
-   * Withdrawing it is the only defensible outcome: this student is revising for
-   * a national exam, and an unverifiable derivation is worse than no answer.
-   * The withdrawn text is kept on the review queue so an administrator can see
-   * exactly what the system nearly said, rather than it vanishing.
+   * The answer has already streamed onto the student's screen. Replacing it
+   * with a generic withdrawal loses the working, hides what was disputed, and
+   * gives the student no way to compare it with the official answer. Known
+   * subquestions now enter the authoritative exact-match lane above and never
+   * reach this check. For genuinely synthesized answers, keep the text, record
+   * the verifier's concrete objections, and mark the turn unverified.
    */
-  await db.chatMessage.update({
-    where: { id: message.id },
-    data: {
-      content: RETRACTION_TEXT[input.locale],
-      groundingTier: 'ungrounded_refused',
-    },
-  });
-
   await db.reviewQueueItem.create({
     data: {
       itemType: 'flagged_content',
       itemId: message.id,
       flagReason:
-        `Verification failed (${verdict.severity}): ${verdict.notes}` +
+        `Verification disputed the shown answer (${verdict.severity}): ${verdict.notes}` +
         (verdict.issues.length > 0 ? `\n- ${verdict.issues.join('\n- ')}` : '') +
-        `\n\nWithdrawn answer:\n${answer.slice(0, 4000)}`,
+        `\n\nAnswer shown to the student:\n${answer.slice(0, 4000)}`,
       flaggedByUserId: null,
     },
   });
 
-  yield { type: 'retracted', messageId: message.id, reason: RETRACTION_TEXT[input.locale] };
+  yield { type: 'done', messageId: message.id, verified: false };
 }
 
 /**
