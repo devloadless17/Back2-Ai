@@ -56,6 +56,8 @@ export type DueCard = {
    * generated card honestly.
    */
   source: 'question' | 'generated';
+  /** Which authoritative material an AI-generated card was checked against. */
+  generatedFrom: 'book' | 'exam' | null;
   /** Id of the row in the table `source` names. */
   cardId: string;
   contentText: string;
@@ -236,7 +238,7 @@ const CARD_SELECT = {
    * the rest of the product to treat it as one.
    */
   generatedCard: {
-    select: { id: true, front: true, back: true, chapter: CHAPTER_SELECT },
+    select: { id: true, front: true, back: true, sourceQuestionId: true, chapter: CHAPTER_SELECT },
   },
 } as const;
 
@@ -258,6 +260,7 @@ type CardRow = {
     id: string;
     front: string;
     back: string;
+    sourceQuestionId: string | null;
     chapter: ChapterRow;
   } | null;
 };
@@ -303,6 +306,7 @@ function toCard(row: CardRow, aheadOfSchedule: boolean): DueCard | null {
     const card = row.generatedCard;
     return {
       source: 'generated',
+      generatedFrom: card.sourceQuestionId ? 'exam' : 'book',
       cardId: card.id,
       contentText: card.front,
       contentLatex: null,
@@ -320,6 +324,7 @@ function toCard(row: CardRow, aheadOfSchedule: boolean): DueCard | null {
   const question = row.question;
   return {
     source: 'question',
+    generatedFrom: null,
     cardId: question.id,
     contentText: question.contentText,
     contentLatex: question.contentLatex,

@@ -756,6 +756,7 @@ model Question {
 
   attempts         Attempt[]
   flashcardState   FlashcardState[]
+  generatedCards   GeneratedCard[]
   chatSessions     ChatSession[]
   examSimQuestions ExamSimulationQuestion[]
   alsoInChapters   QuestionChapter[]
@@ -1074,7 +1075,9 @@ model GeneratedCard {
   id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   chapterId        String    @map("chapter_id") @db.Uuid
   /// The passage this was written from and checked against.
-  sourceChunkId    String    @map("source_chunk_id") @db.Uuid
+  sourceChunkId    String?   @map("source_chunk_id") @db.Uuid
+  /// Official exam question and correction used instead of a textbook chunk.
+  sourceQuestionId String?   @map("source_question_id") @db.Uuid
   /// Whose deck it belongs to. A card is generated on request, for one student.
   createdForUserId String    @map("created_for_user_id") @db.Uuid
   front            String
@@ -1086,12 +1089,14 @@ model GeneratedCard {
   createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
 
   chapter     Chapter          @relation(fields: [chapterId], references: [id], onDelete: Cascade)
-  sourceChunk ContentChunk     @relation(fields: [sourceChunkId], references: [id], onDelete: Cascade)
+  sourceChunk ContentChunk?    @relation(fields: [sourceChunkId], references: [id], onDelete: Cascade)
+  sourceQuestion Question?     @relation(fields: [sourceQuestionId], references: [id], onDelete: Cascade)
   createdFor  User             @relation(fields: [createdForUserId], references: [id], onDelete: Cascade)
   cardStates  FlashcardState[]
 
   @@index([createdForUserId, createdAt])
   @@index([chapterId])
+  @@index([sourceQuestionId])
   @@map("generated_cards")
 }
 

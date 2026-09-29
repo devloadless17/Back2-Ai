@@ -89,7 +89,8 @@ const checkSchema = z.object({ agrees: z.boolean(), answerable: z.boolean() });
 
 export type FlashcardDraft = {
   chapterId: string;
-  sourceChunkId: string;
+  sourceChunkId: string | null;
+  sourceQuestionId: string | null;
   front: string;
   back: string;
 };
@@ -125,6 +126,41 @@ function overlap(a: string, b: string): number {
 
 const NEAR_DUPLICATE = 0.7;
 
+export type FlashcardSource = {
+  id: string;
+  kind: 'book' | 'exam';
+  title: string | null;
+  text: string;
+};
+
+/** Keep source identity explicit so exam cards cannot be stored as book cards. */
+export function flashcardSources(
+  passages: { id: string; title: string | null; contentText: string }[],
+  exams: {
+    id: string;
+    contentText: string;
+    officialSolution: string | null;
+    sourceExam: { year: number; session: string | null } | null;
+  }[],
+): FlashcardSource[] {
+  return [
+    ...passages.map((passage) => ({
+      id: passage.id,
+      kind: 'book' as const,
+      title: passage.title,
+      text: passage.contentText,
+    })),
+    ...exams.map((question) => ({
+      id: question.id,
+      kind: 'exam' as const,
+      title: question.sourceExam
+        ? `Official exam ${question.sourceExam.year}${question.sourceExam.session ? ` ${question.sourceExam.session}` : ''}`
+        : 'Official exam question',
+      text: `Question:\n${question.contentText}\n\nOfficial correction:\n${question.officialSolution ?? ''}`,
+    })),
+  ];
+}
+
 export async function fillFlashcardBank(input: {
   chapterId: string;
   count?: number;
@@ -149,7 +185,7 @@ export async function fillFlashcardBank(input: {
     select: { id: true, kind: true, title: true, contentText: true },
     take: 14,
   });
-  const usable = passages
+  const usablePassages = passages
     .filter((p) => p.contentText.trim().length > 200)
     .sort((a, b) => {
       const rank = (kind: string) =>
@@ -158,10 +194,29 @@ export async function fillFlashcardBank(input: {
     })
     .slice(0, 8);
 
+  const examQuestions = await db.question.findMany({
+    where: {
+      chapterId: chapter.id,
+      sourceType: 'past_exam',
+      verifiedStatus: 'verified',
+      officialSolution: { not: null },
+    },
+    select: {
+      id: true,
+      contentText: true,
+      officialSolution: true,
+      sourceExam: { select: { year: true, session: true } },
+    },
+    orderBy: [{ sourceExam: { year: 'desc' } }, { orderIndex: 'asc' }],
+    take: 8,
+  });
+
+  const usable = flashcardSources(usablePassages, examQuestions);
+
   if (usable.length === 0) return { drafts: [], rejected: [], status: 'no_material' };
 
   const language = chapter.subject.language;
-  const numbered = usable.map((passage, index) => ({ number: index + 1, passage }));
+  const numbered = usable.map((source, index) => ({ number: index + 1, source }));
 
   const response = await ai().completeJson({
     system: [
@@ -169,13 +224,15 @@ export async function fillFlashcardBank(input: {
       'Baccalaureate student.',
       '',
       'Rules:',
-      '- Each card comes from one of the numbered passages. Give that passage number.',
+      '- Each card comes from one numbered source. Give that source number.',
+      '- Use both source kinds when both are available: books for core knowledge and official',
+      '  exams for the precise facts, conclusions and short methods that earn marks.',
       '- front: a term to define, a formula to state, or one precise question. Short. Never',
       '  "explain everything about X", which cannot be self-graded.',
       '- back: the complete answer and nothing else. Two or three sentences at most, or the formula',
       '  with what its symbols mean. A student holding the card must be able to decide in a moment',
       '  whether they got it right — so no hedging, no "see the chapter", no partial answer.',
-      '- Use nothing that is not in the passage you cite. No formula from memory, no constant you',
+      '- Use nothing that is not in the source you cite. No formula from memory, no constant you',
       '  were not given.',
       '- One fact per card. A card testing three things at once teaches none of them.',
     ].join('\n'),
@@ -186,10 +243,10 @@ export async function fillFlashcardBank(input: {
           `# Chapter\n${chapter.subject.name} — ${chapter.name}`,
           `# How many\n${wanted}`,
           '',
-          '# Passages',
+          '# Sources',
           ...numbered.map(
-            ({ number, passage }) =>
-              `## Passage ${number}${passage.title ? ` — ${passage.title}` : ''}\n${passage.contentText.slice(0, 2000)}`,
+            ({ number, source }) =>
+              `## Source ${number} [${source.kind}]${source.title ? ` — ${source.title}` : ''}\n${source.text.slice(0, 2400)}`,
           ),
         ].join('\n'),
       },
@@ -214,7 +271,10 @@ export async function fillFlashcardBank(input: {
    * version made the outcome depend on the order the model happened to emit
    * them in.
    */
-  const candidates: { card: (typeof response.data.cards)[number]; passageId: string; text: string }[] = [];
+  const candidates: {
+    card: (typeof response.data.cards)[number];
+    source: (typeof numbered)[number]['source'];
+  }[] = [];
 
   for (const card of response.data.cards) {
     const cited = numbered.find((n) => n.number === card.passage);
@@ -230,7 +290,7 @@ export async function fillFlashcardBank(input: {
       rejected.push({ reason: 'near-duplicate of another card', front: card.front });
       continue;
     }
-    candidates.push({ card, passageId: cited.passage.id, text: cited.passage.contentText });
+    candidates.push({ card, source: cited.source });
   }
 
   /*
@@ -247,7 +307,7 @@ export async function fillFlashcardBank(input: {
    * not discard the nine that came back fine.
    */
   const checks = await Promise.allSettled(
-    candidates.map((entry) => verifyCard(entry.card, entry.text)),
+    candidates.map((entry) => verifyCard(entry.card, entry.source.text)),
   );
 
   for (const [index, settled] of checks.entries()) {
@@ -269,7 +329,8 @@ export async function fillFlashcardBank(input: {
 
     drafts.push({
       chapterId: chapter.id,
-      sourceChunkId: entry.passageId,
+      sourceChunkId: entry.source.kind === 'book' ? entry.source.id : null,
+      sourceQuestionId: entry.source.kind === 'exam' ? entry.source.id : null,
       front: entry.card.front,
       back: entry.card.back,
     });
@@ -291,21 +352,21 @@ async function verifyCard(
 ): Promise<{ agrees: boolean; answerable: boolean }> {
   const checked = await ai().completeJson({
     system: [
-      'You are given one passage from a textbook, one flashcard front, and the back that was',
+      'You are given one source from a textbook or official exam, one flashcard front, and the back that was',
       'written for it.',
       '',
-      'Answer the front from the passage alone, then report two things:',
-      'answerable — whether the passage actually answers the front at all.',
-      'agrees — whether the given back says the same thing as the passage does.',
+      'Answer the front from the source alone, then report two things:',
+      'answerable — whether the source actually answers the front at all.',
+      'agrees — whether the given back says the same thing as the source does.',
       '',
-      'Judge only on the passage. A back that is correct in general but not supported by this',
-      'passage is not agreement: say false. Wording may differ; meaning may not.',
+      'Judge only on the source. A back that is correct in general but not supported by this',
+      'source is not agreement: say false. Wording may differ; meaning may not.',
     ].join('\n'),
     messages: [
       {
         role: 'user',
         content: [
-          '# Passage',
+          '# Source',
           passageText.slice(0, 2500),
           '',
           '# Front',
@@ -396,6 +457,7 @@ export async function seedChapterDeck(input: {
         data: {
           chapterId: draft.chapterId,
           sourceChunkId: draft.sourceChunkId,
+          sourceQuestionId: draft.sourceQuestionId,
           createdForUserId: input.userId,
           front: draft.front,
           back: draft.back,
@@ -413,7 +475,9 @@ export async function seedChapterDeck(input: {
           itemType: 'generated_flashcard',
           itemId: card.id,
           flaggedByUserId: input.userId,
-          flagReason: 'written from the textbook and dealt to a student',
+          flagReason: draft.sourceQuestionId
+            ? 'written from an official exam correction and dealt to a student'
+            : 'written from the textbook and dealt to a student',
         },
       });
     }

@@ -150,7 +150,7 @@ export default async function FlashcardsPage({
           {/* The empty state used to be the whole screen, and its only advice
               was to go and practise. That is still the better deck; it is no
               longer the only way to get one. */}
-          <DeckSeeder subjects={seedSubjects} initialSubjectId={fromSubject} />
+          <DeckSeeder subjects={seedSubjects} initialSubjectId={fromSubject} autoStart />
         </div>
       ) : (
         <div className="grid gap-5 lg:grid-cols-3">

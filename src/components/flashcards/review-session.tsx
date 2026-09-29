@@ -194,7 +194,7 @@ export function ReviewSession({ cards }: { cards: DueCard[] }) {
             <SheetHeader
               title={card.chapterName}
               description={
-                card.source === 'generated'
+                card.source === 'generated' && card.generatedFrom === 'book'
                   ? t.flashcards.fromTextbookHint
                   : card.aheadOfSchedule
                     ? t.flashcards.aheadOfScheduleHint
@@ -206,8 +206,11 @@ export function ReviewSession({ cards }: { cards: DueCard[] }) {
                       from their textbook rather than set by an examiner — the
                       two are worth different amounts when revising, and the
                       product says so everywhere else it matters. */}
-                  {card.source === 'generated' && (
+                  {card.source === 'generated' && card.generatedFrom === 'book' && (
                     <Badge tone="accent">{t.flashcards.fromTextbook}</Badge>
+                  )}
+                  {card.source === 'generated' && card.generatedFrom === 'exam' && (
+                    <Badge tone="accent">AI · Exam</Badge>
                   )}
                   {card.aheadOfSchedule && (
                     <Badge tone="partial">{t.flashcards.aheadOfSchedule}</Badge>

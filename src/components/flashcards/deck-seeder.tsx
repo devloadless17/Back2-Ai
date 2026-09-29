@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/field';
@@ -31,6 +31,7 @@ export type SeedSubject = { id: string; name: string; chapters: SeedChapter[] };
 export function DeckSeeder({
   subjects,
   initialSubjectId,
+  autoStart = false,
 }: {
   subjects: SeedSubject[];
   /**
@@ -39,6 +40,8 @@ export function DeckSeeder({
    * hand-edited URL falls back to the first rather than selecting nothing.
    */
   initialSubjectId?: string;
+  /** Populate the first relevant chapter when a student has no deck yet. */
+  autoStart?: boolean;
 }) {
   const { t } = useI18n();
 
@@ -85,7 +88,12 @@ export function DeckSeeder({
           ))}
         </Select>
 
-        <SeedButton chapterId={chapterId} label={t.flashcards.seedCta} variant="primary" />
+        <SeedButton
+          chapterId={chapterId}
+          label={t.flashcards.seedCta}
+          variant="primary"
+          autoStart={autoStart}
+        />
       </SheetBody>
     </Sheet>
   );
@@ -108,11 +116,13 @@ export function SeedButton({
   label,
   variant = 'secondary',
   size = 'md',
+  autoStart = false,
 }: {
   chapterId: string;
   label: string;
   variant?: 'primary' | 'secondary';
   size?: 'sm' | 'md';
+  autoStart?: boolean;
 }) {
   const { t, format } = useI18n();
   const router = useRouter();
@@ -121,6 +131,7 @@ export function SeedButton({
   const [message, setMessage] = useState<{ tone: 'success' | 'warning' | 'error'; text: string } | null>(
     null,
   );
+  const autoStarted = useRef(false);
 
   async function generate() {
     if (!chapterId) return;
@@ -163,6 +174,15 @@ export function SeedButton({
       setBusy(false);
     }
   }
+
+  useEffect(() => {
+    if (!autoStart || !chapterId || autoStarted.current) return;
+    autoStarted.current = true;
+    void generate();
+    // Generation is intentionally once per mounted empty-deck screen. A refresh
+    // after cards are added renders the populated path and cannot start again.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoStart, chapterId]);
 
   return (
     <div className="space-y-2">
