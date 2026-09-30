@@ -1151,17 +1151,18 @@ export async function markSimulation(
   });
 
   if (!simulation) throw new ExamError('NOT_FOUND', 'Simulation not found.');
-  if (simulation.status === 'graded') {
+  if (simulation.status !== 'submitted' && simulation.status !== 'graded') {
+    throw new ExamError('ALREADY_SUBMITTED', 'Only a submitted paper can be marked.');
+  }
+
+  const hasPendingSlots = simulation.questions.some((slot) => !slot.answer?.gradedAt);
+  if (simulation.status === 'graded' && !hasPendingSlots) {
     return {
       totalScore: Number(simulation.totalScore ?? 0),
       maxScore: Number(simulation.maxScore ?? 0),
       unmarked: simulation.questions.filter((slot) => slot.answer?.gradedAt && slot.answer.totalScore === null)
         .length,
     };
-  }
-
-  if (simulation.status !== 'submitted') {
-    throw new ExamError('ALREADY_SUBMITTED', 'Only a submitted paper can be marked.');
   }
 
   let retryPending = false;
@@ -1343,7 +1344,7 @@ export async function markSimulation(
   // total. Only terminal passes finalize the paper; partial totals stay hidden.
   if (!retryPending) {
     await db.examSimulation.updateMany({
-      where: { id: simulation.id, status: 'submitted' },
+      where: { id: simulation.id, status: { in: ['submitted', 'graded'] } },
       data: { status: 'graded', totalScore, maxScore, gradedAt: new Date() },
     });
   }
@@ -1479,13 +1480,29 @@ export async function autoSubmitExpired(limit = 20): Promise<number> {
  * request path, a submit that timed out left a paper at `submitted` with some
  * answers marked and some not — and the only sweep in the system looked for
  * `in_progress`, so nothing ever came back for it. The student's results page
- * showed a partial mark permanently.
+ * showed a partial mark permanently. Older marking code could also finalize a
+ * paper while a slot was still unfinished, so the sweep repairs those rows too.
  */
 export async function markSubmitted(limit = 10): Promise<number> {
   // Oldest first. Per-question database locks prevent overlapping workers
   // from marking the same answer; completed slots are reused on retries.
   const pending = await db.examSimulation.findMany({
-    where: { status: 'submitted' },
+    where: {
+      OR: [
+        { status: 'submitted' },
+        {
+          status: 'graded',
+          questions: {
+            some: {
+              OR: [
+                { answer: { is: null } },
+                { answer: { is: { gradedAt: null } } },
+              ],
+            },
+          },
+        },
+      ],
+    },
     select: { id: true, userId: true },
     orderBy: { submittedAt: 'asc' },
     take: limit,
@@ -1497,7 +1514,7 @@ export async function markSubmitted(limit = 10): Promise<number> {
       await markSimulation({ simulationId: simulation.id, userId: simulation.userId, auto: true });
       count += 1;
     } catch (err) {
-      // Left at `submitted` on purpose: the next sweep retries it, and the
+      // Left recoverable on purpose: the next sweep retries it, and the
       // per-slot skip means it resumes rather than restarts.
       console.error('[exam] marking failed', simulation.id, err);
     }
