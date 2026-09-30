@@ -41,6 +41,8 @@ SCALE = 2.0
 # Two bands from the same page are one reading; joining them beats handing the
 # student two pictures of the same sheet.
 GAP_PX = 12
+# Below this a band is a heading or a broken-off sentence, not an exercise.
+MIN_BAND_PX = 200
 
 
 def find_pdf(rel: str) -> str | None:
@@ -121,8 +123,15 @@ def main() -> int:
                     )
                 )
             image = stack(images)
-            if image.height < 40 or image.width < 40:
-                raise ValueError(f"band too small to read: {image.width}x{image.height}")
+            # A BAND SHORTER THAN THIS IS NOT AN EXERCISE. Where C1's span covers
+            # only the title line the band is a picture of "Second exercise (7.5
+            # points)" and nothing else; a little taller and it is a sentence cut
+            # off mid-word. Either is worse than the flattened text it replaces,
+            # because it looks like the question and is not. Measured against the
+            # real set: the median band is about 1,060px and only five of 380 fall
+            # under this, all of them degenerate.
+            if image.height < MIN_BAND_PX or image.width < 40:
+                raise ValueError(f"band too short to be the exercise: {image.width}x{image.height}")
             # Forward slashes even on Windows: this manifest is read by a Linux
             # container, where a backslash is part of the filename rather than a
             # separator, and every band would fail to open.
