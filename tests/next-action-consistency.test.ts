@@ -26,8 +26,13 @@ const dashboard = read('src', 'app', '(app)', 'dashboard', 'page.tsx');
 const progress = read('src', 'app', '(app)', 'progress', 'page.tsx');
 
 describe('the next action has one source', () => {
-  it('is read from getNextUp on the dashboard', () => {
-    expect(dashboard).toContain('getNextUp');
+  it('is not made on the dashboard at all', () => {
+    // The dashboard was cut to the header and the subjects (2026-09-30), so it
+    // no longer recommends anything and cannot disagree with Progress. What
+    // must not happen is a recommendation creeping back without `getNextUp`.
+    const ladder = /weakChapter|newChapter|examSim|nextMoveReason/;
+    if (ladder.test(dashboard)) expect(dashboard).toContain('getNextUp');
+    expect(dashboard).not.toMatch(ladder);
   });
 
   it('is read from getNextUp on progress', () => {
