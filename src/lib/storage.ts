@@ -197,6 +197,20 @@ function s3Gap(): string | null {
   return null;
 }
 
+/**
+ * The same reason, for a caller that must refuse rather than warn.
+ *
+ * A one-off loader writing image rows has more at stake than a request does. If
+ * uploads are not persisting, the bytes go into the container's filesystem and
+ * leave with it, and the rows survive pointing at pictures that no longer
+ * exist — a failure nobody sees until a student opens the question. Such a
+ * loader calls this and stops, instead of reading the deployment's secrets to
+ * work out the answer for itself.
+ */
+export function storageGap(): string | null {
+  return s3Gap();
+}
+
 let gapLogged = false;
 
 function driver(): StorageDriver {
