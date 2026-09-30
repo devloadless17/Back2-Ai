@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
-import { arabicHeaderLines, cleanPassage, collapseBlankRuns, gutterLines } from '../scripts/corpus/passage-cleanup';
+import {
+  arabicFurnitureLines,
+  arabicHeaderLines,
+  cleanPassage,
+  cleanQuestionText,
+  collapseBlankRuns,
+  gutterLines,
+} from '../scripts/corpus/passage-cleanup';
 
 /*
  * These passages are what a student reads before answering. Removing something
@@ -68,6 +75,51 @@ describe('the ministry cover line at the top of a French passage', () => {
   it('stops at the first line of the passage itself', () => {
     const text = 'المدّة : ساعتان\nUne génération sans père\nالمدّة : ساعتان';
     expect(arabicHeaderLines(text)).toBe(1);
+  });
+});
+
+describe('the cover page sitting in the middle of a question', () => {
+  // Taken from a French paper as it is stored: the passage's footnote glossary,
+  // then the ministry cover lines the reader met partway through, then the
+  // questions themselves.
+  const QUESTION = [
+    'émergence : apparition 2– duplication : reproduction, copie',
+    '4– virulent : violent 5– abus : usage mauvais, excessif ou injuste.',
+    'اللغة الفرنسية',
+    'المدة: ساعتان ونصف',
+    'الرقم:',
+    '',
+    'I- Questions (13 pts)',
+    '1– a. Vous appuyant sur un champ lexical prédominant...',
+  ].join('\n');
+
+  it('takes the cover lines out from wherever they sit', () => {
+    const cleaned = cleanQuestionText(QUESTION);
+    expect(cleaned).not.toContain('اللغة الفرنسية');
+    expect(cleaned).not.toContain('الرقم:');
+    expect(cleaned).toContain('I- Questions (13 pts)');
+    expect(cleaned).toContain('émergence : apparition');
+    expect(cleaned).toContain('Vous appuyant sur un champ lexical');
+  });
+
+  it('leaves an Arabic question completely alone', () => {
+    // THE GUARD THAT MATTERS MOST. Every line of an Arabic paper is Arabic, so a
+    // rule that strips Arabic lines would delete the whole question.
+    const arabic = 'المدة: ساعتان\nالرقم:\n\nأولاً: أجب عن الأسئلة الآتية.\n١- ما هو تعريف الدولة؟';
+    expect(arabicFurnitureLines(arabic).size).toBe(0);
+    expect(cleanQuestionText(arabic)).toBe(arabic);
+  });
+
+  it('does not touch a question that has no Arabic in it', () => {
+    const clean = 'I- Questions (13 pts)\n1– a. Precisez le theme du texte.';
+    expect(cleanQuestionText(clean)).toBe(clean);
+  });
+
+  it('keeps a bare number in a question, unlike in a passage', () => {
+    // A lone number inside a question is a mark, an answer or a table row. Only a
+    // printed passage has a margin gutter.
+    const withNumbers = 'Compute the following.\n\n5\n\n10\n\n15\n\nGive the result.';
+    expect(cleanQuestionText(withNumbers)).toBe(withNumbers);
   });
 });
 

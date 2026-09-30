@@ -25,7 +25,7 @@ import path from 'node:path';
 
 import { db } from '../../src/lib/db';
 
-import { cleanPassage } from './passage-cleanup';
+import { cleanPassage, cleanQuestionText } from './passage-cleanup';
 
 const ROOT = process.cwd();
 const argv = process.argv.slice(2);
@@ -42,7 +42,8 @@ const BACKUP_DIR = arg('--backup-dir') ?? 'corpus/.mapping';
 const backupPath = (run: string, database: string) =>
   path.join(ROOT, BACKUP_DIR, `passages-${database}-${run}.json`);
 
-type Backup = { run: string; rows: Record<string, string> };
+type Before = { p: string | null; t: string; x: string | null };
+type Backup = { run: string; rows: Record<string, Before> };
 
 async function database(): Promise<string> {
   const rows = await db.$queryRawUnsafe<Array<{ current_database: string }>>('select current_database()');
@@ -64,9 +65,11 @@ async function rollback(run: string, name: string) {
   let restored = 0;
   for (const [id, before] of Object.entries(backup.rows)) {
     restored += await db.$executeRaw`
-      UPDATE questions SET source_passage = ${before} WHERE id = ${id}::uuid`;
+      UPDATE questions
+         SET source_passage = ${before.p}, content_text = ${before.t}, content_latex = ${before.x}
+       WHERE id = ${id}::uuid`;
   }
-  console.log(`  restored ${restored} passage(s) in ${name}.`);
+  console.log(`  restored ${restored} row(s) in ${name}.`);
 }
 
 async function main() {
@@ -77,27 +80,46 @@ async function main() {
     return;
   }
 
-  const rows = await db.$queryRawUnsafe<Array<{ id: string; subject: string; p: string }>>(
-    'select q.id, s.name as subject, q.source_passage as p' +
+  /*
+   * ARABIC-TAUGHT SUBJECTS ARE EXCLUDED HERE, and the rules decline again on
+   * their own. Two guards for one mistake, because that mistake — treating an
+   * Arabic paper's own text as a header — deletes the question outright.
+   */
+  const rows = await db.$queryRawUnsafe<
+    Array<{ id: string; subject: string; p: string | null; t: string; x: string | null }>
+  >(
+    'select q.id, s.name as subject, q.source_passage as p, q.content_text as t, q.content_latex as x' +
       ' from questions q join chapters ch on ch.id = q.chapter_id join subjects s on s.id = ch.subject_id' +
-      " where s.language <> 'ar' and q.source_passage is not null and q.source_passage <> ''",
+      " where s.language <> 'ar'",
   );
 
   const fixes = rows
-    .map((r) => ({ ...r, after: cleanPassage(r.p) }))
-    .filter((r) => r.after !== r.p);
+    .map((r) => ({
+      ...r,
+      afterP: r.p ? cleanPassage(r.p) : r.p,
+      afterT: cleanQuestionText(r.t ?? ''),
+      afterX: r.x ? cleanQuestionText(r.x) : r.x,
+    }))
+    .filter((r) => r.afterP !== r.p || r.afterT !== (r.t ?? '') || r.afterX !== r.x);
 
   const bySubject = fixes.reduce<Record<string, number>>((a, f) => ((a[f.subject] = (a[f.subject] ?? 0) + 1), a), {});
-  const removed = fixes.reduce((a, f) => a + (f.p.length - f.after.length), 0);
+  const len = (s: string | null) => (s ? s.length : 0);
+  const removed = fixes.reduce(
+    (a, f) => a + (len(f.p) - len(f.afterP)) + (len(f.t) - len(f.afterT)) + (len(f.x) - len(f.afterX)),
+    0,
+  );
   console.log('');
   console.log(`  database ${name}`);
-  console.log(`  passages read                ${rows.length}`);
-  console.log(`  passages to clean            ${fixes.length}`);
+  console.log(`  rows read                    ${rows.length}`);
+  console.log(`  rows to clean                ${fixes.length}`);
+  console.log(`    passages                   ${fixes.filter((f) => f.afterP !== f.p).length}`);
+  console.log(`    question text              ${fixes.filter((f) => f.afterT !== (f.t ?? '')).length}`);
+  console.log(`    question latex             ${fixes.filter((f) => f.afterX !== f.x).length}`);
   console.log(`  characters of furniture      ${removed}`);
   console.log('  by subject:', bySubject);
   console.log('');
   for (const f of fixes.slice(0, 5)) {
-    const first = f.after.split('\n').find((l) => l.trim()) ?? '';
+    const first = (f.afterT || f.afterP || '').split('\n').find((l) => l.trim()) ?? '';
     console.log(`    ${f.id.slice(0, 8)}  now opens: ${first.trim().slice(0, 70)}`);
   }
   console.log('');
@@ -112,16 +134,22 @@ async function main() {
   await guardWrite(name);
   const run = new Date().toISOString().slice(0, 19).replace(/[:T-]/g, '');
   const backup: Backup = { run, rows: {} };
-  for (const f of fixes) backup.rows[f.id] = f.p;
+  for (const f of fixes) backup.rows[f.id] = { p: f.p, t: f.t, x: f.x };
   writeFileSync(backupPath(run, name), JSON.stringify(backup));
 
   let written = 0;
   for (const f of fixes) {
+    // The WHERE clause carries every column's old value, so a row someone else
+    // changed since the plan was made is left alone rather than overwritten.
     written += await db.$executeRaw`
-      UPDATE questions SET source_passage = ${f.after}
-       WHERE id = ${f.id}::uuid AND source_passage = ${f.p}`;
+      UPDATE questions
+         SET source_passage = ${f.afterP}, content_text = ${f.afterT}, content_latex = ${f.afterX}
+       WHERE id = ${f.id}::uuid
+         AND content_text = ${f.t}
+         AND source_passage IS NOT DISTINCT FROM ${f.p}
+         AND content_latex IS NOT DISTINCT FROM ${f.x}`;
   }
-  console.log(`  wrote ${written} passage(s).`);
+  console.log(`  wrote ${written} row(s).`);
   console.log(`  backup: ${path.relative(ROOT, backupPath(run, name))}`);
   console.log(`  rollback: npm run corpus:clean-passages -- --rollback ${run} --confirm-db ${name}`);
   console.log('');

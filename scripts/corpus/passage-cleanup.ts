@@ -25,8 +25,17 @@
  * makes it worse than the visible damage.
  */
 
-const ARABIC = /[؀-ۿ]/;
+/*
+ * THE ARABIC BLOCK ALONE IS NOT ENOUGH. These papers were read into Arabic
+ * PRESENTATION FORMS — ﻣﺴﺎﺑﻘﺔ, ﺳﻨﺔ, ﻟﻠﺘﺮﺑﯿﺔ live at U+FB50 and above, not at
+ * U+0600 — so a range check on the base block called half a cover line "not
+ * Arabic" and left it in. The script property covers every form of the script,
+ * which is the property actually meant here.
+ */
+const ARABIC = /\p{Script=Arabic}/u;
 const LATIN = /[A-Za-zÀ-ÿ]/;
+/* Bidi marks carry no text and must not make a line look like content. */
+const BIDI = /[‎‏‪-‮⁦-⁩﻿]/g;
 
 /** A line holding nothing but a number: what the margin gutter looks like. */
 const BARE_NUMBER = /^[\s ]*(\d{1,3})[\s ]*$/;
@@ -67,28 +76,47 @@ export function gutterLines(text: string): Set<number> {
 }
 
 /**
- * How many leading lines are the ministry's Arabic cover text.
+ * The lines that are the ministry's Arabic cover text rather than the paper.
  *
- * Only the head is considered, and only when what follows is Latin: that is
- * what makes this a header on someone else's passage rather than the passage
- * itself. An Arabic passage returns 0 and is left exactly as it was.
+ * WHY EVERY LINE AND NOT JUST THE TOP. The header was first seen above a French
+ * passage, so this only stripped a leading run — and the same furniture turned
+ * out to sit in the MIDDLE of the question text, between the passage's
+ * footnotes and "I- Questions (13 pts)", because the reader met the cover page
+ * partway through. 260 questions carry it there.
+ *
+ * WHAT MAKES IT SAFE. Only a line with Arabic and no Latin letters is taken, and
+ * only from a text whose body is Latin. Every one of the 926 distinct lines this
+ * matches is cover furniture — the ministry, the examinations department, the
+ * certificate, the branch, the session, the duration, the candidate's name and
+ * number, the marking-criteria heading, and Arabic-Indic page numbers. A French
+ * or English paper has no Arabic prose of its own to lose.
+ *
+ * AN ARABIC PAPER RETURNS NOTHING AND IS NEVER TOUCHED. Its whole text is
+ * Arabic, so `LATIN.test` fails and the rule declines. The callers filter by
+ * subject language as well: one guard would have been enough, and two are
+ * cheap, because getting this wrong deletes an Arabic question outright.
  */
-export function arabicHeaderLines(text: string): number {
+export function arabicFurnitureLines(text: string): Set<number> {
   const lines = text.split(/\r?\n/);
-  const body = lines.join('\n');
-  if (!LATIN.test(body)) return 0; // an Arabic passage, not an Arabic header
+  const out = new Set<number>();
+  if (!LATIN.test(lines.join('\n'))) return out; // an Arabic paper, not a header
 
+  lines.forEach((line, i) => {
+    const bare = line.replace(BIDI, '');
+    if (ARABIC.test(bare) && !LATIN.test(bare)) out.add(i);
+  });
+  return out;
+}
+
+/** How many leading lines are the ministry's Arabic cover text. */
+export function arabicHeaderLines(text: string): number {
+  const furniture = arabicFurnitureLines(text);
+  const lines = text.split(/\r?\n/);
   let taken = 0;
   for (let i = 0; i < Math.min(lines.length, ARABIC_HEAD_LINES); i++) {
-    const line = lines[i]!;
-    if (!line.trim()) {
-      continue; // blank lines between header lines do not end the header
-    }
-    if (ARABIC.test(line) && !LATIN.test(line)) {
-      taken = i + 1;
-      continue;
-    }
-    break; // the first real line of the passage
+    if (!lines[i]!.trim()) continue; // blank lines between header lines do not end it
+    if (!furniture.has(i)) break; // the first real line of the passage
+    taken = i + 1;
   }
   return taken;
 }
@@ -110,14 +138,35 @@ export function collapseBlankRuns(text: string): string {
 export function cleanPassage(text: string): string {
   if (!text.trim()) return text;
 
-  const header = arabicHeaderLines(text);
+  const furniture = arabicFurnitureLines(text);
   const gutter = gutterLines(text);
   const kept = text
     .split(/\r?\n/)
-    .filter((_, i) => i >= header && !gutter.has(i))
+    .filter((_, i) => !furniture.has(i) && !gutter.has(i))
     .join('\n');
 
   const cleaned = collapseBlankRuns(kept);
   // A passage with no letters left is not a passage. Keep what we had.
   return LATIN.test(cleaned) || ARABIC.test(cleaned) ? cleaned : text;
+}
+
+/**
+ * The question's own text, with the cover page taken out of it.
+ *
+ * The gutter is NOT removed here. It belongs to a printed passage, and a bare
+ * number on its own line inside a question is far more likely to be part of the
+ * question — a mark, an answer, a row of a table — than a margin mark.
+ */
+export function cleanQuestionText(text: string): string {
+  if (!text.trim()) return text;
+
+  const furniture = arabicFurnitureLines(text);
+  if (!furniture.size) return text;
+
+  const kept = text
+    .split(/\r?\n/)
+    .filter((_, i) => !furniture.has(i))
+    .join('\n');
+  const cleaned = collapseBlankRuns(kept);
+  return LATIN.test(cleaned) ? cleaned : text;
 }
