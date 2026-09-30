@@ -356,11 +356,9 @@ async function startFromRealCycle(input: StartInput): Promise<{ id: string }> {
      * `OWN_EDITION_ONLY` here too, not only in the picker: this starts a timed
      * sitting, and the id arrives in a request body.
      *
-     * The subject is a SET, not the one id, because the picker offers papers
-     * from the track that shares this course's book. Checking `input.subjectId`
-     * alone would offer a paper and then refuse to start it. The set is still a
-     * whitelist built from the student's own subject, so a paper from a course
-     * they do not sit is as unreachable as it was before.
+     * Use the same ownership scope as the picker. Complete official papers keep
+     * their printed section even when individual questions are linked to a
+     * second track for mock-paper composition.
      */
     where: {
       id: input.examCycleId,

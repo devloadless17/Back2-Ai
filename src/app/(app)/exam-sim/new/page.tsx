@@ -49,13 +49,8 @@ export default async function NewSimulationPage({
 
   const subjectIds = subjects.map((subject) => subject.id);
 
-  /*
-   * Papers may come from another track that sits the same course from the same
-   * book — see `paperScopeFor`. The map carries each one back to the student's
-   * own subject, because everything below is keyed by that: the picker groups
-   * papers under a subject the student recognises, and a sitting must credit
-   * their own subject rather than the track the paper was printed for.
-   */
+  // Complete official papers remain in their printed section. The map keeps
+  // the ownership lookup explicit for the queries and picker below.
   const paperScope = await paperScopeFor(subjectIds);
 
   /*

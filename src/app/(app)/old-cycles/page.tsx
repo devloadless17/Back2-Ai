@@ -50,27 +50,15 @@ export default async function OldCyclesPage({
    * subjects, for the same reason. An English-track student is not shown the
    * French printing of a paper they cannot read.
    */
-  /*
-   * The subjects whose papers this student may see.
-   *
-   * Their own, plus the same subject on a track that sits it FROM THE SAME
-   * BOOK. LH and SE share one physics, one chemistry and one life-sciences
-   * textbook, so an LH candidate revising Physique was offered 32 papers while
-   * SE's 17 on the same syllabus sat behind a track label — and SE, with half
-   * as many of its own, had the worse end of it.
-   *
-   * Maths is not shared and cannot be: the four tracks have four maths books,
-   * and `paperScopeFor` reads that from the corpus rather than from a list.
-   */
+  // Complete official papers remain under the section printed on them. Common
+  // papers are already imported beneath each section that sat them.
   const scope = await paperScopeFor(await subjectIdsForTrack(user.trackId));
 
   /*
    * Narrowed when the student arrived from a subject.
    *
-   * Narrowing the SCOPE rather than adding a second `subjectId` filter, so the
-   * shared papers come with it: arriving from LH Physique must still show the
-   * SE printings, which a filter on that one subject id would drop. An id from
-   * another track is simply absent from the map, so it narrows to nothing —
+   * Narrowing the scope keeps the ownership check in one place. An id from
+   * another track is absent from the map, so it narrows to nothing —
    * the same protection the old track filter gave, by the same accident of
    * being a whitelist.
    */
