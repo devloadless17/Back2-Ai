@@ -47,7 +47,6 @@ import { putContentAddressed, storageGap } from '../../src/lib/storage';
 import { visualStorageKey } from '../../src/lib/visual-selection';
 
 const ROOT = process.cwd();
-const BANDS = path.join(ROOT, 'corpus/.mapping/exercise-bands/bands.json');
 
 const argv = process.argv.slice(2);
 const has = (f: string) => argv.includes(f);
@@ -58,6 +57,14 @@ const arg = (f: string) => {
 const APPLY = has('--apply');
 const ROLLBACK = has('--rollback');
 const CONFIRM_DB = arg('--confirm-db');
+
+/*
+ * Which set of bands to load. There are two, made different ways: the ones C1
+ * positioned, and the ones `locate_exercise_text.py` found in the PDF's own text
+ * layer for the papers C1 never read. They are kept in separate manifests so
+ * each can be loaded, checked and rolled back on its own.
+ */
+const BANDS = arg('--bands') ?? path.join(ROOT, 'corpus/.mapping/exercise-bands/bands.json');
 
 const MEDIA_TYPE = 'image/png';
 const sha256 = (b: Buffer | string) => createHash('sha256').update(b).digest('hex');
