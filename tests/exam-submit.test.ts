@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { tallyMarks, type MarkEntry } from '@/lib/exam';
+import { officialPaperScore, tallyMarks, type MarkEntry } from '@/lib/exam';
 
 /**
  * Marking is now a separate, re-runnable pass.
@@ -20,6 +20,24 @@ const graded = (totalScore: number, maxScore: number): MarkEntry => ({
 });
 
 const unmarkable: MarkEntry = { status: 'needs_human_review', totalScore: 0, maxScore: 0 };
+
+describe('optional questions on official papers', () => {
+  it('marks a perfect required selection out of 20, not every printed option', () => {
+    expect(officialPaperScore(20, 30)).toEqual({ totalScore: 20, maxScore: 20 });
+  });
+
+  it('still penalises a student who answers too few options', () => {
+    expect(officialPaperScore(10, 30)).toEqual({ totalScore: 10, maxScore: 20 });
+  });
+
+  it('does not award more than 20 when extra options were answered', () => {
+    expect(officialPaperScore(26, 30)).toEqual({ totalScore: 20, maxScore: 20 });
+  });
+
+  it('preserves a smaller denominator when part of the paper could not be marked', () => {
+    expect(officialPaperScore(8, 12)).toEqual({ totalScore: 8, maxScore: 12 });
+  });
+});
 
 describe('tallyMarks — resumed marking', () => {
   it('totals a paper marked in one pass', () => {

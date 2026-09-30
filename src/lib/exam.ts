@@ -391,7 +391,9 @@ async function startFromRealCycle(input: StartInput): Promise<{ id: string }> {
       examCycleId: cycle.id,
       durationMinutes: duration,
       expiresAt: new Date(startedAt.getTime() + duration * 60_000),
-      maxScore: totalOf(questions.map((q) => parseBareme(q.bareme))),
+      // All printed options stay visible, but a Lebanese Bac paper is marked
+      // out of 20. Optional sections can make their raw marks add up above 20.
+      maxScore: Math.min(totalOf(questions.map((q) => parseBareme(q.bareme))), PAPER_TOTAL_MARKS),
       questions: {
         create: questions.map((question, index) => ({
           questionId: question.id,
@@ -1162,9 +1164,19 @@ export async function markSimulation(
 
   const hasPendingSlots = simulation.questions.some((slot) => !slot.answer?.gradedAt);
   if (simulation.status === 'graded' && !hasPendingSlots) {
+    const storedTotal = Number(simulation.totalScore ?? 0);
+    const storedMaximum = Number(simulation.maxScore ?? 0);
+    const normalized = simulation.sourceMode === 'real_cycle'
+      ? officialPaperScore(storedTotal, storedMaximum)
+      : { totalScore: storedTotal, maxScore: storedMaximum };
+    if (normalized.totalScore !== storedTotal || normalized.maxScore !== storedMaximum) {
+      await db.examSimulation.updateMany({
+        where: { id: simulation.id, status: 'graded' },
+        data: normalized,
+      });
+    }
     return {
-      totalScore: Number(simulation.totalScore ?? 0),
-      maxScore: Number(simulation.maxScore ?? 0),
+      ...normalized,
       unmarked: simulation.questions.filter((slot) => slot.answer?.gradedAt && slot.answer.totalScore === null)
         .length,
     };
@@ -1343,7 +1355,12 @@ export async function markSimulation(
     }, { timeout: 15 * 60_000 });
   }
 
-  const { totalScore, maxScore, unmarked } = tallyMarks(marks);
+  const rawTally = tallyMarks(marks);
+  const scored = simulation.sourceMode === 'real_cycle'
+    ? officialPaperScore(rawTally.totalScore, rawTally.maxScore)
+    : rawTally;
+  const { totalScore, maxScore } = scored;
+  const { unmarked } = rawTally;
 
   // A retrying worker must never overwrite a concurrent worker's completed
   // total. Only terminal passes finalize the paper; partial totals stay hidden.
@@ -1437,6 +1454,17 @@ export function tallyMarks(entries: MarkEntry[]): {
   return { totalScore: round2(totalScore), maxScore: round2(maxScore), unmarked };
 }
 
+/** Applies the official 20-mark ceiling when a paper prints optional questions. */
+export function officialPaperScore(
+  totalScore: number,
+  maxScore: number,
+): { totalScore: number; maxScore: number } {
+  return {
+    totalScore: round2(Math.min(totalScore, PAPER_TOTAL_MARKS)),
+    maxScore: round2(Math.min(maxScore, PAPER_TOTAL_MARKS)),
+  };
+}
+
 function round2(value: number): number {
   return Math.round(value * 100) / 100;
 }
@@ -1506,6 +1534,10 @@ export async function markSubmitted(limit = 10): Promise<number> {
             },
           },
         },
+        // Repair scores stored before optional-question papers were capped at
+        // their official 20 marks. `markSimulation` performs no AI calls when
+        // every slot is already graded; it only corrects the saved totals.
+        { status: 'graded', sourceMode: 'real_cycle', maxScore: { gt: PAPER_TOTAL_MARKS } },
       ],
     },
     select: { id: true, userId: true },

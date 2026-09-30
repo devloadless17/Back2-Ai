@@ -111,4 +111,29 @@ describe('marking ownership and recovery', () => {
       data: expect.objectContaining({ status: 'graded', totalScore: 4, maxScore: 5 }),
     }));
   });
+
+  it('repairs an old optional-question denominator without another AI call', async () => {
+    const base = simulation('graded');
+    const complete = {
+      ...base,
+      sourceMode: 'real_cycle',
+      totalScore: 20,
+      maxScore: 30,
+      questions: [{
+        ...base.questions[0]!,
+        answer: {
+          typedAnswer: 'working', ocrExtractedText: null, ocrConsistencyPassed: null,
+          gradedAt: new Date(), totalScore: 20, maxScore: 20,
+        },
+      }],
+    };
+    mocks.findSimulation.mockResolvedValue(complete);
+
+    await expect(markSimulation(input)).resolves.toEqual({ totalScore: 20, maxScore: 20, unmarked: 0 });
+    expect(mocks.grade).not.toHaveBeenCalled();
+    expect(mocks.finish).toHaveBeenCalledWith({
+      where: { id: 'paper', status: 'graded' },
+      data: { totalScore: 20, maxScore: 20 },
+    });
+  });
 });
