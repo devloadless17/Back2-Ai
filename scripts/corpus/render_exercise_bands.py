@@ -35,7 +35,7 @@ ROOTS = ("corpus/exams", "corpus", "corpus/papers")
 # The band is the exercise's own y range, but a printed exercise leans on the
 # line above it — a rubric, a units note, the figure caption it refers to. A
 # little air above and below costs nothing and rescues those.
-PAD_FRACTION = 0.012
+PAD_FRACTION = 0.02
 # Enough to read a subscript on a phone without making the file heavy.
 SCALE = 2.0
 # Two bands from the same page are one reading; joining them beats handing the
@@ -140,7 +140,9 @@ def main() -> int:
             digest = hashlib.sha256(open(out, "rb").read()).hexdigest()
             written.append(
                 {
-                    **{k: row[k] for k in ("id", "subject", "path", "sha", "ordinal", "score")},
+                    # `score` comes from the wording matcher and `hits` from the
+                    # text-layer locator; a manifest carries one or the other.
+                    **{k: row[k] for k in ("id", "subject", "path", "sha", "ordinal", "score", "hits") if k in row},
                     "file": out,
                     "contentHash": digest,
                     "byteSize": os.path.getsize(out),
