@@ -26,6 +26,16 @@ const OUTPUT_JSON_SCHEMA = obj({
   bareme: { type: 'array', items: obj({ partId: str, criterion: str, points: num }) },
 });
 
+/** The exact subject boundary style references may come from. */
+export function styleReferenceScope(subjectId: string): Prisma.QuestionWhereInput {
+  return {
+    OR: [
+      { chapter: { subjectId } },
+      { alsoInChapters: { some: { chapter: { subjectId } } } },
+    ],
+  };
+}
+
 export async function validateBlueprint(raw: unknown): Promise<AiExamBlueprint> {
   const b = aiExamBlueprintSchema.parse(raw);
   const chapters = await db.chapter.findMany({ where: { id: { in: b.exercises.map((e) => e.chapterId) }, subjectId: b.subjectId }, select: { id: true } });
@@ -48,12 +58,30 @@ export async function validateBlueprint(raw: unknown): Promise<AiExamBlueprint> 
 async function produceExercise(b: AiExamBlueprint, order: number, paperId: string) {
   const plan = b.exercises[order]!;
   const refs = await db.question.findMany({
-    where: { id: { in: plan.referenceIds }, chapterId: plan.chapterId, sourceType: 'past_exam', verifiedStatus: { not: 'rejected' } },
+    where: {
+      id: { in: plan.referenceIds },
+      sourceType: 'past_exam',
+      verifiedStatus: { not: 'rejected' },
+      // References define the examination style. The target chapter's own
+      // textbook passages below define the content. Requiring every style
+      // reference to live in the target chapter made it impossible to produce
+      // material for a chapter whose exact gap is "book present, no exercise".
+      // Scope to this exact subject row so GS/LS/LH/SE and EN/FR never borrow
+      // from one another unless an existing audited chapter link explicitly
+      // makes the question available to this subject.
+      ...styleReferenceScope(b.subjectId),
+    },
     select: { id: true, contentText: true, contentLatex: true, contentImages: true, sourcePassage: true, officialSolution: true, bareme: true },
   });
-  if (refs.length !== plan.referenceIds.length || refs.some((r) => !parseBareme(r.bareme))) throw new Error('Every reference must be a real exam question in the planned chapter with a readable marking scheme.');
+  if (refs.length !== plan.referenceIds.length || refs.some((r) => !parseBareme(r.bareme))) throw new Error('Every reference must be a verified exam question available to this subject with a readable marking scheme.');
   const subject = await db.subject.findUniqueOrThrow({ where: { id: b.subjectId }, select: { name: true, language: true } });
-  const material = await db.contentChunk.findMany({ where: { chapters: { some: { chapterId: plan.chapterId } } }, select: { contentText: true }, take: 5 });
+  const material = await db.contentChunk.findMany({
+    where: { chapters: { some: { chapterId: plan.chapterId } } },
+    select: { title: true, contentText: true, sourcePageFrom: true },
+    orderBy: [{ sourcePageFrom: 'asc' }, { id: 'asc' }],
+    take: 12,
+  });
+  if (material.length === 0) throw new Error('The target chapter has no textbook material; generation is blocked.');
   const selections = await selectVisualsFor(refs);
   const images: AiImage[] = [];
   const referenceText: string[] = [];
@@ -72,7 +100,12 @@ async function produceExercise(b: AiExamBlueprint, order: number, paperId: strin
       solution: ref.officialSolution, markingScheme: ref.bareme,
       attachedImages: images.length >= first ? `Images ${first} through ${images.length}` : 'None; do not imitate any absent visual.' }));
   }
-  const referenceContext = referenceText.join('\n') + '\nCourse material:\n' + material.map((m) => m.contentText).join('\n').slice(0, 20000);
+  const referenceContext = [
+    'STYLE REFERENCES — imitate their structure and level, never their topic unless the textbook below supports it:',
+    referenceText.join('\n'),
+    'TARGET CHAPTER TEXTBOOK — the authoritative source for every fact, method, definition and requested task:',
+    material.map((m) => `${m.title ?? ''}\n${m.contentText}`).join('\n'),
+  ].join('\n').slice(0, 30_000);
   let feedback = '';
   for (let attempt = 0; attempt < 2; attempt++) {
     const response = await ai().completeJson({

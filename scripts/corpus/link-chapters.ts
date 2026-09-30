@@ -61,18 +61,23 @@ async function main() {
           FROM questions q
           JOIN chapters c ON c.id = q.chapter_id
           JOIN subjects s ON s.id = c.subject_id
-         WHERE q.embedding IS NOT NULL AND s.name = ${subject}
+         WHERE q.embedding IS NOT NULL
+           AND q.verified_status <> 'rejected'
+           AND s.name = ${subject}
          LIMIT ${limit}`
     : await db.$queryRaw<{ id: string; subject_id: string }[]>`
         SELECT q.id, c.subject_id::text AS subject_id
           FROM questions q
           JOIN chapters c ON c.id = q.chapter_id
          WHERE q.embedding IS NOT NULL
+           AND q.verified_status <> 'rejected'
          LIMIT ${limit}`;
 
   console.log(`  questions considered: ${questions.length}`);
 
-  let linked = 0;
+  let implied = 0;
+  let missing = 0;
+  let inserted = 0;
   let widened = 0;
 
   for (const question of questions) {
@@ -104,21 +109,36 @@ async function main() {
     if (alsoIn.length === 0) continue;
     widened += 1;
 
+    const existing = new Set(
+      (
+        await db.questionChapter.findMany({
+          where: { questionId: question.id, chapterId: { in: alsoIn.map((row) => row.chapter_id) } },
+          select: { chapterId: true },
+        })
+      ).map((row) => row.chapterId),
+    );
+
     for (const row of alsoIn) {
+      implied += 1;
+      if (existing.has(row.chapter_id)) continue;
+      missing += 1;
       if (!dry) {
         // `skipDuplicates` rather than a check: the primary chapter is already
         // linked by the migration, and it can legitimately appear here too.
-        await db.questionChapter.createMany({
+        const result = await db.questionChapter.createMany({
           data: [{ questionId: question.id, chapterId: row.chapter_id, score: Number(row.similarity) }],
           skipDuplicates: true,
         });
+        inserted += result.count;
       }
-      linked += 1;
     }
   }
 
   console.log(`  exercises widened   ${widened}`);
-  console.log(`  links added         ${linked}`);
+  console.log(`  links implied       ${implied}`);
+  console.log(`  links already there ${implied - missing}`);
+  console.log(`  links missing       ${missing}`);
+  if (!dry) console.log(`  rows inserted       ${inserted}`);
   if (dry) console.log('\n  --dry: nothing written.');
 
   await db.$disconnect();

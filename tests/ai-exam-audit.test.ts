@@ -2,7 +2,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { aiExamBlueprintSchema } from '@/lib/ai-exam-blueprint';
 import { contentDigest, hasCurrentQuality, checkExerciseStructure, QUALITY_VERSION, reviewGeneratedExercise } from '@/lib/generated-exam-quality';
-import { paperIsComplete } from '@/lib/ai-exam-production';
+import { paperIsComplete, styleReferenceScope } from '@/lib/ai-exam-production';
 import { startSimulation } from '@/lib/exam';
 
 const m = vi.hoisted(() => ({ papers: vi.fn(), create: vi.fn(), complete: vi.fn() }));
@@ -32,6 +32,14 @@ function completePaper() {
 beforeEach(() => { vi.clearAllMocks(); m.create.mockResolvedValue({ id: 'sitting' }); });
 
 describe('complete AI paper gates', () => {
+  it('keeps style references inside the selected track and language subject', () => {
+    expect(styleReferenceScope(uuid(1))).toEqual({
+      OR: [
+        { chapter: { subjectId: uuid(1) } },
+        { alsoInChapters: { some: { chapter: { subjectId: uuid(1) } } } },
+      ],
+    });
+  });
   it('rejects one-question and 60-mark plans', () => {
     expect(aiExamBlueprintSchema.safeParse({ ...blueprint, exercises: [blueprint.exercises[0]] }).success).toBe(false);
     expect(aiExamBlueprintSchema.safeParse({ ...blueprint, exercises: Array(6).fill({ ...blueprint.exercises[0], marks: 10 }) }).success).toBe(false);
