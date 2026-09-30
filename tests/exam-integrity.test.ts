@@ -84,6 +84,8 @@ describe('the runner itself', () => {
      * refresh and hand the student an unlimited paper.
      */
     expect(runner).toContain('initialRemainingSeconds');
+    expect(runner).toContain('secondsUntil(deadline, Date.now())');
+    expect(runner).toContain("document.addEventListener('visibilitychange', syncToDeadline)");
     expect(runner).not.toMatch(/Date\.now\(\)\s*-\s*mounted/);
   });
 });

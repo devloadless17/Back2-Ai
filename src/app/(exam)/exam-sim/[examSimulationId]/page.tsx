@@ -70,6 +70,7 @@ export default async function ExamSittingPage({
       title={simulation.examCycle?.title ?? simulation.questions[0]?.generatedProblem?.generatedPaper?.title ?? simulation.subject.name}
       slots={slots}
       initialRemainingSeconds={remaining}
+      expiresAt={simulation.expiresAt.toISOString()}
     />
   );
 }
