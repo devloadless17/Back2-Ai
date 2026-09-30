@@ -37,11 +37,9 @@ vi.mock('@/lib/queries/progress', () => ({ recomputeChapterMastery: vi.fn(), res
 const input = { simulationId: 'paper', userId: 'student', auto: false };
 const success = { status: 'graded', totalScore: 4, maxScore: 5, results: [], modelUsed: 'mock' };
 
-beforeEach(() => {
-  vi.clearAllMocks();
-  mocks.locked = false;
-  mocks.findSimulation.mockResolvedValue({
-    id: 'paper', status: 'submitted', totalScore: null, maxScore: 5,
+function simulation(status = 'submitted') {
+  return {
+    id: 'paper', status, totalScore: null, maxScore: 5,
     subject: { id: 'subject', name: 'Math', language: 'en' },
     questions: [{
       id: 'slot', questionId: 'q', generatedProblemId: null,
@@ -50,7 +48,13 @@ beforeEach(() => {
         chapter: { id: 'chapter', name: 'Algebra' }, officialSolution: null },
       answer: null,
     }],
-  });
+  };
+}
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  mocks.locked = false;
+  mocks.findSimulation.mockResolvedValue(simulation());
   mocks.findAnswer.mockResolvedValue({ typedAnswer: 'working', ocrExtractedText: null,
     ocrConsistencyPassed: null, gradedAt: null });
   mocks.grade.mockResolvedValue(success);
@@ -96,5 +100,15 @@ describe('marking ownership and recovery', () => {
     mocks.findSimulation.mockResolvedValueOnce({ status: 'in_progress' });
     await expect(markSimulation(input)).rejects.toThrow('Only a submitted paper');
     expect(mocks.grade).not.toHaveBeenCalled();
+  });
+
+  it('repairs an unfinished slot even when the paper was already finalized', async () => {
+    mocks.findSimulation.mockResolvedValue(simulation('graded'));
+    await markSimulation(input);
+    expect(mocks.grade).toHaveBeenCalledTimes(1);
+    expect(mocks.finish).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: 'paper', status: { in: ['submitted', 'graded'] } },
+      data: expect.objectContaining({ status: 'graded', totalScore: 4, maxScore: 5 }),
+    }));
   });
 });
