@@ -14,6 +14,7 @@ import { Sheet, SheetBody, SheetFooter, SheetHeader } from '@/components/ui/shee
 import { cn } from '@/lib/cn';
 import { sendForm, sendJson } from '@/lib/client/request';
 import { ExamDrafts } from '@/lib/client/exam-drafts';
+import { secondsUntil } from '@/lib/exam-timer';
 import { useI18n } from '@/lib/i18n/client';
 // Duration is locale-independent (mm:ss / h:mm:ss), so it comes straight from
 // the formatter rather than through the i18n context.
@@ -64,6 +65,7 @@ export function ExamRunner({
   title,
   slots,
   initialRemainingSeconds,
+  expiresAt,
 }: {
   simulationId: string;
   subjectName: string;
@@ -80,6 +82,8 @@ export function ExamRunner({
   title: string;
   slots: ExamSlot[];
   initialRemainingSeconds: number;
+  /** Absolute server-issued deadline; interval ticks only decide when to repaint it. */
+  expiresAt: string;
 }) {
   const { t, format } = useI18n();
   const router = useRouter();
@@ -142,26 +146,32 @@ export function ExamRunner({
 
   // --- Countdown ----------------------------------------------------------
   useEffect(() => {
-    if (remaining <= 0) {
-      void submit(true);
-      return undefined;
+    const deadline = Date.parse(expiresAt);
+    let expired = false;
+
+    function syncToDeadline() {
+      const next = secondsUntil(deadline, Date.now());
+      setRemaining(next);
+      if (next === 0 && !expired) {
+        expired = true;
+        void submit(true);
+      }
     }
 
-    const timer = window.setInterval(() => {
-      setRemaining((current) => {
-        if (current <= 1) {
-          window.clearInterval(timer);
-          void submit(true);
-          return 0;
-        }
-        return current - 1;
-      });
-    }, 1000);
+    // Browsers throttle intervals in background tabs. Each repaint therefore
+    // derives from the absolute deadline instead of subtracting one from stale
+    // state, and visibility immediately catches up before the next interval.
+    syncToDeadline();
+    const timer = window.setInterval(syncToDeadline, 1000);
+    document.addEventListener('visibilitychange', syncToDeadline);
+    window.addEventListener('focus', syncToDeadline);
 
-    return () => window.clearInterval(timer);
-    // `remaining` is intentionally not a dependency: the interval owns it.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [submit]);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener('visibilitychange', syncToDeadline);
+      window.removeEventListener('focus', syncToDeadline);
+    };
+  }, [expiresAt, submit]);
 
   // Save every changed slot, independently of which question is visible.
   const save = useCallback(async (attempt = 0) => {
