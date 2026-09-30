@@ -121,11 +121,31 @@ export function arabicHeaderLines(text: string): number {
   return taken;
 }
 
+/**
+ * A line holding only punctuation — what a footnote marker leaves behind.
+ *
+ * A superscript sits on its own baseline, so the reader ends the line at it and
+ * the sentence's full stop begins the next one: "…amoindrissante1" then a line
+ * containing just ".". Putting it back where it belongs costs nothing and is
+ * the difference between prose and debris.
+ */
+const ORPHAN_PUNCTUATION = /^[\s ]*[.,;:!?»)\]…]+[\s ]*$/;
+
 /** No more than one blank line in a row, and no trailing spaces. */
 export function collapseBlankRuns(text: string): string {
-  return text
-    .split(/\r?\n/)
-    .map((l) => l.replace(/[ \t ]+$/, ''))
+  const lines = text.split(/\r?\n/).map((l) => l.replace(/[ \t ]+$/, ''));
+
+  const joined: string[] = [];
+  for (const line of lines) {
+    const previous = joined[joined.length - 1];
+    if (ORPHAN_PUNCTUATION.test(line) && previous && previous.trim()) {
+      joined[joined.length - 1] = previous + line.trim();
+      continue;
+    }
+    joined.push(line);
+  }
+
+  return joined
     .join('\n')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
