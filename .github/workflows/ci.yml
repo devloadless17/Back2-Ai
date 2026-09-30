@@ -86,7 +86,7 @@ jobs:
 
       - uses: actions/setup-node@v5
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       # tests/exercise-marks.test.ts and tests/taxonomy-heading.test.ts shell out
@@ -116,6 +116,13 @@ jobs:
 
       - name: Typecheck
         run: npm run typecheck
+
+      # next.config.mjs deliberately keeps lint out of `next build` so builds
+      # do not run the same work twice. Keep it as its own release gate: without
+      # this step a production push can ship an ESLint error because both the
+      # test runner and the production compiler accept it.
+      - name: Lint
+        run: npm run lint
 
       - name: Tests
         run: npm test

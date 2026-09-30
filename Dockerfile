@@ -12,7 +12,7 @@
 #             engine, and nothing else.
 
 # ---------------------------------------------------------------------------
-FROM node:20-slim AS deps
+FROM node:22-slim AS deps
 WORKDIR /app
 
 # openssl is required by the Prisma engines on the slim image; without it the
@@ -29,7 +29,7 @@ RUN npm i -g npm@11
 RUN npm ci
 
 # ---------------------------------------------------------------------------
-FROM node:20-slim AS build
+FROM node:22-slim AS build
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y --no-install-recommends openssl \
@@ -62,7 +62,7 @@ ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 
 # ---------------------------------------------------------------------------
-FROM node:20-slim AS runtime
+FROM node:22-slim AS runtime
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y --no-install-recommends openssl \
