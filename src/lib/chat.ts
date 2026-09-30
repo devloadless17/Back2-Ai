@@ -96,6 +96,16 @@ function isLegacyWithdrawal(content: string): boolean {
   return LEGACY_WITHDRAWAL_MARKERS.some((marker) => folded.includes(marker));
 }
 
+/** Whether the student asked for the recorded answer itself, rather than an explanation. */
+export function asksForOfficialAnswer(text: string): boolean {
+  const folded = text.toLocaleLowerCase().trim();
+  return (
+    /\b(?:answer|solution|solve|mark scheme|model answer)\b/u.test(folded) ||
+    /\b(?:réponds?|réponse|solution|résous|corrigé)\b/u.test(folded) ||
+    /(?:الحل|حلّ|الجواب|الإجابة|اجب|أجب|صحح|صحّح)/u.test(folded)
+  );
+}
+
 /**
  * Recover the exercise that an older build erased after verification.
  *
@@ -1004,6 +1014,33 @@ export async function* runChatTurn(input: ChatTurnInput): AsyncGenerator<ChatEve
   yield { type: 'meta', tier: shownTier, sources, topSimilarity: grounding.topSimilarity };
 
   /*
+   * The official answer is already the authority. Sending it through a model
+   * can only spend money and change it. In the humanities covered by the
+   * verbatim rule, the source wording itself earns the mark. Explanations and
+   * subjects that require selecting one part of a longer worked solution still
+   * use the grounded tutor below; a direct humanities answer receives the
+   * stored solution byte for byte.
+   */
+  const officialSolution = input.anchorQuestion?.officialSolution?.trim();
+  if (
+    officialSolution &&
+    definitionsAreVerbatim(input.subjectName) &&
+    asksForOfficialAnswer(input.question)
+  ) {
+    yield { type: 'delta', text: officialSolution };
+    const message = await persistAssistantMessage({
+      sessionId: input.sessionId,
+      content: officialSolution,
+      tier: 'exact_match',
+      citedSourceIds: grounding.sources.map((source) => source.id),
+      topSimilarity: grounding.topSimilarity,
+      modelUsed: null,
+    });
+    yield { type: 'done', messageId: message.id, verified: true };
+    return;
+  }
+
+  /*
    * --- Nothing cleared threshold ------------------------------------------
    *
    * Two different situations wear the same tier, and they part company here.
@@ -1264,8 +1301,9 @@ export async function* runChatTurn(input: ChatTurnInput): AsyncGenerator<ChatEve
    */
   yield { type: 'stage', stage: 'solving' };
 
-  try {
-    const stream = provider.streamText({
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const stream = provider.streamText({
       system:
         systemPrompt(
           grounding.tier,
@@ -1290,21 +1328,29 @@ export async function* runChatTurn(input: ChatTurnInput): AsyncGenerator<ChatEve
       effort: 'high',
     });
 
-    let next = await stream.next();
-    while (!next.done) {
-      answer += next.value;
-      yield { type: 'delta', text: next.value };
-      next = await stream.next();
-    }
-    modelUsed = next.value.modelUsed;
+      let next = await stream.next();
+      while (!next.done) {
+        answer += next.value;
+        yield { type: 'delta', text: next.value };
+        next = await stream.next();
+      }
+      modelUsed = next.value.modelUsed;
 
-    if (next.value.refused || answer.trim().length === 0) {
-      throw new Error('The provider returned no usable answer.');
+      if (next.value.refused || answer.trim().length === 0) {
+        throw new Error('The provider returned no usable answer.');
+      }
+      break;
+    } catch (err) {
+      /* A connection that failed before the first token is safe to retry: the
+         student has seen nothing and no partial answer can be duplicated. */
+      if (attempt === 0 && answer.length === 0) {
+        console.error('[chat] generation failed before first token; retrying once', err);
+        continue;
+      }
+      console.error('[chat] generation failed', err);
+      yield { type: 'error', message: 'Generation failed.' };
+      return;
     }
-  } catch (err) {
-    console.error('[chat] generation failed', err);
-    yield { type: 'error', message: 'Generation failed.' };
-    return;
   }
 
   const message = await persistAssistantMessage({
