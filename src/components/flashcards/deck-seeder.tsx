@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/field';
 import { Alert } from '@/components/ui/feedback';
 import { Sheet, SheetBody, SheetHeader } from '@/components/ui/sheet';
+import { aiErrorMessage } from '@/lib/client/ai-error';
 import { ApiRequestError, sendJson } from '@/lib/client/request';
 import { useI18n } from '@/lib/i18n/client';
 
@@ -168,7 +169,7 @@ export function SeedButton({
       const tooMany = error instanceof ApiRequestError && error.status === 429;
       setMessage({
         tone: 'error',
-        text: tooMany ? t.flashcards.seedTooMany : t.common.unknownError,
+        text: tooMany ? t.flashcards.seedTooMany : aiErrorMessage(error, t),
       });
     } finally {
       setBusy(false);
