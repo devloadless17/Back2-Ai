@@ -109,9 +109,17 @@ export const POST = route(async (request) => {
       subject: { select: { language: true, name: true } },
       question: { select: { id: true, contentText: true, officialSolution: true, bareme: true } },
       attempt: { select: { submittedAnswer: true, score: true, maxScore: true } },
+      /*
+       * The LATEST twenty, newest first here and put back in order below.
+       *
+       * This read `asc` with `take: 20`, which is the FIRST twenty: from the
+       * eleventh exchange on, the tutor was handed the opening of the
+       * conversation and never what had just been said, and students felt it
+       * forget what they were talking about.
+       */
       messages: {
         select: { role: true, content: true },
-        orderBy: { createdAt: 'asc' },
+        orderBy: { createdAt: 'desc' },
         take: 20,
       },
     },
@@ -198,7 +206,7 @@ export const POST = route(async (request) => {
             session.subjectId && subjectIds.length === 1
               ? (session.subject?.name ?? null)
               : null,
-          history: session.messages.map((m) => ({ role: m.role, content: m.content })),
+          history: [...session.messages].reverse().map((m) => ({ role: m.role, content: m.content })),
           anchorQuestion: session.question && {
             ...session.question,
             /*
