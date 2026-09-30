@@ -39,6 +39,8 @@ import pypdfium2 as pdfium
 ROOTS = ("corpus/exams", "corpus", "corpus/papers")
 
 LETTERS = re.compile(r"[^\W\d_]", re.UNICODE)
+# "lh/2018 1" -> ("2018", "1"); the track in front of it is deliberately ignored.
+SITTING = re.compile(r"(\d{4})(?:\s+(\d))?")
 
 # Long enough that a run of it cannot coincide, short enough to survive a word
 # the reader mangled in the middle of the question.
@@ -59,14 +61,22 @@ def letters_only(text: str) -> str:
     return "".join(LETTERS.findall(text.lower()))
 
 
-def probes_of(normalised: str) -> list[str]:
-    out = []
+def probes_of(normalised: str) -> list[tuple[int, str]]:
+    """Each probe with the character offset in the body it was taken from.
+
+    The offset travels with the probe because the check below compares how fast
+    the page advances against how far apart the probes are in the question; the
+    probes are not evenly spaced, so a raw step tells you nothing.
+    """
+    out: list[tuple[int, str]] = []
+    seen: set[str] = set()
     for fraction in OFFSETS:
         start = int(len(normalised) * fraction)
         start = min(start, max(0, len(normalised) - PROBE))
         probe = normalised[start : start + PROBE]
-        if len(probe) == PROBE and probe not in out:
-            out.append(probe)
+        if len(probe) == PROBE and probe not in seen:
+            seen.add(probe)
+            out.append((start, probe))
     return out
 
 
@@ -113,6 +123,44 @@ def page_index(page) -> tuple[str, list[tuple[float, float]]]:
     return "".join(letters), boxes
 
 
+def consistent(hits):
+    """The largest run of probes that advance through the page in step.
+
+    `hits` is (probe index in the body, character offset on the page). The probes
+    were taken in body order, so a genuine set advances monotonically and at a
+    roughly even rate. This keeps the longest subsequence that does, which drops
+    a probe matched by repeated boilerplate further down the page.
+    """
+    if len(hits) < 2:
+        return hits
+
+    # IT MUST BEGIN AT THE QUESTION'S OWN BEGINNING. `hits` is in body order, so
+    # the first is the earliest surviving probe of this question — where the band
+    # has to start. Taking instead whichever run happened to be longest moved a
+    # band onto the third exercise of the page, because the boilerplate the
+    # question ends with opens two later ones and matched more consistently
+    # there. Anchoring removes that whole class of mistake.
+    run = [hits[0]]
+    for nxt in hits[1:]:
+        if nxt[1] <= run[-1][1]:
+            continue                          # the printing never goes backwards
+        if len(run) >= 2:
+            # How fast the page advanced per character of the question so far,
+            # against the rate this step would need. The probes sit at uneven
+            # places in the body, so only the RATE is comparable — measuring the
+            # raw gap rejected honest steps and cut bands off a few lines in.
+            rates = [
+                (run[i + 1][1] - run[i][1]) / max(1, run[i + 1][0] - run[i][0])
+                for i in range(len(run) - 1)
+            ]
+            typical = sorted(rates)[len(rates) // 2]
+            rate = (nxt[1] - run[-1][1]) / max(1, nxt[0] - run[-1][0])
+            if typical and rate > typical * 4:
+                continue                      # this far ahead is another exercise
+        run.append(nxt)
+    return run
+
+
 # One index per PDF, not one per question. Reading the character boxes is the
 # expensive part, and a broad search asks the same paper about many questions.
 _INDEX: dict[str, list[tuple[str, list[tuple[float, float]], float]]] = {}
@@ -131,34 +179,94 @@ def document_index(path: str, doc):
 
 
 def locate(path: str, doc, normalised: str) -> dict | None:
-    """Where this question sits in this document, or None if it is not here."""
+    """Where this question sits in this document, or None if it is not here.
+
+    A QUESTION IS OFTEN LONGER THAN A PAGE. One physics question ran from the
+    start of page 1 to two thirds down page 2; returning only the page it began
+    on cut half of it away, and returning only the page with the most matches
+    showed a different exercise entirely. So every page carrying part of the
+    question gets a span, in reading order, and the renderer stacks them.
+    """
     probes = probes_of(normalised)
     if len(probes) < MIN_HITS:
         return None
 
-    best = None
+    pages: list[dict] = []
+    total_hits = 0
     for page_no, (text, boxes, page_height) in enumerate(document_index(path, doc)):
         if not text:
             continue
-        found = [(p, text.find(p)) for p in probes]
-        hits = [(p, at) for p, at in found if at >= 0]
-        if len(hits) < MIN_HITS:
-            # A question can start low on one page and finish on the next, so a
-            # single hit still counts when a neighbouring page carries the rest.
-            if not hits:
-                continue
-        starts = [at for _, at in hits]
-        ends = [at + PROBE for _, at in hits]
-        span = {
-            "page": page_no + 1,
-            "yStart": boxes[min(starts)][0],
-            "yEnd": boxes[min(max(ends) - 1, len(boxes) - 1)][1],
-            "pageHeight": page_height,
-            "hits": len(hits),
-        }
-        if best is None or span["hits"] > best["hits"]:
-            best = span
-    return best
+        found = [(body_at, text.find(probe)) for body_at, probe in probes]
+        hits = [(body_at, at) for body_at, at in found if at >= 0]
+        if not hits:
+            continue
+        # A PROBE BEING FOUND IS NOT ENOUGH; IT MUST SIT ON THE SAME LINE AS THE
+        # REST. Exam papers repeat boilerplate — "read carefully the following
+        # text then answer the questions that follow" opens several exercises on
+        # one page — so the closing probe of one question can match inside the
+        # NEXT one, and the band then runs on past its own exercise and into a
+        # different question's text.
+        #
+        # The question is printed in order and at a steady rate, so its probes
+        # should fall on a straight line: a probe a fifth of the way through the
+        # body sits about a fifth of the way down the printed exercise. Fitting
+        # that line and dropping whatever disagrees with it removes the stray
+        # match, and keeps the true last probe when it is where it should be.
+        kept = consistent(hits)
+        if not kept:
+            continue
+        starts = [at for _, at in kept]
+        ends = [at + PROBE for _, at in kept]
+        # A QUESTION CANNOT BE LONGER IN PRINT THAN IT IS IN TEXT. The probes give
+        # the rate the page advances per character of the question, so the end
+        # cannot lie further than the remaining characters allow. Without this the
+        # band ran past its own exercise into the next one, because the closing
+        # boilerplate — the same sentence opening two later exercises — matched
+        # down there and dragged the bottom edge with it.
+        if len(kept) >= 2:
+            rates = [
+                (kept[i + 1][1] - kept[i][1]) / max(1, kept[i + 1][0] - kept[i][0])
+                for i in range(len(kept) - 1)
+            ]
+            rate = sorted(rates)[len(rates) // 2]
+            if rate > 0:
+                furthest = kept[0][1] + int((len(normalised) - kept[0][0]) * rate) + PROBE
+                ends = [e for e in ends if e <= furthest] or [min(ends)]
+        yStart = boxes[min(starts)][0]
+        yEnd = boxes[min(max(ends) - 1, len(boxes) - 1)][1]
+        if yEnd <= yStart:
+            continue                          # matched out of order on this page
+        pages.append(
+            {
+                "page": page_no + 1,
+                "yStart": yStart,
+                "yEnd": yEnd,
+                "pageHeight": page_height,
+                "firstBodyAt": kept[0][0],
+                "lastBodyAt": kept[-1][0],
+                "hits": len(kept),
+            }
+        )
+        total_hits += len(kept)
+
+    if not pages:
+        return None
+
+    # THE QUESTION RUNS FORWARD THROUGH THE PAPER. Pages are kept only while each
+    # carries a later part of the question than the one before, starting from the
+    # page holding its opening. A page matching only repeated boilerplate sits out
+    # of that order and is dropped, which is what stopped a band showing the third
+    # exercise on the sheet instead of the first.
+    pages.sort(key=lambda p: p["firstBodyAt"])
+    run = [pages[0]]
+    for nxt in pages[1:]:
+        if nxt["page"] > run[-1]["page"] and nxt["firstBodyAt"] >= run[-1]["lastBodyAt"]:
+            run.append(nxt)
+    run.sort(key=lambda p: p["page"])
+    if total_hits < MIN_HITS:
+        return None
+    return {"spans": [{k: p[k] for k in ("page", "yStart", "yEnd", "pageHeight")} for p in run],
+            "hits": sum(p["hits"] for p in run)}
 
 
 def main() -> int:
@@ -198,9 +306,20 @@ def main() -> int:
         # student the same page. Two DIFFERENT sittings answering equally well is
         # a real ambiguity, and is refused rather than settled by a coin toss.
         answers.sort(key=lambda a: -a[1]["hits"])
-        sitting = lambda rel: os.path.dirname(rel.replace(chr(92), "/"))
+        # THE TRACK IS NOT PART OF THE SITTING. LH and SE sit the same science
+        # paper, as do GS and LS, so `lh/2018 1` and `se/2018 1` are one exercise
+        # filed twice — comparing the whole folder called them rivals and refused
+        # 23 rows that were never ambiguous. Only the year and session identify a
+        # sitting.
+        sitting = lambda rel: SITTING.search(os.path.dirname(rel.replace(chr(92), "/")))
         best_rel, best_span = answers[0]
-        rival = next((a for a in answers if sitting(a[0]) != sitting(best_rel)), None)
+        best_sitting = sitting(best_rel)
+        rival = next(
+            (a for a in answers
+             if (sitting(a[0]).groups() if sitting(a[0]) else None)
+             != (best_sitting.groups() if best_sitting else None)),
+            None,
+        )
         if rival and rival[1]["hits"] >= best_span["hits"]:
             ambiguous.append(row["id"])
             continue
@@ -209,7 +328,8 @@ def main() -> int:
         # keyed by (paper, crop name), and these bands have no exercise number to
         # use — the exercise was never found in `exams.json`. Where it sits on the
         # page is unique to it and stable across re-runs, so that is the name.
-        ordinal = span["page"] * 10000 + int(span["yStart"])
+        first = span["spans"][0]
+        ordinal = first["page"] * 10000 + int(first["yStart"])
         placed.append(
             {
                 "id": row["id"],
@@ -218,7 +338,7 @@ def main() -> int:
                 "sha": paper_sha256(find_pdf(rel) or rel),
                 "ordinal": ordinal,
                 "hits": span["hits"],
-                "spans": [{k: span[k] for k in ("page", "yStart", "yEnd", "pageHeight")}],
+                "spans": span["spans"],
             }
         )
 
