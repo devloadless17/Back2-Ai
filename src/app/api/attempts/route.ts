@@ -16,7 +16,8 @@ import { budgetState } from '@/lib/ai';
 import { db } from '@/lib/db';
 import { repeatedCriteria } from '@/lib/queries/repeated-criteria';
 import { resolveCreditChapter } from '@/lib/queries/progress';
-import { gradeAgainstBareme, gradeWithoutBareme, parseBareme, statedMarksOf } from '@/lib/grading';
+import { gradeAgainstBareme, gradeWithoutBareme, parseBareme, statedMarksOf, type Bareme } from '@/lib/grading';
+import { modelBaremeFor } from '@/lib/model-bareme';
 import { retrieveGrounding } from '@/lib/retrieval';
 import { ensureCard } from '@/lib/queries/flashcards';
 import { recomputeChapterMastery } from '@/lib/queries/progress';
@@ -183,10 +184,48 @@ export const POST = route(async (request) => {
   let baremeResult: unknown = null;
   let needsHumanReview = false;
 
+  /*
+   * A QUESTION WITH NO MINISTRY SCHEME GETS ONE OF ITS OWN, ONCE.
+   *
+   * Marking already worked without a barème — the criteria were proposed on the
+   * spot, per attempt. But proposing them per attempt means two students who
+   * write the SAME answer can be marked against different criteria and score
+   * differently, and neither can be shown why. Marks have to be the same for
+   * everyone, so the scheme is decided once, stored on the question, and every
+   * attempt after is marked against it. It is kept apart from `bareme`, which
+   * is the ministry's, and the result stays flagged provisional.
+   */
+  let provisionalBareme: Bareme | null = null;
+  if (isQuestion && source.questionType !== 'mcq' && !bareme && (body.answerText ?? '').trim().length > 0) {
+    const proposed = await modelBaremeFor({
+      questionId: source.id,
+      userId: user.id,
+      statedMarks: statedMarksOf(source.contentText),
+      canSpend: async () => !(await budgetState(user.id)).exhausted,
+    });
+    if (proposed.status === 'ok' && !proposed.official) provisionalBareme = proposed.bareme;
+  }
+
   if (isQuestion && source.questionType === 'mcq') {
     // Objective and free to mark. No model call for a multiple-choice answer.
     if (!body.selectedOptionId) return fail(422, 'OPTION_REQUIRED');
     isCorrect = source.correctOptionId !== null && body.selectedOptionId === source.correctOptionId;
+  } else if (provisionalBareme) {
+    // The stored scheme, marked exactly as an official one is, so two students
+    // with the same answer get the same marks. Still reported as provisional.
+    const outcome = await gradeAgainstBareme({
+      questionText: source.contentText,
+      officialSolution: isQuestion ? source.officialSolution : source.generatedSolution,
+      bareme: provisionalBareme,
+      studentAnswer: body.answerText ?? '',
+      language,
+      subject: source.chapter.subject.name,
+    });
+    score = outcome.totalScore;
+    maxScore = outcome.maxScore;
+    baremeResult = outcome.results;
+    needsHumanReview = outcome.status === 'needs_human_review';
+    isCorrect = outcome.maxScore > 0 ? outcome.totalScore >= outcome.maxScore / 2 : null;
   } else if (bareme) {
     const outcome = await gradeAgainstBareme({
       questionText: source.contentText,

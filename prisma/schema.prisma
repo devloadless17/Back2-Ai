@@ -739,6 +739,12 @@ model Question {
   modelSolution         String?        @map("model_solution")
   modelSolutionModel    String?        @map("model_solution_model")
   modelSolutionAt       DateTime?      @map("model_solution_at") @db.Timestamptz(6)
+  /// A marking scheme proposed for a question whose paper came without one.
+  /// Deliberately not `bareme`: that column is the ministry's, and a generated
+  /// scheme written into it could never be told apart from the real one again.
+  modelBareme           Json?          @map("model_bareme")
+  modelBaremeModel      String?        @map("model_bareme_model")
+  modelBaremeAt         DateTime?      @map("model_bareme_at") @db.Timestamptz(6)
   /// Structured point breakdown: [{ criterion, points }]
   bareme                Json?
   /// Position within its source paper; drives ordering in old-cycle mode.
