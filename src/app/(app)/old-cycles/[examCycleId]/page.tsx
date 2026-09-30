@@ -18,6 +18,7 @@ import { format } from '@/lib/i18n/format';
 import { dirForLanguage } from '@/lib/i18n/config';
 import { OWN_EDITION_ONLY, paperScopeFor, subjectIdsForTrack } from '@/lib/queries/taxonomy';
 import { visualKeysFor } from '@/lib/visual-evidence';
+import { bodyToRender } from '@/lib/question-body';
 
 export const metadata: Metadata = { title: 'Past paper' };
 
@@ -206,7 +207,7 @@ export default async function ExamCyclePage({
           <div className="ruled">
             {cycle.questions.map((question) => {
               const solution =
-                question.officialSolutionLatex?.trim() || question.officialSolution?.trim() || null;
+                bodyToRender(question.officialSolutionLatex, question.officialSolution ?? '').trim() || null;
               return (
               <section key={question.id} className="group px-5 py-5">
                 <QuestionBody

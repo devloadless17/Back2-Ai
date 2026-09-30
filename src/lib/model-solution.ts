@@ -3,6 +3,7 @@ import 'server-only';
 import { ai } from '@/lib/ai';
 import { db } from '@/lib/db';
 import { isAiConfigured } from '@/lib/env';
+import { bodyToRender } from '@/lib/question-body';
 
 const LANGUAGE_NAME: Record<string, string> = { ar: 'Arabic', en: 'English', fr: 'French' };
 
@@ -60,7 +61,10 @@ export async function modelSolutionFor(input: {
   });
   if (!question) return { status: 'not_found' };
 
-  const official = question.officialSolutionLatex?.trim() || question.officialSolution?.trim();
+  const official = bodyToRender(
+    question.officialSolutionLatex,
+    question.officialSolution ?? '',
+  ).trim();
   if (official) return { status: 'ok', solution: official, official: true, cached: true };
 
   if (question.modelSolutionAt) {
@@ -81,7 +85,7 @@ export async function modelSolutionFor(input: {
       role: 'user',
       content: [
         `# Chapter\n${question.chapter.name}`,
-        `# Exercise\n${question.contentLatex?.trim() || question.contentText}`,
+        `# Exercise\n${bodyToRender(question.contentLatex, question.contentText)}`,
       ].join('\n\n'),
     }],
     maxTokens: 4000,
