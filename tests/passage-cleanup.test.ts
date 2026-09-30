@@ -149,3 +149,21 @@ describe('cleaning a passage end to end', () => {
     expect(cleanPassage(good)).toBe(good);
   });
 });
+
+describe('the full stop a footnote marker pushed onto its own line', () => {
+  it('puts it back on the sentence it belongs to', () => {
+    // A superscript sits on its own baseline, so the reader ends the line at the
+    // marker and the sentence's full stop opens the next one.
+    expect(collapseBlankRuns('…discipline amoindrissante1\n.\nLe caractère')).toBe(
+      '…discipline amoindrissante1.\nLe caractère',
+    );
+  });
+
+  it('leaves a line that has words on it alone', () => {
+    expect(collapseBlankRuns('a\n. Mais il revint')).toBe('a\n. Mais il revint');
+  });
+
+  it('does not attach punctuation to a blank line', () => {
+    expect(collapseBlankRuns('a\n\n.')).toBe('a\n\n.');
+  });
+});
