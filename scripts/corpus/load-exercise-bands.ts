@@ -5,6 +5,14 @@
  *   npm run corpus:bands -- --apply --confirm-db <dbname> # write
  *   npm run corpus:bands -- --rollback --confirm-db <dbname>
  *
+ * ON ANY DATABASE BUT THE ONE THAT RENDERED THE BANDS, pass `--placements`:
+ *
+ *   npx tsx scripts/corpus/place-flattened-rows.ts --out ops-in/placements.json
+ *   npm run corpus:bands -- --apply --confirm-db <dbname> --placements ops-in/placements.json
+ *
+ * Question ids are local to a database; the paper and exercise number are not.
+ * See the comment on `--placements` below.
+ *
  * WHAT A BAND IS. A picture of the exercise as the paper prints it, cut from
  * the PDF at the y range C1 recorded. It is attached to rows whose mathematics
  * the text layer destroyed — `2f(x) x lnx= +` for `f(x) = x² + ln x` — where no
@@ -144,24 +152,60 @@ async function main() {
     throw new Error(`${stale.length} band files no longer match the manifest; re-run the renderer. First: ${stale[0]}`);
   }
 
+  /*
+   * A QUESTION'S ID IS LOCAL TO ITS DATABASE, AND THE BANDS ARE NOT.
+   *
+   * The manifest records the question ids of the machine that rendered it. Each
+   * database makes its own `gen_random_uuid()`, so those ids name nothing in
+   * production, and loading the manifest as it stands fails on
+   * `question_visuals_question_id_fkey` — which is the good outcome. The bad one
+   * would be an id that happened to exist and belonged to another question.
+   *
+   * What IS the same everywhere is the paper and the exercise number: a band is
+   * a picture of `<paper sha256> exercise <n>`, and that is true of every copy
+   * of the corpus. So `--placements` takes the output of
+   * `place-flattened-rows.ts` RUN AGAINST THIS DATABASE, which carries this
+   * database's question ids, and the band is matched to it by paper and
+   * ordinal. Rows placed on an exercise we have no picture of are reported and
+   * skipped rather than guessed at.
+   */
+  const placementsFile = arg('--placements');
+  let work: Array<{ questionId: string; band: Band }>;
+  if (placementsFile) {
+    const placements = JSON.parse(readFileSync(placementsFile, 'utf-8')) as Array<{ id: string; sha: string; ordinal: number }>;
+    const byExercise = new Map<string, Band>();
+    for (const b of bands) byExercise.set(`${b.sha}#${b.ordinal}`, b);
+    work = [];
+    const noPicture: string[] = [];
+    for (const p of placements) {
+      const b = byExercise.get(`${p.sha}#${p.ordinal}`);
+      if (!b) { noPicture.push(`${p.sha.slice(0, 8)}#${p.ordinal}`); continue; }
+      work.push({ questionId: p.id, band: b });
+    }
+    console.log(`placements: ${placements.length}; matched to a band: ${work.length}; no picture: ${noPicture.length}`);
+    if (noPicture.length) console.log(`  first few without a picture: ${noPicture.slice(0, 5).join(', ')}`);
+  } else {
+    work = bands.map((b) => ({ questionId: b.id, band: b }));
+  }
+
   // Rows that have since gained a visual by some other route are left alone.
   const alreadyCovered = new Set(
     (
       await db.questionVisual.findMany({
-        where: { questionId: { in: bands.map((b) => b.id) }, status: 'active', evidenceRun: { not: run } },
+        where: { questionId: { in: work.map((w) => w.questionId) }, status: 'active', evidenceRun: { not: run } },
         select: { questionId: true },
       })
     ).map((r) => r.questionId),
   );
 
-  const planned = bands.filter((b) => !alreadyCovered.has(b.id));
+  const planned = work.filter((w) => !alreadyCovered.has(w.questionId));
   console.log(`bands: ${bands.length}; already covered elsewhere: ${alreadyCovered.size}; to load: ${planned.length}`);
   console.log(`run: ${run}`);
 
   if (!APPLY) {
-    const bySubject = planned.reduce<Record<string, number>>((a, b) => ((a[b.subject] = (a[b.subject] ?? 0) + 1), a), {});
+    const bySubject = planned.reduce<Record<string, number>>((a, w) => ((a[w.band.subject] = (a[w.band.subject] ?? 0) + 1), a), {});
     console.log('by subject:', bySubject);
-    console.log(`bytes: ${(planned.reduce((a, b) => a + b.byteSize, 0) / 1e6).toFixed(1)} MB`);
+    console.log(`bytes: ${(planned.reduce((a, w) => a + w.band.byteSize, 0) / 1e6).toFixed(1)} MB`);
     console.log('DRY RUN. Re-run with --apply --confirm-db <dbname> to write.');
     await db.$disconnect();
     return;
@@ -196,7 +240,7 @@ async function main() {
   let relations = 0;
   let uploaded = 0;
 
-  for (const b of planned) {
+  for (const { questionId, band: b } of planned) {
     const bytes = readFileSync(bandFile(b.file));
     const storageKey = visualStorageKey('question', b.contentHash, MEDIA_TYPE);
     if ((await putContentAddressed(storageKey, bytes, MEDIA_TYPE)) === 'written') uploaded++;
@@ -242,9 +286,9 @@ async function main() {
      * to the question is a direct one because the band IS this question.
      */
     await db.questionVisual.upsert({
-      where: { questionId_occurrenceId: { questionId: b.id, occurrenceId: occurrence.id } },
+      where: { questionId_occurrenceId: { questionId, occurrenceId: occurrence.id } },
       create: {
-        questionId: b.id,
+        questionId,
         occurrenceId: occurrence.id,
         role: 'exercise_context',
         introducedInStimulus: true,
