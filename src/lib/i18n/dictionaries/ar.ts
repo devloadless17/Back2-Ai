@@ -532,6 +532,7 @@ export const ar: Dictionary = {
     modeRealCycleHint: 'مسابقة رسمية كما وردت تماماً.',
     modeAiGenerated: 'مسابقة مولَّدة',
     modeAiGeneratedHint: 'مسابقة جديدة مؤلَّفة من مواد معتمَدة وبالأسلوب نفسه.',
+    modeAiGeneratedOnDemand: 'ستُنشأ مسابقة جديدة من كتب هذه المادة عند البدء.',
     chooseCycle: 'أي مسابقة',
     durationOfficial: 'كما هي مطبوعة على المسابقة',
     durationStandardShort: 'مدّة معتمدة',

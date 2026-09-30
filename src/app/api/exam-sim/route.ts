@@ -1,8 +1,22 @@
 import { z } from 'zod';
 
-import { assertSameOrigin, created, fail, ok, parseBody, route, unauthorized } from '@/lib/api';
+import {
+  assertSameOrigin,
+  clientKey,
+  created,
+  fail,
+  ok,
+  parseBody,
+  rateLimit,
+  route,
+  tooManyRequests,
+  unauthorized,
+} from '@/lib/api';
 import { apiUser } from '@/lib/auth/guards';
+import { budgetState } from '@/lib/ai';
+import { produceOnDemandAiExam } from '@/lib/ai-exam-production';
 import { db } from '@/lib/db';
+import { isAiConfigured, isEmbeddingConfigured } from '@/lib/env';
 import { ExamError, remainingSeconds, startSimulation } from '@/lib/exam';
 
 /**
@@ -17,7 +31,7 @@ const startSchema = z
     subjectId: z.string().uuid(),
     sourceMode: z.enum(['real_cycle', 'ai_generated', 'real_mixed']),
     examCycleId: z.string().uuid().optional(),
-  generatedPaperId: z.string().uuid().optional(),
+    generatedPaperId: z.string().uuid().optional(),
   })
   .refine((body) => body.sourceMode !== 'real_cycle' || Boolean(body.examCycleId), {
     message: 'A real-cycle simulation needs an examCycleId.',
@@ -38,14 +52,31 @@ export const POST = route(async (request) => {
   });
   if (!subject) return fail(404, 'SUBJECT_NOT_FOUND');
 
-  try {
-    const simulation = await startSimulation({
+  const start = (generatedPaperId = body.generatedPaperId) =>
+    startSimulation({
       userId: user.id,
       subjectId: subject.id,
       sourceMode: body.sourceMode,
       examCycleId: body.examCycleId ?? null,
-      generatedPaperId: body.generatedPaperId,
+      generatedPaperId,
     });
+
+  try {
+    let simulation;
+    try {
+      simulation = await start();
+    } catch (err) {
+      if (!(err instanceof ExamError) || err.code !== 'NO_CONTENT' || body.sourceMode !== 'ai_generated') throw err;
+
+      if (!isAiConfigured() || !isEmbeddingConfigured()) return fail(503, 'AI_NOT_CONFIGURED');
+      const budget = await budgetState(user.id);
+      if (budget.exhausted) return fail(402, 'AI_BUDGET_EXHAUSTED');
+      const limit = rateLimit(clientKey(request, `ai-exam:${user.id}`), 2, 60 * 60_000);
+      if (!limit.allowed) return tooManyRequests(limit.retryAfter);
+
+      const generatedPaperId = await produceOnDemandAiExam(subject.id);
+      simulation = await start(generatedPaperId);
+    }
     return created({ id: simulation.id });
   } catch (err) {
     if (err instanceof ExamError) return fail(err.code === 'IN_PROGRESS_EXISTS' ? 409 : 422, err.code);

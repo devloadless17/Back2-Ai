@@ -8,6 +8,7 @@ import { Select } from '@/components/ui/field';
 import { Alert, EmptyAction, EmptyState } from '@/components/ui/feedback';
 import { Sheet, SheetBody, SheetFooter, SheetHeader } from '@/components/ui/sheet';
 import { cn } from '@/lib/cn';
+import { aiErrorMessage } from '@/lib/client/ai-error';
 import { ApiRequestError, sendJson } from '@/lib/client/request';
 import { formatDuration } from '@/lib/exam-duration';
 import { useI18n } from '@/lib/i18n/client';
@@ -109,7 +110,7 @@ export function NewSimulationForm({
           ? t.practice.simNotEnough
           : err instanceof ApiRequestError && err.code === 'IN_PROGRESS_EXISTS'
             ? t.examSim.inProgressNotice
-            : t.common.unknownError,
+            : aiErrorMessage(err, t),
       );
       setStarting(false);
     }
@@ -196,7 +197,7 @@ export function NewSimulationForm({
             hint={
               canUseGenerated
                 ? t.examSim.modeAiGeneratedHint
-                : t.admin.queueEmptyHint
+                : t.examSim.modeAiGeneratedOnDemand
             }
           />
 

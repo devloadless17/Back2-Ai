@@ -2,16 +2,26 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { aiExamBlueprintSchema } from '@/lib/ai-exam-blueprint';
 import { contentDigest, hasCurrentQuality, checkExerciseStructure, QUALITY_VERSION, reviewGeneratedExercise } from '@/lib/generated-exam-quality';
-import { paperIsComplete, styleReferenceScope } from '@/lib/ai-exam-production';
+import { buildOnDemandBlueprint, paperIsComplete, styleReferenceScope } from '@/lib/ai-exam-production';
 import { startSimulation } from '@/lib/exam';
 
-const m = vi.hoisted(() => ({ papers: vi.fn(), create: vi.fn(), complete: vi.fn() }));
+const m = vi.hoisted(() => ({
+  papers: vi.fn(),
+  create: vi.fn(),
+  complete: vi.fn(),
+  subject: vi.fn(),
+  chapters: vi.fn(),
+  questions: vi.fn(),
+}));
 vi.mock('@/lib/ai', () => ({ ai: () => ({ completeJson: m.complete, verifyModel: 'mock' }), embed: vi.fn() }));
 vi.mock('@/lib/audit', () => ({ AuditAction: {}, recordAudit: vi.fn() }));
 vi.mock('@/lib/db', () => ({ db: {
   generatedExamPaper: { findMany: m.papers },
   examSimulation: { findFirst: vi.fn().mockResolvedValue(null), create: m.create },
   examSimulationQuestion: { findMany: vi.fn().mockResolvedValue([]) },
+  subject: { findUnique: m.subject },
+  chapter: { findMany: m.chapters },
+  question: { findMany: m.questions },
 } }));
 const uuid = (i: number) => `00000000-0000-4000-8000-${String(i).padStart(12, '0')}`;
 const blueprint = { title: 'Reviewed mathematics practice', subjectId: uuid(1), basis: 'practice',
@@ -29,7 +39,10 @@ function completePaper() {
         qualityReport: { version: QUALITY_VERSION, passed: true, digest: contentDigest(content) } };
     }) };
 }
-beforeEach(() => { vi.clearAllMocks(); m.create.mockResolvedValue({ id: 'sitting' }); });
+beforeEach(() => {
+  vi.clearAllMocks();
+  m.create.mockResolvedValue({ id: 'sitting' });
+});
 
 describe('complete AI paper gates', () => {
   it('keeps style references inside the selected track and language subject', () => {
@@ -43,6 +56,21 @@ describe('complete AI paper gates', () => {
   it('rejects one-question and 60-mark plans', () => {
     expect(aiExamBlueprintSchema.safeParse({ ...blueprint, exercises: [blueprint.exercises[0]] }).success).toBe(false);
     expect(aiExamBlueprintSchema.safeParse({ ...blueprint, exercises: Array(6).fill({ ...blueprint.exercises[0], marks: 10 }) }).success).toBe(false);
+  });
+  it('plans an on-demand 20-mark paper from textbook chapters and marked references', async () => {
+    m.subject.mockResolvedValue({ name: 'Mathematics' });
+    m.chapters.mockResolvedValue([1, 2, 3, 4].map((i) => ({ id: uuid(i + 1), name: `Chapter ${i}` })));
+    m.questions.mockResolvedValue([1, 2, 3].map((i) => ({
+      id: uuid(i + 10),
+      difficulty: 0.5,
+      bareme: [{ criterion: 'Correct method', points: 5 }],
+    })));
+
+    const planned = await buildOnDemandBlueprint(uuid(1));
+    expect(planned.exercises).toHaveLength(3);
+    expect(planned.exercises.map((exercise) => exercise.marks)).toEqual([7, 7, 6]);
+    expect(planned.exercises.reduce((sum, exercise) => sum + exercise.marks, 0)).toBe(20);
+    expect(new Set(planned.exercises.map((exercise) => exercise.chapterId)).size).toBe(3);
   });
   it('does not start a legacy or incomplete paper', async () => {
     const paper = completePaper(); paper.problems.pop(); m.papers.mockResolvedValue([paper]);

@@ -510,6 +510,7 @@ export const fr: Dictionary = {
     modeRealCycleHint: 'Un sujet officiel, tel qu’il a été donné.',
     modeAiGenerated: 'Un sujet généré',
     modeAiGeneratedHint: 'Un nouveau sujet composé à partir de contenus validés, dans le même style.',
+    modeAiGeneratedOnDemand: 'Un nouveau sujet sera généré à partir des livres de cette matière quand tu commenceras.',
     chooseCycle: 'Quel sujet',
     durationOfficial: 'telle qu’imprimée sur le sujet',
     durationStandardShort: 'durée standard',
