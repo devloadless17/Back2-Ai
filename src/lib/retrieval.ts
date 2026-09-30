@@ -22,6 +22,7 @@ import {
   type UserReferenceHit,
 } from '@/lib/vector';
 import { selectVisualsFor } from '@/lib/visual-evidence';
+import { studentPassage } from '@/lib/source-passage';
 
 /**
  * Tiered retrieval — the pipeline that decides what the assistant is allowed
@@ -1218,7 +1219,7 @@ async function namedExamPassage(
         questionId: hit.row.id,
         chapterName: hit.row.chapter.name,
         title,
-        passage: hit.row.sourcePassage ?? '',
+        passage: studentPassage(hit.row.sourcePassage ?? ''),
       };
     }
   }
@@ -2014,7 +2015,7 @@ function formatQuestionContext(
    * sits in, and a tutor given the question before the extract is reading them
    * in the order that makes the question unanswerable.
    */
-  if (sourcePassage) parts.push(`## The text printed on the exam paper\n${sourcePassage}`);
+  if (sourcePassage) parts.push(`## The text printed on the exam paper\n${studentPassage(sourcePassage)}`);
   parts.push(`## Official question\n${contentText}`);
   if (officialSolution) parts.push(`## Official solution\n${officialSolution}`);
   return parts.join('\n\n');

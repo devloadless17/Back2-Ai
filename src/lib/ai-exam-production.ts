@@ -11,6 +11,7 @@ import { parseBareme, baremeMaxScore } from '@/lib/grading';
 import { selectVisualsFor } from '@/lib/visual-evidence';
 import { getObject } from '@/lib/storage';
 import { findNearDuplicate, setEmbedding } from '@/lib/vector';
+import { studentPassage } from '@/lib/source-passage';
 
 const criterion = z.object({ partId: z.string(), criterion: z.string().min(5), points: z.number().positive() });
 const outputSchema = z.object({
@@ -96,7 +97,7 @@ async function produceExercise(b: AiExamBlueprint, order: number, paperId: strin
       const image = await sharp(bytes).resize({ width: 1400, height: 1400, fit: 'inside', withoutEnlargement: true }).png().toBuffer();
       images.push({ mediaType: 'image/png', base64: image.toString('base64') });
     }
-    referenceText.push(JSON.stringify({ reference: ref.id, question: ref.contentLatex ?? ref.contentText, passage: ref.sourcePassage,
+    referenceText.push(JSON.stringify({ reference: ref.id, question: ref.contentLatex ?? ref.contentText, passage: ref.sourcePassage ? studentPassage(ref.sourcePassage) : null,
       solution: ref.officialSolution, markingScheme: ref.bareme,
       attachedImages: images.length >= first ? `Images ${first} through ${images.length}` : 'None; do not imitate any absent visual.' }));
   }

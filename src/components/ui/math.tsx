@@ -10,6 +10,7 @@ import type { PluggableList } from 'unified';
 import { cn } from '@/lib/cn';
 import { FigureViewer } from '@/components/ui/figure-viewer';
 import { bodyToRender } from '@/lib/question-body';
+import { studentPassage } from '@/lib/source-passage';
 import { useI18n } from '@/lib/i18n/client';
 import { normalizeMathDelimiters } from '@/lib/math-delimiters';
 import { repairSymbolFont } from '@/lib/symbol-font';
@@ -169,13 +170,14 @@ export function PaperPassage({
   className?: string;
 }) {
   const { t } = useI18n();
+  const visiblePassage = studentPassage(passage);
   return (
     <details open className={cn('rounded-lg border border-rule bg-paper-raised', className)}>
       <summary className="cursor-pointer select-none px-4 py-2.5 text-meta font-medium text-ink">
         {t.practice.passageTitle}
       </summary>
       <div className="max-h-[28rem] overflow-y-auto border-t border-rule px-4 py-3">
-        <MathText dir={dir}>{passage}</MathText>
+        <MathText dir={dir}>{visiblePassage}</MathText>
       </div>
     </details>
   );
