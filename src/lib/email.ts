@@ -1,6 +1,7 @@
 import 'server-only';
 
 import { env } from '@/lib/env';
+import { fetchWithTimeout } from '@/lib/fetch-timeout';
 
 /**
  * Sending mail.
@@ -62,6 +63,9 @@ async function smtpTransport() {
     secure: e.SMTP_PORT === 465,
     requireTLS: e.SMTP_PORT !== 465,
     auth: { user: e.SMTP_USER, pass: e.SMTP_PASSWORD },
+    connectionTimeout: 10_000,
+    greetingTimeout: 10_000,
+    socketTimeout: 30_000,
   });
   return transport;
 }
@@ -104,7 +108,7 @@ export async function sendEmail(mail: Mail): Promise<boolean> {
   if (e.SMTP_HOST.length > 0) return sendViaSmtp(mail, e.EMAIL_FROM);
 
   try {
-    const response = await fetch('https://api.resend.com/emails', {
+    const response = await fetchWithTimeout('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
         authorization: `Bearer ${e.RESEND_API_KEY}`,
@@ -116,7 +120,7 @@ export async function sendEmail(mail: Mail): Promise<boolean> {
         subject: mail.subject,
         text: mail.text,
       }),
-    });
+    }, 15_000);
 
     if (!response.ok) {
       // The body carries Resend's reason — an unverified sending domain, most

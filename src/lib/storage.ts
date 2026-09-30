@@ -5,6 +5,7 @@ import { mkdir, readFile, unlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 import { env } from '@/lib/env';
+import { fetchWithTimeout } from '@/lib/fetch-timeout';
 
 /**
  * Object storage for uploads: answer photos, personal reference documents,
@@ -166,7 +167,7 @@ async function signedFetch(
   const signingKey = hmac(hmac(hmac(hmac(`AWS4${e.S3_SECRET_ACCESS_KEY}`, dateStamp), e.S3_REGION), 's3'), 'aws4_request');
   const signature = createHmac('sha256', signingKey).update(stringToSign).digest('hex');
 
-  return fetch(url, {
+  return fetchWithTimeout(url, {
     method,
     headers: {
       ...headers,
@@ -178,7 +179,7 @@ async function signedFetch(
     body: body
       ? (new Uint8Array(body.buffer, body.byteOffset, body.byteLength) as unknown as BodyInit)
       : undefined,
-  });
+  }, 60_000);
 }
 
 /**

@@ -3,6 +3,7 @@ import 'server-only';
 import OpenAI from 'openai';
 
 import { env } from '@/lib/env';
+import { fetchWithTimeout } from '@/lib/fetch-timeout';
 
 import { AiError, AiNotConfiguredError } from './types';
 
@@ -129,7 +130,7 @@ async function embedWithVoyage(inputs: string[], kind: EmbeddingKind): Promise<n
   const e = env();
   if (!e.VOYAGE_API_KEY) throw new AiNotConfiguredError('voyage (embeddings)');
 
-  const response = await fetch('https://api.voyageai.com/v1/embeddings', {
+  const response = await fetchWithTimeout('https://api.voyageai.com/v1/embeddings', {
     method: 'POST',
     headers: {
       'content-type': 'application/json',
@@ -141,7 +142,7 @@ async function embedWithVoyage(inputs: string[], kind: EmbeddingKind): Promise<n
       input_type: kind,
       output_dimension: e.EMBEDDING_DIM,
     }),
-  });
+  }, 30_000);
 
   if (!response.ok) {
     const detail = await response.text().catch(() => '');

@@ -124,8 +124,8 @@ jobs:
       - name: Lint
         run: npm run lint
 
-      - name: Tests
-        run: npm test
+      - name: Tests and coverage floor
+        run: npm run test:coverage
 
       # Applies every migration to an empty database. Catches a migration that
       # is valid on a developer's machine because their schema already drifted

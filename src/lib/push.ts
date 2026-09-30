@@ -66,6 +66,7 @@ export async function sendPush(userId: string, message: PushMessage): Promise<nu
           keys: { p256dh: subscription.p256dh, auth: subscription.auth },
         },
         payload,
+        { TTL: 60 * 60, timeout: 15_000 },
       );
       delivered += 1;
     } catch (error) {

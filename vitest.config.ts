@@ -41,6 +41,17 @@ export default defineConfig({
      */
     testTimeout: 30_000,
     hookTimeout: 30_000,
+    coverage: {
+      provider: 'v8',
+      include: ['src/lib/**/*.ts'],
+      reporter: ['text', 'json-summary'],
+      thresholds: {
+        statements: 50,
+        branches: 80,
+        functions: 45,
+        lines: 50,
+      },
+    },
   },
   resolve: {
     alias: {
