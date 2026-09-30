@@ -108,7 +108,8 @@
     "corpus:mathpix:batch": "node --conditions=react-server --env-file=.env --import tsx scripts/corpus/mathpix-batch.ts",
     "corpus:figures:fetch": "node --env-file=.env --import tsx scripts/corpus/fetch-mathpix-figures.ts",
     "corpus:backup": "node --env-file=.env --import tsx scripts/corpus/backup.ts",
-    "corpus:doc-crops": "node --conditions=react-server --env-file=.env --import tsx scripts/corpus/register-document-crops.ts"
+    "corpus:doc-crops": "node --conditions=react-server --env-file=.env --import tsx scripts/corpus/register-document-crops.ts",
+    "corpus:bands": "node --conditions=react-server --env-file=.env --import tsx scripts/corpus/load-exercise-bands.ts"
   },
   "overrides": {
     "postcss": "^8.5.1",
