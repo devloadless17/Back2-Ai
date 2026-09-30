@@ -17,6 +17,7 @@ import {
   type Bareme,
 } from '@/lib/grading';
 import type { Locale } from '@/lib/i18n/config';
+import { bodyToRender } from '@/lib/question-body';
 import { recomputeChapterMastery, resolveCreditChapter } from '@/lib/queries/progress';
 import { rescaleBaremes } from '@/lib/rescale-bareme';
 import { oneCopyEach, questionKey, seenQuestionKeys } from '@/lib/queries/seen-questions';
@@ -850,6 +851,7 @@ const SIMULATION_INCLUDE = {
           questionType: true,
           options: true,
           officialSolution: true,
+          officialSolutionLatex: true,
           sourcePassage: true,
           /* Whether the solution is an examiner's. See `slotContent`. */
           sourceType: true,
@@ -938,7 +940,10 @@ export function slotContent(slot: LoadedSimulation['questions'][number]): {
       contentImages: slot.question.contentImages,
       figures: [],
       chapterName: slot.question.chapter?.name ?? null,
-      officialSolution: slot.question.officialSolution,
+      officialSolution: bodyToRender(
+        slot.question.officialSolutionLatex,
+        slot.question.officialSolution ?? '',
+      ) || null,
       solutionIsOfficial: slot.question.sourceType === 'past_exam',
       passage: slot.question.sourcePassage,
     };

@@ -14,6 +14,7 @@ import { cn } from '@/lib/cn';
 import { sendJson } from '@/lib/client/request';
 import { useI18n } from '@/lib/i18n/client';
 import { dirForLanguage } from '@/lib/i18n/config';
+import { bodyToRender } from '@/lib/question-body';
 import type { DueCard } from '@/lib/queries/flashcards';
 import type { ReviewGrade } from '@/lib/scoring/sm2';
 
@@ -248,7 +249,7 @@ export function ReviewSession({ cards }: { cards: DueCard[] }) {
             />
             <SheetBody className="flex flex-1 items-center justify-center text-center">
               <MathText dir={dirForLanguage(card.subjectLanguage)}>
-                {card.contentLatex || card.contentText}
+                {bodyToRender(card.contentLatex, card.contentText)}
               </MathText>
             </SheetBody>
             {!flipped && (
@@ -274,7 +275,10 @@ export function ReviewSession({ cards }: { cards: DueCard[] }) {
                 <p className="text-sm text-ink-muted">{t.flashcards.answerFromBookLoading}</p>
               ) : card.officialSolutionLatex || card.officialSolution || card.generatedAnswer || generatedAnswers[card.cardId] ? (
                 <MathText dir={dirForLanguage(card.subjectLanguage)}>
-                  {card.officialSolutionLatex ?? card.officialSolution ?? card.generatedAnswer ?? generatedAnswers[card.cardId] ?? ''}
+                  {bodyToRender(
+                    card.officialSolutionLatex,
+                    card.officialSolution ?? card.generatedAnswer ?? generatedAnswers[card.cardId] ?? '',
+                  )}
                 </MathText>
               ) : (
                 <p className="text-sm text-ink-muted">{t.flashcards.noSolution}</p>

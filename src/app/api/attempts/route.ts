@@ -20,6 +20,7 @@ import { gradeAgainstBareme, gradeWithoutBareme, parseBareme, statedMarksOf } fr
 import { retrieveGrounding } from '@/lib/retrieval';
 import { ensureCard } from '@/lib/queries/flashcards';
 import { recomputeChapterMastery } from '@/lib/queries/progress';
+import { bodyToRender } from '@/lib/question-body';
 
 /**
  * Records one practice or quiz attempt, marks it, and updates mastery.
@@ -312,7 +313,7 @@ export const POST = route(async (request) => {
     repeats,
     needsHumanReview,
     solution: isQuestion
-      ? source.officialSolutionLatex?.trim() || source.officialSolution
+      ? bodyToRender(source.officialSolutionLatex, source.officialSolution ?? '') || null
       : source.generatedSolution,
     /*
      * The right option of a multiple-choice question, so a wrong answer can

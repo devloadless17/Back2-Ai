@@ -3,6 +3,7 @@ import 'server-only';
 import { ai } from '@/lib/ai';
 import { db } from '@/lib/db';
 import { isAiConfigured } from '@/lib/env';
+import { bodyToRender } from '@/lib/question-body';
 
 const LANGUAGE_NAME: Record<string, string> = { ar: 'Arabic', en: 'English', fr: 'French' };
 
@@ -32,7 +33,9 @@ export async function answerFlashcardFromBook(input: {
       question: {
         select: {
           contentText: true,
+          contentLatex: true,
           officialSolution: true,
+          officialSolutionLatex: true,
           chapterId: true,
           chapter: { select: { subject: { select: { language: true } } } },
         },
@@ -41,8 +44,12 @@ export async function answerFlashcardFromBook(input: {
   });
 
   if (!state?.question) return { status: 'not_found' };
-  if (state.question.officialSolution?.trim()) {
-    return { status: 'ok', answer: state.question.officialSolution.trim(), cached: true };
+  const official = bodyToRender(
+    state.question.officialSolutionLatex,
+    state.question.officialSolution ?? '',
+  ).trim();
+  if (official) {
+    return { status: 'ok', answer: official, cached: true };
   }
   if (state.generatedAnswer?.trim()) {
     return { status: 'ok', answer: state.generatedAnswer.trim(), cached: true };
@@ -64,7 +71,7 @@ export async function answerFlashcardFromBook(input: {
     messages: [{
       role: 'user',
       content: [
-        `# Question\n${state.question.contentText}`,
+        `# Question\n${bodyToRender(state.question.contentLatex, state.question.contentText)}`,
         '# Textbook passages',
         ...material.map((chunk, index) =>
           `## Passage ${index + 1}${chunk.title ? ` — ${chunk.title}` : ''}\n${chunk.contentText.slice(0, 2600)}`),
