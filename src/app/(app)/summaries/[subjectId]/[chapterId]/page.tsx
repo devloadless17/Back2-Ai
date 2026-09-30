@@ -2,7 +2,8 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 
 import { TutorAnchor } from '@/components/chat/tutor-context';
-import { MathText, bodyToRender } from '@/components/ui/math';
+import { MathText } from '@/components/ui/math';
+import { bodyToRender } from '@/lib/question-body';
 import { EmptyState } from '@/components/ui/feedback';
 import { PageHeader, Sheet, SheetBody, SheetHeader } from '@/components/ui/sheet';
 import { BackLink } from '@/components/ui/back-link';

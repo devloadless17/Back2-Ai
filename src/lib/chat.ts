@@ -1915,6 +1915,8 @@ async function* conversationalTurn(
   yield { type: 'done', messageId: message.id, verified: true };
 }
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 async function persistAssistantMessage(input: {
   sessionId: string;
   content: string;
@@ -1929,7 +1931,14 @@ async function persistAssistantMessage(input: {
       role: 'assistant',
       content: input.content,
       groundingTier: input.tier,
-      citedSourceIds: input.citedSourceIds,
+      /*
+       * Stored rows only. The column is uuid[], and a question about a photo
+       * or a pasted passage cites a source that exists only in this request
+       * (`attached-image`, `supplied-passage`). One such id failed the insert,
+       * after the whole answer had streamed, and the student saw "unexpected
+       * error" where the answer had just been.
+       */
+      citedSourceIds: input.citedSourceIds.filter((id) => UUID.test(id)),
       topSimilarity: input.topSimilarity,
       modelUsed: input.modelUsed,
     },

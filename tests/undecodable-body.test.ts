@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { bodyToRender } from '@/components/ui/math';
+import { bodyToRender } from '@/lib/question-body';
 
 /**
  * Which stored body a question renders from.
