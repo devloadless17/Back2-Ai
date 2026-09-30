@@ -1,8 +1,15 @@
 import { describe, expect, it } from 'vitest';
 
-import { flashcardSources } from '@/lib/flashcard-bank';
+import { flashcardSources, usableFlashcardSourceText } from '@/lib/flashcard-bank';
 
 describe('AI flashcard sources', () => {
+  it('rejects blank and visibly damaged OCR before it reaches a card', () => {
+    expect(usableFlashcardSourceText('')).toBe(false);
+    expect(usableFlashcardSourceText('No worked answer was recorded.')).toBe(false);
+    expect(usableFlashcardSourceText('damaged \uFFFD answer')).toBe(false);
+    expect(usableFlashcardSourceText('ا ل ج و ا ب غير صالح')).toBe(false);
+  });
+
   it('keeps book passages and official exam corrections as distinct provenance', () => {
     const sources = flashcardSources(
       [{ id: 'book-1', title: 'Immunity', contentText: 'Textbook facts' }],

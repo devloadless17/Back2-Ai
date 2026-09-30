@@ -12,6 +12,7 @@ import {
   unauthorized,
 } from '@/lib/api';
 import { apiUser } from '@/lib/auth/guards';
+import { budgetState } from '@/lib/ai';
 import { db } from '@/lib/db';
 import { seedChapterDeck } from '@/lib/flashcard-bank';
 
@@ -70,6 +71,9 @@ export const POST = route(async (request) => {
   const auth = await apiUser();
   if (!auth.ok) return unauthorized(auth);
   const { user } = auth;
+
+  const budget = await budgetState(user.id);
+  if (budget.exhausted) return fail(402, 'AI_BUDGET_EXHAUSTED');
 
   const limit = rateLimit(clientKey(request, `cards:${user.id}`), 6, 60 * 60_000);
   if (!limit.allowed) return tooManyRequests(limit.retryAfter);

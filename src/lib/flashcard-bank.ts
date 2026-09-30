@@ -126,6 +126,18 @@ function overlap(a: string, b: string): number {
 
 const NEAR_DUPLICATE = 0.7;
 
+/** Reject source text that would visibly turn into a broken card. */
+export function usableFlashcardSourceText(text: string | null | undefined): text is string {
+  if (!text || text.trim().length < 5) return false;
+  if (text.includes('\uFFFD')) return false;
+  if (/no (?:worked |official )?answer (?:was )?recorded|no solution (?:was )?recorded/i.test(text)) {
+    return false;
+  }
+  // A common Arabic OCR failure separates a word into a run of lone letters.
+  if (/[ء-ي] [ء-ي] [ء-ي] /u.test(text)) return false;
+  return true;
+}
+
 export type FlashcardSource = {
   id: string;
   kind: 'book' | 'exam';
@@ -186,7 +198,7 @@ export async function fillFlashcardBank(input: {
     take: 14,
   });
   const usablePassages = passages
-    .filter((p) => p.contentText.trim().length > 200)
+    .filter((p) => p.contentText.trim().length > 200 && usableFlashcardSourceText(p.contentText))
     .sort((a, b) => {
       const rank = (kind: string) =>
         kind === 'definition' ? 0 : kind === 'formula' ? 1 : kind === 'theorem' ? 2 : 3;
@@ -196,9 +208,12 @@ export async function fillFlashcardBank(input: {
 
   const examQuestions = await db.question.findMany({
     where: {
-      chapterId: chapter.id,
+      OR: [
+        { chapterId: chapter.id },
+        { alsoInChapters: { some: { chapterId: chapter.id } } },
+      ],
       sourceType: 'past_exam',
-      verifiedStatus: 'verified',
+      verifiedStatus: { not: 'rejected' },
       officialSolution: { not: null },
     },
     select: {
@@ -211,7 +226,12 @@ export async function fillFlashcardBank(input: {
     take: 8,
   });
 
-  const usable = flashcardSources(usablePassages, examQuestions);
+  const usableExamQuestions = examQuestions.filter(
+    (question) =>
+      usableFlashcardSourceText(question.contentText) &&
+      usableFlashcardSourceText(question.officialSolution),
+  );
+  const usable = flashcardSources(usablePassages, usableExamQuestions);
 
   if (usable.length === 0) return { drafts: [], rejected: [], status: 'no_material' };
 
