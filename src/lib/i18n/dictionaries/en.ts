@@ -534,6 +534,7 @@ export const en = {
     modeRealCycleHint: 'An official paper, question for question.',
     modeAiGenerated: 'A generated paper',
     modeAiGeneratedHint: 'A new paper composed from approved material in the same style.',
+    modeAiGeneratedOnDemand: 'A new paper will be generated from this subject’s books when you begin.',
     chooseCycle: 'Which paper',
     durationOfficial: 'as printed on the paper',
     durationStandardShort: 'standard sitting',

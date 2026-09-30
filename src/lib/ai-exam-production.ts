@@ -1,5 +1,5 @@
 import 'server-only';
-import type { Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { ai, embed } from '@/lib/ai';
 import type { AiImage } from '@/lib/ai/types';
@@ -156,6 +156,100 @@ export async function produceAiExam(raw: unknown, resumeId?: string) {
   }
   await db.generatedExamPaper.update({ where: { id: paper.id }, data: { status: 'review' } });
   return paper.id;
+}
+
+/**
+ * Builds a conservative practice blueprint without spending an AI call.
+ *
+ * Textbook-backed chapters define what may be examined. Verified past-paper
+ * questions with readable schemes define the level and structure. Keeping the
+ * plan deterministic also means a retry can resume the same draft instead of
+ * paying to regenerate exercises that already passed.
+ */
+export async function buildOnDemandBlueprint(subjectId: string): Promise<AiExamBlueprint> {
+  const [subject, chapters, candidates] = await Promise.all([
+    db.subject.findUnique({ where: { id: subjectId }, select: { name: true } }),
+    db.chapter.findMany({
+      where: { subjectId, cancelledAt: null, contentChunks: { some: {} } },
+      select: { id: true, name: true },
+      orderBy: [{ orderIndex: 'asc' }, { id: 'asc' }],
+    }),
+    db.question.findMany({
+      where: {
+        ...styleReferenceScope(subjectId),
+        sourceType: 'past_exam',
+        verifiedStatus: { not: 'rejected' },
+        bareme: { not: Prisma.JsonNull },
+      },
+      select: { id: true, difficulty: true, bareme: true },
+      orderBy: [{ sourceExam: { year: 'desc' } }, { orderIndex: 'asc' }, { id: 'asc' }],
+      take: 100,
+    }),
+  ]);
+
+  const references = candidates.filter((question) => Boolean(parseBareme(question.bareme)));
+  if (!subject || chapters.length < 3 || references.length < 3) {
+    throw new Error('This subject needs at least three textbook chapters and three marked exam references.');
+  }
+
+  const marks = [7, 7, 6] as const;
+  return aiExamBlueprintSchema.parse({
+    title: `${subject.name} — generated practice paper`,
+    subjectId,
+    basis: 'practice',
+    sourceExamId: null,
+    durationMinutes: 120,
+    totalMarks: 20,
+    exercises: chapters.slice(0, 3).map((chapter, index) => ({
+      chapterId: chapter.id,
+      referenceIds: [references[index]!.id],
+      marks: marks[index],
+      difficulty: Number(references[index]!.difficulty ?? 0.5),
+      objective: `Assess the main methods and concepts in ${chapter.name} through a new multi-part exam exercise.`,
+      requiredFigure: 'none',
+    })),
+  });
+}
+
+/** Produces and automatically publishes a paper that passed every automated gate. */
+export async function produceOnDemandAiExam(subjectId: string): Promise<string> {
+  const blueprint = await buildOnDemandBlueprint(subjectId);
+  const drafts = await db.generatedExamPaper.findMany({
+    where: { subjectId, status: 'draft' },
+    select: { id: true, blueprint: true },
+    orderBy: { createdAt: 'desc' },
+    take: 10,
+  });
+  const matchingDraft = drafts.find((paper) => {
+    const parsed = aiExamBlueprintSchema.safeParse(paper.blueprint);
+    return parsed.success && JSON.stringify(parsed.data) === JSON.stringify(blueprint);
+  });
+
+  const paperId = await produceAiExam(blueprint, matchingDraft?.id);
+  const paper = await db.generatedExamPaper.findUniqueOrThrow({
+    where: { id: paperId },
+    include: { problems: true },
+  });
+  if (!paperIsComplete(paper) || paper.problems.some((problem) => problem.verificationStatus !== 'solver_passed')) {
+    throw new Error('The generated paper did not pass its final completeness check.');
+  }
+
+  const publishedAt = new Date();
+  await db.$transaction([
+    db.generatedProblem.updateMany({
+      where: { generatedPaperId: paperId, verificationStatus: 'solver_passed' },
+      data: {
+        verificationStatus: 'approved',
+        verificationNotes: 'Generated on demand; structure, grounding, completeness and independent-solver checks passed.',
+        publishedAt,
+      },
+    }),
+    db.generatedExamPaper.update({
+      where: { id: paperId },
+      data: { status: 'approved', publishedAt },
+    }),
+  ]);
+  return paperId;
 }
 
 export function paperIsComplete(paper: { blueprint: unknown; subjectId: string; durationMinutes: number; totalMarks: unknown; problems: (Parameters<typeof hasCurrentQuality>[0] & { chapterId: string; paperOrder: number | null })[] }): boolean {
