@@ -209,68 +209,19 @@ export const HAS_LIVE_QUESTIONS: Prisma.ExamCycleWhereInput = {
 };
 
 /**
- * Subjects whose PRINTED PAPERS are offered to every track that shares the book.
- *
- * Narrower than `SHARED_ACROSS_TRACKS` in `lib/exam.ts`, and the difference is
- * the point. That one pools QUESTIONS to assemble a mock paper, which is an
- * ordinary thing to do with an exercise from the same syllabus. This one hands
- * a student the other track's paper WHOLE — a printed artifact that a named
- * cohort sat on a named day — and that is a larger claim, so it is made only
- * where it was actually asked for.
- *
- * LH and SE sit physics, chemistry and life sciences from one book each. Maths
- * is deliberately absent: all four tracks have their own maths book, so the
- * book test below would exclude it anyway, and naming it here would suggest
- * otherwise to the next reader.
- *
- * History, civics and geography are NOT here even though all four tracks share
- * those books. Their questions already pool for mock papers; handing a GS
- * candidate the LH history paper was not asked for and is a separate decision.
- */
-const PAPERS_SHARED_ACROSS_TRACKS = [
-  'Physics',
-  'Physique',
-  'Chemistry',
-  'Chimie',
-  'Life Sciences',
-  'Sciences de la vie',
-];
-
-/**
  * Which subjects' papers this student may be shown, and under which of their
  * own subjects each one belongs.
  *
- * Returns a map from every subject id in scope to the student's own subject it
- * should be displayed under. A subject that shares nothing maps to itself, so
- * callers never need to special-case the ordinary path.
+ * A common official exam is imported beneath every section that sat it, so
+ * keeping this scope on the student's own subjects displays it once. Sharing a
+ * textbook is not proof that every full paper is common: matching LH and SE
+ * science cycles in the corpus contain both identical and different papers.
  *
- * Driven by `source_documents.tracks` rather than a hardcoded pairing of
- * tracks. The corpus already records which tracks a book serves — `svt-lhse-fr`
- * says `{LH,SE}` — so a new book serving two tracks starts sharing with no code
- * change, and one serving a single track never does. That is also what keeps
- * maths out without naming it.
+ * Audited question-to-chapter links may still share individual exercises when
+ * composing a mock paper. The complete official artifact keeps its section.
  */
 export async function paperScopeFor(subjectIds: string[]): Promise<Map<string, string>> {
-  // Every subject stands for itself first, so the map is total.
-  const scope = new Map(subjectIds.map((id) => [id, id]));
-  if (subjectIds.length === 0) return scope;
-
-  const pairs = await db.$queryRaw<{ own_id: string; sib_id: string }[]>`
-    SELECT mine.id::text AS own_id, sib.id::text AS sib_id
-      FROM subjects mine
-      JOIN chapters ch ON ch.subject_id = mine.id
-      JOIN chapter_content_chunks link ON link.chapter_id = ch.id
-      JOIN content_chunks cc ON cc.id = link.chunk_id
-      JOIN source_documents d ON d.id = cc.source_document_id
-      JOIN tracks tt ON tt.code = ANY(d.tracks)
-      JOIN subjects sib
-        ON sib.name = mine.name AND sib.language = mine.language AND sib.track_id = tt.id
-     WHERE mine.id = ANY(${subjectIds}::uuid[])
-       AND mine.name = ANY(${PAPERS_SHARED_ACROSS_TRACKS}::text[])
-     GROUP BY 1, 2`;
-
-  for (const pair of pairs) scope.set(pair.sib_id, pair.own_id);
-  return scope;
+  return new Map(subjectIds.map((id) => [id, id]));
 }
 
 export const OWN_EDITION_ONLY: Prisma.ExamCycleWhereInput = {
