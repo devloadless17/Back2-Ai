@@ -20,6 +20,7 @@ export const POST = route(async (request) => {
   const result = await modelSolutionFor({
     questionId: body.questionId,
     trackId: auth.user.trackId,
+    userId: auth.user.id,
     // Only consulted when an answer has to be written; stored ones are free.
     canSpend: async () => !(await budgetState(auth.user.id)).exhausted,
   });

@@ -4,21 +4,62 @@ import { ai } from '@/lib/ai';
 import { db } from '@/lib/db';
 import { isAiConfigured } from '@/lib/env';
 import { bodyToRender } from '@/lib/question-body';
+import { retrieveGrounding } from '@/lib/retrieval';
 
 const LANGUAGE_NAME: Record<string, string> = { ar: 'Arabic', en: 'English', fr: 'French' };
 
 /** The model's reply when the question cannot be answered from its text alone. */
 const DECLINE = 'NO_ANSWER';
 
-export function modelSolutionPrompt(language: string, subject: string): string {
-  return [
-    `You are a Lebanese Baccalaureate ${subject} teacher. Answer in ${LANGUAGE_NAME[language] ?? 'the language of the question'}.`,
+/**
+ * What the answering model is told.
+ *
+ * `hasFigure` says a figure, graph or table is printed with this exercise and
+ * the student is looking at it. The model is not: it gets the words only.
+ *
+ * IT MUST NOT GO BLANK OVER A FIGURE IT CANNOT SEE. The first version of this
+ * prompt refused the whole exercise whenever it depended on anything not handed
+ * over, which left a student staring at nothing — and a figure is printed
+ * alongside a large share of the science papers. Refusing is only right when
+ * there is nothing useful to say. When a quantity has to be read off a graph,
+ * the method, the formula and the reasoning are all still teachable; what must
+ * never happen is a NUMBER INVENTED to stand in for one that was never seen.
+ * So the model is told to work symbolically and name the reading it needs.
+ */
+export function modelSolutionPrompt(input: {
+  language: string;
+  subject: string;
+  hasPassage: boolean;
+  hasFigure: boolean;
+  hasCourseMaterial: boolean;
+}): string {
+  const lines = [
+    `You are a Lebanese Baccalaureate ${input.subject} teacher. Answer in ${LANGUAGE_NAME[input.language] ?? 'the language of the question'}.`,
     'Write the full worked answer a strong student would hand in for the exercise below: every part, in order, with the steps and the final result of each.',
     'Use the notation and method of the Lebanese programme. Keep it exam-length: no extra theory, no alternative methods.',
     'Write mathematics in LaTeX between $...$ (inline) or $$...$$ (display).',
     'Do not mention that you are an AI, and do not call the answer official.',
-    `If the exercise depends on a figure, table, graph, document or text that is not given to you, or refers to another exercise or page, reply exactly: ${DECLINE}`,
-  ].join('\n');
+  ];
+
+  if (input.hasCourseMaterial) {
+    lines.push(
+      'Numbered extracts from this student\'s own course book are given below. Use their definitions, their notation and their method: the answer must look like the book they were taught from, not like a general textbook.',
+    );
+  }
+  if (input.hasPassage) {
+    lines.push('The text the exercise examines is given below it. Answer from that text, quoting it where the question asks you to.');
+  }
+  if (input.hasFigure) {
+    lines.push(
+      'A figure, graph or table is printed with this exercise. The student can see it; you cannot.',
+      'Answer everything that does not depend on reading it, and set out the method for the parts that do, symbolically.',
+      'Where a value has to be read off the figure, say exactly which reading is needed and carry it as a symbol. NEVER invent a number, a coordinate or a measurement you were not given.',
+    );
+  }
+  lines.push(
+    `Reply exactly ${DECLINE} only if the exercise text is too damaged or too incomplete to teach anything from at all. Being short of a figure is not a reason to refuse.`,
+  );
+  return lines.join('\n');
 }
 
 export type ModelSolutionResult =
@@ -39,6 +80,8 @@ export type ModelSolutionResult =
 export async function modelSolutionFor(input: {
   questionId: string;
   trackId: string | null;
+  /** Whose programme to ground the answer in. Needed for the course retrieval. */
+  userId?: string;
   canSpend: () => Promise<boolean>;
 }): Promise<ModelSolutionResult> {
   const question = await db.question.findFirst({
@@ -52,11 +95,14 @@ export async function modelSolutionFor(input: {
     select: {
       contentText: true,
       contentLatex: true,
+      sourcePassage: true,
       officialSolution: true,
       officialSolutionLatex: true,
       modelSolution: true,
       modelSolutionAt: true,
-      chapter: { select: { name: true, subject: { select: { name: true, language: true } } } },
+      contentImages: true,
+      _count: { select: { visuals: { where: { status: 'active' } } } },
+      chapter: { select: { name: true, subjectId: true, subject: { select: { name: true, language: true } } } },
     },
   });
   if (!question) return { status: 'not_found' };
@@ -79,14 +125,50 @@ export async function modelSolutionFor(input: {
 
   const provider = ai();
   const { subject } = question.chapter;
+  const exercise = bodyToRender(question.contentLatex, question.contentText);
+  const passage = question.sourcePassage?.trim() ?? '';
+  const hasFigure = question._count.visuals > 0 || (question.contentImages?.length ?? 0) > 0;
+
+  /*
+   * THE ANSWER IS GROUNDED IN THIS STUDENT'S OWN BOOK, not in whatever the model
+   * remembers about the subject. A Lebanese barème marks the programme's method,
+   * so an answer that solves the problem correctly by another route still loses
+   * marks. Retrieval is the same path the tutor uses, scoped to this question's
+   * subject, so it can only reach material this student is taught.
+   *
+   * A failure here costs the grounding, not the answer: an ungrounded answer is
+   * worth more to a student than an error page, so this never throws upward.
+   */
+  let course = '';
+  if (input.userId) {
+    try {
+      const grounding = await retrieveGrounding({
+        query: [exercise, passage].filter(Boolean).join('\n\n').slice(0, 4000),
+        subjectIds: [question.chapter.subjectId],
+        userId: input.userId,
+      });
+      if (grounding.tier !== 'ungrounded_refused') course = grounding.context.trim();
+    } catch {
+      course = '';
+    }
+  }
+
   const response = await provider.complete({
-    system: modelSolutionPrompt(subject.language, subject.name),
+    system: modelSolutionPrompt({
+      language: subject.language,
+      subject: subject.name,
+      hasPassage: Boolean(passage),
+      hasFigure,
+      hasCourseMaterial: Boolean(course),
+    }),
     messages: [{
       role: 'user',
       content: [
         `# Chapter\n${question.chapter.name}`,
-        `# Exercise\n${bodyToRender(question.contentLatex, question.contentText)}`,
-      ].join('\n\n'),
+        course ? `# From the course book\n${course}` : '',
+        passage ? `# The text this exercise examines\n${passage}` : '',
+        `# Exercise\n${exercise}`,
+      ].filter(Boolean).join('\n\n'),
     }],
     maxTokens: 4000,
     effort: 'medium',
