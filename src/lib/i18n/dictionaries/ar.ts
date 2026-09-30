@@ -31,6 +31,7 @@ export const ar: Dictionary = {
     points: 'نقطة',
     of: 'من',
     unknownError: 'حدث خطأ غير متوقع. يُرجى المحاولة مرة أخرى.',
+    tooManyRequests: 'أرسلتَ طلبات كثيرة في وقت قصير. انتظر بضع دقائق ثم حاول مجدّدًا.',
   },
 
   nav: {
@@ -457,6 +458,12 @@ export const ar: Dictionary = {
     repeatedLoss:
       "كلّفك هذا علامات {times} مرّات — {points} في المجموع.",
     modelSolution: "إجابة نموذجيّة",
+    showModelAnswer: 'عرض إجابة نموذجيّة',
+    modelAnswerNote: 'كتبها الذكاء الاصطناعي لأنّ هذا السؤال بلا حلّ رسمي. راجِعها مع درسك.',
+    modelAnswerWriting: 'جارٍ كتابة الإجابة…',
+    modelAnswerDeclined: 'هذا السؤال يحتاج إلى رسم أو مستند غير متوفّر لدينا، فلا يمكن كتابة إجابة له.',
+    modelAnswerBudget: 'لقد استهلكت رصيد الذكاء الاصطناعي لهذا الشهر، فلا يمكن كتابة إجابة جديدة الآن.',
+    modelAnswerFailed: 'تعذّرت كتابة الإجابة. حاول مجدّدًا.',
     officialSolution: 'الحل الرسمي',
     correct: 'صحيح',
     incorrect: 'ليس تماماً',

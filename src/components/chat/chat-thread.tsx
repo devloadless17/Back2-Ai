@@ -13,6 +13,7 @@ import { Sheet, SheetBody } from '@/components/ui/sheet';
 import { IconCamera, IconClose, IconPaperclip } from '@/components/shell/icons';
 import { cn } from '@/lib/cn';
 import { subjectIcon } from '@/lib/subject-icon';
+import { aiErrorMessage } from '@/lib/client/ai-error';
 import { ApiRequestError, sendForm } from '@/lib/client/request';
 import { useI18n } from '@/lib/i18n/client';
 import { format } from '@/lib/i18n/format';
@@ -414,7 +415,9 @@ export function ChatThread({
 
       if (!response.ok || !response.body) {
         const payload = (await response.json().catch(() => ({}))) as { error?: string };
-        throw new Error(payload.error ?? 'STREAM_FAILED');
+        // Kept with its status, so a used-up allowance or a rate limit can be
+        // named instead of reported as "unexpected".
+        throw new ApiRequestError(response.status, payload.error ?? 'STREAM_FAILED');
       }
 
       const reader = response.body.getReader();
@@ -446,11 +449,7 @@ export function ChatThread({
         }
       }
     } catch (err) {
-      setError(
-        err instanceof Error && err.message === 'AI_NOT_CONFIGURED'
-          ? t.chat.aiNotConfigured
-          : t.common.unknownError,
-      );
+      setError(aiErrorMessage(err, t));
       setMessages((current) => current.filter((m) => m.id !== pendingId));
     } finally {
       setStreaming(false);

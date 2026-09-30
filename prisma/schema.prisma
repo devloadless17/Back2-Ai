@@ -736,6 +736,9 @@ model Question {
   correctOptionId       String?        @map("correct_option_id")
   officialSolution      String?        @map("official_solution")
   officialSolutionLatex String?        @map("official_solution_latex")
+  modelSolution         String?        @map("model_solution")
+  modelSolutionModel    String?        @map("model_solution_model")
+  modelSolutionAt       DateTime?      @map("model_solution_at") @db.Timestamptz(6)
   /// Structured point breakdown: [{ criterion, points }]
   bareme                Json?
   /// Position within its source paper; drives ordering in old-cycle mode.

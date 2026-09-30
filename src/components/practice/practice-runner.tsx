@@ -6,6 +6,7 @@ import { useMemo, useState } from 'react';
 import { AcademicQuestion } from '@/components/practice/academic-question';
 import { ExaminerMark } from '@/components/practice/examiner-mark';
 import { FlagButton } from '@/components/practice/flag-button';
+import { ModelAnswer } from '@/components/practice/model-answer';
 import { Button, LinkButton } from '@/components/ui/button';
 import { WorkingArea } from '@/components/ui/field';
 import { Alert, Badge, EmptyState } from '@/components/ui/feedback';
@@ -13,6 +14,7 @@ import { MathText, QuestionBody } from '@/components/ui/math';
 import { Meter } from '@/components/ui/progress';
 import { RuledRow, Sheet, SheetBody, SheetFooter, SheetHeader } from '@/components/ui/sheet';
 import { cn } from '@/lib/cn';
+import { aiErrorMessage } from '@/lib/client/ai-error';
 import { ApiRequestError, sendJson } from '@/lib/client/request';
 import { useI18n } from '@/lib/i18n/client';
 
@@ -188,7 +190,7 @@ export function PracticeRunner({
       setError(
         err instanceof ApiRequestError && err.code === 'OPTION_REQUIRED'
           ? t.practice.yourAnswer
-          : t.common.unknownError,
+          : aiErrorMessage(err, t),
       );
     } finally {
       setSubmitting(false);
@@ -601,6 +603,12 @@ export function PracticeRunner({
               <MathText dir={paperDir}>{outcome.solution}</MathText>
             </SheetBody>
           </details>
+        )}
+
+        {/* No answer came with it — most book exercises. One is written on
+            request and kept, so only the first student to ask pays for it. */}
+        {!outcome.solution && question && question.kind !== 'generated' && question.questionType !== 'mcq' && (
+          <ModelAnswer key={question.id} questionId={question.id} dir={paperDir} />
         )}
       </Sheet>
     );

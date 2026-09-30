@@ -31,6 +31,7 @@ export const fr: Dictionary = {
     points: 'points',
     of: 'sur',
     unknownError: 'Une erreur inattendue est survenue. Veuillez réessayer.',
+    tooManyRequests: 'Trop de demandes en peu de temps. Attendez quelques minutes puis réessayez.',
   },
 
   nav: {
@@ -434,6 +435,12 @@ export const fr: Dictionary = {
     repeatedLoss:
       "Cela t'a coûté des points {times} fois — {points} au total.",
     modelSolution: "Réponse modèle",
+    showModelAnswer: 'Voir une réponse modèle',
+    modelAnswerNote: 'Rédigée par l’IA, car cette question n’a pas de corrigé officiel. Vérifiez-la avec votre cours.',
+    modelAnswerWriting: 'Rédaction de la réponse…',
+    modelAnswerDeclined: 'Cette question dépend d’une figure ou d’un document que nous n’avons pas : aucune réponse ne peut être rédigée.',
+    modelAnswerBudget: 'Vous avez utilisé votre quota d’IA du mois : une nouvelle réponse ne peut pas être rédigée maintenant.',
+    modelAnswerFailed: 'La réponse n’a pas pu être rédigée. Réessayez.',
     officialSolution: 'Solution officielle',
     correct: 'Correct',
     incorrect: 'Pas tout à fait',

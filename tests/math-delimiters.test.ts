@@ -87,3 +87,14 @@ describe('the reported failure', () => {
     expect(normalizeMathDelimiters('')).toBe('');
   });
 });
+
+describe('Arabic-Indic digits in maths', () => {
+  it('become Western digits inside a maths span', () => {
+    expect(normalizeMathDelimiters('$x^٢ + ١$')).toBe('$x^2 + 1$');
+    expect(normalizeMathDelimiters('$$\n\frac{۳}{۴}\n$$')).toBe('$$\n\frac{3}{4}\n$$');
+  });
+
+  it('are left alone in the prose around the maths', () => {
+    expect(normalizeMathDelimiters('الجزء ١: $٢x$')).toBe('الجزء ١: $2x$');
+  });
+});

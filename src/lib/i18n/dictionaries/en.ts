@@ -45,6 +45,7 @@ export const en = {
     points: 'points',
     of: 'of',
     unknownError: 'An unexpected error occurred. Please try again.',
+    tooManyRequests: 'You are sending requests too quickly. Wait a few minutes and try again.',
   },
 
   nav: {
@@ -457,6 +458,12 @@ export const en = {
     repeatedLoss:
       "This has cost you marks {times} times — {points} in total.",
     modelSolution: "Model answer",
+    showModelAnswer: 'Show a model answer',
+    modelAnswerNote: 'Written by AI because this question has no official answer. Check it against your course.',
+    modelAnswerWriting: 'Writing the answer…',
+    modelAnswerDeclined: 'This question needs a figure or document we do not have, so no answer can be written.',
+    modelAnswerBudget: 'You have used this month’s AI allowance, so a new answer cannot be written now.',
+    modelAnswerFailed: 'The answer could not be written. Try again.',
     officialSolution: 'Official solution',
     correct: 'Correct',
     incorrect: 'Not quite',

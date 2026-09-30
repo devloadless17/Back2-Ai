@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { useTutorSession } from '@/components/chat/use-tutor-session';
 import { ChoiceList } from '@/components/practice/choice-list';
 import { ExaminerMark, type MarkedCriterion } from '@/components/practice/examiner-mark';
+import { ModelAnswer } from '@/components/practice/model-answer';
 import { Button, LinkButton } from '@/components/ui/button';
 import { WorkingArea } from '@/components/ui/field';
 import { Alert, Badge } from '@/components/ui/feedback';
@@ -13,6 +14,7 @@ import { MathText, QuestionBody } from '@/components/ui/math';
 import { Meter } from '@/components/ui/progress';
 import { Sheet, SheetBody, SheetFooter, SheetHeader } from '@/components/ui/sheet';
 import { cn } from '@/lib/cn';
+import { aiErrorMessage } from '@/lib/client/ai-error';
 import { sendJson } from '@/lib/client/request';
 import { useI18n } from '@/lib/i18n/client';
 
@@ -108,8 +110,8 @@ export function QuizRunner({
 
       setOutcomes(results);
       router.refresh();
-    } catch {
-      setError(t.common.unknownError);
+    } catch (err) {
+      setError(aiErrorMessage(err, t));
     } finally {
       setSubmitting(false);
     }
@@ -302,11 +304,7 @@ export function QuizRunner({
                   </SheetBody>
                 </details>
               ) : (
-                q.questionType !== 'mcq' && (
-                  <SheetBody className="border-t border-rule">
-                    <p className="text-meta text-ink-muted">{t.oldCycles.answerMissing}</p>
-                  </SheetBody>
-                )
+                q.questionType !== 'mcq' && <ModelAnswer questionId={q.id} dir={paperDir} />
               )}
 
               {/* The attempt goes with it, so Zaki reads what they wrote and

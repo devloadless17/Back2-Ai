@@ -50,6 +50,25 @@ const INLINE_CLOSE = /(?<!\\)\\\)/g;
  */
 const INLINE_DISPLAY = /(?<=\S[ \t]*)\$\$([^$\n]+?)\$\$|\$\$([^$\n]+?)\$\$(?=[ \t]*\S)/g;
 
+/**
+ * Arabic-Indic digits inside a maths span.
+ *
+ * Arabic papers print `١` and `٢` in prose, and the OCR carries them into the
+ * formulas too. KaTeX has no metrics for them, so it warns in the console and
+ * sets them in a fallback font that sits off the baseline. Lebanese maths is
+ * written with Western digits in every language, so inside `$…$` and `$$…$$`
+ * they become `1` and `2`. Prose outside the maths keeps its own digits.
+ */
+const MATH_SPAN = /\$\$[\s\S]+?\$\$|\$[^$\n]+?\$/g;
+const EASTERN_DIGIT = /[٠-٩۰-۹]/g;
+
+function westernDigits(span: string): string {
+  return span.replace(EASTERN_DIGIT, (digit) => {
+    const code = digit.charCodeAt(0);
+    return String(code - (code >= 0x06f0 ? 0x06f0 : 0x0660));
+  });
+}
+
 export function normalizeMathDelimiters(text: string): string {
   if (!text) return text;
 
@@ -71,6 +90,8 @@ export function normalizeMathDelimiters(text: string): string {
     const body = (a ?? b ?? '').trim();
     return `$${body}$`;
   });
+
+  out = out.replace(MATH_SPAN, westernDigits);
 
   return out;
 }
