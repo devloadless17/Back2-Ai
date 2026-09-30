@@ -123,7 +123,10 @@ def main() -> int:
             image = stack(images)
             if image.height < 40 or image.width < 40:
                 raise ValueError(f"band too small to read: {image.width}x{image.height}")
-            out = os.path.join(args.out, f"{row['id']}.png")
+            # Forward slashes even on Windows: this manifest is read by a Linux
+            # container, where a backslash is part of the filename rather than a
+            # separator, and every band would fail to open.
+            out = os.path.join(args.out, f"{row['id']}.png").replace(chr(92), "/")
             image.save(out, "PNG", optimize=True)
             digest = hashlib.sha256(open(out, "rb").read()).hexdigest()
             written.append(

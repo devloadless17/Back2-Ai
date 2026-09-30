@@ -54,6 +54,21 @@ const CONFIRM_DB = arg('--confirm-db');
 const MEDIA_TYPE = 'image/png';
 const sha256 = (b: Buffer | string) => createHash('sha256').update(b).digest('hex');
 
+/**
+ * Where a band's PNG actually is, on the machine reading the manifest.
+ *
+ * THE MANIFEST IS WRITTEN ON ONE OS AND READ ON ANOTHER. The renderer runs on
+ * the laptop and the load runs in a Linux container, and a path Python joined
+ * on Windows carries backslashes: `corpus/.mapping/exercise-bands\<id>.png` is
+ * one impossible filename on Linux, not a directory and a file. Every band
+ * would fail to open, and the failure would arrive as a stale-manifest error
+ * that says nothing about paths.
+ *
+ * The file always sits beside `bands.json`, so the name alone is enough and the
+ * recorded directory can be ignored. That is true whichever machine wrote it.
+ */
+const bandFile = (recorded: string) => path.join(path.dirname(BANDS), path.basename(recorded.replace(/\\/g, '/')));
+
 type Band = {
   id: string;
   subject: string;
@@ -122,8 +137,8 @@ async function main() {
   // Every band must still be the file it was rendered as, or the plan is stale.
   const stale: string[] = [];
   for (const b of bands) {
-    const bytes = readFileSync(b.file);
-    if (sha256(bytes) !== b.contentHash) stale.push(b.file);
+    const bytes = readFileSync(bandFile(b.file));
+    if (sha256(bytes) !== b.contentHash) stale.push(bandFile(b.file));
   }
   if (stale.length) {
     throw new Error(`${stale.length} band files no longer match the manifest; re-run the renderer. First: ${stale[0]}`);
@@ -182,7 +197,7 @@ async function main() {
   let uploaded = 0;
 
   for (const b of planned) {
-    const bytes = readFileSync(b.file);
+    const bytes = readFileSync(bandFile(b.file));
     const storageKey = visualStorageKey('question', b.contentHash, MEDIA_TYPE);
     if ((await putContentAddressed(storageKey, bytes, MEDIA_TYPE)) === 'written') uploaded++;
 
