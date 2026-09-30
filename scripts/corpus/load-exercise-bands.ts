@@ -35,7 +35,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { db } from '../../src/lib/db';
-import { putContentAddressed } from '../../src/lib/storage';
+import { putContentAddressed, storageGap } from '../../src/lib/storage';
 import { visualStorageKey } from '../../src/lib/visual-selection';
 
 const ROOT = process.cwd();
@@ -153,6 +153,29 @@ async function main() {
   }
 
   const dbName = await assertDatabase();
+
+  /*
+   * REFUSE TO WRITE INTO A DEPLOYMENT WHOSE UPLOADS DO NOT PERSIST.
+   *
+   * Every row written here points at an image. Where object storage is off the
+   * bytes land in the container's own filesystem, which is discarded when the
+   * one-off ops container exits — and the rows survive it, pointing at pictures
+   * that no longer exist. The database then looks correct and 126 questions are
+   * silently worse off than the flattened text they replaced. A warning is not
+   * enough for that, and it is why this refuses rather than logs.
+   *
+   * `--allow-local-storage` exists for a developer machine, where the local
+   * driver is the intended one and losing the bytes costs a re-run.
+   */
+  const gap = storageGap();
+  if (gap && !has('--allow-local-storage')) {
+    throw new Error(
+      `object storage is not in use here (${gap}), so uploaded images would not survive this process. ` +
+        'Refusing to write rows that would point at missing pictures. ' +
+        'Pass --allow-local-storage if this is a development machine.',
+    );
+  }
+
   let assets = 0;
   let occurrences = 0;
   let relations = 0;
