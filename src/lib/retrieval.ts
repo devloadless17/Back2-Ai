@@ -1171,6 +1171,60 @@ function carriedPassage(input: RetrievalInput): string | null {
   return suppliedPassage(input);
 }
 
+/** «…» or "…" around a title, as papers and the tutor both quote them. */
+const QUOTED_TITLE = /[«"“]\s*([^«»"“”\n]{4,80}?)\s*[»"”]/g;
+
+/**
+ * Titles quoted in this message or the recent conversation, newest first.
+ *
+ * Assistant turns count here, unlike in `suppliedPassage`: a title is only a
+ * key to look a stored text up by, never material to answer from, so reading
+ * it out of the tutor's own words cannot confirm anything the tutor said.
+ */
+export function quotedTitles(input: Pick<RetrievalInput, 'query' | 'history'>): string[] {
+  const texts = [input.query, ...(input.history ?? []).slice(-PASSAGE_MEMORY_TURNS).reverse().map((m) => m.content)];
+  const titles: string[] = [];
+  for (const text of texts) {
+    for (const match of text.matchAll(QUOTED_TITLE)) {
+      const title = match[1]!.trim();
+      if (!titles.includes(title)) titles.push(title);
+    }
+  }
+  return titles;
+}
+
+async function namedExamPassage(
+  input: RetrievalInput,
+): Promise<{ questionId: string; chapterName: string; title: string; passage: string } | null> {
+  const titles = quotedTitles(input);
+  if (titles.length === 0 || input.subjectIds.length === 0) return null;
+
+  const rows = await db.question.findMany({
+    where: {
+      sourcePassage: { not: null },
+      verifiedStatus: { not: 'rejected' },
+      alsoInChapters: { some: { chapter: { subjectId: { in: input.subjectIds } } } },
+    },
+    select: { id: true, sourcePassage: true, chapter: { select: { name: true } } },
+    distinct: ['sourcePassage'],
+  });
+  const folded = rows.map((row) => ({ row, text: foldArabic(row.sourcePassage ?? '') }));
+
+  for (const title of titles) {
+    const key = foldArabic(title);
+    const hit = folded.find((f) => f.text.includes(key));
+    if (hit) {
+      return {
+        questionId: hit.row.id,
+        chapterName: hit.row.chapter.name,
+        title,
+        passage: hit.row.sourcePassage ?? '',
+      };
+    }
+  }
+  return null;
+}
+
 export function suppliedPassage(input: RetrievalInput): string | null {
   if (input.query.trim().length >= PASSAGE_SUPPLIED) return input.query;
 
@@ -1440,6 +1494,38 @@ export async function retrieveGrounding(input: RetrievalInput): Promise<Groundin
           },
         ],
         context: `## The photographed page\nThe original image is attached to this turn. Read its documents, maps, graphs and tables directly.\n\n## Transcribed question\n${input.query}`,
+      };
+    }
+
+    /*
+     * A text named by its title, which we hold.
+     *
+     * The tutor had set questions on «شبابك على قدر طاقتك» — a passage stored
+     * with the exam questions printed under it — and when the student asked
+     * "where is the text?" it asked them to paste it. The title is right there
+     * in the conversation, and the passage is in the database.
+     */
+    const named = await namedExamPassage(input);
+    if (named) {
+      return {
+        tier: 'exact_match',
+        topSimilarity: null,
+        requiresVerification: false,
+        classification,
+        sources: [
+          {
+            id: named.questionId,
+            kind: 'question',
+            label: `${named.chapterName} — «${named.title}»`,
+            similarity: 1,
+            text: named.passage.slice(0, 500),
+          },
+        ],
+        context: [
+          `## The text «${named.title}», as printed on the exam paper`,
+          named.passage,
+          '## If the student asks for the text, give it to them in full, exactly as above.',
+        ].join('\n\n'),
       };
     }
 

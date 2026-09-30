@@ -3,6 +3,7 @@ import 'server-only';
 import type { GroundingTier } from '@prisma/client';
 
 import { ai } from '@/lib/ai';
+import { detectLanguage } from '@/lib/announcements';
 import { db } from '@/lib/db';
 import type { Locale } from '@/lib/i18n/config';
 import { classifyChatIntent, type IntentClassification } from '@/lib/chat-intent';
@@ -1092,7 +1093,9 @@ export async function* runChatTurn(input: ChatTurnInput): AsyncGenerator<ChatEve
       grounding.classification.kind === 'comprehension' ? 'needsPassage' : 'offProgramme';
 
     if (grounding.classification.kind === 'comprehension') {
-      text = NEEDS_PASSAGE_TEXT[input.locale];
+      // In the language the student asked in, not the interface's: an Arabic
+      // question answered in English reads as the tutor not understanding it.
+      text = NEEDS_PASSAGE_TEXT[detectLanguage(questionForAnswer, input.locale)];
     } else {
       const subjects = await db.subject.findMany({
         where: { id: { in: input.subjectIds } },
