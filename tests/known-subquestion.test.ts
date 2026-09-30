@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { asksForOfficialAnswer } from '@/lib/chat';
 import { lexicalAgreement, subquestionAgreement } from '@/lib/retrieval';
 
 const FULL_EXERCISE = `Virus X infects a target cell. Documents 1 and 2 show the
@@ -11,6 +12,13 @@ activation and multiplication of specific lymphocytes.
 5- Specify whether this involved immune response is capable to eliminate the cells infected by virus X.`;
 
 describe('a known part copied from a stored multi-part exercise', () => {
+  it('recognises direct answer requests in the supported course languages', () => {
+    expect(asksForOfficialAnswer('solve plz')).toBe(true);
+    expect(asksForOfficialAnswer('donne-moi la solution')).toBe(true);
+    expect(asksForOfficialAnswer('أعطني الجواب')).toBe(true);
+    expect(asksForOfficialAnswer('explain why this works')).toBe(false);
+  });
+
   it('matches its parent exercise even though symmetric overlap is necessarily low', () => {
     const part =
       '5- Specify whether this involved immune response is capable to eliminate the cells infected by virus X. solve plz';
