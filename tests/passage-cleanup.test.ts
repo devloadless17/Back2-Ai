@@ -167,3 +167,22 @@ describe('the full stop a footnote marker pushed onto its own line', () => {
     expect(collapseBlankRuns('a\n\n.')).toBe('a\n\n.');
   });
 });
+
+describe('a full stop stranded at the start of the next line', () => {
+  it('moves it up when a footnote marker ended the line above', () => {
+    expect(collapseBlankRuns('ne pas les contraindre2\n. C’est faux. Respecter')).toBe(
+      'ne pas les contraindre2.\nC’est faux. Respecter',
+    );
+  });
+
+  it('leaves an ellipsis that genuinely opens a line', () => {
+    // No footnote marker above it, so the dots belong where they are.
+    const quoted = 'Il répondit :\n… et pourtant elle tourne.';
+    expect(collapseBlankRuns(quoted)).toBe(quoted);
+  });
+
+  it('leaves punctuation alone after an ordinary word', () => {
+    const text = 'Il partit\n, dit-elle';
+    expect(collapseBlankRuns(text)).toBe(text);
+  });
+});

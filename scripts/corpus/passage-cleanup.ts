@@ -131,6 +131,22 @@ export function arabicHeaderLines(text: string): number {
  */
 const ORPHAN_PUNCTUATION = /^[\s ]*[.,;:!?»)\]…]+[\s ]*$/;
 
+/**
+ * The same orphan, but with the rest of the sentence behind it.
+ *
+ * "…ne pas les contraindre2" then ". C'est faux. Respecter…" — the footnote
+ * marker ended the line and the full stop opened the next one, this time with
+ * text after it. The line cannot simply be joined: only the punctuation belongs
+ * to the sentence above.
+ *
+ * IT REQUIRES THE LINE ABOVE TO END IN A DIGIT, which is the footnote marker
+ * itself. Without that condition this would pull the leading dots off a line
+ * that genuinely opens with an ellipsis, or a quotation that starts mid-
+ * sentence — both of which occur in these passages.
+ */
+const STRANDED_PUNCTUATION = /^([.,;:!?»)\]]+)(\s+\S)/;
+const ENDS_IN_MARKER = /\d$/;
+
 /** No more than one blank line in a row, and no trailing spaces. */
 export function collapseBlankRuns(text: string): string {
   const lines = text.split(/\r?\n/).map((l) => l.replace(/[ \t ]+$/, ''));
@@ -140,6 +156,12 @@ export function collapseBlankRuns(text: string): string {
     const previous = joined[joined.length - 1];
     if (ORPHAN_PUNCTUATION.test(line) && previous && previous.trim()) {
       joined[joined.length - 1] = previous + line.trim();
+      continue;
+    }
+    const stranded = previous && ENDS_IN_MARKER.test(previous.trimEnd()) ? STRANDED_PUNCTUATION.exec(line) : null;
+    if (stranded && previous) {
+      joined[joined.length - 1] = previous.trimEnd() + stranded[1];
+      joined.push(line.slice(stranded[1]!.length).trimStart());
       continue;
     }
     joined.push(line);
