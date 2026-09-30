@@ -13,6 +13,7 @@ import { getTranslations } from '@/lib/i18n';
 import { dirForLanguage } from '@/lib/i18n/config';
 import { getChapterForTrack } from '@/lib/queries/taxonomy';
 import { oneCopyEach, questionKey, seenQuestionKeys } from '@/lib/queries/seen-questions';
+import { isWholeFrenchPaper } from '@/lib/question-shape';
 import { visualKeysFor } from '@/lib/visual-evidence';
 
 export const metadata: Metadata = { title: 'Practice' };
@@ -105,7 +106,7 @@ export default async function ChapterPracticePage({
   // One copy of each question, and "already answered" meaning any copy of it:
   // see `questionKey`. Without this a chapter could list one exercise twice,
   // and offer the second copy as new to a student who had answered the first.
-  const questions = oneCopyEach(allCopies);
+  const questions = oneCopyEach(allCopies).filter((question) => !isWholeFrenchPaper(question.contentText));
 
   // The one visual selector — the same call Zaki's retrieval makes.
   const visualKeys = await visualKeysFor(questions);
