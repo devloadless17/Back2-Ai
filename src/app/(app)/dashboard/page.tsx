@@ -1,10 +1,10 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
-import { streakFrom, SubjectRings, type SubjectRing } from '@/components/dashboard/subject-rings';
+import { SubjectCircles, type SubjectCircle } from '@/components/dashboard/subject-circles';
+import { streakFrom } from '@/components/dashboard/subject-rings';
 import { WelcomeHero } from '@/components/dashboard/welcome-hero';
 import { bandForMastery } from '@/components/ui/band';
-import { Sheet, SheetBody, SheetHeader } from '@/components/ui/sheet';
 import { requireUser } from '@/lib/auth/guards';
 import { today, toStoredDate } from '@/lib/calendar';
 import { db } from '@/lib/db';
@@ -12,7 +12,6 @@ import { getTranslations } from '@/lib/i18n';
 import { daysUntil } from '@/lib/i18n/format';
 import { attemptsByDay, weeklyEffort } from '@/lib/queries/activity';
 import { getProgressForUser } from '@/lib/queries/progress';
-import { getStanding } from '@/lib/queries/standing';
 import { MIN_ATTEMPTS_FOR_WEAKNESS } from '@/lib/scoring/mastery';
 
 // Browser-tab titles are resolved per request from the user's locale, like
@@ -35,9 +34,8 @@ export default async function DashboardPage() {
   const user = await requireUser();
   const { t } = await getTranslations();
 
-  const [progress, standing, activity, todaySessions, week, nextExam] = await Promise.all([
+  const [progress, activity, todaySessions, week, nextExam] = await Promise.all([
     getProgressForUser(user.id, user.trackId, user.preferredLanguage),
-    getStanding(user.id, user.trackId, user.preferredLanguage),
     attemptsByDay(user.id, 14),
     db.studySession.findMany({
       where: { userId: user.id, scheduledDate: startOfToday() },
@@ -51,10 +49,8 @@ export default async function DashboardPage() {
     }),
   ]);
 
-  // One ring per subject: mean chapter mastery fills it, the predicted mark
-  // sits in the middle when there is enough evidence to state one.
-  const markBySubject = new Map(standing.subjects.map((s) => [s.subjectId, s.mark]));
-  const subjectRings: SubjectRing[] = progress.map((subject) => {
+  // One circle per subject; mean chapter mastery is the small figure under it.
+  const subjectCircles: SubjectCircle[] = progress.map((subject) => {
     const chapters = subject.chapters;
     return {
       subjectId: subject.subjectId,
@@ -63,7 +59,6 @@ export default async function DashboardPage() {
         chapters.length === 0
           ? 0
           : chapters.reduce((sum, c) => sum + c.masteryScore, 0) / chapters.length,
-      mark: markBySubject.get(subject.subjectId) ?? null,
       attemptsCount: chapters.reduce((sum, c) => sum + c.attemptsCount, 0),
     };
   });
@@ -97,24 +92,23 @@ export default async function DashboardPage() {
         weakSpots={weakSpots}
       />
 
-      <Sheet>
-        <SheetHeader
-          title={t.dashboard.yourSubjects}
-          description={t.dashboard.yourSubjectsHint}
-          actions={
-            <Link href="/progress" className="text-meta font-medium hover:underline">
-              {t.dashboard.allProgress}
-            </Link>
-          }
-        />
-        <SheetBody>
-          {subjectRings.length === 0 ? (
-            <p className="text-meta text-ink-muted">{t.dashboard.chaptersPending}</p>
-          ) : (
-            <SubjectRings subjects={subjectRings} size="lg" />
-          )}
-        </SheetBody>
-      </Sheet>
+      {/* Open, not boxed: a row of circles on the page itself, the way a
+          student picks a subject — no card around it, no table of figures. */}
+      <section className="py-6 sm:py-8">
+        <h2 className="mb-7 text-center font-display text-title font-bold text-ink">
+          {t.dashboard.yourSubjects}
+        </h2>
+        {subjectCircles.length === 0 ? (
+          <p className="text-center text-meta text-ink-muted">{t.dashboard.chaptersPending}</p>
+        ) : (
+          <SubjectCircles subjects={subjectCircles} />
+        )}
+        <p className="mt-8 text-center">
+          <Link href="/progress" className="text-meta font-medium text-ink-muted hover:text-ink hover:underline">
+            {t.dashboard.allProgress}
+          </Link>
+        </p>
+      </section>
     </>
   );
 }

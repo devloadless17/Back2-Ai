@@ -52,6 +52,7 @@
   --primary: 221 83% 53%;
   --primary-hover: 224 76% 45%;
   --primary-soft: 214 100% 96%;
+  --circle-sat: 85%; --circle-bg-l: 95%; --circle-ring-l: 88%; --circle-ink-l: 44%; /* dashboard subject circles */
   --on-primary: 0 0% 100%;
 
   /* Gold — achievements and secondary emphasis. Same hue as --achieve. */
@@ -258,6 +259,7 @@
     --primary: 213 94% 68%;
     --primary-hover: 213 97% 78%;
     --primary-soft: 221 50% 20%;
+    --circle-sat: 38%; --circle-bg-l: 19%; --circle-ring-l: 27%; --circle-ink-l: 72%;
     --on-primary: 224 50% 10%;
 
     --accent: 45 96% 62%;
@@ -335,6 +337,7 @@
   --primary: 213 94% 68%;
   --primary-hover: 213 97% 78%;
   --primary-soft: 221 50% 20%;
+  --circle-sat: 38%; --circle-bg-l: 19%; --circle-ring-l: 27%; --circle-ink-l: 72%;
   --on-primary: 224 50% 10%;
 
   --accent: 45 96% 62%;
@@ -517,6 +520,15 @@
    * `--tint` is set inline, because Tailwind reads class names out of the
    * source and one assembled from a template compiles to nothing.
    */
+  /* The dashboard's subject circles. `--hue` is set inline per subject; the
+     lightness tokens flip with the theme so the same hue reads in both. */
+  .subject-circle {
+    background-color: hsl(var(--hue) var(--circle-sat) var(--circle-bg-l));
+    color: hsl(var(--hue) 70% var(--circle-ink-l));
+    box-shadow: inset 0 0 0 1px hsl(var(--hue) var(--circle-sat) var(--circle-ring-l)),
+      0 1px 2px hsl(var(--hue) 40% 40% / 0.10);
+  }
+
   .subject-cap {
     background-image: linear-gradient(
       135deg,
