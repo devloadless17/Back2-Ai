@@ -58,3 +58,28 @@ describe('writing the marking scheme for a question that came without one', () =
     expect(modelBaremePrompt(base)).toMatch(/"bareme":\[\]/);
   });
 });
+
+describe('what the first live run got wrong', () => {
+  const base = { language: 'en', subject: 'English', statedMarks: null as number | null, examples: [] };
+
+  it('forbids one criterion that swallows the whole exercise', () => {
+    // SEEN LIVE. It returned a single criterion worth all nine marks whose text
+    // was the question pasted back. Nothing can be awarded or withheld against
+    // that, and a student told "you lost marks on: <the question>" learns
+    // nothing.
+    const prompt = modelBaremePrompt(base);
+    expect(prompt).toMatch(/NEVER return a single criterion/i);
+    expect(prompt).toMatch(/at least two/i);
+  });
+
+  it('forbids using the exercise’s own wording as a criterion', () => {
+    expect(modelBaremePrompt(base)).toMatch(/never use the exercise.s own wording/i);
+  });
+
+  it('follows a split the paper already states', () => {
+    // That same exercise carried "Score: 05 for ideas, 03 for language and
+    // style, 01 for tidiness" and it was ignored. When the paper divides its
+    // own marks, that division is the barème.
+    expect(modelBaremePrompt(base)).toMatch(/follow that division exactly/i);
+  });
+});
