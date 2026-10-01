@@ -3,7 +3,7 @@ import 'server-only';
 import { today, toStoredDate } from '@/lib/calendar';
 
 import { db } from '@/lib/db';
-import { findWeakestChapter, getProgressForUser } from '@/lib/queries/progress';
+import { findWeakestChapter, getProgressForUser, type SubjectProgress } from '@/lib/queries/progress';
 
 /**
  * "What should I do right now?"
@@ -37,12 +37,13 @@ export async function getNextUp(
   userId: string,
   trackId: string | null,
   language: string,
+  preloadedProgress?: SubjectProgress[],
 ): Promise<NextUp> {
   const today = startOfToday();
 
   const [dueCount, progress, examCount] = await Promise.all([
     db.flashcardState.count({ where: { userId, dueDate: { lte: today } } }),
-    getProgressForUser(userId, trackId, language),
+    preloadedProgress ?? getProgressForUser(userId, trackId, language),
     db.examSimulation.count({ where: { userId, status: { in: ['submitted', 'graded'] } } }),
   ]);
 

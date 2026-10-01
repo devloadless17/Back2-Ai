@@ -70,7 +70,6 @@ export default async function ProgressPage() {
    */
   const progressPromise = getProgressForUser(user.id, user.trackId, user.preferredLanguage);
   const schoolMarksPromise = schoolMarksBySubject(user.id);
-  const nextPromise = getNextUp(user.id, user.trackId, user.preferredLanguage);
   const lossesPromise = recurringLosses(user.id, { limit: 5 });
   const chaptersPromise = user.trackId
     ? listChaptersForTrack(user.trackId, user.id)
@@ -80,7 +79,7 @@ export default async function ProgressPage() {
   const [standing, schoolMarks, next, losses, chapters] = await Promise.all([
     getStanding(user.id, user.trackId, user.preferredLanguage, progress),
     schoolMarksPromise,
-    nextPromise,
+    getNextUp(user.id, user.trackId, user.preferredLanguage, progress),
     lossesPromise,
     chaptersPromise,
   ]);
