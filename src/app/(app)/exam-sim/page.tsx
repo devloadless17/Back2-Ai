@@ -121,6 +121,10 @@ export default async function ExamSimIndexPage() {
               {recent.map((simulation) => {
                 const total = simulation.totalScore === null ? null : Number(simulation.totalScore);
                 const max = simulation.maxScore === null ? null : Number(simulation.maxScore);
+                const markingDelayed =
+                  simulation.status === 'submitted' &&
+                  simulation.submittedAt !== null &&
+                  Date.now() - simulation.submittedAt.getTime() > 15 * 60 * 1000;
 
                 return (
                   <li key={simulation.id}>
@@ -150,7 +154,9 @@ export default async function ExamSimIndexPage() {
                           {total} / {max}
                         </Badge>
                       ) : (
-                        <Badge tone="neutral">{t.examSim.grading}</Badge>
+                        <Badge tone={markingDelayed ? 'partial' : 'neutral'}>
+                          {markingDelayed ? t.examSim.gradingDelayed : t.examSim.grading}
+                        </Badge>
                       )}
                     </Link>
                   </li>

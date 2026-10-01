@@ -511,6 +511,7 @@ export const en = {
     subtitle: 'Full official papers, in their original order. Nothing here is scored or recorded.',
     unscoredNotice: 'This mode is for reading and self-checking. Attempts here do not affect your mastery.',
     showAllSubjects: 'Show every subject',
+    papers: 'papers',
     noCycles: 'No past papers are available for this subject yet.',
     year: 'Year',
     session: 'Session',
@@ -576,6 +577,9 @@ export const en = {
     grading: 'Marking your paper…',
     gradingHint: 'Each answer is being marked against the official barème. This takes a moment.',
     resultsTitle: 'Results',
+    gradingDelayed: 'Marking is delayed',
+    gradingDelayedHint:
+      'Your answers are saved, but marking has taken longer than expected. You can start another paper while we keep this one in the marking queue.',
     totalScore: 'Total',
     baremeBreakdown: 'Barème breakdown',
     provisionalMarking: 'Provisional marking',

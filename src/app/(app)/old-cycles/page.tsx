@@ -127,6 +127,28 @@ export default async function OldCyclesPage({
           body={t.practice.noPapersBody}
           action={<EmptyAction href="/practice" label={t.practice.noPapersCta} />}
         />
+      ) : !onlySubject ? (
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {[...bySubject.entries()].map(([subjectName, subjectCycles]) => {
+            const subjectId = subjectCycles[0]?.subject.id;
+            const newest = Math.max(...subjectCycles.map((cycle) => cycle.year));
+            const oldest = Math.min(...subjectCycles.map((cycle) => cycle.year));
+            return (
+              <Link
+                key={subjectName}
+                href={`/old-cycles?subject=${subjectId}`}
+                className="rounded-sheet border border-rule bg-paper px-5 py-4 shadow-sheet transition-colors hover:border-primary/35 hover:bg-paper-sunken"
+              >
+                <p className="font-semibold text-ink">{subjectName}</p>
+                <p className="mt-1 text-caption text-ink-faint">
+                  {subjectCycles.length} {t.oldCycles.papers}
+                  {' · '}
+                  {oldest === newest ? newest : `${oldest}–${newest}`}
+                </p>
+              </Link>
+            );
+          })}
+        </div>
       ) : (
         <div className="space-y-5">
           {[...bySubject.entries()].map(([subjectName, subjectCycles]) => (

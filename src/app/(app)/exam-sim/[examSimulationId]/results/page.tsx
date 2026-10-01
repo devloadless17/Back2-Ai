@@ -71,6 +71,10 @@ export default async function ExamResultsPage({
   const total = simulation.totalScore === null ? null : Number(simulation.totalScore);
   const max = simulation.maxScore === null ? null : Number(simulation.maxScore);
   const ratio = total !== null && max ? total / max : 0;
+  const markingDelayed =
+    simulation.status === 'submitted' &&
+    simulation.submittedAt !== null &&
+    Date.now() - simulation.submittedAt.getTime() > 15 * 60 * 1000;
 
   // Questions that were submitted and graded, but that the marker could not
   // mark. They are excluded from the total rather than counted as zeros, so the
@@ -160,7 +164,18 @@ export default async function ExamResultsPage({
       <RefreshWhile active={simulation.status === 'submitted'} />
 
       {simulation.status === 'submitted' ? (
-        <EmptyState tone="pending" title={t.examSim.grading} body={t.examSim.gradingHint} />
+        <EmptyState
+          tone={markingDelayed ? 'warning' : 'pending'}
+          title={markingDelayed ? t.examSim.gradingDelayed : t.examSim.grading}
+          body={markingDelayed ? t.examSim.gradingDelayedHint : t.examSim.gradingHint}
+          action={
+            markingDelayed ? (
+              <LinkButton href="/exam-sim/new" variant="primary">
+                {t.examSim.newTitle}
+              </LinkButton>
+            ) : null
+          }
+        />
       ) : (
         <div className="space-y-5">
           {/* --- How I did ---------------------------------------------------

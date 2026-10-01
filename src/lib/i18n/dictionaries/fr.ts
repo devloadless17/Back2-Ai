@@ -487,6 +487,7 @@ export const fr: Dictionary = {
     unscoredNotice:
       'Ce mode sert à lire et à s’auto-corriger. Les réponses ici n’affectent pas votre maîtrise.',
     showAllSubjects: 'Afficher toutes les matières',
+    papers: 'sujets',
     noCycles: 'Aucun ancien sujet n’est encore disponible pour cette matière.',
     year: 'Année',
     session: 'Session',
@@ -552,6 +553,9 @@ export const fr: Dictionary = {
     grading: 'Correction de votre copie…',
     gradingHint: 'Chaque réponse est corrigée selon le barème officiel. Cela prend un instant.',
     resultsTitle: 'Résultats',
+    gradingDelayed: 'La correction est retardée',
+    gradingDelayedHint:
+      'Tes réponses sont enregistrées, mais la correction prend plus de temps que prévu. Tu peux commencer un autre sujet pendant que celui-ci reste dans la file de correction.',
     totalScore: 'Total',
     baremeBreakdown: 'Détail du barème',
     provisionalMarking: 'Correction provisoire',
