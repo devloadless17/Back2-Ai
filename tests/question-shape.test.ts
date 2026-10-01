@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { isForeignToFrenchCourse, isFrenchAnswerKeyFragment, isWholeFrenchPaper, isUnusableFrenchExercise } from '@/lib/question-shape';
+import { isForeignToFrenchCourse, isFrenchAnswerKeyFragment, isMissingRequiredPassage, isWholeFrenchPaper, isUnusableFrenchExercise } from '@/lib/question-shape';
 
 describe('French practice question shape', () => {
   it('rejects the real full-paper shape currently shown as one exercise', () => {
@@ -51,5 +51,11 @@ describe('French practice question shape', () => {
 
   it('keeps a real French essay about economic life', () => {
     expect(isUnusableFrenchExercise('Sujet : Pensez-vous que le travail permet à l’individu de s’épanouir ?')).toBe(false);
+  });
+
+  it('withholds a comprehension prompt when its source text is absent', () => {
+    expect(isMissingRequiredPassage('En vous appuyant sur le texte, justifiez.', null)).toBe(true);
+    expect(isMissingRequiredPassage('En vous appuyant sur le texte, justifiez.', 'Texte source')).toBe(false);
+    expect(isMissingRequiredPassage('Rédigez un texte argumentatif.', null)).toBe(false);
   });
 });

@@ -54,3 +54,10 @@ export function isFrenchAnswerKeyFragment(text: string): boolean {
 export function isUnusableFrenchExercise(text: string): boolean {
   return isWholeFrenchPaper(text) || isForeignToFrenchCourse(text) || isFrenchAnswerKeyFragment(text);
 }
+
+const TEXT_DEPENDENT = /(?:dans|d'après|selon|en vous (?:appuyant|basant) sur) (?:le )?texte/iu;
+
+/** A comprehension prompt is unusable when the paper extract is absent. */
+export function isMissingRequiredPassage(text: string, passage: string | null | undefined): boolean {
+  return TEXT_DEPENDENT.test(text) && !passage?.trim();
+}

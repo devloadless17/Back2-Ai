@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { ai } from '@/lib/ai';
 import { db } from '@/lib/db';
 import { isAiConfigured } from '@/lib/env';
-import { isUnusableFrenchExercise } from '@/lib/question-shape';
+import { isMissingRequiredPassage, isUnusableFrenchExercise } from '@/lib/question-shape';
 
 /**
  * Flashcards written from the textbook, for chapters a student has not
@@ -221,6 +221,7 @@ export async function fillFlashcardBank(input: {
       id: true,
       contentText: true,
       officialSolution: true,
+      sourcePassage: true,
       sourceExam: { select: { year: true, session: true } },
     },
     orderBy: [{ sourceExam: { year: 'desc' } }, { orderIndex: 'asc' }],
@@ -231,6 +232,7 @@ export async function fillFlashcardBank(input: {
     (question) =>
       usableFlashcardSourceText(question.contentText) &&
       usableFlashcardSourceText(question.officialSolution) &&
+      !isMissingRequiredPassage(question.contentText, question.sourcePassage) &&
       (chapter.subject.name !== 'Francais' || !isUnusableFrenchExercise(question.contentText)),
   );
   const usable = flashcardSources(usablePassages, usableExamQuestions);

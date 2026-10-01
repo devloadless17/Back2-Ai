@@ -1,4 +1,4 @@
-import { isUnusableFrenchExercise } from '@/lib/question-shape';
+import { isMissingRequiredPassage, isUnusableFrenchExercise } from '@/lib/question-shape';
 
 export type ContentMonitorIssue = {
   severity: 'critical' | 'warning';
@@ -7,10 +7,13 @@ export type ContentMonitorIssue = {
   subject: string;
   chapter: string;
   itemId: string;
+  subjectId: string;
+  chapterId: string;
   detail: string;
 };
 
 type MonitorSubject = {
+  id: string;
   name: string;
   language: 'ar' | 'en' | 'fr';
   track: { code: string } | null;
@@ -51,6 +54,8 @@ export function inspectContent(subjects: MonitorSubject[]): ContentMonitorIssue[
     subject: subject.name,
     chapter: chapter.name,
     itemId,
+    subjectId: subject.id,
+    chapterId: chapter.id,
     detail,
   });
 
@@ -76,8 +81,7 @@ export function inspectContent(subjects: MonitorSubject[]): ContentMonitorIssue[
           add('critical', 'invalid_french_exercise', subject, chapter, question.id, 'Whole paper, answer table, or foreign subject stored as one French exercise.');
         }
         if (
-          /(?:dans|d'après|selon|en vous (?:appuyant|basant) sur) (?:le )?texte/iu.test(question.contentText) &&
-          !question.sourcePassage?.trim()
+          isMissingRequiredPassage(question.contentText, question.sourcePassage)
         ) {
           add('critical', 'missing_passage', subject, chapter, question.id, 'The question refers to a text that is not available to the student.');
         }

@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { inspectContent } from '@/lib/content-monitor';
 
 const subject = (text: string, overrides: Record<string, unknown> = {}) => [{
-  name: 'Francais', language: 'fr' as const, track: { code: 'GS' },
+  id: 'subject', name: 'Francais', language: 'fr' as const, track: { code: 'GS' },
   chapters: [{
     id: 'chapter', name: 'La bioéthique', cancelledAt: null as Date | null,
     contentChunks: [{ chunk: { id: 'chunk', contentText: 'Texte propre et lisible.' } }],
