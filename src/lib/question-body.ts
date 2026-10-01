@@ -28,6 +28,16 @@ import { unwrapSoftBreaks } from '@/lib/soft-wrap';
 // silently stops matching.
 const UNDECODABLE = /�/;
 
+// A few multilingual ministry PDFs continue from the French exercise into the
+// Arabic cover on the same extracted page. The full ministry heading is a safe
+// boundary; an Arabic word quoted by the French text remains untouched.
+const ARABIC_MINISTRY_COVER = /وزارة\s+التربية\s+والتعليم\s+العالي/u;
+
+export function withoutAppendedArabicCover(text: string): string {
+  const boundary = text.search(ARABIC_MINISTRY_COVER);
+  return boundary < 0 ? text : text.slice(0, boundary).trimEnd();
+}
+
 export function bodyToRender(contentLatex: string | null | undefined, contentText: string): string {
   /*
    * `unwrapSoftBreaks` on the way out, whichever column won.
@@ -38,9 +48,9 @@ export function bodyToRender(contentLatex: string | null | undefined, contentTex
    * cannot be deliberate, which leaves the numbered parts `remarkBreaks` exists
    * to protect exactly where they were.
    */
-  if (!contentLatex) return unwrapSoftBreaks(contentText);
+  if (!contentLatex) return unwrapSoftBreaks(withoutAppendedArabicCover(contentText));
   if (UNDECODABLE.test(contentLatex) && contentText && !UNDECODABLE.test(contentText)) {
-    return unwrapSoftBreaks(contentText);
+    return unwrapSoftBreaks(withoutAppendedArabicCover(contentText));
   }
-  return unwrapSoftBreaks(contentLatex);
+  return unwrapSoftBreaks(withoutAppendedArabicCover(contentLatex));
 }
