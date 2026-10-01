@@ -36,7 +36,9 @@ type MonitorSubject = {
 };
 
 const ARABIC_MINISTRY = /وزارة\s+التربية\s+والتعليم\s+العالي/u;
+const ARABIC_RUN = /[\p{Script=Arabic}\p{Mark}]{3,}(?:\s+[\p{Script=Arabic}\p{Mark}]{2,}){2,}/u;
 const BROKEN_ENCODING = /�|Ã[\x80-\xBF]|Â[\x80-\xBF]|â(?:€™|€œ|€|€“|€”)/u;
+const PLACEHOLDER_ANSWER = /no (?:worked |official )?answer (?:was )?recorded|no solution (?:was )?recorded/i;
 
 export function inspectContent(subjects: MonitorSubject[]): ContentMonitorIssue[] {
   const issues: ContentMonitorIssue[] = [];
@@ -70,12 +72,23 @@ export function inspectContent(subjects: MonitorSubject[]): ContentMonitorIssue[
       }
 
       for (const question of chapter.questions) {
-        const bodies = [question.contentText, question.contentLatex ?? '', question.sourcePassage ?? ''];
-        if (bodies.some((text) => BROKEN_ENCODING.test(text))) {
+        const questionBodies = [question.contentText, question.contentLatex ?? '', question.sourcePassage ?? ''];
+        const answers = [question.officialSolution ?? '', question.modelSolution ?? ''];
+        if ([...questionBodies, ...answers].some((text) => BROKEN_ENCODING.test(text))) {
           add('critical', 'broken_encoding', subject, chapter, question.id, 'Unreadable replacement or mojibake characters.');
         }
-        if (bodies.some((text) => ARABIC_MINISTRY.test(text)) && subject.language !== 'ar') {
+        if (questionBodies.some((text) => ARABIC_MINISTRY.test(text)) && subject.language !== 'ar') {
           add('critical', 'foreign_cover', subject, chapter, question.id, 'Arabic ministry cover appended to a non-Arabic item.');
+        }
+        if (
+          subject.language !== 'ar' &&
+          !questionBodies.some((text) => ARABIC_MINISTRY.test(text)) &&
+          [...questionBodies, ...answers].some((text) => ARABIC_RUN.test(text))
+        ) {
+          add('critical', 'foreign_script', subject, chapter, question.id, 'Arabic text appears inside a non-Arabic question or answer.');
+        }
+        if (answers.some((text) => PLACEHOLDER_ANSWER.test(text))) {
+          add('critical', 'placeholder_answer', subject, chapter, question.id, 'A missing-answer placeholder would be shown as the answer.');
         }
         if (subject.name === 'Francais' && isUnusableFrenchExercise(question.contentText)) {
           add('critical', 'invalid_french_exercise', subject, chapter, question.id, 'Whole paper, answer table, or foreign subject stored as one French exercise.');

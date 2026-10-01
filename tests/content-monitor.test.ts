@@ -26,6 +26,23 @@ describe('content monitor', () => {
     expect(issues.map((i) => i.code)).toContain('missing_passage');
   });
 
+  it('checks the answer students reveal for corruption and placeholders', () => {
+    const broken = inspectContent(subject('Question.', { officialSolution: 'R�ponse.' }));
+    expect(broken.map((i) => i.code)).toContain('broken_encoding');
+
+    const placeholder = inspectContent(subject('Question.', {
+      officialSolution: 'No worked answer was recorded for this question.',
+    }));
+    expect(placeholder.map((i) => i.code)).toContain('placeholder_answer');
+  });
+
+  it('flags substantial Arabic leakage in a non-Arabic question or answer', () => {
+    const issues = inspectContent(subject('Question.', {
+      officialSolution: 'هذه إجابة عربية موضوعة في مادة فرنسية',
+    }));
+    expect(issues.map((i) => i.code)).toContain('foreign_script');
+  });
+
   it('reports empty live chapters but ignores cancelled ones', () => {
     const input = subject('Question.');
     input[0]!.chapters[0]!.questions = [];
