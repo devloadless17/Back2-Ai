@@ -158,7 +158,22 @@ export async function getSidebarStanding(
   const daysToExam = nextExam ? daysBetween(startOfToday(), nextExam.examDate) : null;
 
   if (rows.length === 0) {
-    // No snapshot yet. Compute it properly rather than showing nothing.
+    if (!trackId) return { mark: null, daysToExam };
+    // A brand-new account has no snapshot and no work to summarize. Avoid a
+    // full-track progress computation on every page until their first answer;
+    // the honest mark is already known to be absent.
+    const hasEvidence = await db.chapterMastery.findFirst({
+      where: {
+        userId,
+        attemptsCount: { gt: 0 },
+        chapter: { subject: { trackId } },
+      },
+      select: { chapterId: true },
+    });
+    if (!hasEvidence) return { mark: null, daysToExam };
+
+    // Work exists but the nightly snapshot has not caught up yet. Compute it
+    // live so the sidebar does not hide progress made today.
     const standing = await getStanding(userId, trackId, language);
     return { mark: standing.overall, daysToExam: standing.daysToExam };
   }
