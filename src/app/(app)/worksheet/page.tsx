@@ -170,11 +170,11 @@ export default async function WorksheetPage({
           </div>
 
           <ol className="space-y-6">
-            {worksheet.questions.map((q, i) => (
+            {worksheet.questions.map((q) => (
               <li key={q.id} className="break-inside-avoid border-t border-rule pt-4">
                 <div className="mb-1 flex flex-wrap items-baseline justify-between gap-2">
                   <span className="text-caption font-medium text-ink">
-                    {i + 1}. {q.chapterName}
+                    {q.chapterName}
                   </span>
                   <span className="text-caption text-ink-faint">
                     {q.year ? `${q.year}` : ''}
@@ -200,10 +200,10 @@ export default async function WorksheetPage({
               <div className="mt-10 border-t-2 border-rule pt-6 print:break-before-page">
                 <h2 className="mb-4 text-lg font-bold text-ink">{t.worksheet.answerKey}</h2>
                 <ol className="space-y-5">
-                  {worksheet.questions.map((q, i) => (
+                  {worksheet.questions.map((q) => (
                     <li key={q.id} className="break-inside-avoid">
                       <p className="text-caption font-medium text-ink">
-                        {i + 1}. {q.chapterName}
+                        {q.chapterName}
                         {q.totalMarks ? ` — ${q.totalMarks} ${t.common.points}` : ''}
                       </p>
 
