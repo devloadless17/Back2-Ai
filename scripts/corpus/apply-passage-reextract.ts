@@ -28,9 +28,11 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
+import { Prisma } from '@prisma/client';
+
 import { db } from '../../src/lib/db';
 
-import { cleanPassage } from './passage-cleanup';
+import { cleanPassage, cleanQuestionText } from './passage-cleanup';
 
 const ROOT = process.cwd();
 const argv = process.argv.slice(2);
@@ -43,6 +45,19 @@ const APPLY = has('--apply');
 const ROLLBACK = arg('--rollback');
 const CONFIRM_DB = arg('--confirm-db');
 const REBUILT = arg('--rebuilt') ?? path.join(ROOT, 'corpus/.mapping/passages-rebuilt.json');
+
+/*
+ * Which text is being put back: the passage a comprehension exercise examines,
+ * or the question's own body.
+ *
+ * They are cleaned differently and that difference matters. A passage carries
+ * the paper's margin gutter, so its numbers are furniture; a question does not,
+ * and a lone number inside one is a mark, an answer or a table row. Using the
+ * passage rule on a question body would delete those.
+ */
+const FIELD = arg('--field') === 'body' ? 'body' : 'passage';
+const COLUMN = FIELD === 'body' ? 'content_text' : 'source_passage';
+const clean = FIELD === 'body' ? cleanQuestionText : cleanPassage;
 const BACKUP_DIR = arg('--backup-dir') ?? 'corpus/.mapping';
 
 const backupPath = (run: string, database: string) =>
@@ -78,7 +93,7 @@ async function main() {
     let restored = 0;
     for (const [id, before] of Object.entries(backup.rows)) {
       restored += await db.$executeRaw`
-        UPDATE questions SET source_passage = ${before} WHERE id = ${id}::uuid`;
+        UPDATE questions SET ${Prisma.raw(COLUMN)} = ${before} WHERE id = ${id}::uuid`;
     }
     console.log(`  restored ${restored} passage(s) in ${name}.`);
     await db.$disconnect();
@@ -87,7 +102,7 @@ async function main() {
 
   const rebuilt = JSON.parse(readFileSync(REBUILT, 'utf-8')) as Array<{ id: string; paper: string; passage: string }>;
   const stored = await db.$queryRawUnsafe<Array<{ id: string; subject: string; p: string }>>(
-    'select q.id, s.name as subject, q.source_passage as p' +
+    `select q.id, s.name as subject, q.${COLUMN} as p` +
       ' from questions q join chapters ch on ch.id = q.chapter_id join subjects s on s.id = ch.subject_id' +
       ' where q.id = any($1::uuid[])',
     rebuilt.map((r) => r.id),
@@ -100,7 +115,7 @@ async function main() {
   for (const r of rebuilt) {
     const was = byId.get(r.id);
     if (!was) continue;
-    const after = cleanPassage(r.passage);
+    const after = clean(r.passage);
 
     // THE GATE. Same letters or it is not written, whatever else looks right.
     if (latin(after) !== latin(was.p)) {
@@ -117,8 +132,9 @@ async function main() {
   const joined = fixes.reduce((a, f) => a + Math.max(0, f.joined), 0);
   console.log('');
   console.log(`  database ${name}`);
-  console.log(`  passages offered             ${rebuilt.length}`);
-  console.log(`  passages to rewrite          ${fixes.length}`);
+  console.log(`  field                        ${COLUMN}`);
+  console.log(`  bodies offered               ${rebuilt.length}`);
+  console.log(`  bodies to rewrite            ${fixes.length}`);
   console.log(`  refused — letters differ     ${refused.length}`);
   console.log(`  broken words put together    ${joined}`);
   console.log('  by subject:', bySubject);
@@ -144,8 +160,8 @@ async function main() {
   let written = 0;
   for (const f of fixes) {
     written += await db.$executeRaw`
-      UPDATE questions SET source_passage = ${f.after}
-       WHERE id = ${f.id}::uuid AND source_passage = ${f.before}`;
+      UPDATE questions SET ${Prisma.raw(COLUMN)} = ${f.after}
+       WHERE id = ${f.id}::uuid AND ${Prisma.raw(COLUMN)} = ${f.before}`;
   }
   console.log(`  wrote ${written} passage(s).`);
   console.log(`  backup: ${path.relative(ROOT, backupPath(run, name))}`);
