@@ -62,6 +62,25 @@ const INLINE_DISPLAY = /(?<=\S[ \t]*)\$\$([^$\n]+?)\$\$|\$\$([^$\n]+?)\$\$(?=[ \
 const MATH_SPAN = /\$\$[\s\S]+?\$\$|\$[^$\n]+?\$/g;
 const EASTERN_DIGIT = /[٠-٩۰-۹]/g;
 
+const DISPLAY_ENVIRONMENT = /\\begin\{(aligned|gathered|array|cases)\}/g;
+
+function closeUnterminatedDisplayEnvironment(text: string): string {
+  let out = text.replace(
+    /([^\n])[ \t]*\$\$[ \t]*(\\begin\{(?:aligned|gathered|array|cases)\})/g,
+    (_match, prefix: string, begin: string) => `${prefix}\n\n$$\n${begin}`,
+  );
+
+  const openings = [...out.matchAll(DISPLAY_ENVIRONMENT)];
+  for (const opening of openings) {
+    const environment = opening[1]!;
+    const after = out.slice((opening.index ?? 0) + opening[0].length);
+    if (!after.includes(`\\end{${environment}}`)) {
+      out = `${out.trimEnd()}\n\\end{${environment}}\n$$`;
+    }
+  }
+  return out;
+}
+
 function westernDigits(span: string): string {
   return span.replace(EASTERN_DIGIT, (digit) => {
     const code = digit.charCodeAt(0);
@@ -85,6 +104,7 @@ export function normalizeMathDelimiters(text: string): string {
   // inline-display rule below sees every `$$`, including the ones just made.
   out = out.replace(DISPLAY_OPEN, () => '\n\n$$\n').replace(DISPLAY_CLOSE, () => '\n$$\n\n');
   out = out.replace(INLINE_OPEN, () => '$').replace(INLINE_CLOSE, () => '$');
+  out = closeUnterminatedDisplayEnvironment(out);
 
   out = out.replace(INLINE_DISPLAY, (_match, a: string | undefined, b: string | undefined) => {
     const body = (a ?? b ?? '').trim();

@@ -88,6 +88,28 @@ describe('the reported failure', () => {
   });
 });
 
+describe('incomplete OCR display environments', () => {
+  it('moves an aligned block onto its own line and closes it', () => {
+    const broken = String.raw`2b — $$\begin{aligned}
+\ln(x+2)&=\ln(2x)\\
+x+2&=2x\\
+x&=2>0`;
+    const out = normalizeMathDelimiters(broken);
+    expect(out).toContain('2b —\n\n$$\n\\begin{aligned}');
+    expect(out).toContain('\\end{aligned}\n$$');
+    expect((out.match(/\$\$/g) ?? [])).toHaveLength(2);
+  });
+
+  it('does not alter a complete aligned block', () => {
+    const complete = String.raw`$$
+\begin{aligned}
+x&=2
+\end{aligned}
+$$`;
+    expect(normalizeMathDelimiters(complete)).toBe(complete);
+  });
+});
+
 describe('Arabic-Indic digits in maths', () => {
   it('become Western digits inside a maths span', () => {
     expect(normalizeMathDelimiters('$x^٢ + ١$')).toBe('$x^2 + 1$');
