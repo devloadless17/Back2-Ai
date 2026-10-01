@@ -46,24 +46,6 @@ export type PlannerExam = {
   isBacExam: boolean;
 };
 
-type ProposedSession = {
-  chapterId: string | null;
-  chapterName: string | null;
-  title: string;
-  scheduledDate: string;
-  durationMinutes: number;
-  rationale: 'weak' | 'uncovered' | 'consolidate' | 'flashcards';
-};
-
-type SuggestResponse = {
-  examLabel: string;
-  examDate: string;
-  daysRemaining: number;
-  sessions: ProposedSession[];
-  /** Why the plan came back empty. Set only when it did. */
-  reason?: 'NO_DAYS_AVAILABLE' | 'NO_SYLLABUS';
-};
-
 export function SchedulePlanner({
   sessions,
   exams,
@@ -84,8 +66,6 @@ export function SchedulePlanner({
   const [busy, setBusy] = useState(false);
   const [movingId, setMovingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [proposal, setProposal] = useState<SuggestResponse | null>(null);
-  const [suggestingFor, setSuggestingFor] = useState(exams[0]?.id ?? '');
 
   /*
    * Which way the plan is shown.
@@ -131,33 +111,6 @@ export function SchedulePlanner({
    */
   const [date, setDate] = useState(todayKey);
   const [chapterId, setChapterId] = useState('');
-  /** Highlights the title field while a chapter is being dragged over it. */
-  const [dropActive, setDropActive] = useState(false);
-  const [chapterQuery, setChapterQuery] = useState('');
-
-  /*
-   * Filling the session from a chapter, however the student got here.
-   *
-   * One function behind three gestures — drop, click, Enter — because drag is
-   * the nicest of the three and the only one that does not work on a phone or
-   * from a keyboard. Building this as drag-only would have made the feature
-   * unavailable to most of the people using the product.
-   */
-  // NOT a hook, despite what it was called. It sets three pieces of state from
-  // a drop or a click, and the `use` prefix made React's rules-of-hooks reject
-  // both call sites — correctly, on the name alone, since a hook may not be
-  // called from a callback.
-  function pickChapter(chapter: { id: string; name: string }) {
-    setTitle(chapter.name);
-    setChapterId(chapter.id);
-    setDropActive(false);
-  }
-
-  // Cheap on a few hundred chapters, and it keeps the list usable — dragging
-  // from a list you have to scroll for a minute is worse than typing.
-  const chapterMatches = chapterQuery.trim()
-    ? chapters.filter((c) => c.name.toLowerCase().includes(chapterQuery.trim().toLowerCase())).slice(0, 8)
-    : chapters.slice(0, 8);
 
   // --- Exam add -----------------------------------------------------------
   const [examDate, setExamDate] = useState('');
@@ -243,44 +196,6 @@ export function SchedulePlanner({
     }
   }
 
-  async function suggest() {
-    if (!suggestingFor) return;
-    setBusy(true);
-    setError(null);
-    try {
-      const plan = await sendJson<SuggestResponse>('/api/schedule/suggest', 'POST', {
-        upcomingExamId: suggestingFor,
-      });
-      setProposal(plan);
-    } catch {
-      setError(t.common.unknownError);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function acceptPlan() {
-    if (!proposal) return;
-    setBusy(true);
-    try {
-      await sendJson('/api/schedule', 'POST', {
-        sessions: proposal.sessions.map((session) => ({
-          title: session.title,
-          scheduledDate: session.scheduledDate,
-          chapterId: session.chapterId,
-          durationMinutes: session.durationMinutes,
-          source: 'ai_suggested',
-        })),
-      });
-      setProposal(null);
-      router.refresh();
-    } catch {
-      setError(t.common.unknownError);
-    } finally {
-      setBusy(false);
-    }
-  }
-
   const byDate = new Map<string, PlannerSession[]>();
   for (const session of sessions) {
     byDate.set(session.scheduledDate, [...(byDate.get(session.scheduledDate) ?? []), session]);
@@ -291,81 +206,6 @@ export function SchedulePlanner({
   return (
     <div className="space-y-5">
       {error && <Alert tone="error">{error}</Alert>}
-
-      {/*
-        AN EMPTY PLAN IS AN ANSWER, AND IT HAS TO SAY SO.
-
-        The planner works on the days between tomorrow and the day before the
-        exam, so an exam tomorrow leaves it nothing to place. That used to
-        render as the staging card with an empty list under it — a student who
-        pressed the button was shown a plan with no sessions in it and no
-        explanation, which reads as the feature being broken.
-      */}
-      {proposal && proposal.sessions.length === 0 && (
-        <Sheet className="animate-fade-up">
-          <SheetHeader
-            title={t.schedule.suggestedTitle}
-            description={`${proposal.examLabel} · ${formatDate(proposal.examDate)}`}
-          />
-          <SheetBody className="space-y-3">
-            <p className="text-sm text-ink-muted">
-              {proposal.reason === 'NO_SYLLABUS'
-                ? t.schedule.nothingToPlanSyllabus
-                : t.schedule.nothingToPlanSoon}
-            </p>
-            <Button variant="quiet" onClick={() => setProposal(null)}>
-              {t.schedule.discardPlan}
-            </Button>
-          </SheetBody>
-        </Sheet>
-      )}
-
-      {/* --- Proposed plan (staging) --- */}
-      {proposal && proposal.sessions.length > 0 && (
-        <Sheet className="animate-fade-up border-primary/30">
-          <SheetHeader
-            title={t.schedule.suggestedTitle}
-            description={`${proposal.examLabel} · ${formatDate(proposal.examDate)} · ${proposal.daysRemaining}`}
-          />
-          <SheetBody className="p-0">
-            <p className="px-5 py-3 text-meta text-ink-muted">{t.schedule.suggestedBody}</p>
-            <ul className="ruled max-h-96 overflow-y-auto">
-              {proposal.sessions.map((session, index) => (
-                <li key={`${session.scheduledDate}-${index}`} className="flex items-baseline gap-3 px-5 py-2.5">
-                  <span className="w-24 shrink-0 text-caption tabular-nums text-ink-faint">
-                    {session.scheduledDate}
-                  </span>
-                  <span className="min-w-0 flex-1 text-body text-ink">{session.title}</span>
-                  <Badge tone={session.rationale === 'uncovered' ? 'mark' : session.rationale === 'weak' ? 'partial' : 'neutral'}>
-                    {session.chapterName ?? t.flashcards.title}
-                  </Badge>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setProposal({
-                        ...proposal,
-                        sessions: proposal.sessions.filter((_, i) => i !== index),
-                      })
-                    }
-                    className="shrink-0 text-caption text-ink-faint hover:text-mark"
-                    aria-label={t.common.delete}
-                  >
-                    ×
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </SheetBody>
-          <SheetFooter className="justify-end">
-            <Button variant="quiet" onClick={() => setProposal(null)}>
-              {t.schedule.discardPlan}
-            </Button>
-            <Button variant="primary" onClick={acceptPlan} loading={busy}>
-              {t.schedule.acceptPlan}
-            </Button>
-          </SheetFooter>
-        </Sheet>
-      )}
 
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
         {/* --- The calendar --- */}
@@ -520,84 +360,16 @@ export function SchedulePlanner({
           <Sheet id="add-session">
             <SheetHeader title={t.schedule.addSession} />
             <SheetBody className="space-y-3">
-              {/*
-                The title field doubles as a drop target.
-
-                Typing still works and is untouched — this only adds a second
-                way in. `onDragOver` has to call `preventDefault` or the browser
-                refuses the drop, which is the usual reason a drop target looks
-                right and does nothing.
-              */}
-              <Field label={t.schedule.sessionTitle} hint={t.schedule.dropHint}>
+              <Field label={t.schedule.sessionTitle}>
                 {({ id }) => (
                   <Input
                     id={id}
                     value={title}
                     onChange={(event) => setTitle(event.target.value)}
-                    onDragOver={(event) => {
-                      event.preventDefault();
-                      setDropActive(true);
-                    }}
-                    onDragLeave={() => setDropActive(false)}
-                    onDrop={(event) => {
-                      event.preventDefault();
-                      const id = event.dataTransfer.getData('text/chapter-id');
-                      const name = event.dataTransfer.getData('text/plain');
-                      if (id && name) pickChapter({ id, name });
-                    }}
-                    className={cn(dropActive && 'border-primary bg-primary-soft')}
                   />
                 )}
               </Field>
 
-              {/*
-                The chapters, draggable.
-
-                They were already reachable through the select below, which
-                answers "link this to a chapter" but not "what should I study?".
-                This list answers the second question: it is the same data, put
-                where the decision is actually made, and picking one fills the
-                title and the link together.
-              */}
-              <div className="rounded-lg border border-rule bg-paper-sunken/50 p-2.5">
-                <Input
-                  value={chapterQuery}
-                  onChange={(event) => setChapterQuery(event.target.value)}
-                  placeholder={t.schedule.chapterSearch}
-                  aria-label={t.schedule.chapterSearch}
-                  className="mb-2 h-8 text-caption"
-                />
-                <ul className="max-h-44 space-y-1 overflow-y-auto">
-                  {chapterMatches.map((chapter) => (
-                    <li key={chapter.id}>
-                      <button
-                        type="button"
-                        draggable
-                        onDragStart={(event) => {
-                          event.dataTransfer.setData('text/chapter-id', chapter.id);
-                          event.dataTransfer.setData('text/plain', chapter.name);
-                          event.dataTransfer.effectAllowed = 'copy';
-                        }}
-                        onDragEnd={() => setDropActive(false)}
-                        onClick={() => pickChapter(chapter)}
-                        className={cn(
-                          'w-full cursor-grab rounded px-2.5 py-1.5 text-start text-caption',
-                          'text-ink-muted transition-colors duration-150',
-                          'hover:bg-primary-soft hover:text-ink active:cursor-grabbing',
-                          chapterId === chapter.id && 'bg-primary-soft font-medium text-ink',
-                        )}
-                      >
-                        {chapter.name}
-                      </button>
-                    </li>
-                  ))}
-                  {chapterMatches.length === 0 && (
-                    <li className="px-2.5 py-1.5 text-caption text-ink-faint">
-                      {t.performance.noDataHint}
-                    </li>
-                  )}
-                </ul>
-              </div>
               <Field label={t.schedule.date}>
                 {({ id }) => (
                   <Input
@@ -624,39 +396,6 @@ export function SchedulePlanner({
             <SheetFooter className="justify-end">
               <Button variant="primary" size="sm" onClick={addSession} loading={busy}>
                 {t.common.save}
-              </Button>
-            </SheetFooter>
-          </Sheet>
-
-          {/* --- Suggest --- */}
-          <Sheet>
-            <SheetHeader title={t.schedule.suggest} description={t.schedule.suggestFor} />
-            <SheetBody className="space-y-3">
-              {exams.length === 0 ? (
-                <p className="text-sm text-ink-muted">{t.schedule.noUpcomingExams}</p>
-              ) : (
-                <Select
-                  value={suggestingFor}
-                  onChange={(event) => setSuggestingFor(event.target.value)}
-                  aria-label={t.schedule.suggestFor}
-                >
-                  {exams.map((exam) => (
-                    <option key={exam.id} value={exam.id}>
-                      {exam.label} · {exam.examDate}
-                    </option>
-                  ))}
-                </Select>
-              )}
-            </SheetBody>
-            <SheetFooter className="justify-end">
-              <Button
-                variant="primary"
-                size="sm"
-                onClick={suggest}
-                loading={busy}
-                disabled={exams.length === 0}
-              >
-                {busy ? t.schedule.suggesting : t.schedule.suggest}
               </Button>
             </SheetFooter>
           </Sheet>

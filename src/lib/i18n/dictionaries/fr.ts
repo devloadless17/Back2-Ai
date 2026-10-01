@@ -619,11 +619,11 @@ export const fr: Dictionary = {
     sessionCompleteBody: 'Vous avez révisé {count} fiches. {again} reviendront aujourd’hui.',
     emptyDeck: 'Aucune fiche pour l’instant',
     emptyDeckHint:
-      'Les fiches sont créées à partir des questions que vous travaillez. Répondez-en quelques-unes pour constituer votre paquet.',
-    seedTitle: 'Démarrer un paquet à partir de votre manuel',
+      'Votre premier paquet est créé automatiquement à partir de votre manuel et des corrigés officiels.',
+    seedTitle: 'Ajouter des cartes depuis votre cours',
     seedHint:
-      'Choisissez un chapitre et nous écrirons dix cartes à partir de ses propres passages — inutile de l’avoir travaillé avant.',
-    seedCta: 'Générer 10 cartes',
+      'Votre premier paquet est créé automatiquement. Choisissez un chapitre ici pour ajouter dix cartes tirées de son manuel et des corrigés officiels.',
+    seedCta: 'Ajouter 10 cartes',
     seedGenerating: 'Rédaction des cartes…',
     seedAdded: '{count} cartes ajoutées à votre paquet.',
     seedNone:

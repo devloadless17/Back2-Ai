@@ -159,7 +159,9 @@ export async function SubjectRings({
 
                 {subject.chapterCount !== undefined ? (
                   <span className="numeric mt-1.5 text-micro text-ink-faint">
-                    {subject.chapterCount} · {subject.questionCount}
+                    {format(t.hub.chapterCount, { count: subject.chapterCount })}
+                    {' · '}
+                    {format(t.hub.questionCount, { count: subject.questionCount ?? 0 })}
                   </span>
                 ) : null}
               </span>

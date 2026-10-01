@@ -643,11 +643,11 @@ export const en = {
     sessionCompleteBody: 'You reviewed {count} cards. {again} will come back today.',
     emptyDeck: 'No cards yet',
     emptyDeckHint:
-      'Cards are created from questions you practise — or written from a chapter of your textbook, below.',
-    seedTitle: 'Start a deck from your textbook',
+      'Your first deck is created automatically from your textbook and official exam answers.',
+    seedTitle: 'Add more cards from your course',
     seedHint:
-      'Pick a chapter and we will write ten cards from its own passages — you do not have to practise it first.',
-    seedCta: 'Generate 10 cards',
+      'Your first deck is created automatically. Choose a chapter here whenever you want ten more cards from its textbook passages and official exam answers.',
+    seedCta: 'Add 10 more cards',
     seedGenerating: 'Writing cards…',
     seedAdded: '{count} cards added to your deck.',
     seedNone:

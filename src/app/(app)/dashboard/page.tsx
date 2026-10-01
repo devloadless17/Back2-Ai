@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 
 import { SubjectCircles, type SubjectCircle } from '@/components/dashboard/subject-circles';
+import { LinkButton } from '@/components/ui/button';
 import { requireUser } from '@/lib/auth/guards';
 import { getTranslations } from '@/lib/i18n';
 import { format } from '@/lib/i18n/format';
@@ -44,6 +45,7 @@ export default async function DashboardPage() {
   });
 
   const firstName = user.displayName?.split(' ')[0] ?? '';
+  const hasActivity = subjectCircles.some((subject) => subject.attemptsCount > 0);
   // The title is a template with one word lifted out, so the highlighted word
   // can sit where each language puts it rather than always last.
   const [before, after] = t.dashboard.homeTitle.split('{word}');
@@ -68,6 +70,14 @@ export default async function DashboardPage() {
           <SubjectCircles subjects={subjectCircles} />
         )}
       </div>
+
+      {!hasActivity && subjectCircles.length > 0 && (
+        <p className="mt-8 text-center">
+          <LinkButton href={`/practice/${subjectCircles[0]!.subjectId}`} variant="primary">
+            {t.dashboard.noActivityCta}
+          </LinkButton>
+        </p>
+      )}
 
       <p className="mt-10 text-center">
         <Link href="/progress" className="text-meta font-medium text-ink-muted hover:text-ink hover:underline">
