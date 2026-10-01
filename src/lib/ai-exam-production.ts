@@ -12,7 +12,7 @@ import { selectVisualsFor } from '@/lib/visual-evidence';
 import { getObject } from '@/lib/storage';
 import { findNearDuplicate, setEmbedding } from '@/lib/vector';
 import { studentPassage } from '@/lib/source-passage';
-import { isWholeFrenchPaper } from '@/lib/question-shape';
+import { isUnusableFrenchExercise } from '@/lib/question-shape';
 
 const criterion = z.object({ partId: z.string(), criterion: z.string().min(5), points: z.number().positive() });
 const outputSchema = z.object({
@@ -75,8 +75,8 @@ async function produceExercise(b: AiExamBlueprint, order: number, paperId: strin
     },
     select: { id: true, contentText: true, contentLatex: true, contentImages: true, sourcePassage: true, officialSolution: true, bareme: true },
   });
-  if (refs.length !== plan.referenceIds.length || refs.some((r) => !parseBareme(r.bareme) || isWholeFrenchPaper(r.contentText))) throw new Error('Every reference must be one verified exam exercise available to this subject with a readable marking scheme.');
   const subject = await db.subject.findUniqueOrThrow({ where: { id: b.subjectId }, select: { name: true, language: true } });
+  if (refs.length !== plan.referenceIds.length || refs.some((r) => !parseBareme(r.bareme) || (subject.name === 'Francais' && isUnusableFrenchExercise(r.contentText)))) throw new Error('Every reference must be one verified exam exercise available to this subject with a readable marking scheme.');
   const material = await db.contentChunk.findMany({
     where: { chapters: { some: { chapterId: plan.chapterId } } },
     select: { title: true, contentText: true, sourcePageFrom: true },
@@ -190,7 +190,7 @@ export async function buildOnDemandBlueprint(subjectId: string): Promise<AiExamB
   ]);
 
   const references = candidates.filter(
-    (question) => Boolean(parseBareme(question.bareme)) && !isWholeFrenchPaper(question.contentText),
+    (question) => Boolean(parseBareme(question.bareme)) && (subject?.name !== 'Francais' || !isUnusableFrenchExercise(question.contentText)),
   );
   if (!subject || chapters.length < 3 || references.length < 3) {
     throw new Error('This subject needs at least three textbook chapters and three marked exam references.');

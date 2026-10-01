@@ -10,7 +10,7 @@ import { db } from '@/lib/db';
 import { getTranslations } from '@/lib/i18n';
 import { dirForLanguage } from '@/lib/i18n/config';
 import { oneCopyEach, questionKey, seenQuestionKeys } from '@/lib/queries/seen-questions';
-import { isWholeFrenchPaper } from '@/lib/question-shape';
+import { isUnusableFrenchExercise } from '@/lib/question-shape';
 import { getChapterForTrack } from '@/lib/queries/taxonomy';
 import { visualKeysFor } from '@/lib/visual-evidence';
 
@@ -82,7 +82,7 @@ export default async function ChapterQuizPage({
   });
   // Unseen in ANY copy, and one copy each — see `questionKey`.
   const unseen = oneCopyEach(
-    candidates.filter((q) => !isWholeFrenchPaper(q.contentText) && !seenKeys.has(questionKey(q.contentText))),
+    candidates.filter((q) => chapter.subject.name !== 'Francais' || (!isUnusableFrenchExercise(q.contentText) && !seenKeys.has(questionKey(q.contentText)))),
   ).slice(0, QUIZ_LENGTH);
 
   // Top up with seen questions when the chapter does not have enough fresh
@@ -106,7 +106,7 @@ export default async function ChapterQuizPage({
   // The one visual selector — the same call Zaki's retrieval makes.
   // A seen question in the top-up may be another copy of an unseen one above.
   const chosen = oneCopyEach([...unseen, ...topUp]).filter(
-    (question) => !isWholeFrenchPaper(question.contentText),
+    (question) => chapter.subject.name !== 'Francais' || !isUnusableFrenchExercise(question.contentText),
   );
   const visualKeys = await visualKeysFor(chosen);
 
