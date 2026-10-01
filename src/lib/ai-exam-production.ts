@@ -12,7 +12,7 @@ import { selectVisualsFor } from '@/lib/visual-evidence';
 import { getObject } from '@/lib/storage';
 import { findNearDuplicate, setEmbedding } from '@/lib/vector';
 import { studentPassage } from '@/lib/source-passage';
-import { isUnusableFrenchExercise } from '@/lib/question-shape';
+import { isMissingRequiredPassage, isUnusableFrenchExercise } from '@/lib/question-shape';
 
 const criterion = z.object({ partId: z.string(), criterion: z.string().min(5), points: z.number().positive() });
 const outputSchema = z.object({
@@ -76,7 +76,7 @@ async function produceExercise(b: AiExamBlueprint, order: number, paperId: strin
     select: { id: true, contentText: true, contentLatex: true, contentImages: true, sourcePassage: true, officialSolution: true, bareme: true },
   });
   const subject = await db.subject.findUniqueOrThrow({ where: { id: b.subjectId }, select: { name: true, language: true } });
-  if (refs.length !== plan.referenceIds.length || refs.some((r) => !parseBareme(r.bareme) || (subject.name === 'Francais' && isUnusableFrenchExercise(r.contentText)))) throw new Error('Every reference must be one verified exam exercise available to this subject with a readable marking scheme.');
+  if (refs.length !== plan.referenceIds.length || refs.some((r) => !parseBareme(r.bareme) || isMissingRequiredPassage(r.contentText, r.sourcePassage) || (subject.name === 'Francais' && isUnusableFrenchExercise(r.contentText)))) throw new Error('Every reference must be one verified exam exercise available to this subject with a readable marking scheme.');
   const material = await db.contentChunk.findMany({
     where: { chapters: { some: { chapterId: plan.chapterId } } },
     select: { title: true, contentText: true, sourcePageFrom: true },
@@ -183,14 +183,16 @@ export async function buildOnDemandBlueprint(subjectId: string): Promise<AiExamB
         verifiedStatus: { not: 'rejected' },
         bareme: { not: Prisma.JsonNull },
       },
-      select: { id: true, difficulty: true, bareme: true, contentText: true },
+      select: { id: true, difficulty: true, bareme: true, contentText: true, sourcePassage: true },
       orderBy: [{ sourceExam: { year: 'desc' } }, { orderIndex: 'asc' }, { id: 'asc' }],
       take: 100,
     }),
   ]);
 
   const references = candidates.filter(
-    (question) => Boolean(parseBareme(question.bareme)) && (subject?.name !== 'Francais' || !isUnusableFrenchExercise(question.contentText)),
+    (question) => Boolean(parseBareme(question.bareme)) &&
+      !isMissingRequiredPassage(question.contentText, question.sourcePassage) &&
+      (subject?.name !== 'Francais' || !isUnusableFrenchExercise(question.contentText)),
   );
   if (!subject || chapters.length < 3 || references.length < 3) {
     throw new Error('This subject needs at least three textbook chapters and three marked exam references.');

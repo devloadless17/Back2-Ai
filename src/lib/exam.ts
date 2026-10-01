@@ -18,7 +18,7 @@ import {
 } from '@/lib/grading';
 import type { Locale } from '@/lib/i18n/config';
 import { bodyToRender } from '@/lib/question-body';
-import { isUnusableFrenchExercise } from '@/lib/question-shape';
+import { isMissingRequiredPassage, isUnusableFrenchExercise } from '@/lib/question-shape';
 import { recomputeChapterMastery, resolveCreditChapter } from '@/lib/queries/progress';
 import { rescaleBaremes } from '@/lib/rescale-bareme';
 import { oneCopyEach, questionKey, seenQuestionKeys } from '@/lib/queries/seen-questions';
@@ -152,6 +152,7 @@ async function startFromRealPool(input: StartInput): Promise<{ id: string }> {
       bareme: true,
       difficulty: true,
       contentText: true,
+      sourcePassage: true,
       contentImages: true,
       questionType: true,
       ...(shared
@@ -192,7 +193,9 @@ async function startFromRealPool(input: StartInput): Promise<{ id: string }> {
    */
   const isSeen = (q: { contentText: string }) => seenKeys.has(questionKey(q.contentText));
   const pool = oneCopyEach(allCopies).filter(
-    (question) => subject?.name !== 'Francais' || !isUnusableFrenchExercise(question.contentText),
+    (question) =>
+      !isMissingRequiredPassage(question.contentText, question.sourcePassage) &&
+      (subject?.name !== 'Francais' || !isUnusableFrenchExercise(question.contentText)),
   );
 
   /*

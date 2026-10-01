@@ -13,7 +13,7 @@ import { getTranslations } from '@/lib/i18n';
 import { dirForLanguage } from '@/lib/i18n/config';
 import { getChapterForTrack } from '@/lib/queries/taxonomy';
 import { oneCopyEach, questionKey, seenQuestionKeys } from '@/lib/queries/seen-questions';
-import { isUnusableFrenchExercise } from '@/lib/question-shape';
+import { isMissingRequiredPassage, isUnusableFrenchExercise } from '@/lib/question-shape';
 import { visualKeysFor } from '@/lib/visual-evidence';
 
 export const metadata: Metadata = { title: 'Practice' };
@@ -107,7 +107,9 @@ export default async function ChapterPracticePage({
   // see `questionKey`. Without this a chapter could list one exercise twice,
   // and offer the second copy as new to a student who had answered the first.
   const questions = oneCopyEach(allCopies).filter(
-    (question) => chapter.subject.name !== 'Francais' || !isUnusableFrenchExercise(question.contentText),
+    (question) =>
+      !isMissingRequiredPassage(question.contentText, question.sourcePassage) &&
+      (chapter.subject.name !== 'Francais' || !isUnusableFrenchExercise(question.contentText)),
   );
 
   // The one visual selector — the same call Zaki's retrieval makes.
