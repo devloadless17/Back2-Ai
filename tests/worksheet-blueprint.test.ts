@@ -60,4 +60,15 @@ describe('worksheet subject blueprints', () => {
       ['normal-new', 0], ['normal-new', 1], ['normal-new', 2],
     ]);
   });
+
+  it('rejects a whole paper when one of its exercises is unusable', () => {
+    const selected = selectOfficialCycle([
+      { sourceExamId: 'damaged', orderIndex: 0, year: 2025, usable: true },
+      { sourceExamId: 'damaged', orderIndex: 1, year: 2025, usable: false },
+      { sourceExamId: 'complete', orderIndex: 1, year: 2024, usable: true },
+      { sourceExamId: 'complete', orderIndex: 0, year: 2024, usable: true },
+    ]);
+    expect(selected.map((item) => item.sourceExamId)).toEqual(['complete', 'complete']);
+    expect(selected.map((item) => item.orderIndex)).toEqual([0, 1]);
+  });
 });

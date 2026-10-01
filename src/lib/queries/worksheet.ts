@@ -1,6 +1,7 @@
 import 'server-only';
 
 import { db } from '@/lib/db';
+import { missingVisual } from '@/lib/question-kind';
 import { isMissingRequiredPassage, isUnusableFrenchExercise } from '@/lib/question-shape';
 import {
   followsWorksheetBlueprint,
@@ -85,13 +86,16 @@ export async function buildWorksheet(input: {
       bareme: unknown;
       source_exam_id: string | null;
       order_index: number | null;
+      content_images: string[] | null;
+      has_visual: boolean;
     }[]
   >`
     WITH pool AS (
       SELECT DISTINCT ON (q.id)
              q.id, c.name AS chapter_name, ec.year,
              q.content_text, q.content_latex, q.official_solution, q.source_passage, q.bareme,
-             q.source_exam_id, q.order_index
+             q.source_exam_id, q.order_index, q.content_images,
+             EXISTS (SELECT 1 FROM question_visuals qv WHERE qv.question_id = q.id) AS has_visual
         FROM questions q
         -- question_chapters, not chapter_id: what a chapter may SERVE, which is
         -- what the quiz uses and what the chapter counts show. Filing is a
@@ -103,16 +107,23 @@ export async function buildWorksheet(input: {
          AND q.verified_status <> 'rejected'
          AND length(q.content_text) >= 80
          AND (${chapterIds}::uuid[] IS NULL OR qc.chapter_id = ANY(${chapterIds}::uuid[]))
-         AND (${input.withSchemeOnly} = false
-              OR (q.bareme IS NOT NULL AND jsonb_array_length(q.bareme) > 0))
     )
     SELECT *
       FROM pool
      ORDER BY year DESC NULLS LAST, id`;
 
-  const eligible = rows.filter((row) => {
+  const isUsable = (row: (typeof rows)[number]) => {
     if (!followsWorksheetBlueprint(subject.name, row.content_text)) return false;
     if (subject.name === 'Francais' && isUnusableFrenchExercise(row.content_text)) return false;
+    if (
+      missingVisual(row.content_text) &&
+      (row.content_images?.length ?? 0) === 0 &&
+      !row.has_visual
+    ) return false;
+    if (
+      input.withSchemeOnly &&
+      (!Array.isArray(row.bareme) || row.bareme.length === 0)
+    ) return false;
 
     // Long language rows contain the passage followed by its questions in the
     // same record. The generic missing-passage guard is for short questions
@@ -120,13 +131,15 @@ export async function buildWorksheet(input: {
     // sections merely because source_passage was not split during OCR.
     const passageIsEmbedded = row.content_text.length >= 1500;
     return passageIsEmbedded || !isMissingRequiredPassage(row.content_text, row.source_passage);
-  });
+  };
+  const eligible = rows.filter(isUsable);
   const selected = blueprint.selection === 'official_cycle'
     ? selectOfficialCycle(
-        eligible.map((row) => ({
+        rows.map((row) => ({
           ...row,
           sourceExamId: row.source_exam_id,
           orderIndex: row.order_index,
+          usable: isUsable(row),
         })),
       )
     : eligible.slice(0, blueprint.count ?? 0);

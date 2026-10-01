@@ -39,6 +39,7 @@ export type WorksheetBlueprintRow = {
   sourceExamId: string | null;
   orderIndex: number | null;
   year: number | null;
+  usable?: boolean;
 };
 
 /** Select one real paper whose size is representative of this subject's corpus. */
@@ -52,7 +53,10 @@ export function selectOfficialCycle<T extends WorksheetBlueprintRow>(rows: T[]):
   }
   if (cycles.size === 0) return [];
 
-  const groups = [...cycles.values()];
+  // Reject the whole source paper when even one exercise is unusable. Dropping
+  // only that row would create a neat-looking worksheet with a structural hole.
+  const groups = [...cycles.values()].filter((group) => group.every((row) => row.usable !== false));
+  if (groups.length === 0) return [];
   const sizes = groups.map((group) => group.length).sort((a, b) => a - b);
   const median = sizes[Math.floor(sizes.length / 2)]!;
   groups.sort((a, b) => {
