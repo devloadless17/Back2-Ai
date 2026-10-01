@@ -280,6 +280,19 @@ async function main() {
           (path !== '/performance' || page.body.includes('/progress')),
         `status ${page.status}${page.location ? ` location ${page.location}` : ''}`,
       );
+      if (page.status === 200) {
+        const rendered = visibleText(page.body);
+        check(
+          `  …${path} has no visibly broken encoding`,
+          !/[�]|Ã[\x80-\xBF]|Â[\x80-\xBF]|â(?:€™|€œ|€|€“|€”)/u.test(rendered),
+          rendered.match(/[�]|Ã[\x80-\xBF]|Â[\x80-\xBF]|â(?:€™|€œ|€|€“|€”)/u)?.[0] ?? '',
+        );
+        check(
+          `  …${path} stays below the 600 KB HTML ceiling`,
+          Buffer.byteLength(page.body) < 600 * 1024,
+          `${Math.round(Buffer.byteLength(page.body) / 1024)} KB`,
+        );
+      }
     }
   }
 
