@@ -61,31 +61,33 @@ export async function getNextUp(
     };
   }
 
-  // A chapter with questions in it that the student has never attempted. The
-  // question count matters: sending someone to an empty chapter as their "next
-  // best action" is worse than saying nothing.
-  for (const subject of progress) {
-    const untouched = subject.chapters.find((chapter) => chapter.attemptsCount === 0);
-    if (!untouched) continue;
+  // Resolve availability once for every untouched chapter. The previous loop
+  // issued one count query per candidate until it found a usable chapter; on a
+  // new account that could mean dozens of serial database round trips.
+  const untouched = progress.flatMap((subject) =>
+    subject.chapters
+      .filter((chapter) => chapter.attemptsCount === 0)
+      .map((chapter) => ({ ...chapter, subjectName: subject.subjectName })),
+  );
+  const availableRows = untouched.length === 0
+    ? []
+    : await db.questionChapter.findMany({
+        where: {
+          chapterId: { in: untouched.map((chapter) => chapter.chapterId) },
+          question: { verifiedStatus: { not: 'rejected' } },
+        },
+        select: { chapterId: true },
+        distinct: ['chapterId'],
+      });
+  const available = new Set(availableRows.map((row) => row.chapterId));
+  const nextUntouched = untouched.find((chapter) => available.has(chapter.chapterId));
 
-    /*
-     * What the chapter can SERVE (`question_chapters`), which is what the
-     * practice page lists — not what is FILED under it. Counting filed rows
-     * sent a student to "Caractéristiques de position" on production, where
-     * its one question had no `question_chapters` row, and the page it opened
-     * said there were no questions.
-     */
-    const hasQuestions = await db.questionChapter.count({
-      where: { chapterId: untouched.chapterId, question: { verifiedStatus: { not: 'rejected' } } },
-      take: 1,
-    });
-    if (hasQuestions === 0) continue;
-
+  if (nextUntouched) {
     return {
       kind: 'newChapter',
-      href: `/practice/${subject.subjectId}/${untouched.chapterId}`,
-      chapterName: untouched.chapterName,
-      subjectName: subject.subjectName,
+      href: `/practice/${nextUntouched.subjectId}/${nextUntouched.chapterId}`,
+      chapterName: nextUntouched.chapterName,
+      subjectName: nextUntouched.subjectName,
     };
   }
 
