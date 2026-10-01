@@ -5,7 +5,7 @@ import { missingVisual } from '@/lib/question-kind';
 import { isMissingRequiredPassage, isUnusableFrenchExercise } from '@/lib/question-shape';
 import {
   followsWorksheetBlueprint,
-  hasBrokenWorksheetBoundaries,
+  repairWorksheetBoundaries,
   selectOfficialCycle,
   worksheetBlueprint,
 } from '@/lib/worksheet-blueprint';
@@ -114,7 +114,6 @@ export async function buildWorksheet(input: {
      ORDER BY year DESC NULLS LAST, id`;
 
   const isUsable = (row: (typeof rows)[number]) => {
-    if (hasBrokenWorksheetBoundaries(row.content_text)) return false;
     if (!followsWorksheetBlueprint(subject.name, row.content_text)) return false;
     if (subject.name === 'Francais' && isUnusableFrenchExercise(row.content_text)) return false;
     if (
@@ -146,14 +145,27 @@ export async function buildWorksheet(input: {
       )
     : eligible.slice(0, blueprint.count ?? 0);
 
-  const chapterNames = [...new Set(selected.map((r) => r.chapter_name))];
+  const displayRows = blueprint.selection === 'official_cycle' && !input.withSchemeOnly
+    ? repairWorksheetBoundaries(
+        // Repair the body the student actually sees. QuestionBody prefers the
+        // LaTeX transcription, and that copy can contain a section heading the
+        // plain OCR column lost.
+        selected.map((row) => ({ ...row, contentText: row.content_latex ?? row.content_text })),
+      ).map((row) => ({
+        ...row,
+        content_text: row.contentText,
+        content_latex: row.contentText,
+      }))
+    : selected;
+
+  const chapterNames = [...new Set(displayRows.map((r) => r.chapter_name))];
 
   return {
     subjectName: subject.name,
     subjectLanguage: String(subject.language),
     chapterNames,
     available: eligible.length,
-    questions: selected.map((row) => {
+    questions: displayRows.map((row) => {
       const bareme = Array.isArray(row.bareme)
         ? (row.bareme as { criterion?: unknown; points?: unknown }[])
             .filter((b) => typeof b?.criterion === 'string' && String(b.criterion).trim().length > 2)

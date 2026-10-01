@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   followsWorksheetBlueprint,
   hasBrokenWorksheetBoundaries,
+  repairWorksheetBoundaries,
   selectOfficialCycle,
   worksheetBlueprint,
 } from '@/lib/worksheet-blueprint';
@@ -95,7 +96,7 @@ describe('worksheet subject blueprints', () => {
     expect(selected.map((item) => item.sourceExamId)).toEqual(['fallback', 'fallback']);
   });
 
-  it('rejects OCR rows that contain a later official section heading', () => {
+  it('detects OCR rows that contain a later official section heading', () => {
     expect(
       hasBrokenWorksheetBoundaries(
         `${'A company exercise with its own questions. '.repeat(8)}\nIV- Logarithm and economic functions (5 points)`,
@@ -104,5 +105,22 @@ describe('worksheet subject blueprints', () => {
     expect(
       hasBrokenWorksheetBoundaries('IV- Logarithm and economic functions (5 points)\n1) Calculate the result.'),
     ).toBe(false);
+  });
+
+  it('splits merged sections and carries an orphan heading to its body', () => {
+    const rows = repairWorksheetBoundaries([
+      {
+        id: 'first',
+        contentText: `${'Section III body. '.repeat(10)}\nIV- Logarithms (5 points)\n${'Question table. '.repeat(12)}\nV- Supply and demand (5 points)`,
+      },
+      { id: 'second', contentText: 'A company produces units. Calculate the market equilibrium.' },
+    ]);
+    expect(rows).toHaveLength(3);
+    expect(rows[0]!.contentText).toContain('Section III body');
+    expect(rows[0]!.contentText).not.toContain('IV-');
+    expect(rows[1]!.contentText).toMatch(/^IV-/);
+    expect(rows[1]!.contentText).not.toMatch(/(?:^|\n)V-/);
+    expect(rows[2]!.contentText).toMatch(/^V- Supply and demand/);
+    expect(rows[2]!.contentText).toContain('A company produces units');
   });
 });

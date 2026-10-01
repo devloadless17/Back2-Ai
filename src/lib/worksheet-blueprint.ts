@@ -59,6 +59,49 @@ export function hasBrokenWorksheetBoundaries(text: string): boolean {
   return false;
 }
 
+type RepairableWorksheetRow = { id: string; contentText: string };
+
+/**
+ * Restore top-level sections that OCR joined across database rows.
+ * A short final chunk containing only the next section heading is carried onto
+ * the following row, while complete internal sections become their own items.
+ */
+export function repairWorksheetBoundaries<T extends RepairableWorksheetRow>(rows: T[]): T[] {
+  const repaired: T[] = [];
+  let pendingHeading = '';
+
+  for (const row of rows) {
+    const text = pendingHeading ? `${pendingHeading}\n${row.contentText}` : row.contentText;
+    pendingHeading = '';
+    const matches = [...text.matchAll(TOP_LEVEL_ROMAN_HEADING)];
+    const splitAt = matches.map((match) => match.index ?? 0).filter((index) => index > 120);
+    const starts = [0, ...splitAt];
+    const chunks = starts
+      .map((start, index) => text.slice(start, starts[index + 1] ?? text.length).trim())
+      .filter(Boolean);
+
+    const last = chunks.at(-1);
+    if (
+      chunks.length > 1 &&
+      last &&
+      last.length < 180 &&
+      /^\s*(?:I|II|III|IV|V|VI|VII|VIII)\s*[-–—.]\s*/.test(last)
+    ) {
+      pendingHeading = chunks.pop()!;
+    }
+
+    chunks.forEach((contentText, index) => {
+      repaired.push({ ...row, id: index === 0 ? row.id : `${row.id}:section-${index + 1}`, contentText });
+    });
+  }
+
+  if (pendingHeading && repaired.length > 0) {
+    const last = repaired[repaired.length - 1]!;
+    repaired[repaired.length - 1] = { ...last, contentText: `${last.contentText}\n${pendingHeading}` };
+  }
+  return repaired;
+}
+
 /** Select one real paper whose size is representative of this subject's corpus. */
 export function selectOfficialCycle<T extends WorksheetBlueprintRow>(rows: T[]): T[] {
   const cycles = new Map<string, T[]>();
