@@ -71,4 +71,26 @@ describe('worksheet subject blueprints', () => {
     expect(selected.map((item) => item.sourceExamId)).toEqual(['complete', 'complete']);
     expect(selected.map((item) => item.orderIndex)).toEqual([0, 1]);
   });
+
+  it('prefers a complete 2024 paper over a representative older paper', () => {
+    const selected = selectOfficialCycle([
+      { sourceExamId: 'older', orderIndex: 0, year: 2023, usable: true },
+      { sourceExamId: 'older', orderIndex: 1, year: 2023, usable: true },
+      { sourceExamId: 'older', orderIndex: 2, year: 2023, usable: true },
+      { sourceExamId: 'preferred', orderIndex: 1, year: 2024, usable: true },
+      { sourceExamId: 'preferred', orderIndex: 0, year: 2024, usable: true },
+    ]);
+    expect(selected.map((item) => item.sourceExamId)).toEqual(['preferred', 'preferred']);
+    expect(selected.map((item) => item.orderIndex)).toEqual([0, 1]);
+  });
+
+  it('falls back when the 2024 paper is damaged', () => {
+    const selected = selectOfficialCycle([
+      { sourceExamId: 'preferred', orderIndex: 0, year: 2024, usable: true },
+      { sourceExamId: 'preferred', orderIndex: 1, year: 2024, usable: false },
+      { sourceExamId: 'fallback', orderIndex: 0, year: 2023, usable: true },
+      { sourceExamId: 'fallback', orderIndex: 1, year: 2023, usable: true },
+    ]);
+    expect(selected.map((item) => item.sourceExamId)).toEqual(['fallback', 'fallback']);
+  });
 });

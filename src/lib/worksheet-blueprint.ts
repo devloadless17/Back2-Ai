@@ -42,6 +42,8 @@ export type WorksheetBlueprintRow = {
   usable?: boolean;
 };
 
+export const PREFERRED_WORKSHEET_YEAR = 2024;
+
 /** Select one real paper whose size is representative of this subject's corpus. */
 export function selectOfficialCycle<T extends WorksheetBlueprintRow>(rows: T[]): T[] {
   const cycles = new Map<string, T[]>();
@@ -60,6 +62,10 @@ export function selectOfficialCycle<T extends WorksheetBlueprintRow>(rows: T[]):
   const sizes = groups.map((group) => group.length).sort((a, b) => a - b);
   const median = sizes[Math.floor(sizes.length / 2)]!;
   groups.sort((a, b) => {
+    const aPreferred = a[0]?.year === PREFERRED_WORKSHEET_YEAR ? 1 : 0;
+    const bPreferred = b[0]?.year === PREFERRED_WORKSHEET_YEAR ? 1 : 0;
+    if (aPreferred !== bPreferred) return bPreferred - aPreferred;
+
     const distance = Math.abs(a.length - median) - Math.abs(b.length - median);
     if (distance !== 0) return distance;
     return (b[0]?.year ?? 0) - (a[0]?.year ?? 0);
