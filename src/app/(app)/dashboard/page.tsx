@@ -2,17 +2,10 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 
 import { SubjectCircles, type SubjectCircle } from '@/components/dashboard/subject-circles';
-import { streakFrom } from '@/components/dashboard/subject-rings';
-import { WelcomeHero } from '@/components/dashboard/welcome-hero';
-import { bandForMastery } from '@/components/ui/band';
 import { requireUser } from '@/lib/auth/guards';
-import { today, toStoredDate } from '@/lib/calendar';
-import { db } from '@/lib/db';
 import { getTranslations } from '@/lib/i18n';
-import { daysUntil } from '@/lib/i18n/format';
-import { attemptsByDay, weeklyEffort } from '@/lib/queries/activity';
+import { format } from '@/lib/i18n/format';
 import { getProgressForUser } from '@/lib/queries/progress';
-import { MIN_ATTEMPTS_FOR_WEAKNESS } from '@/lib/scoring/mastery';
 
 // Browser-tab titles are resolved per request from the user's locale, like
 // every other string — a hardcoded French title would follow an English-track
@@ -23,31 +16,18 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 /**
- * The dashboard: the welcome header, then the student's subjects.
+ * The dashboard: one light header and the student's subjects, nothing else.
  *
- * Kept to those two on request (2026-09-30). The next-move card, today's plan,
- * the marks table, chapter ranking, exams, activity and announcements each
- * still live on their own page — Progress, Planner, Flashcards — and a student
- * opening the app should meet their subjects, not a report about themselves.
+ * Cut down on request (2026-09-30, then 2026-10-01 for the blue banner). The
+ * plan, the next-move card, marks, rankings, exams and announcements each
+ * still live on their own page — Progress, Planner, Flashcards. A student
+ * opening the app meets one question and the subjects to answer it with.
  */
 export default async function DashboardPage() {
   const user = await requireUser();
   const { t } = await getTranslations();
 
-  const [progress, activity, todaySessions, week, nextExam] = await Promise.all([
-    getProgressForUser(user.id, user.trackId, user.preferredLanguage),
-    attemptsByDay(user.id, 14),
-    db.studySession.findMany({
-      where: { userId: user.id, scheduledDate: startOfToday() },
-      select: { status: true, durationMinutes: true },
-    }),
-    weeklyEffort(user.id),
-    db.upcomingExam.findFirst({
-      where: { userId: user.id, examDate: { gte: startOfToday() } },
-      select: { examDate: true },
-      orderBy: { examDate: 'asc' },
-    }),
-  ]);
+  const progress = await getProgressForUser(user.id, user.trackId, user.preferredLanguage);
 
   // One circle per subject; mean chapter mastery is the small figure under it.
   const subjectCircles: SubjectCircle[] = progress.map((subject) => {
@@ -63,63 +43,37 @@ export default async function DashboardPage() {
     };
   });
 
-  // Same threshold the planner uses, so the header's count means what "weak"
-  // means everywhere else.
-  const weakSpots = progress.reduce(
-    (count, subject) =>
-      count +
-      subject.chapters.filter(
-        (chapter) =>
-          chapter.attemptsCount >= MIN_ATTEMPTS_FOR_WEAKNESS &&
-          bandForMastery(chapter.masteryScore, chapter.attemptsCount) === 'weak',
-      ).length,
-    0,
-  );
-
-  const planned = todaySessions.filter((s) => s.status === 'planned');
+  const firstName = user.displayName?.split(' ')[0] ?? '';
+  // The title is a template with one word lifted out, so the highlighted word
+  // can sit where each language puts it rather than always last.
+  const [before, after] = t.dashboard.homeTitle.split('{word}');
 
   return (
-    <>
-      <WelcomeHero
-        firstName={user.displayName?.split(' ')[0] ?? ''}
-        sessionCount={planned.length}
-        totalMinutes={planned.reduce((sum, s) => sum + (s.durationMinutes ?? 0), 0)}
-        doneCount={todaySessions.filter((s) => s.status === 'done').length}
-        daysToExam={nextExam ? daysUntil(nextExam.examDate) : null}
-        streak={streakFrom(activity)}
-        weekAccuracy={week.accuracy}
-        weekAnswered={week.answered}
-        weakSpots={weakSpots}
-      />
+    <section className="home-band rounded-3xl px-5 pb-10 pt-12 sm:px-10 sm:pb-12 sm:pt-16">
+      {firstName && (
+        <p className="text-center text-meta font-medium text-ink-muted">
+          {format(t.dashboard.homeHello, { name: firstName })}
+        </p>
+      )}
+      <h1 className="mx-auto mt-2 max-w-3xl text-balance text-center font-display text-display font-bold leading-tight text-ink sm:text-hero">
+        {before}
+        <span className="home-word mx-1 inline-block rounded-2xl px-3 py-0.5">{t.dashboard.homeWord}</span>
+        {after}
+      </h1>
 
-      {/* Open, not boxed: a row of circles on the page itself, the way a
-          student picks a subject — no card around it, no table of figures. */}
-      <section className="py-6 sm:py-8">
-        <h2 className="mb-7 text-center font-display text-title font-bold text-ink">
-          {t.dashboard.yourSubjects}
-        </h2>
+      <div className="mt-10 sm:mt-12">
         {subjectCircles.length === 0 ? (
           <p className="text-center text-meta text-ink-muted">{t.dashboard.chaptersPending}</p>
         ) : (
           <SubjectCircles subjects={subjectCircles} />
         )}
-        <p className="mt-8 text-center">
-          <Link href="/progress" className="text-meta font-medium text-ink-muted hover:text-ink hover:underline">
-            {t.dashboard.allProgress}
-          </Link>
-        </p>
-      </section>
-    </>
-  );
-}
+      </div>
 
-/**
- * Midnight of the current BEIRUT day, as a `DATE` column compares it.
- *
- * Read the UTC date until now, which made Today, the due-card count and the
- * exam countdown all answer yesterday between local midnight and 02:00 or
- * 03:00. See `src/lib/calendar.ts`.
- */
-function startOfToday(): Date {
-  return toStoredDate(today());
+      <p className="mt-10 text-center">
+        <Link href="/progress" className="text-meta font-medium text-ink-muted hover:text-ink hover:underline">
+          {t.dashboard.allProgress}
+        </Link>
+      </p>
+    </section>
+  );
 }

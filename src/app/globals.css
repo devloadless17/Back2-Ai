@@ -520,6 +520,19 @@
    * `--tint` is set inline, because Tailwind reads class names out of the
    * source and one assembled from a template compiles to nothing.
    */
+  /* The dashboard's header band: a pale wash of the brand colour fading into
+     the page, no banner, no shapes. And the one highlighted word in its title. */
+  .home-band {
+    background-image: linear-gradient(180deg, hsl(var(--primary-soft)) 0%, hsl(var(--paper)) 100%);
+    box-shadow: inset 0 0 0 1px hsl(var(--primary) / 0.08);
+  }
+  .home-word {
+    color: hsl(var(--primary));
+    background-color: hsl(var(--paper-raised) / 0.6);
+    outline: 2px dashed hsl(var(--primary) / 0.45);
+    outline-offset: -2px;
+  }
+
   /* The dashboard's subject circles. `--hue` is set inline per subject; the
      lightness tokens flip with the theme so the same hue reads in both. */
   .subject-circle {
