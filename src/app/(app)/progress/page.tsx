@@ -17,7 +17,6 @@ import { getNextUp } from '@/lib/queries/next-up';
 import { getProgressForUser, rankChapters, rankStrongest } from '@/lib/queries/progress';
 import { recurringLosses } from '@/lib/queries/recurring-losses';
 import { getStanding } from '@/lib/queries/standing';
-import { listChaptersForTrack } from '@/lib/queries/taxonomy';
 import { markOutOf20, PASS_MARK, type MarkBand } from '@/lib/standing';
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -58,30 +57,20 @@ export default async function ProgressPage() {
   /*
    * One round of queries, issued together.
    *
-   * The Bac Map is the reason this matters: Track -> Subject -> Chapter over a
-   * GS track is 243 chapters across its subjects, and asking per subject would
-   * grow the query count with the curriculum. `listChaptersForTrack` is two
-   * queries for the whole track, and it shares its loader with the practice
-   * index so the two surfaces cannot disagree about a chapter.
-   *
-   * No question bodies are loaded. The map shows counts and links into the
-   * existing chapter page; shipping the corpus to a phone to draw a number
-   * would be a poor trade on a Lebanese mobile connection.
+   * Progress is the expensive shared snapshot. Standing and Next up both read
+   * the same result instead of recomputing all chapters and recent attempts.
+   * The programme map stays at subject level and links to the existing chapter
+   * index, so this response does not ship hundreds of closed rows to a phone.
    */
   const progressPromise = getProgressForUser(user.id, user.trackId, user.preferredLanguage);
   const schoolMarksPromise = schoolMarksBySubject(user.id);
   const lossesPromise = recurringLosses(user.id, { limit: 5 });
-  const chaptersPromise = user.trackId
-    ? listChaptersForTrack(user.trackId, user.id)
-    : Promise.resolve([]);
-
   const progress = await progressPromise;
-  const [standing, schoolMarks, next, losses, chapters] = await Promise.all([
+  const [standing, schoolMarks, next, losses] = await Promise.all([
     getStanding(user.id, user.trackId, user.preferredLanguage, progress),
     schoolMarksPromise,
     getNextUp(user.id, user.trackId, user.preferredLanguage, progress),
     lossesPromise,
-    chaptersPromise,
   ]);
 
   const scale = markOutOf20(1);
@@ -368,7 +357,7 @@ export default async function ProgressPage() {
           Progress wants to know where they stand; the map is what they come
           back to when they have decided to do something about it. */}
       <div className="mt-5">
-        <BacMap subjects={standing.subjects} chapters={chapters} />
+        <BacMap subjects={standing.subjects} />
       </div>
     </>
   );
