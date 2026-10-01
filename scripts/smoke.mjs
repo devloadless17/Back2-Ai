@@ -296,6 +296,34 @@ async function main() {
     }
   }
 
+  section('Past-paper content');
+  {
+    const index = await request('/old-cycles');
+    const subjectPaths = [...new Set(
+      [...index.body.matchAll(/href="(\/old-cycles\?subject=[0-9a-f-]{36})"/gi)].map((match) => match[1]),
+    )];
+    check('Past papers offers subject choices', subjectPaths.length > 0, `${subjectPaths.length} found`);
+
+    let readablePapers = 0;
+    for (const subjectPath of subjectPaths.slice(0, 12)) {
+      const subject = await request(subjectPath);
+      const paperPath = subject.body.match(/href="(\/old-cycles\/[0-9a-f-]{36})"/i)?.[1];
+      if (!paperPath) continue;
+
+      const paper = await request(paperPath);
+      const rendered = visibleText(paper.body);
+      const clean = !/[�]|Ã[\x80-\xBF]|Â[\x80-\xBF]|â(?:€™|€œ|€|€“|€”)/u.test(rendered);
+      const substantial = rendered.length > 250 && !rendered.includes('This paper has no questions loaded');
+      if (paper.status === 200 && clean && substantial) readablePapers += 1;
+      check(
+        `Open ${paperPath}`,
+        paper.status === 200 && clean && substantial,
+        `status ${paper.status}, visible characters ${rendered.length}`,
+      );
+    }
+    check('Every listed subject exposes a readable paper sample', readablePapers === subjectPaths.slice(0, 12).length);
+  }
+
   section('Privilege separation');
   {
     const adminPage = await request('/admin/review-queue');
