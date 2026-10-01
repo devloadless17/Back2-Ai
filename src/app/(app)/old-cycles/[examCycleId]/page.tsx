@@ -19,6 +19,7 @@ import { dirForLanguage } from '@/lib/i18n/config';
 import { OWN_EDITION_ONLY, paperScopeFor, subjectIdsForTrack } from '@/lib/queries/taxonomy';
 import { visualKeysFor } from '@/lib/visual-evidence';
 import { bodyToRender } from '@/lib/question-body';
+import { isForeignToFrenchCourse } from '@/lib/question-shape';
 
 export const metadata: Metadata = { title: 'Past paper' };
 
@@ -101,7 +102,11 @@ export default async function ExamCyclePage({
   if (!cycle) notFound();
 
   // The one visual selector — the same call Zaki's retrieval makes.
-  const visualKeys = await visualKeysFor(cycle.questions);
+  const paperQuestions =
+    cycle.subject.name === 'Francais'
+      ? cycle.questions.filter((question) => !isForeignToFrenchCourse(question.contentText))
+      : cycle.questions;
+  const visualKeys = await visualKeysFor(paperQuestions);
 
   /*
    * THE PAPER'S DIRECTION, NOT THE STUDENT'S.
@@ -121,8 +126,8 @@ export default async function ExamCyclePage({
   const paperDir = dirForLanguage(cycle.subject.language);
   // Shown unless the paper's own first question already prints it.
   const paperPassage = (() => {
-    const passage = cycle.questions.find((q) => q.sourcePassage?.trim())?.sourcePassage ?? null;
-    const first = (cycle.questions[0]?.contentText ?? '').replace(/\s+/g, '');
+    const passage = paperQuestions.find((q) => q.sourcePassage?.trim())?.sourcePassage ?? null;
+    const first = (paperQuestions[0]?.contentText ?? '').replace(/\s+/g, '');
     return passage && !first.includes(passage.replace(/\s+/g, '').slice(0, 60)) ? passage : null;
   })();
 
@@ -185,7 +190,7 @@ export default async function ExamCyclePage({
         {t.oldCycles.unscoredNotice} {t.oldCycles.paperNotice}
       </Alert>
 
-      {cycle.questions.length === 0 ? (
+      {paperQuestions.length === 0 ? (
         <EmptyState
           tone="pending"
           title={t.practice.emptyPaperTitle}
@@ -205,7 +210,7 @@ export default async function ExamCyclePage({
               fragments with the same hairline a mark scheme uses, rather than
               floating each one on its own card. */}
           <div className="ruled">
-            {cycle.questions.map((question) => {
+            {paperQuestions.map((question) => {
               const solution =
                 bodyToRender(question.officialSolutionLatex, question.officialSolution ?? '').trim() || null;
               return (

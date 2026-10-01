@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { ai } from '@/lib/ai';
 import { db } from '@/lib/db';
 import { isAiConfigured } from '@/lib/env';
+import { isUnusableFrenchExercise } from '@/lib/question-shape';
 
 /**
  * Flashcards written from the textbook, for chapters a student has not
@@ -229,7 +230,8 @@ export async function fillFlashcardBank(input: {
   const usableExamQuestions = examQuestions.filter(
     (question) =>
       usableFlashcardSourceText(question.contentText) &&
-      usableFlashcardSourceText(question.officialSolution),
+      usableFlashcardSourceText(question.officialSolution) &&
+      (chapter.subject.name !== 'Francais' || !isUnusableFrenchExercise(question.contentText)),
   );
   const usable = flashcardSources(usablePassages, usableExamQuestions);
 
