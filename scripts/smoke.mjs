@@ -320,6 +320,20 @@ async function main() {
         paper.status === 200 && clean && substantial,
         `status ${paper.status}, visible characters ${rendered.length}`,
       );
+
+      const figurePaths = [...new Set(
+        [...paper.body.matchAll(/<img[^>]+src="([^"]+)"/gi)]
+          .map((match) => match[1].replaceAll('&amp;', '&'))
+          .filter((src) => src.includes('/figures/')),
+      )];
+      for (const figurePath of figurePaths.slice(0, 3)) {
+        const figure = await request(figurePath);
+        check(
+          `  …loads figure ${figurePath.split('/').at(-1)}`,
+          figure.status === 200 && (figure.response.headers.get('content-type') ?? '').startsWith('image/'),
+          `status ${figure.status}, type ${figure.response.headers.get('content-type')}`,
+        );
+      }
     }
     check('Every listed subject exposes a readable paper sample', readablePapers === subjectPaths.slice(0, 12).length);
   }
