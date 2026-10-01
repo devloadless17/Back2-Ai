@@ -16,7 +16,7 @@ import {
 
 import { MIN_ATTEMPTS_FOR_READINESS } from '@/lib/scoring/readiness';
 
-import { getProgressForUser } from './progress';
+import { getProgressForUser, type SubjectProgress } from './progress';
 
 /**
  * The student's standing, assembled from the numbers the product already
@@ -171,6 +171,7 @@ export async function getStanding(
   userId: string,
   trackId: string | null,
   language: string,
+  preloadedProgress?: SubjectProgress[],
 ): Promise<Standing> {
   /*
    * Coverage no longer needs its own two queries.
@@ -183,7 +184,7 @@ export async function getStanding(
    * readiness by construction and two round trips disappear.
    */
   const [progress, activeDays, nextExam] = await Promise.all([
-    getProgressForUser(userId, trackId, language),
+    preloadedProgress ?? getProgressForUser(userId, trackId, language),
 
     db.attempt.findMany({
       where: { userId, attemptedAt: { gte: startOfMonth() } },

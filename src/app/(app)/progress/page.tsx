@@ -68,13 +68,21 @@ export default async function ProgressPage() {
    * existing chapter page; shipping the corpus to a phone to draw a number
    * would be a poor trade on a Lebanese mobile connection.
    */
-  const [standing, progress, schoolMarks, next, losses, chapters] = await Promise.all([
-    getStanding(user.id, user.trackId, user.preferredLanguage),
-    getProgressForUser(user.id, user.trackId, user.preferredLanguage),
-    schoolMarksBySubject(user.id),
-    getNextUp(user.id, user.trackId, user.preferredLanguage),
-    recurringLosses(user.id, { limit: 5 }),
-    user.trackId ? listChaptersForTrack(user.trackId, user.id) : Promise.resolve([]),
+  const progressPromise = getProgressForUser(user.id, user.trackId, user.preferredLanguage);
+  const schoolMarksPromise = schoolMarksBySubject(user.id);
+  const nextPromise = getNextUp(user.id, user.trackId, user.preferredLanguage);
+  const lossesPromise = recurringLosses(user.id, { limit: 5 });
+  const chaptersPromise = user.trackId
+    ? listChaptersForTrack(user.trackId, user.id)
+    : Promise.resolve([]);
+
+  const progress = await progressPromise;
+  const [standing, schoolMarks, next, losses, chapters] = await Promise.all([
+    getStanding(user.id, user.trackId, user.preferredLanguage, progress),
+    schoolMarksPromise,
+    nextPromise,
+    lossesPromise,
+    chaptersPromise,
   ]);
 
   const scale = markOutOf20(1);
