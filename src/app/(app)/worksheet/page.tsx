@@ -6,7 +6,7 @@ import { BackLink } from '@/components/ui/back-link';
 import { requireUser } from '@/lib/auth/guards';
 import { getTranslations } from '@/lib/i18n';
 import { listChapters, listSubjectsForStudent } from '@/lib/queries/taxonomy';
-import { MAX_QUESTIONS, buildWorksheet } from '@/lib/queries/worksheet';
+import { buildWorksheet } from '@/lib/queries/worksheet';
 import { dirForLanguage } from '@/lib/i18n/config';
 
 export const metadata: Metadata = { title: 'Worksheet' };
@@ -47,7 +47,6 @@ export default async function WorksheetPage({
   const subjects = await listSubjectsForStudent(user.trackId, user.preferredLanguage);
   const subjectId = one('subject') ?? '';
   const chapterIds = (one('chapters') ?? '').split(',').filter(Boolean);
-  const count = Number(one('count') ?? '8');
   const withSchemeOnly = one('key') === '1';
   const showKey = one('key') === '1';
 
@@ -74,7 +73,6 @@ export default async function WorksheetPage({
     ? await buildWorksheet({
         subjectId,
         chapterIds,
-        count: Number.isFinite(count) ? count : 8,
         withSchemeOnly,
         trackId: user.trackId,
       })
@@ -99,7 +97,7 @@ export default async function WorksheetPage({
 
         {/* GET, so the URL is the worksheet. See the note above. */}
         <form method="get" className="mb-6 space-y-4 rounded-lg border border-rule p-5">
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2">
             <label className="block">
               <span className="text-caption font-medium text-ink">{t.worksheet.subject}</span>
               <select
@@ -114,18 +112,6 @@ export default async function WorksheetPage({
                   </option>
                 ))}
               </select>
-            </label>
-
-            <label className="block">
-              <span className="text-caption font-medium text-ink">{t.worksheet.count}</span>
-              <input
-                type="number"
-                name="count"
-                min={1}
-                max={MAX_QUESTIONS}
-                defaultValue={Number.isFinite(count) ? count : 8}
-                className="mt-1 w-full rounded-md border border-rule bg-paper px-3 py-2 text-sm"
-              />
             </label>
 
             <label className="flex items-end gap-2 pb-2">

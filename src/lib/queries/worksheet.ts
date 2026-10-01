@@ -1,6 +1,8 @@
 import 'server-only';
 
 import { db } from '@/lib/db';
+import { isMissingRequiredPassage, isUnusableFrenchExercise } from '@/lib/question-shape';
+import { followsWorksheetBlueprint, worksheetBlueprint } from '@/lib/worksheet-blueprint';
 
 /**
  * A worksheet assembled from real past-exam questions.
@@ -48,13 +50,9 @@ export type Worksheet = {
   available: number;
 };
 
-/** More than this on one sheet stops being homework. */
-export const MAX_QUESTIONS = 20;
-
 export async function buildWorksheet(input: {
   subjectId: string;
   chapterIds: string[];
-  count: number;
   /** Only questions with a marking scheme, so the sheet can carry an answer key. */
   withSchemeOnly: boolean;
   trackId: string | null;
@@ -69,7 +67,7 @@ export async function buildWorksheet(input: {
   if (!subject) return null;
 
   const chapterIds = input.chapterIds.length > 0 ? input.chapterIds : null;
-  const count = Math.min(Math.max(1, input.count), MAX_QUESTIONS);
+  const blueprint = worksheetBlueprint(subject.name);
 
   const rows = await db.$queryRaw<
     {
@@ -81,7 +79,6 @@ export async function buildWorksheet(input: {
       official_solution: string | null;
       source_passage: string | null;
       bareme: unknown;
-      total: bigint;
     }[]
   >`
     WITH pool AS (
@@ -97,24 +94,36 @@ export async function buildWorksheet(input: {
         LEFT JOIN exam_cycles ec ON ec.id = q.source_exam_id
        WHERE c.subject_id = ${subject.id}::uuid
          AND q.verified_status <> 'rejected'
-         AND length(q.content_text) BETWEEN 80 AND 4000
+         AND length(q.content_text) >= 80
          AND (${chapterIds}::uuid[] IS NULL OR qc.chapter_id = ANY(${chapterIds}::uuid[]))
          AND (${input.withSchemeOnly} = false
               OR (q.bareme IS NOT NULL AND jsonb_array_length(q.bareme) > 0))
     )
-    SELECT *, (SELECT count(*) FROM pool) AS total
+    SELECT *
       FROM pool
-     ORDER BY year DESC NULLS LAST, id
-     LIMIT ${count}`;
+     ORDER BY year DESC NULLS LAST, id`;
 
-  const chapterNames = [...new Set(rows.map((r) => r.chapter_name))];
+  const eligible = rows.filter((row) => {
+    if (!followsWorksheetBlueprint(subject.name, row.content_text)) return false;
+    if (subject.name === 'Francais' && isUnusableFrenchExercise(row.content_text)) return false;
+
+    // Long language rows contain the passage followed by its questions in the
+    // same record. The generic missing-passage guard is for short questions
+    // that point outside themselves, so it must not hide these complete exam
+    // sections merely because source_passage was not split during OCR.
+    const passageIsEmbedded = row.content_text.length >= 1500;
+    return passageIsEmbedded || !isMissingRequiredPassage(row.content_text, row.source_passage);
+  });
+  const selected = eligible.slice(0, blueprint.count);
+
+  const chapterNames = [...new Set(selected.map((r) => r.chapter_name))];
 
   return {
     subjectName: subject.name,
     subjectLanguage: String(subject.language),
     chapterNames,
-    available: rows.length > 0 ? Number(rows[0]!.total) : 0,
-    questions: rows.map((row) => {
+    available: eligible.length,
+    questions: selected.map((row) => {
       const bareme = Array.isArray(row.bareme)
         ? (row.bareme as { criterion?: unknown; points?: unknown }[])
             .filter((b) => typeof b?.criterion === 'string' && String(b.criterion).trim().length > 2)
