@@ -1034,6 +1034,7 @@ export const en = {
     resendConfirmation: 'Resend confirmation',
     confirmationSent: 'Confirmation email sent.',
     ingestion: 'Ingestion',
+    contentMonitor: 'Content monitor',
     users: 'Users',
     audit: 'Audit log',
     newAnnouncement: 'New announcement',

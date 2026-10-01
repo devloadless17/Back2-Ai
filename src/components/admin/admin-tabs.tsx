@@ -16,6 +16,7 @@ export function AdminTabs() {
     { href: '/admin/chapters', label: t.admin.chapters },
     { href: '/admin/exam-timing', label: t.admin.examTiming },
     { href: '/admin/ingestion', label: t.admin.ingestion },
+    { href: '/admin/content-monitor', label: t.admin.contentMonitor },
     { href: '/admin/users', label: t.admin.users },
     { href: '/admin/audit', label: t.admin.audit },
   ];
