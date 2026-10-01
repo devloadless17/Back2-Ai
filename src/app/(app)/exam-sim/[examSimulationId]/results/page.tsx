@@ -165,7 +165,7 @@ export default async function ExamResultsPage({
 
       {simulation.status === 'submitted' ? (
         <EmptyState
-          tone={markingDelayed ? 'warning' : 'pending'}
+          tone={markingDelayed ? 'neutral' : 'pending'}
           title={markingDelayed ? t.examSim.gradingDelayed : t.examSim.grading}
           body={markingDelayed ? t.examSim.gradingDelayedHint : t.examSim.gradingHint}
           action={
