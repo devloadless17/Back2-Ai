@@ -72,6 +72,24 @@ export function modelBaremePrompt(input: {
   } else {
     lines.push(`Choose a sensible total for one exercise, at most ${MAX_TOTAL}.`);
   }
+
+  /*
+   * TWO FAILURES SEEN ON THE FIRST LIVE RUN, both on an essay question.
+   *
+   * It returned ONE criterion worth all nine marks whose text was the exercise
+   * pasted back verbatim. That is not a marking scheme — nothing can be awarded
+   * or withheld against it, and a student told "you lost marks on: <the
+   * question>" has learnt nothing.
+   *
+   * And the exercise itself carried the ministry's own split — "Score: 05 for
+   * ideas, 03 for language and style, 01 for tidiness" — which was ignored in
+   * favour of inventing a total. Where the paper states how its marks divide,
+   * that division IS the barème and must be followed.
+   */
+  lines.push(
+    'NEVER return a single criterion covering the whole exercise, and never use the exercise’s own wording as a criterion. Give at least two, each naming one thing the candidate must produce.',
+    'If the exercise states how its marks divide — "5 for ideas, 3 for language", "2 pts" beside a part — follow that division exactly rather than inventing one.',
+  );
   lines.push(
     'Reply with JSON only: {"bareme":[{"criterion":"...","points":n}]}.',
     'If the exercise cannot be marked without a figure, a table or a text you were not given, reply {"bareme":[]}.',
