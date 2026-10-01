@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   followsWorksheetBlueprint,
+  hasBrokenWorksheetBoundaries,
   selectOfficialCycle,
   worksheetBlueprint,
 } from '@/lib/worksheet-blueprint';
@@ -92,5 +93,16 @@ describe('worksheet subject blueprints', () => {
       { sourceExamId: 'fallback', orderIndex: 1, year: 2023, usable: true },
     ]);
     expect(selected.map((item) => item.sourceExamId)).toEqual(['fallback', 'fallback']);
+  });
+
+  it('rejects OCR rows that contain a later official section heading', () => {
+    expect(
+      hasBrokenWorksheetBoundaries(
+        `${'A company exercise with its own questions. '.repeat(8)}\nIV- Logarithm and economic functions (5 points)`,
+      ),
+    ).toBe(true);
+    expect(
+      hasBrokenWorksheetBoundaries('IV- Logarithm and economic functions (5 points)\n1) Calculate the result.'),
+    ).toBe(false);
   });
 });

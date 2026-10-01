@@ -44,6 +44,21 @@ export type WorksheetBlueprintRow = {
 
 export const PREFERRED_WORKSHEET_YEAR = 2024;
 
+const TOP_LEVEL_ROMAN_HEADING = /(?:^|\n)\s*(?:I|II|III|IV|V|VI|VII|VIII)\s*[-–—.]\s*/g;
+
+/**
+ * OCR sometimes attaches the next official section heading to the end of the
+ * previous exercise. Rendering that row produces "... IV ... V" followed by
+ * the body of V in another card. A top-level heading belongs at the beginning
+ * of an exercise; one appearing deep inside a row proves its boundaries broke.
+ */
+export function hasBrokenWorksheetBoundaries(text: string): boolean {
+  for (const match of text.matchAll(TOP_LEVEL_ROMAN_HEADING)) {
+    if ((match.index ?? 0) > 120) return true;
+  }
+  return false;
+}
+
 /** Select one real paper whose size is representative of this subject's corpus. */
 export function selectOfficialCycle<T extends WorksheetBlueprintRow>(rows: T[]): T[] {
   const cycles = new Map<string, T[]>();

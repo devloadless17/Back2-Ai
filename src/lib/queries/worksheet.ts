@@ -5,6 +5,7 @@ import { missingVisual } from '@/lib/question-kind';
 import { isMissingRequiredPassage, isUnusableFrenchExercise } from '@/lib/question-shape';
 import {
   followsWorksheetBlueprint,
+  hasBrokenWorksheetBoundaries,
   selectOfficialCycle,
   worksheetBlueprint,
 } from '@/lib/worksheet-blueprint';
@@ -113,6 +114,7 @@ export async function buildWorksheet(input: {
      ORDER BY year DESC NULLS LAST, id`;
 
   const isUsable = (row: (typeof rows)[number]) => {
+    if (hasBrokenWorksheetBoundaries(row.content_text)) return false;
     if (!followsWorksheetBlueprint(subject.name, row.content_text)) return false;
     if (subject.name === 'Francais' && isUnusableFrenchExercise(row.content_text)) return false;
     if (
