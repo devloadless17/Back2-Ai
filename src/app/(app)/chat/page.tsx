@@ -51,6 +51,25 @@ export default async function ChatIndexPage({
   const raw = params.q;
   const query = ((Array.isArray(raw) ? raw[0] : raw) ?? '').trim().slice(0, 120);
 
+  /*
+   * "Ask a question" opens a conversation, not a list of them: the greeting
+   * and the box, with the recent ones down the side. The full list — with its
+   * search — is still here, behind `?all=1`, which the side column links to.
+   *
+   * An empty conversation already waiting is reused rather than another made,
+   * so opening this page ten times does not leave ten blank drafts behind.
+   */
+  if (!query && !params.all && isAiConfigured() && isEmbeddingConfigured()) {
+    const draft = await db.chatSession.findFirst({
+      where: { userId: user.id, messages: { none: {} }, questionId: null, attemptId: null, uploadedImageUrl: null },
+      select: { id: true },
+      orderBy: { createdAt: 'desc' },
+    });
+    const session =
+      draft ?? (await db.chatSession.create({ data: { userId: user.id }, select: { id: true } }));
+    redirect(`/chat/${session.id}`);
+  }
+
   type Row = {
     id: string;
     title: string | null;

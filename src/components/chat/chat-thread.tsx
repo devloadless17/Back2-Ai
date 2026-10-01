@@ -3,13 +3,11 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 
 import { FlagButton } from '@/components/practice/flag-button';
-import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/field';
 import { Badge } from '@/components/ui/feedback';
 import { Evidence, type EvidenceSource } from '@/components/chat/evidence';
 import { GroundingState, TechnicalError, type RefusalKind } from '@/components/chat/grounding-state';
 import { MathText } from '@/components/ui/math';
-import { Sheet, SheetBody } from '@/components/ui/sheet';
 import { IconCamera, IconClose, IconPaperclip } from '@/components/shell/icons';
 import { cn } from '@/lib/cn';
 import { subjectIcon } from '@/lib/subject-icon';
@@ -119,6 +117,7 @@ export function ChatThread({
   disabled,
   subject,
   autoPrompt,
+  greeting,
 }: {
   sessionId: string;
   initialMessages: ChatMessageView[];
@@ -138,6 +137,8 @@ export function ChatThread({
    * a later visit.
    */
   autoPrompt?: string | null;
+  /** "Good evening, Maya" — shown over the box while the conversation is empty. */
+  greeting?: string | null;
 }) {
   const { t } = useI18n();
 
@@ -500,21 +501,27 @@ export function ChatThread({
     if (event.type === 'error') setError(t.common.unknownError);
   }
 
+  /*
+   * A fresh conversation is a greeting and a box, centred, and nothing else —
+   * the box sits in the middle of the page instead of pinned to the bottom of
+   * an empty one. Once there is a message the thread takes the page and the
+   * box moves to the bottom, where it stays.
+   */
+  const fresh = messages.length === 0;
+
   return (
-    <div className="space-y-4">
-      <div className="space-y-4">
-        {messages.length === 0 && (
-          <Sheet>
-            <SheetBody>
-              <p className="text-sm text-ink-muted">{t.chat.noSessionsHint}</p>
-            </SheetBody>
-          </Sheet>
+    <div className={cn('mx-auto w-full max-w-3xl', fresh ? 'pt-[10vh] sm:pt-[14vh]' : 'space-y-7')}>
+      <div className="space-y-7">
+        {fresh && (
+          <h2 className="chat-greeting text-balance pb-2 text-center text-[2rem] leading-tight text-ink sm:text-[2.6rem]">
+            {greeting ?? t.chat.title}
+          </h2>
         )}
 
         {messages.map((message) =>
           message.role === 'user' ? (
             <div key={message.id} className="flex justify-end">
-              <div className="max-w-[85%] space-y-2 rounded-lg rounded-ee-sm bg-primary-soft px-4 py-2.5">
+              <div className="max-w-[80%] space-y-2 rounded-3xl bg-paper-sunken px-5 py-3 text-ink">
                 {message.imageKey && (
                   /* eslint-disable-next-line @next/next/no-img-element */
                   <img
@@ -558,16 +565,14 @@ export function ChatThread({
               subjectHref={subjectHref}
             />
           ) : (
-            <Sheet key={message.id} className="animate-fade-up">
-              {/*
-                The tier badge alone. The source list used to sit here, joined
-                with middots and truncated by CSS — three labels reduced to
-                "Fonctions logarithmes — past ques…", which told a student
-                nothing and cost the width of the header to say it. Provenance
-                is now attached UNDER the answer, where it belongs: evidence
-                follows a claim, it does not precede it.
-              */}
-              <div className="flex items-center gap-3 border-b border-rule px-5 py-2">
+            /*
+             * The answer is text on the page, not a card: no border, no
+             * header row, no footer bar. What a card carried is still here —
+             * where the answer came from (one small label above), the evidence
+             * under it, and the report link — just without the furniture.
+             */
+            <div key={message.id} className="animate-fade-up space-y-2.5">
+              <div className="flex min-h-[1.5rem] items-center gap-3">
                 <GroundingLabel tier={message.tier} />
               </div>
 
@@ -577,7 +582,7 @@ export function ChatThread({
                 tells assistive tech to read it. `polite` waits for a pause
                 rather than interrupting on every token.
               */}
-              <SheetBody aria-live="polite" aria-busy={message.id.startsWith('pending')}>
+              <div className="space-y-4" aria-live="polite" aria-busy={message.id.startsWith('pending')}>
                 {message.content ? (
                   <MathText>{message.content}</MathText>
                 ) : (
@@ -644,7 +649,7 @@ export function ChatThread({
                 {message.content && message.sources.length > 0 && (
                   <Evidence sources={message.sources} />
                 )}
-              </SheetBody>
+              </div>
 
               {/*
                 THE FOOTER IS ALWAYS IN THE LAYOUT, and only its contents wait.
@@ -660,7 +665,7 @@ export function ChatThread({
                 and `inert`-by-omission keep it off the accessibility tree and
                 out of the tab order until there is something to report.
               */}
-              <div className="border-t border-rule px-5 py-2">
+              <div className="text-ink-faint">
                 <span
                   className={cn(
                     'block',
@@ -673,7 +678,7 @@ export function ChatThread({
                   <FlagButton itemType="flagged_content" itemId={message.id} />
                 </span>
               </div>
-            </Sheet>
+            </div>
           ),
         )}
 
@@ -709,40 +714,13 @@ export function ChatThread({
       */}
       {error && <TechnicalError message={error} onRetry={retry ?? undefined} />}
 
-      <form ref={composerRef} onSubmit={send} className="sticky bottom-4 space-y-2">
-        <Sheet>
-          <SheetBody className="space-y-2 p-3">
-            {/*
-              WHICH SYLLABUS IS ANSWERING, pinned where it cannot scroll away.
-              
-              One line, caption size, no control — the picker already exists on
-              a fresh conversation and a second selector here would be a second
-              way to do the same thing. The language code matters because Zaki
-              answers in the SUBJECT's language, not the interface's: a student
-              reading French in an English app should be able to see why.
-            */}
-            <p className="flex items-center gap-1.5 px-1 text-caption text-ink-faint">
-              {subject ? (
-                <>
-                  <span aria-hidden>{subjectIcon(subject.name)}</span>
-                  {/* `dir` on the name only. The row is laid out by the page. */}
-                  <span
-                    lang={subject.language}
-                    dir={subject.language === 'ar' ? 'rtl' : 'ltr'}
-                    className="font-medium text-ink-muted"
-                  >
-                    {subject.name}
-                  </span>
-                  <span aria-hidden>·</span>
-                  <span className="uppercase">{subject.language}</span>
-                </>
-              ) : (
-                <>
-                  <span aria-hidden>🔎</span>
-                  <span>{t.chat.subjectAll}</span>
-                </>
-              )}
-            </p>
+      <form
+        ref={composerRef}
+        onSubmit={send}
+        className={cn('z-10', fresh ? 'mt-8' : 'sticky bottom-4')}
+      >
+        <div className="chat-composer rounded-[1.75rem] border border-rule bg-paper-raised">
+          <div className="space-y-2 px-4 pb-3 pt-4">
 
             {preview || attachedName ? (
               <div className="flex gap-3 rounded-lg bg-paper-sunken/60 p-2.5">
@@ -863,7 +841,7 @@ export function ChatThread({
               placeholder={t.chat.placeholder}
               disabled={disabled || streaming}
               rows={2}
-              className="min-h-[3.5rem] border-0 bg-transparent focus-visible:ring-0"
+              className="min-h-[3.75rem] resize-none border-0 bg-transparent px-1 text-body shadow-none focus-visible:ring-0"
             />
             <div className="flex items-center justify-between gap-2">
               <input
@@ -908,42 +886,79 @@ export function ChatThread({
                 }}
               />
 
-              <div className="flex items-center gap-1">
-                <Button
+              <div className="flex min-w-0 items-center gap-1">
+                <button
                   type="button"
-                  size="sm"
-                  variant="quiet"
                   disabled={disabled || streaming || attaching}
                   onClick={() => fileRef.current?.click()}
+                  aria-label={t.upload.attach}
+                  title={t.upload.attach}
+                  className="composer-icon"
                 >
-                  <IconCamera width={16} height={16} />
-                  <span className="ms-1.5">{t.upload.attach}</span>
-                </Button>
-
-                <Button
+                  <IconCamera width={18} height={18} />
+                </button>
+                <button
                   type="button"
-                  size="sm"
-                  variant="quiet"
                   disabled={disabled || streaming || attaching}
                   onClick={() => docRef.current?.click()}
+                  aria-label={t.upload.attachFile}
+                  title={t.upload.attachFile}
+                  className="composer-icon"
                 >
-                  <IconPaperclip width={16} height={16} />
-                  <span className="ms-1.5">{t.upload.attachFile}</span>
-                </Button>
+                  <IconPaperclip width={18} height={18} />
+                </button>
+                {/*
+                  WHICH SYLLABUS IS ANSWERING, pinned where it cannot scroll away.
+              
+                  One line, caption size, no control — the picker already exists on
+                  a fresh conversation and a second selector here would be a second
+                  way to do the same thing. The language code matters because Zaki
+                  answers in the SUBJECT's language, not the interface's: a student
+                  reading French in an English app should be able to see why.
+                */}
+                <p className="ms-1 hidden min-w-0 items-center gap-1.5 truncate text-caption text-ink-faint sm:flex">
+                  {subject ? (
+                    <>
+                      <span aria-hidden>{subjectIcon(subject.name)}</span>
+                      {/* `dir` on the name only. The row is laid out by the page. */}
+                      <span
+                        lang={subject.language}
+                        dir={subject.language === 'ar' ? 'rtl' : 'ltr'}
+                        className="font-medium text-ink-muted"
+                      >
+                        {subject.name}
+                      </span>
+                      <span aria-hidden>·</span>
+                      <span className="uppercase">{subject.language}</span>
+                    </>
+                  ) : (
+                    <>
+                      <span aria-hidden>🔎</span>
+                      <span>{t.chat.subjectAll}</span>
+                    </>
+                  )}
+                </p>
               </div>
 
-              <Button
+              <button
                 type="submit"
-                variant="primary"
-                size="sm"
-                loading={streaming}
-                disabled={disabled || (input.trim().length === 0 && !transcription)}
+                aria-label={t.chat.send}
+                title={t.chat.send}
+                disabled={disabled || streaming || (input.trim().length === 0 && !transcription)}
+                className="composer-send"
               >
-                {t.chat.send}
-              </Button>
+                {streaming ? (
+                  <span className="h-3.5 w-3.5 rounded-[3px] bg-current" aria-hidden />
+                ) : (
+                  <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                    <path d="M10 16V4M5 9l5-5 5 5" />
+                  </svg>
+                )}
+              </button>
             </div>
-          </SheetBody>
-        </Sheet>
+          </div>
+        </div>
+        <p className="mt-2 text-center text-caption text-ink-faint">{t.chat.disclaimer}</p>
       </form>
     </div>
   );

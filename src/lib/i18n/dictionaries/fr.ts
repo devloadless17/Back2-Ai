@@ -638,6 +638,12 @@ export const fr: Dictionary = {
   },
 
   chat: {
+    disclaimer: 'Zaki peut se tromper. Vérifie les réponses importantes avec ton cours.',
+    recents: 'Récents',
+    allChats: 'Toutes les conversations',
+    greetMorning: 'Bonjour, {name}',
+    greetAfternoon: 'Bon après-midi, {name}',
+    greetEvening: 'Bonsoir, {name}',
     searchLabel: 'Rechercher dans vos conversations',
     searchPlaceholder: 'Rechercher ce que vous avez demandé…',
     searchNoResults: 'Aucune conversation ne correspond.',

@@ -655,6 +655,12 @@ export const ar: Dictionary = {
   },
 
   chat: {
+    disclaimer: 'قد يخطئ زكي. راجِع الأجوبة المهمّة مع درسك.',
+    recents: 'الأخيرة',
+    allChats: 'كل المحادثات',
+    greetMorning: 'صباح الخير، {name}',
+    greetAfternoon: 'نهارك سعيد، {name}',
+    greetEvening: 'مساء الخير، {name}',
     searchLabel: 'ابحث في محادثاتك',
     searchPlaceholder: 'ابحث عمّا سألت عنه…',
     searchNoResults: 'لا محادثة تطابق ذلك.',

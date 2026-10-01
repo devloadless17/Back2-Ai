@@ -662,6 +662,12 @@ export const en = {
   },
 
   chat: {
+    disclaimer: 'Zaki can make mistakes. Check important answers against your course.',
+    recents: 'Recents',
+    allChats: 'All conversations',
+    greetMorning: 'Good morning, {name}',
+    greetAfternoon: 'Good afternoon, {name}',
+    greetEvening: 'Good evening, {name}',
     searchLabel: 'Search your conversations',
     searchPlaceholder: 'Search what you asked…',
     searchNoResults: 'No conversation matches that.',

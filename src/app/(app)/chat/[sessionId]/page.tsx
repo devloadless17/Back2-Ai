@@ -1,12 +1,14 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
 import { ChatThread, type ChatMessageView } from '@/components/chat/chat-thread';
+import { NewConversationButton } from '@/components/chat/new-conversation-button';
 import { SubjectPicker } from '@/components/chat/subject-picker';
 import { Alert } from '@/components/ui/feedback';
 import { QuestionBody } from '@/components/ui/math';
-import { PageHeader, Sheet, SheetBody, SheetHeader } from '@/components/ui/sheet';
-import { BackLink } from '@/components/ui/back-link';
+import { Sheet, SheetBody, SheetHeader } from '@/components/ui/sheet';
+import { cn } from '@/lib/cn';
 import { requireUser } from '@/lib/auth/guards';
 import { db } from '@/lib/db';
 import { isAiConfigured, isEmbeddingConfigured } from '@/lib/env';
@@ -145,10 +147,50 @@ export default async function ChatSessionPage({
       .filter((s): s is NonNullable<typeof s> => s !== undefined),
   }));
 
+  /*
+   * The left column: a new conversation and the recent ones, the way every
+   * chat a student already uses lays itself out. Only conversations with
+   * something in them — an empty session is a draft, not a recent.
+   */
+  const recents = await db.chatSession.findMany({
+    where: { userId: user.id, messages: { some: {} } },
+    select: { id: true, title: true },
+    orderBy: { updatedAt: 'desc' },
+    take: 30,
+  });
+
   return (
-    <>
-      <BackLink href="/dashboard" label={t.nav.dashboard} />
-      <PageHeader title={session.title ?? t.chat.title} description={t.chat.subtitle} />
+    <div className="lg:grid lg:grid-cols-[14.5rem_minmax(0,1fr)] lg:gap-8">
+      <aside className="hidden lg:block">
+        <div className="sticky top-4 space-y-5">
+          {configured && <NewConversationButton variant="secondary" fullWidth />}
+          <nav aria-label={t.chat.recents}>
+            <p className="mb-2 px-2 text-caption font-medium text-ink-faint">{t.chat.recents}</p>
+            <ul className="max-h-[65vh] space-y-0.5 overflow-y-auto">
+              {recents.map((recent) => (
+                <li key={recent.id}>
+                  <Link
+                    href={`/chat/${recent.id}`}
+                    aria-current={recent.id === session.id ? 'page' : undefined}
+                    className={cn(
+                      'block truncate rounded-lg px-2 py-1.5 text-meta text-ink-muted hover:bg-paper-sunken hover:text-ink',
+                      recent.id === session.id && 'bg-paper-sunken font-medium text-ink',
+                    )}
+                    dir="auto"
+                  >
+                    {recent.title ?? t.chat.title}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+            <Link href="/chat?all=1" className="mt-3 block px-2 text-caption text-ink-faint hover:text-ink hover:underline">
+              {t.chat.allChats}
+            </Link>
+          </nav>
+        </div>
+      </aside>
+
+      <div className="min-w-0">
 
       {!configured && (
         <Alert tone="warning" title={t.chat.aiNotConfigured} className="mb-5">
@@ -156,22 +198,6 @@ export default async function ChatSessionPage({
         </Alert>
       )}
 
-      {askForSubject && (
-        <div className="mb-5">
-          <SubjectPicker
-            sessionId={session.id}
-            subjects={subjects}
-            labels={{
-              title: t.chat.subjectPickTitle,
-              hint: t.chat.subjectPickHint,
-              any: t.chat.subjectPickAny,
-              anyHint: t.chat.subjectPickAnyHint,
-              chapters: t.chat.subjectPickChapters,
-              error: t.common.unknownError,
-            }}
-          />
-        </div>
-      )}
 
       {/*
         The subject notice used to live here, at the top of the page, where it
@@ -261,12 +287,41 @@ export default async function ChatSessionPage({
         initialMessages={messages}
         disabled={!configured}
         autoPrompt={autoPrompt}
+        greeting={session.messages.length === 0 && !session.question ? greetingFor(t, user.displayName) : null}
         subject={
           session.subject
             ? { name: session.subject.name, language: String(session.subject.language) }
             : null
         }
       />
-    </>
+
+      {askForSubject && (
+        <div className="mx-auto mt-10 max-w-3xl">
+          <SubjectPicker
+            sessionId={session.id}
+            subjects={subjects}
+            labels={{
+              title: t.chat.subjectPickTitle,
+              hint: t.chat.subjectPickHint,
+              any: t.chat.subjectPickAny,
+              anyHint: t.chat.subjectPickAnyHint,
+              chapters: t.chat.subjectPickChapters,
+              error: t.common.unknownError,
+            }}
+          />
+        </div>
+      )}
+      </div>
+    </div>
   );
+}
+
+/** "Good evening, Maya", by the hour in Beirut — where every student is. */
+function greetingFor(t: Awaited<ReturnType<typeof getTranslations>>['t'], displayName: string | null): string {
+  const hour = Number(
+    new Intl.DateTimeFormat('en-GB', { hour: 'numeric', hour12: false, timeZone: 'Asia/Beirut' }).format(new Date()),
+  );
+  const template = hour < 12 ? t.chat.greetMorning : hour < 18 ? t.chat.greetAfternoon : t.chat.greetEvening;
+  const name = displayName?.split(' ')[0] ?? '';
+  return name ? format(template, { name }) : template.replace(/[,،]\s*\{name\}/, '');
 }

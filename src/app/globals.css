@@ -520,6 +520,60 @@
    * `--tint` is set inline, because Tailwind reads class names out of the
    * source and one assembled from a template compiles to nothing.
    */
+  /* The tutor page. A serif greeting over one large rounded box, the way the
+     chat tools students already use look. Georgia is on every machine, so the
+     greeting costs no font download; Arabic falls through to the UI font. */
+  .chat-greeting {
+    font-family: Georgia, 'Libre Baskerville', 'Times New Roman', var(--font-serif), serif;
+    font-weight: 400;
+    letter-spacing: -0.01em;
+  }
+  :lang(ar) .chat-greeting {
+    font-family: var(--font-serif);
+    font-weight: 700;
+  }
+  .chat-composer {
+    box-shadow: 0 1px 2px hsl(var(--ink) / 0.04), 0 8px 28px -12px hsl(var(--ink) / 0.18);
+    transition: box-shadow 150ms ease, border-color 150ms ease;
+  }
+  .chat-composer:focus-within {
+    border-color: hsl(var(--rule-strong));
+    box-shadow: 0 1px 2px hsl(var(--ink) / 0.05), 0 10px 32px -12px hsl(var(--ink) / 0.24);
+  }
+  .composer-icon {
+    display: inline-flex;
+    height: 2.25rem;
+    width: 2.25rem;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9999px;
+    color: hsl(var(--ink-muted));
+  }
+  .composer-icon:hover:not(:disabled) {
+    background-color: hsl(var(--paper-sunken));
+    color: hsl(var(--ink));
+  }
+  .composer-send {
+    display: inline-flex;
+    height: 2.25rem;
+    width: 2.25rem;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9999px;
+    background-color: hsl(var(--primary));
+    color: hsl(var(--paper-raised));
+    transition: background-color 150ms ease, opacity 150ms ease;
+  }
+  .composer-send:hover:not(:disabled) {
+    background-color: hsl(var(--primary-hover));
+  }
+  .composer-icon:disabled,
+  .composer-send:disabled {
+    cursor: not-allowed;
+    opacity: 0.4;
+  }
+
   /* The dashboard's header band: a pale wash of the brand colour fading into
      the page, no banner, no shapes. And the one highlighted word in its title. */
   .home-band {

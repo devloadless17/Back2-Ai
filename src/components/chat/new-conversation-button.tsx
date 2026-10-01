@@ -7,7 +7,13 @@ import { Button } from '@/components/ui/button';
 import { sendJson } from '@/lib/client/request';
 import { useI18n } from '@/lib/i18n/client';
 
-export function NewConversationButton() {
+export function NewConversationButton({
+  variant = 'primary',
+  fullWidth,
+}: {
+  variant?: 'primary' | 'secondary';
+  fullWidth?: boolean;
+} = {}) {
   const { t } = useI18n();
   const router = useRouter();
   const [creating, setCreating] = useState(false);
@@ -23,7 +29,8 @@ export function NewConversationButton() {
   }
 
   return (
-    <Button variant="primary" onClick={create} loading={creating}>
+    <Button variant={variant} fullWidth={fullWidth} onClick={create} loading={creating}>
+      <span aria-hidden className="me-1.5 text-lg leading-none">+</span>
       {t.chat.newSession}
     </Button>
   );
