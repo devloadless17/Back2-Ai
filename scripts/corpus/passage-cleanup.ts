@@ -96,6 +96,46 @@ export function gutterLines(text: string): Set<number> {
  * subject language as well: one guard would have been enough, and two are
  * cheap, because getting this wrong deletes an Arabic question outright.
  */
+/**
+ * Words that only ever appear on the ministry's cover page.
+ *
+ * THIS WHITELIST IS THE WHOLE SAFETY OF THE RULE BELOW. Of the 75 lines that mix
+ * Arabic into Latin text, only 2 are the cover page. The rest are Arabic
+ * QUESTION TEXT whose encoding was mangled on the way in — "ثى اسرُرج أٌّ" is
+ * "ثم استنتج أنّ", "then deduce that" — and stripping a trailing Arabic run
+ * blindly would delete the question instead of the furniture.
+ *
+ * Mangled text cannot match these, because mangling is what destroyed the
+ * letters. So recognising the header positively, rather than recognising Arabic,
+ * is what separates the two.
+ */
+const MINISTRY_WORDS = [
+  'وزارة', 'التربية', 'الامتحانات', 'المديرية', 'الشهادة', 'الثانوية',
+  'مسابقة', 'المدة', 'الاسم', 'الرقم', 'دورة', 'العامة', 'العامّة', 'الرسمي',
+];
+
+/** A run of Arabic, and the punctuation inside it, at the very end of a line. */
+const TRAILING_ARABIC = /[\p{Script=Arabic}][\p{Script=Arabic}\p{M}\s،؛؟:.\d-]*$/u;
+
+/**
+ * A Latin line with the ministry's cover text run onto the end of it.
+ *
+ * The line-by-line rule cannot help here: the line is mostly French or English,
+ * so it is content, and only its tail is furniture. "Énergie électrique produite
+ * par un réacteur nucléaire وزارة التربية والتعليم العالي …" is one line.
+ */
+export function stripTrailingMinistryText(line: string): string {
+  const match = TRAILING_ARABIC.exec(line);
+  if (!match) return line;
+  const tail = match[0];
+  const head = line.slice(0, match.index);
+  // The head must be the real content, and the tail must be recognisably the
+  // cover page. Either test alone would be enough to lose a question.
+  if (!LATIN.test(head)) return line;
+  if (!MINISTRY_WORDS.some((w) => tail.includes(w))) return line;
+  return head.replace(/[\s ]+$/, '');
+}
+
 export function arabicFurnitureLines(text: string): Set<number> {
   const lines = text.split(/\r?\n/);
   const out = new Set<number>();
@@ -185,6 +225,7 @@ export function cleanPassage(text: string): string {
   const kept = text
     .split(/\r?\n/)
     .filter((_, i) => !furniture.has(i) && !gutter.has(i))
+    .map(stripTrailingMinistryText)
     .join('\n');
 
   const cleaned = collapseBlankRuns(kept);
@@ -203,11 +244,14 @@ export function cleanQuestionText(text: string): string {
   if (!text.trim()) return text;
 
   const furniture = arabicFurnitureLines(text);
-  if (!furniture.size) return text;
+  // No early return on an empty set: a body can have no Arabic-only line and
+  // still carry the cover page run onto the end of a Latin one.
+  if (!furniture.size && !ARABIC.test(text)) return text;
 
   const kept = text
     .split(/\r?\n/)
     .filter((_, i) => !furniture.has(i))
+    .map(stripTrailingMinistryText)
     .join('\n');
   const cleaned = collapseBlankRuns(kept);
   return LATIN.test(cleaned) ? cleaned : text;

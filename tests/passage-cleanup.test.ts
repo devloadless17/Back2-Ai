@@ -5,6 +5,7 @@ import {
   arabicHeaderLines,
   cleanPassage,
   cleanQuestionText,
+  stripTrailingMinistryText,
   collapseBlankRuns,
   gutterLines,
 } from '../scripts/corpus/passage-cleanup';
@@ -184,5 +185,31 @@ describe('a full stop stranded at the start of the next line', () => {
   it('leaves punctuation alone after an ordinary word', () => {
     const text = 'Il partit\n, dit-elle';
     expect(collapseBlankRuns(text)).toBe(text);
+  });
+});
+
+describe('the cover page run onto the end of a Latin line', () => {
+  it('takes the ministry text off a French heading', () => {
+    const line = 'Énergie électrique produite par un réacteur nucléaire وزارة التربية والتعليم العالي';
+    expect(stripTrailingMinistryText(line)).toBe('Énergie électrique produite par un réacteur nucléaire');
+  });
+
+  it('LEAVES Arabic that is the question itself, however mangled', () => {
+    // THE RULE THAT KEEPS THIS SAFE. Of 75 mixed lines only 2 are the cover
+    // page; the rest are Arabic questions whose encoding was destroyed on the
+    // way in. "ثى اسرُرج أٌّ" is "then deduce that" — the question, not
+    // furniture — and it matches none of the ministry's words precisely because
+    // mangling is what broke those letters.
+    const line = 'z2 ثى اسرُرج أٌّ';
+    expect(stripTrailingMinistryText(line)).toBe(line);
+  });
+
+  it('leaves a line that is entirely Arabic to the line rule', () => {
+    const line = 'وزارة التربية والتعليم العالي';
+    expect(stripTrailingMinistryText(line)).toBe(line);
+  });
+
+  it('leaves a line with no Arabic untouched', () => {
+    expect(stripTrailingMinistryText('Exercice 1 (7 points)')).toBe('Exercice 1 (7 points)');
   });
 });
