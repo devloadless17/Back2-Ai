@@ -1,11 +1,16 @@
 import { classifyQuestionKind, type QuestionKind } from '@/lib/question-kind';
 
 export type WorksheetBlueprint = {
-  count: number;
+  count: number | null;
   acceptedKinds: QuestionKind[] | null;
+  selection: 'filtered' | 'official_cycle';
 };
 
-const COMPREHENSION: WorksheetBlueprint = { count: 1, acceptedKinds: ['comprehension'] };
+const COMPREHENSION: WorksheetBlueprint = {
+  count: 1,
+  acceptedKinds: ['comprehension'],
+  selection: 'filtered',
+};
 
 /**
  * One stored language question is one complete exam section: its passage and
@@ -21,10 +26,44 @@ export function worksheetBlueprint(subjectName: string): WorksheetBlueprint {
 
   // The official philosophy paper presents three alternative subjects.
   if (name === 'فلسفة عامة' || name === 'philosophy' || name === 'philosophie') {
-    return { count: 3, acceptedKinds: ['essay'] };
+    return { count: 3, acceptedKinds: ['essay'], selection: 'filtered' };
   }
 
-  return { count: 8, acceptedKinds: null };
+  // Every other worksheet inherits one complete, representative official
+  // paper. This preserves the subject AND track-specific exercise count and
+  // order without maintaining a second set of rules beside the exam corpus.
+  return { count: null, acceptedKinds: null, selection: 'official_cycle' };
+}
+
+export type WorksheetBlueprintRow = {
+  sourceExamId: string | null;
+  orderIndex: number | null;
+  year: number | null;
+};
+
+/** Select one real paper whose size is representative of this subject's corpus. */
+export function selectOfficialCycle<T extends WorksheetBlueprintRow>(rows: T[]): T[] {
+  const cycles = new Map<string, T[]>();
+  for (const row of rows) {
+    if (!row.sourceExamId) continue;
+    const cycle = cycles.get(row.sourceExamId) ?? [];
+    cycle.push(row);
+    cycles.set(row.sourceExamId, cycle);
+  }
+  if (cycles.size === 0) return [];
+
+  const groups = [...cycles.values()];
+  const sizes = groups.map((group) => group.length).sort((a, b) => a - b);
+  const median = sizes[Math.floor(sizes.length / 2)]!;
+  groups.sort((a, b) => {
+    const distance = Math.abs(a.length - median) - Math.abs(b.length - median);
+    if (distance !== 0) return distance;
+    return (b[0]?.year ?? 0) - (a[0]?.year ?? 0);
+  });
+
+  return groups[0]!.sort(
+    (a, b) => (a.orderIndex ?? Number.MAX_SAFE_INTEGER) - (b.orderIndex ?? Number.MAX_SAFE_INTEGER),
+  );
 }
 
 export function followsWorksheetBlueprint(subjectName: string, contentText: string): boolean {

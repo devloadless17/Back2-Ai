@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { followsWorksheetBlueprint, worksheetBlueprint } from '@/lib/worksheet-blueprint';
+import {
+  followsWorksheetBlueprint,
+  selectOfficialCycle,
+  worksheetBlueprint,
+} from '@/lib/worksheet-blueprint';
 
 describe('worksheet subject blueprints', () => {
   const comprehension =
@@ -9,7 +13,11 @@ describe('worksheet subject blueprints', () => {
     'Prompt A: Write a well-organized argumentative essay of 250-300 words about technology.';
 
   it('builds one complete comprehension section for English', () => {
-    expect(worksheetBlueprint('English')).toEqual({ count: 1, acceptedKinds: ['comprehension'] });
+    expect(worksheetBlueprint('English')).toEqual({
+      count: 1,
+      acceptedKinds: ['comprehension'],
+      selection: 'filtered',
+    });
     expect(followsWorksheetBlueprint('English', comprehension)).toBe(true);
     expect(followsWorksheetBlueprint('English', writing)).toBe(false);
   });
@@ -21,10 +29,35 @@ describe('worksheet subject blueprints', () => {
   });
 
   it('uses the three official alternatives for philosophy', () => {
-    expect(worksheetBlueprint('فلسفة عامة')).toEqual({ count: 3, acceptedKinds: ['essay'] });
+    expect(worksheetBlueprint('فلسفة عامة')).toEqual({
+      count: 3,
+      acceptedKinds: ['essay'],
+      selection: 'filtered',
+    });
   });
 
-  it('keeps a fixed general-subject default', () => {
-    expect(worksheetBlueprint('Mathematics')).toEqual({ count: 8, acceptedKinds: null });
+  it('uses an official paper for every other subject', () => {
+    expect(worksheetBlueprint('Mathematics')).toEqual({
+      count: null,
+      acceptedKinds: null,
+      selection: 'official_cycle',
+    });
+  });
+
+  it('chooses a representative real cycle and keeps its printed order', () => {
+    const row = (sourceExamId: string, orderIndex: number, year: number) => ({
+      sourceExamId,
+      orderIndex,
+      year,
+    });
+    const selected = selectOfficialCycle([
+      row('short-incomplete', 0, 2025),
+      row('normal-old', 1, 2023), row('normal-old', 0, 2023), row('normal-old', 2, 2023),
+      row('normal-new', 2, 2024), row('normal-new', 0, 2024), row('normal-new', 1, 2024),
+      row('oversized', 0, 2022), row('oversized', 1, 2022), row('oversized', 2, 2022), row('oversized', 3, 2022), row('oversized', 4, 2022),
+    ]);
+    expect(selected.map((item) => [item.sourceExamId, item.orderIndex])).toEqual([
+      ['normal-new', 0], ['normal-new', 1], ['normal-new', 2],
+    ]);
   });
 });

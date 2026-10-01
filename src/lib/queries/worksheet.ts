@@ -2,7 +2,11 @@ import 'server-only';
 
 import { db } from '@/lib/db';
 import { isMissingRequiredPassage, isUnusableFrenchExercise } from '@/lib/question-shape';
-import { followsWorksheetBlueprint, worksheetBlueprint } from '@/lib/worksheet-blueprint';
+import {
+  followsWorksheetBlueprint,
+  selectOfficialCycle,
+  worksheetBlueprint,
+} from '@/lib/worksheet-blueprint';
 
 /**
  * A worksheet assembled from real past-exam questions.
@@ -79,12 +83,15 @@ export async function buildWorksheet(input: {
       official_solution: string | null;
       source_passage: string | null;
       bareme: unknown;
+      source_exam_id: string | null;
+      order_index: number | null;
     }[]
   >`
     WITH pool AS (
       SELECT DISTINCT ON (q.id)
              q.id, c.name AS chapter_name, ec.year,
-             q.content_text, q.content_latex, q.official_solution, q.source_passage, q.bareme
+             q.content_text, q.content_latex, q.official_solution, q.source_passage, q.bareme,
+             q.source_exam_id, q.order_index
         FROM questions q
         -- question_chapters, not chapter_id: what a chapter may SERVE, which is
         -- what the quiz uses and what the chapter counts show. Filing is a
@@ -114,7 +121,15 @@ export async function buildWorksheet(input: {
     const passageIsEmbedded = row.content_text.length >= 1500;
     return passageIsEmbedded || !isMissingRequiredPassage(row.content_text, row.source_passage);
   });
-  const selected = eligible.slice(0, blueprint.count);
+  const selected = blueprint.selection === 'official_cycle'
+    ? selectOfficialCycle(
+        eligible.map((row) => ({
+          ...row,
+          sourceExamId: row.source_exam_id,
+          orderIndex: row.order_index,
+        })),
+      )
+    : eligible.slice(0, blueprint.count ?? 0);
 
   const chapterNames = [...new Set(selected.map((r) => r.chapter_name))];
 
