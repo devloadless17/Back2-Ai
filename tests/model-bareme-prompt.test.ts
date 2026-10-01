@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { modelBaremePrompt } from '../src/lib/model-bareme';
+import { isUsableBareme, modelBaremePrompt } from '../src/lib/model-bareme';
 
 /*
  * This writes the marking scheme a student's written answer is scored against
@@ -81,5 +81,33 @@ describe('what the first live run got wrong', () => {
     // style, 01 for tidiness" and it was ignored. When the paper divides its
     // own marks, that division is the barème.
     expect(modelBaremePrompt(base)).toMatch(/follow that division exactly/i);
+  });
+});
+
+describe('whether a stored marking scheme can actually mark', () => {
+  const question = 'Obesity has different negative effects on the obese: physically, psychologically, and socially. Discuss the above statement, focusing on two of these effects.';
+
+  it('rejects the question saved as its own single criterion', () => {
+    // MEASURED, NOT GUESSED: 3,745 official barèmes hold one criterion; 1,792 of
+    // them open with the question's own words and they average 777 characters.
+    // `gradeAgainstBareme` ticks each criterion, so one blob gives a student a
+    // single verdict on everything and never says which part cost them.
+    expect(isUsableBareme([{ criterion: question, points: 9 }], question)).toBe(false);
+  });
+
+  it('rejects any single criterion long enough to be a passage', () => {
+    expect(isUsableBareme([{ criterion: 'x'.repeat(260), points: 9 }], question)).toBe(false);
+  });
+
+  it('keeps a real one-criterion scheme', () => {
+    // Short, and naming one thing to produce. Plenty of these are genuine.
+    expect(isUsableBareme([{ criterion: 'Name the two reasons given in the text.', points: 2 }], question)).toBe(true);
+  });
+
+  it('keeps every scheme with more than one criterion', () => {
+    expect(isUsableBareme(
+      [{ criterion: 'Ideas', points: 5 }, { criterion: 'Language and style', points: 3 }],
+      question,
+    )).toBe(true);
   });
 });

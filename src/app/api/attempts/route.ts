@@ -17,7 +17,7 @@ import { db } from '@/lib/db';
 import { repeatedCriteria } from '@/lib/queries/repeated-criteria';
 import { resolveCreditChapter } from '@/lib/queries/progress';
 import { gradeAgainstBareme, gradeWithoutBareme, parseBareme, statedMarksOf, type Bareme } from '@/lib/grading';
-import { modelBaremeFor } from '@/lib/model-bareme';
+import { isUsableBareme, modelBaremeFor } from '@/lib/model-bareme';
 import { retrieveGrounding } from '@/lib/retrieval';
 import { ensureCard } from '@/lib/queries/flashcards';
 import { recomputeChapterMastery } from '@/lib/queries/progress';
@@ -195,8 +195,17 @@ export const POST = route(async (request) => {
    * attempt after is marked against it. It is kept apart from `bareme`, which
    * is the ministry's, and the result stays flagged provisional.
    */
+  /*
+   * An official scheme that cannot mark counts as no scheme here. 1,792 of them
+   * are a single criterion holding the question itself, worth all the marks: a
+   * student graded against one of those is told only that they did or did not
+   * answer, never which part cost them. The ministry's text is left untouched;
+   * a usable scheme is written beside it.
+   */
+  const usableBareme = bareme && isUsableBareme(bareme, source.contentText) ? bareme : null;
+
   let provisionalBareme: Bareme | null = null;
-  if (isQuestion && source.questionType !== 'mcq' && !bareme && (body.answerText ?? '').trim().length > 0) {
+  if (isQuestion && source.questionType !== 'mcq' && !usableBareme && (body.answerText ?? '').trim().length > 0) {
     const proposed = await modelBaremeFor({
       questionId: source.id,
       userId: user.id,
@@ -226,11 +235,11 @@ export const POST = route(async (request) => {
     baremeResult = outcome.results;
     needsHumanReview = outcome.status === 'needs_human_review';
     isCorrect = outcome.maxScore > 0 ? outcome.totalScore >= outcome.maxScore / 2 : null;
-  } else if (bareme) {
+  } else if (usableBareme) {
     const outcome = await gradeAgainstBareme({
       questionText: source.contentText,
       officialSolution: isQuestion ? source.officialSolution : source.generatedSolution,
-      bareme,
+      bareme: usableBareme,
       studentAnswer: body.answerText ?? '',
       language,
       subject: source.chapter.subject.name,
