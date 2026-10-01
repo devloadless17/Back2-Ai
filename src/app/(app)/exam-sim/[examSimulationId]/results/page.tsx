@@ -14,6 +14,7 @@ import { BandChip } from '@/components/ui/band';
 import { Meter } from '@/components/ui/progress';
 import { PageHeader, Sheet, SheetBody, SheetFooter, SheetHeader } from '@/components/ui/sheet';
 import { BackLink } from '@/components/ui/back-link';
+import { RefreshWhile } from '@/components/ui/refresh-while';
 import { requireUser } from '@/lib/auth/guards';
 import { getNextUp } from '@/lib/queries/next-up';
 import { db } from '@/lib/db';
@@ -153,6 +154,10 @@ export default async function ExamResultsPage({
           {t.examSim.expired}
         </Alert>
       )}
+
+      {/* Marking finishes in the background after submit; without this the
+          student saw "Marking…" until they reloaded the page themselves. */}
+      <RefreshWhile active={simulation.status === 'submitted'} />
 
       {simulation.status === 'submitted' ? (
         <EmptyState tone="pending" title={t.examSim.grading} body={t.examSim.gradingHint} />
