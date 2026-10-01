@@ -1016,6 +1016,7 @@ export const fr: Dictionary = {
     resendConfirmation: 'Renvoyer la confirmation',
     confirmationSent: 'E-mail de confirmation envoyé.',
     ingestion: 'Intégration de contenu',
+    contentMonitor: 'Contrôle du contenu',
     users: 'Utilisateurs',
     audit: 'Journal d’audit',
     newAnnouncement: 'Nouvelle annonce',

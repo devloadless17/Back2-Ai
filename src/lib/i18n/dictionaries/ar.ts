@@ -1025,6 +1025,7 @@ export const ar: Dictionary = {
     resendConfirmation: 'إعادة إرسال التأكيد',
     confirmationSent: 'تم إرسال بريد التأكيد.',
     ingestion: 'إدخال المحتوى',
+    contentMonitor: 'مراقبة المحتوى',
     users: 'المستخدمون',
     audit: 'سجل التدقيق',
     newAnnouncement: 'إعلان جديد',
