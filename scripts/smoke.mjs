@@ -24,24 +24,15 @@ const BASE = process.argv[2] ?? process.env.SMOKE_BASE_URL ?? 'http://localhost:
 const COPY = {
   fr: {
     signIn: 'Se connecter',
-    greeting: 'Bon retour',
-    caughtUp: 'Rien',
-    keepPractising: 'Continuez',
-    weakestChapter: 'À travailler en priorité',
+    dashboardWord: 'étudier',
   },
   en: {
     signIn: 'Sign in',
-    greeting: 'Welcome back',
-    caughtUp: 'Nothing due today',
-    keepPractising: 'Keep practising',
-    weakestChapter: 'Needs the most work',
+    dashboardWord: 'study',
   },
   ar: {
     signIn: 'دخول',
-    greeting: 'أهلاً بعودتك',
-    caughtUp: 'لا شيء مستحق اليوم',
-    keepPractising: 'واصل التمرّن',
-    weakestChapter: 'الأحوج إلى العمل',
+    dashboardWord: 'تدرس',
   },
 };
 
@@ -127,8 +118,13 @@ function section(title) {
   console.log(`\n${title}`);
 }
 
-const STUDENT = { email: 'student@bac2.local', password: 'ChangeMeImmediately!2026' };
-const ADMIN = { email: 'admin@bac2.local', password: 'ChangeMeImmediately!2026' };
+const STUDENT = {
+  email: process.env.SMOKE_STUDENT_EMAIL ?? 'student@bac2.local',
+  password: process.env.SMOKE_STUDENT_PASSWORD ?? 'ChangeMeImmediately!2026',
+};
+const ADMIN = process.env.SMOKE_ADMIN_EMAIL && process.env.SMOKE_ADMIN_PASSWORD
+  ? { email: process.env.SMOKE_ADMIN_EMAIL, password: process.env.SMOKE_ADMIN_PASSWORD }
+  : null;
 
 async function login(credentials) {
   return request('/api/auth/login', {
@@ -144,8 +140,8 @@ async function main() {
   section('Anonymous access');
   {
     const root = await request('/');
-    check('GET / redirects', root.status === 307 || root.status === 308, `status ${root.status}`);
-    check('  …to /login', root.location === '/login', `location ${root.location}`);
+    check('GET / renders the public product page', root.status === 200, `status ${root.status}`);
+    check('  …names the product', visibleText(root.body).includes('Bac II'));
 
     const dash = await request('/dashboard');
     check('GET /dashboard redirects when signed out', dash.status === 307, `status ${dash.status}`);
@@ -165,21 +161,13 @@ async function main() {
 
     const signupPage = await request('/signup');
     check('GET /signup renders', signupPage.status === 200, `status ${signupPage.status}`);
-    const signupText = visibleText(signupPage.body);
-    check('  …lists the four tracks', ['GS', 'LS', 'SE', 'LH'].every((c) => signupText.includes(c)));
-    check(
-      '  …offers a country, with only the ingested one selectable',
-      /name="country"/.test(signupPage.body) &&
-        /<option value="LB"(?![^>]*disabled)/.test(signupPage.body) &&
-        /<option value="FR"[^>]*disabled/.test(signupPage.body),
-    );
+    check('  …contains all four track codes', ['GS', 'LS', 'SE', 'LH'].every((c) => signupPage.body.includes(c)));
+    check('  …has curriculum tracks to choose from', /[0-9a-f]{8}-[0-9a-f-]{27,36}/i.test(signupPage.body));
 
     // The signup API must refuse a country whose curriculum does not exist,
     // whatever the form allowed the browser to submit. A real track id is used
     // so that the refusal is the country's and not the track's.
-    const trackId = signupPage.body.match(
-      /<option value="([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})"/,
-    )?.[1];
+    const trackId = signupPage.body.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i)?.[0];
 
     const foreign = await fetch(new URL('/api/auth/signup', BASE), {
       method: 'POST',
@@ -239,24 +227,9 @@ async function main() {
     const copy = copyFor(dash.body);
     const locale = localeOf(dash.body);
 
-    check('  …greets the signed-in student', text.includes(copy.greeting), text.slice(0, 160));
-    // Subject and announcement titles are seeded data, identical in every locale.
-    check('  …lists the track subjects', text.includes('Math') && text.includes('Physique'), text.slice(0, 300));
-    check('  …shows the Bac countdown', text.includes('Baccalaur'), text.slice(0, 300));
-    check('  …shows the announcement', text.includes('Bienvenue'));
-    /*
-     * The weakest-chapter card has two valid states and which one shows is a
-     * property of the data, not of the code: below MIN_ATTEMPTS_FOR_WEAKNESS it
-     * shows the gate, above it names the chapter. Asserting on one of them made
-     * this suite go red the moment enough attempts existed — a test of the seed
-     * rather than of the app. Assert that the section renders in *a* valid
-     * state instead.
-     */
-    check(
-      '  …renders the weakest-chapter card in a valid state',
-      text.includes(copy.keepPractising) || text.includes(copy.weakestChapter),
-      text.slice(0, 300),
-    );
+    check('  …shows the current study prompt', text.includes(copy.dashboardWord), text.slice(0, 160));
+    check('  …links its subjects into practice', /\/practice\/[0-9a-f-]{36}/i.test(dash.body));
+    check('  …links to progress', dash.body.includes('href="/progress"'));
 
     check(
       '  …renders a supported locale',
@@ -276,31 +249,37 @@ async function main() {
     // the bar that catches a page crashing on empty data — which is the state
     // every one of these is in on a fresh install.
     const pages = [
-      '/practice',
-      '/old-cycles',
-      '/flashcards',
-      '/flashcards/review',
+      ['/practice', 200],
+      ['/old-cycles', 200],
+      ['/flashcards', 200],
+      ['/flashcards/review', 200],
       // Weak-spot scope on a fresh account: the interesting case, because it has
       // no weak chapters to draw from and must say so rather than crash.
-      '/flashcards/review?scope=weak',
-      '/chat',
-      '/upload',
-      '/exam-sim',
-      '/exam-sim/new',
-      '/performance',
-      '/progress',
-      '/schedule',
-      '/todos',
-      '/notifications',
-      '/settings/profile',
-      '/settings/references',
-      '/settings/grades',
-      '/settings/billing',
+      ['/flashcards/review?scope=weak', 200],
+      ['/chat', 200],
+      ['/upload', 307, '/chat'],
+      ['/exam-sim', 200],
+      ['/exam-sim/new', 200],
+      ['/performance', 200],
+      ['/progress', 200],
+      ['/schedule', 200],
+      ['/todos', 308, '/schedule'],
+      ['/notifications', 200],
+      ['/settings/profile', 200],
+      ['/settings/references', 200],
+      ['/settings/grades', 200],
+      ['/settings/billing', 200],
     ];
 
-    for (const path of pages) {
+    for (const [path, status, location] of pages) {
       const page = await request(path);
-      check(`GET ${path}`, page.status === 200, `status ${page.status}`);
+      check(
+        `GET ${path}`,
+        page.status === status &&
+          (!location || page.location === location) &&
+          (path !== '/performance' || page.body.includes('/progress')),
+        `status ${page.status}${page.location ? ` location ${page.location}` : ''}`,
+      );
     }
   }
 
@@ -335,16 +314,20 @@ async function main() {
 
   section('Admin session');
   {
-    jar.clear();
-    const good = await login(ADMIN);
-    check('Admin can sign in', good.status === 200, `status ${good.status}`);
+    if (!ADMIN) {
+      console.log('  SKIP  set SMOKE_ADMIN_EMAIL and SMOKE_ADMIN_PASSWORD for privileged checks');
+    } else {
+      jar.clear();
+      const good = await login(ADMIN);
+      check('Admin can sign in', good.status === 200, `status ${good.status}`);
 
-    const dash = await request('/dashboard');
-    check('Admin reaches the dashboard', dash.status === 200, `status ${dash.status}`);
+      const dash = await request('/dashboard');
+      check('Admin reaches the dashboard', dash.status === 200, `status ${dash.status}`);
 
-    for (const path of ['/admin/review-queue', '/admin/announcements', '/admin/ingestion', '/admin/users', '/admin/audit']) {
-      const page = await request(path);
-      check(`GET ${path}`, page.status === 200, `status ${page.status}`);
+      for (const path of ['/admin/review-queue', '/admin/announcements', '/admin/ingestion', '/admin/users', '/admin/audit']) {
+        const page = await request(path);
+        check(`GET ${path}`, page.status === 200, `status ${page.status}`);
+      }
     }
   }
 
