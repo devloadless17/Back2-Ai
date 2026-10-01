@@ -36,6 +36,39 @@ const BAREME_SCHEMA = {
   },
 };
 
+/** Beyond this a "criterion" is a passage, not something to tick. */
+const CRITERION_MAX = 200;
+/** How much of the question's opening a criterion may echo before it is the question. */
+const ECHO = 60;
+
+/**
+ * Whether a stored marking scheme can actually mark anything.
+ *
+ * 3,745 official barèmes hold a single criterion; 2,252 of those run past 200
+ * characters and 1,792 begin with the question's own opening words. The average
+ * is 777 characters long. They are whole exam prompts saved as one criterion
+ * worth all the marks — History and English are entirely like this.
+ *
+ * WHY THAT IS NOT A SCHEME. `gradeAgainstBareme` awards or withholds each
+ * criterion, so a single undifferentiated blob gives a student one verdict on
+ * the whole answer and nothing about WHICH part cost them. The marks cannot be
+ * taken apart afterwards either, so the record is lost for good.
+ *
+ * IT IS STILL NOT TOUCHED. This decides only whether a usable scheme has to be
+ * written ALONGSIDE it, in `model_bareme`; the ministry's text stays exactly as
+ * it was. A real one-criterion barème — short, naming one thing — is left to do
+ * its job.
+ */
+export function isUsableBareme(bareme: Bareme, questionText: string): boolean {
+  if (bareme.length > 1) return true;
+  const only = bareme[0];
+  if (!only) return false;
+  const criterion = only.criterion.trim();
+  if (criterion.length > CRITERION_MAX) return false;
+  const opening = (questionText ?? '').trim().slice(0, ECHO).toLowerCase();
+  return !(opening.length >= ECHO && criterion.slice(0, ECHO).toLowerCase() === opening);
+}
+
 export type ModelBaremeResult =
   | { status: 'ok'; bareme: Bareme; official: boolean; cached: boolean }
   | { status: 'declined' | 'not_configured' | 'not_found' | 'needs_budget' };
@@ -133,7 +166,9 @@ export async function modelBaremeFor(input: {
   if (!question) return { status: 'not_found' };
 
   const official = parseBareme(question.bareme);
-  if (official) return { status: 'ok', bareme: official, official: true, cached: true };
+  if (official && isUsableBareme(official, question.contentText)) {
+    return { status: 'ok', bareme: official, official: true, cached: true };
+  }
 
   if (question.modelBaremeAt) {
     const stored = parseBareme(question.modelBareme);
