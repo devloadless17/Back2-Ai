@@ -58,6 +58,12 @@ const CRITERION_MAX = 300;
 /** Longest a rebuilt official solution may run, to keep one paper out of a prompt budget. */
 const SOLUTION_MAX = 8000;
 
+/** A damaged OCR row must never become an authoritative-looking answer. */
+export function readableSchemeAnswer(value: string): boolean {
+  const text = value.trim();
+  return Boolean(text) && !/[\uFFFD]|Ã[\x80-\xBF]|Â[\x80-\xBF]|â(?:€™|€œ|€|€“|€”)/u.test(text);
+}
+
 export function loadSidecars(dir: string): Map<string, Sidecar> {
   const out = new Map<string, Sidecar>();
   if (!existsSync(dir)) return out;
@@ -150,7 +156,10 @@ export function schemeFor(sidecar: Sidecar, exerciseIndex: number | string | und
     }))
     .filter((c) => c.points > 0);
 
-  const answered = rows.filter((r) => r.answer.trim());
+  // Keep good rows from a partly damaged key. Dropping the entire exercise
+  // would hide usable ministry answers; retaining a mojibake row would teach
+  // from text the student cannot read.
+  const answered = rows.filter((r) => readableSchemeAnswer(r.answer));
   const solution = answered.length
     ? answered
         .map((r) => `${r.label} ${r.answer}`.trim())

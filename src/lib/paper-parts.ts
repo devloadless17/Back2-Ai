@@ -49,7 +49,7 @@ export function paperPartAnswerIsUsable(answer: string, part: Pick<PaperPart, 'l
 
   const keyOf = (text: string) => {
     const match = text.match(/^\s*(?:[A-Z]+\s*[.\-]\s*)?(\d+(?:\s*[.\-]\s*\d+)*)(?:\s*([a-z]))?\b/i);
-    return match ? `${match[1].replace(/\D/g, '')}${(match[2] ?? '').toLowerCase()}` : '';
+    return match ? `${match[1]!.replace(/\D/g, '')}${(match[2] ?? '').toLowerCase()}` : '';
   };
   const expected = keyOf(part.label);
   const actual = keyOf(value);

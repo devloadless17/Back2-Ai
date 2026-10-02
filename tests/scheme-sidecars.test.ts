@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { exerciseKey, schemeFor, type Sidecar } from '../scripts/corpus/scheme-sidecars';
+import { exerciseKey, readableSchemeAnswer, schemeFor, type Sidecar } from '../scripts/corpus/scheme-sidecars';
 
 /**
  * The paper these rows come from is `gs/2005 1/gs math_fr 1.pdf`, checked by eye
@@ -41,6 +41,14 @@ describe('exerciseKey', () => {
   it('prefers a printed digit to a roman numeral in the same token', () => {
     // "Exercise 2" must not be read as the V/I letters that happen to appear.
     expect(exerciseKey('Exercise 2')).toBe('2');
+  });
+});
+
+describe('readableSchemeAnswer', () => {
+  it('keeps readable ministry text and withholds broken encoding', () => {
+    expect(readableSchemeAnswer('La concentration est $0,1\\,mol\\,L^{-1}$')).toBe(true);
+    expect(readableSchemeAnswer('La concentration est Ã©levÃ©e')).toBe(false);
+    expect(readableSchemeAnswer('   ')).toBe(false);
   });
 });
 
