@@ -5,6 +5,8 @@
  *   npm run corpus:paper-parts                                   report only
  *   npm run corpus:paper-parts -- --apply --confirm-db bac2      writes
  *   npm run corpus:paper-parts -- --restore <table> --confirm-db bac2
+ *   --source <file>   read the parts from elsewhere (the VPS: ops-in/…)
+ *   --measure         print how well stored rows match their parts, and others'
  *
  * `paper_parts.py` cut each exercise into its printed parts and bound each
  * part to the scheme row printed for it, by label, refusing any exercise whose
@@ -55,6 +57,7 @@ type Paper = { paper: string; sha256: string; subject: string; language: string;
 
 type Wanted = {
   paper: string;
+  sha: string;
   index: number;
   parts: Prisma.InputJsonValue;
   solution: string | null;
@@ -62,6 +65,19 @@ type Wanted = {
 };
 
 const sha256 = (s: string) => createHash('sha256').update(s).digest('hex');
+
+/** The prose words of a text, LaTeX command names left out. */
+function words(text: string | null): Set<string> {
+  const plain = (text ?? '').replace(/\\[a-zA-Z]+/g, ' ').toLowerCase();
+  return new Set(plain.match(/\p{L}{3,}/gu) ?? []);
+}
+
+/**
+ * Share of a row's own words the parts must hold. See `recallOf`. Measured
+ * locally (--measure): a row against its own exercise scores at least 0.76,
+ * against another exercise of its paper at most 0.66.
+ */
+const MIN_RECALL = 0.7;
 
 function arg(name: string): string | undefined {
   const i = process.argv.indexOf(`--${name}`);
@@ -146,18 +162,25 @@ async function main() {
   const apply = process.argv.includes('--apply');
   const database = apply ? await confirmDatabase() : null;
 
-  const raw = readFileSync(SOURCE, 'utf8');
+  const raw = readFileSync(arg('source') ?? SOURCE, 'utf8');
   const run = sha256(raw).slice(0, 16);
   const papers = JSON.parse(raw) as Paper[];
   const subjects = await db.subject.findMany({ select: { id: true } });
 
   const wanted = new Map<string, Wanted>();
+  const shownBy = new Map<string, Set<string>>(); // paper#index -> the words of its parts
   for (const p of papers) {
     for (const e of p.exercises) {
       const w = wantedFor(e, run, p.paper);
       if (!w) continue;
+      shownBy.set(`${p.sha256}#${e.index}`, words([e.intro ?? '', ...(e.parts ?? []).map((x) => x.text)].join(' ')));
       for (const s of subjects) {
-        wanted.set(sha256(`${s.id}:${p.sha256}:${e.index}:${e.ordinal - 1}`), { paper: p.paper, index: e.index, ...w });
+        wanted.set(sha256(`${s.id}:${p.sha256}:${e.index}:${e.ordinal - 1}`), {
+          paper: p.paper,
+          sha: p.sha256,
+          index: e.index,
+          ...w,
+        });
       }
     }
   }
@@ -183,11 +206,47 @@ async function main() {
           verifiedStatus: true,
           paperParts: true,
           officialSolution: true,
+          contentText: true,
           chapter: { select: { subject: { select: { name: true } } } },
         },
       })),
     );
   }
+
+  /*
+   * THE KEY IS NOT ENOUGH ON ITS OWN. A row is found by paper, exercise number
+   * and position, and a database loaded from an older extraction can hold a
+   * different exercise under the same key. So the row's own stored text must
+   * read like the parts about to be written onto it — most of its words found
+   * among theirs — or it is left alone and reported.
+   */
+  const recallOf = (r: (typeof rows)[number]) => {
+    const w = wanted.get(r.sourceRef!)!;
+    const stored = words(r.contentText);
+    const shown = shownBy.get(`${w.sha}#${w.index}`)!;
+    let hit = 0;
+    for (const x of stored) if (shown.has(x)) hit += 1;
+    return stored.size ? hit / stored.size : 0;
+  };
+  const mismatched = rows.filter((r) => recallOf(r) < MIN_RECALL);
+  if (process.argv.includes('--measure')) {
+    const own = rows.map(recallOf).sort((a, b) => a - b);
+    console.log(`  stored-text recall, own exercise: min ${own[0]?.toFixed(2)}, 5th pct ${own[Math.floor(own.length * 0.05)]?.toFixed(2)}`);
+    // The same rows against another exercise of their paper: what a wrong key would look like.
+    const wrong: number[] = [];
+    for (const r of rows) {
+      const w = wanted.get(r.sourceRef!)!;
+      const other = [...shownBy.keys()].find((k) => k.startsWith(`${w.sha}#`) && k !== `${w.sha}#${w.index}`);
+      if (!other) continue;
+      const stored = words(r.contentText);
+      let hit = 0;
+      for (const x of stored) if (shownBy.get(other)!.has(x)) hit += 1;
+      wrong.push(stored.size ? hit / stored.size : 0);
+    }
+    wrong.sort((a, b) => a - b);
+    console.log(`  stored-text recall, another exercise: max ${wrong.at(-1)?.toFixed(2)}, 95th pct ${wrong[Math.floor(wrong.length * 0.95)]?.toFixed(2)}`);
+  }
+  for (let i = rows.length - 1; i >= 0; i--) if (mismatched.includes(rows[i]!)) rows.splice(i, 1);
 
   // Postgres stores jsonb with its own key order, so the stored value is
   // compared with its keys sorted — and without `run`, which names the file
@@ -216,6 +275,11 @@ async function main() {
   console.log(`  exercises split into parts     ${exercises}`);
   console.log(`  questions found                ${rows.length}`);
   console.log(`  to write                       ${changes.length}`);
+  console.log(`  left alone: stored text differs ${mismatched.length}`);
+  for (const r of mismatched.slice(0, 5)) {
+    const w = wanted.get(r.sourceRef!)!;
+    console.log(`    ${w.paper} #${w.index}: ${r.contentText.replace(/\s+/g, ' ').slice(0, 60)}`);
+  }
   console.log(`  refused by the page's renderer ${refused.exercises} exercise(s) kept whole, ${refused.answers} answer(s) dropped`);
   for (const e of refused.examples) console.log(`    ${e}`);
   console.log('  by subject (parts / with official answers per part):');

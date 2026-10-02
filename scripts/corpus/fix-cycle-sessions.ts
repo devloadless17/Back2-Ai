@@ -18,7 +18,7 @@
  */
 
 import { createHash } from 'node:crypto';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { PrismaClient } from '@prisma/client';
@@ -26,7 +26,8 @@ import { PrismaClient } from '@prisma/client';
 import { sessionOf } from './exam-session';
 
 const db = new PrismaClient();
-const FILES = ['corpus/exams.json', 'corpus/exams-arabic.json'];
+// The extraction files, from corpus/ or from --exams-dir (the VPS: ops-in/…).
+const FILES = ['exams.json', 'exams-arabic.json'];
 
 type Exam = { path: string; sha256: string; track: string; session: string; exercises: Array<{ index: number }> };
 
@@ -70,8 +71,9 @@ async function main() {
   // ref -> the session its paper says
   const want = new Map<string, { session: string; paper: string }>();
   const subjects = await db.subject.findMany({ select: { id: true } });
-  for (const file of FILES) {
-    for (const e of JSON.parse(readFileSync(path.join(process.cwd(), file), 'utf8')) as Exam[]) {
+  const dir = path.resolve(process.cwd(), arg('exams-dir') ?? 'corpus');
+  for (const file of FILES.map((f) => path.join(dir, f)).filter((f) => existsSync(f))) {
+    for (const e of JSON.parse(readFileSync(file, 'utf8')) as Exam[]) {
       if (track && e.track.toUpperCase() !== track.toUpperCase()) continue;
       const session = sessionOf(e.session, e.track);
       // Only papers whose folder needed the table: everything else was filed right.
