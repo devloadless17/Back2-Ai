@@ -117,7 +117,7 @@ const refused = { exercises: 0, answers: 0, examples: [] as string[] };
  * badly and the exercise keeps its single block; an answer failing loses only
  * that answer, and its part says so.
  */
-function wantedFor(exercise: Exercise, run: string, paper: string): Omit<Wanted, 'paper' | 'index'> | null {
+function wantedFor(exercise: Exercise, run: string, paper: string): Omit<Wanted, 'paper' | 'sha' | 'index'> | null {
   if (exercise.status !== 'split' || !exercise.parts?.length) return null;
   const textProblem =
     (exercise.intro?.trim() ? renderProblem(exercise.intro) : null) ??
@@ -194,6 +194,7 @@ async function main() {
     verifiedStatus: string;
     paperParts: Prisma.JsonValue;
     officialSolution: string | null;
+    contentText: string;
     chapter: { subject: { name: string } };
   }> = [];
   for (let i = 0; i < refs.length; i += 5000) {
