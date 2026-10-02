@@ -53,6 +53,19 @@ ARABIC_EDITION = re.compile(r"(_ar\b|_ar[._]|arab|_dr\.pdf|_ar\.pdf)", re.I)
 MARK = re.compile(r"\(\s*\$?\s*\\?(?:frac\{\d\}\{\d\}|\d+(?:[.,]\d+)?)\s*\\?(?:mathrm\{)?\s*pts?\b|\b\d+(?:[.,]\d+)?\s*pts?\b|½\s*pt|¼\s*pt|¾\s*pt", re.I)
 MAX_LINES = 450
 
+# Reviewed against the printed paper and key.  These cache ranges point back
+# into a question statement or to a marks-only table cell, so they are never an
+# official answer.  Keep this exact and small: it is a paper-by-paper decision,
+# not a fuzzy rule that could erase a valid answer elsewhere.
+REJECTED_PARTS = {
+    ("ls/2013 1/bio_en.pdf", 1, "5"),
+    ("ls/2013 1/bio_fr.pdf", 1, "5"),
+    ("ls/2017 1/bio_en.pdf", 2, "3"),
+    ("ls/2017 1/bio_en.pdf", 2, "4"),
+    ("ls/2017 1/bio_fr.pdf", 2, "3"),
+    ("ls/2017 1/bio_fr.pdf", 2, "4"),
+}
+
 SYSTEM = """You match the official answer key of a Lebanese Baccalaureate science exam to the exam's sub-questions.
 
 You get the list of sub-questions (id, label, start of its text) and the answer key with NUMBERED lines.
@@ -190,6 +203,34 @@ def labels_agree(part_label: str, answer: str) -> bool:
     return got == want or got.startswith(want) or want.endswith(got) or want.startswith(got)
 
 
+def usable_answer(answer: str, question: str) -> bool:
+    """Whether an extracted key range contains an answer a student can trust.
+
+    A range can be numbered correctly yet still contain only a table mark, or
+    the question page itself when the key boundary was read incorrectly. Keep a
+    short genuine formula; reject only evidence that is plainly not an answer.
+    """
+    value = answer.strip()
+    if not value or "\ufffd" in value or "Ã" in value or "Â" in value:
+        return False
+    words = re.findall(r"[A-Za-zÀ-ÖØ-öø-ÿ]{3,}", value)
+    has_math = bool(re.search(r"[=+*/^]|\\(?:frac|sqrt|mathrm|left|right)\b", value))
+    if not words and not has_math:
+        return False
+    # A ruled key cell such as "& 1" has no answer content.  The normal
+    # tidier removes most of these; this catches the leftovers without treating
+    # a genuine equation as empty.
+    if not words and re.fullmatch(r"[\d\s.,()\[\]{}$\\=&;:—–-]+", value):
+        return False
+    compact = lambda s: re.sub(r"\W", "", s).lower()
+    q, a = compact(question), compact(value)
+    # A short range that repeats the whole question is an answer-key boundary
+    # failure, never an official solution.
+    if len(q) >= 24 and len(a) >= 24 and (q in a or a in q):
+        return False
+    return True
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--max-usd", type=float, default=0.5)
@@ -241,7 +282,7 @@ def main():
         print(f"asked {results.count('ok')}, capped {results.count('capped')}, ~${usd():.3f} spent")
 
     # Assemble from the cache: verbatim key lines, never the model's text.
-    out, stats = [], {"parts": 0, "answered": 0, "rejected_range": 0, "label_mismatch": 0}
+    out, stats = [], {"parts": 0, "answered": 0, "rejected_range": 0, "label_mismatch": 0, "unusable": 0}
     for p, lines, items, cache in jobs:
         if not cache.exists():
             continue
@@ -257,15 +298,22 @@ def main():
                 a = byid.get(iid) or {}
                 lo, hi = a.get("from"), a.get("to")
                 answer, unchecked = None, False
-                if isinstance(lo, int) and isinstance(hi, int):
+                if (p["path"].replace("\\", "/"), ex["index"], label) in REJECTED_PARTS:
+                    stats["unusable"] += 1
+                elif isinstance(lo, int) and isinstance(hi, int):
                     if 1 <= lo <= hi <= len(lines) and hi - lo <= 60:
                         answer = tidy("\n".join(lines[lo - 1:hi]))
-                        if answer and not labels_agree(label, answer):
+                        if not answer:
+                            stats["unusable"] += 1
+                        elif not labels_agree(label, answer):
                             stats["label_mismatch"] += 1
                             if args.keep_mismatched:
                                 unchecked = True
                             else:
                                 answer = None
+                        elif not usable_answer(answer, next((it["text"] for it in items if it["id"] == iid), "")):
+                            answer = None
+                            stats["unusable"] += 1
                         else:
                             stats["answered"] += 1
                     else:
@@ -278,7 +326,7 @@ def main():
             exercises.append({"order": order, "index": ex["index"], "parts": parts_out})
         out.append({"paper": p["path"], "sha256": p["sha256"], "exercises": exercises})
     OUT.write_text(json.dumps(out, ensure_ascii=False, indent=1), "utf-8")
-    print(f"{len(out)} papers -> {OUT.name}: {stats['answered']} of {stats['parts']} parts answered, {stats['rejected_range']} bad ranges and {stats['label_mismatch']} label mismatches "
+    print(f"{len(out)} papers -> {OUT.name}: {stats['answered']} of {stats['parts']} parts answered, {stats['rejected_range']} bad ranges, {stats['label_mismatch']} label mismatches and {stats['unusable']} unusable rows "
           f"{'kept, marked unchecked' if args.keep_mismatched else 'dropped'}")
 
 
