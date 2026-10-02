@@ -44,6 +44,7 @@ const db = new PrismaClient();
 const ROOT = process.cwd();
 const SOURCE = path.join(ROOT, 'corpus/.mapping/paper-parts.json');
 const ANSWER_CROPS = path.join(ROOT, 'corpus/science-answer-crops.json');
+const OFFICIAL_ANSWER_CROPS = path.join(ROOT, 'corpus/official-answer-crops.json');
 
 type Part = { label: string; text: string; marks?: number; answer?: string };
 type Exercise = {
@@ -170,8 +171,9 @@ async function main() {
   const run = sha256(raw).slice(0, 16);
   const papers = JSON.parse(raw) as Paper[];
   const crops = new Map<string, string>();
-  if (existsSync(ANSWER_CROPS)) {
-    for (const crop of JSON.parse(readFileSync(ANSWER_CROPS, 'utf8')) as AnswerCrop[]) {
+  for (const source of [ANSWER_CROPS, OFFICIAL_ANSWER_CROPS]) {
+    if (!existsSync(source)) continue;
+    for (const crop of JSON.parse(readFileSync(source, 'utf8')) as AnswerCrop[]) {
       if (/^\/answer-figures\/[a-z0-9][a-z0-9._-]*\.(?:png|jpe?g|webp)$/i.test(crop.image)) {
         crops.set(`${crop.paper}#${crop.index}#${crop.label}`, crop.image);
       }
