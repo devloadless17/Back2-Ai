@@ -5,9 +5,10 @@ import { notFound } from 'next/navigation';
 import { TutorAnchor } from '@/components/chat/tutor-context';
 import { AskWhy } from '@/components/practice/ask-why';
 import { FlagButton } from '@/components/practice/flag-button';
+import { PartAnswer } from '@/components/practice/part-answer';
 import { RevealableSolution } from '@/components/practice/revealable-solution';
 import { Alert, EmptyAction, EmptyState } from '@/components/ui/feedback';
-import { PaperPassage, QuestionBody } from '@/components/ui/math';
+import { MathText, PaperPassage, QuestionBody } from '@/components/ui/math';
 import { LinkButton } from '@/components/ui/button';
 import { PageHeader, Sheet } from '@/components/ui/sheet';
 import { BackLink } from '@/components/ui/back-link';
@@ -17,6 +18,7 @@ import { paperDuration } from '@/lib/exam-duration';
 import { getTranslations } from '@/lib/i18n';
 import { format } from '@/lib/i18n/format';
 import { dirForLanguage } from '@/lib/i18n/config';
+import { formatMarks, paperPartsOf, partMarkdown } from '@/lib/paper-parts';
 import { OWN_EDITION_ONLY, paperScopeFor, subjectIdsForTrack } from '@/lib/queries/taxonomy';
 import { visualKeysFor } from '@/lib/visual-evidence';
 import { bodyToRender } from '@/lib/question-body';
@@ -92,6 +94,7 @@ export default async function ExamCyclePage({
           contentImages: true,
           officialSolution: true,
           officialSolutionLatex: true,
+          paperParts: true,
           sourcePassage: true,
           chapter: { select: { name: true } },
         },
@@ -214,20 +217,63 @@ export default async function ExamCyclePage({
               floating each one on its own card. */}
           <div className="ruled">
             {paperQuestions.map((question) => {
-              const solution =
-                bodyToRender(question.officialSolutionLatex, question.officialSolution ?? '').trim() || null;
+              const parts = paperPartsOf(question.paperParts);
+              /*
+               * With parts, each carries its own answer. The exercise-level
+               * solution is still shown when NO part has one: it is what the
+               * page showed before, and for some papers it is the only key
+               * there is.
+               */
+              const partsAnswered = Boolean(parts?.parts.some((p) => p.answer));
+              const solution = partsAnswered
+                ? null
+                : bodyToRender(question.officialSolutionLatex, question.officialSolution ?? '').trim() || null;
               return (
               <section key={question.id} className="group px-5 py-5">
-                <QuestionBody
-                  contentText={question.contentText}
-                  contentLatex={question.contentLatex}
-                  images={visualKeys.get(question.id) ?? []}
-                  dir={paperDir}
-                />
+                {parts ? (
+                  <>
+                    <QuestionBody
+                      contentText={parts.intro}
+                      contentLatex={parts.intro}
+                      images={visualKeys.get(question.id) ?? []}
+                      dir={paperDir}
+                    />
+                    {/* One block per printed part, its marks beside it and its
+                        own answer under it — matched to the scheme by label. */}
+                    <ol className="mt-2 list-none p-0">
+                      {parts.parts.map((part, i) => (
+                        <li key={`${part.label}-${i}`} className="border-t border-rule py-3 first:border-t-0">
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="min-w-0 flex-1">
+                              <MathText dir={paperDir}>{partMarkdown(part.text)}</MathText>
+                            </div>
+                            {typeof part.marks === 'number' && (
+                              <span className="shrink-0 pt-0.5 text-meta tabular-nums text-ink-muted">
+                                {format(t.oldCycles.partMarks, { count: formatMarks(part.marks) })}
+                              </span>
+                            )}
+                          </div>
+                          {part.answer ? (
+                            <PartAnswer answer={part.answer} dir={paperDir} />
+                          ) : partsAnswered && typeof part.marks === 'number' ? (
+                            <p className="mt-2 text-meta text-ink-muted">{t.oldCycles.partAnswerMissing}</p>
+                          ) : null}
+                        </li>
+                      ))}
+                    </ol>
+                  </>
+                ) : (
+                  <QuestionBody
+                    contentText={question.contentText}
+                    contentLatex={question.contentLatex}
+                    images={visualKeys.get(question.id) ?? []}
+                    dir={paperDir}
+                  />
+                )}
 
                 {/* No answer stored: say so, rather than showing nothing and
                     leaving the student to wonder whether they missed it. */}
-                {!solution && (
+                {!solution && !partsAnswered && (
                   <p className="mt-3 rounded border border-rule bg-paper-sunken px-3 py-2 text-meta text-ink-muted">
                     {t.oldCycles.answerMissing}
                   </p>

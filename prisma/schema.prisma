@@ -752,6 +752,15 @@ model Question {
   modelBareme           Json?          @map("model_bareme")
   modelBaremeModel      String?        @map("model_bareme_model")
   modelBaremeAt         DateTime?      @map("model_bareme_at") @db.Timestamptz(6)
+  /// The exercise as its printed parts, each with its own official answer.
+  ///
+  /// Shape: { intro, parts: [{ label, text, marks?, answer? }], run }.
+  /// `content_latex` and `official_solution` hold the exercise as one block,
+  /// and the solution beside a thirteen-part exercise was one answer for all
+  /// of it. Here every part carries the scheme row printed for it, matched by
+  /// its label (scripts/corpus/paper_parts.py). Null where the parts could not
+  /// be found reliably; the paper page then shows the block as before.
+  paperParts            Json?          @map("paper_parts")
   /// Structured point breakdown: [{ criterion, points }]
   bareme                Json?
   /// Position within its source paper; drives ordering in old-cycle mode.

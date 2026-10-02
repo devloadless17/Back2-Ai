@@ -524,6 +524,10 @@ export const en = {
     answerMissing: 'Answer missing. We do not have the official answer for this part.',
     solveWithZaki: 'Solve it with Zaki',
     paperNotice: 'Shown as one continuous paper, in printed order.',
+    partMarks: '{count} pt',
+    showAnswer: 'Show answer',
+    hideAnswer: 'Hide answer',
+    partAnswerMissing: 'No official answer for this part.',
   },
 
   examSim: {

@@ -500,6 +500,10 @@ export const fr: Dictionary = {
     answerMissing: 'Réponse manquante. Nous n’avons pas le corrigé officiel de cette partie.',
     solveWithZaki: 'Le résoudre avec Zaki',
     paperNotice: 'Affiché comme une épreuve continue, dans l’ordre imprimé.',
+    partMarks: '{count} pt',
+    showAnswer: 'Afficher la réponse',
+    hideAnswer: 'Masquer la réponse',
+    partAnswerMissing: 'Pas de corrigé officiel pour cette partie.',
   },
 
   examSim: {

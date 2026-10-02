@@ -30,6 +30,8 @@
 
 import { createHash } from 'node:crypto';
 
+import { ACCOMMODATION } from './accommodation';
+import { sessionOf } from './exam-session';
 import { stripPaperFurniture } from './paper-furniture';
 import { loadSidecars, schemeFor } from './scheme-sidecars';
 import { readFile } from 'node:fs/promises';
@@ -327,10 +329,6 @@ function yearOf(session: string): number | null {
   return m ? Number(m[1]) : null;
 }
 
-function sessionOf(session: string): string {
-  return /\s2$/.test(session) ? 'session2' : 'session1';
-}
-
 async function main() {
   const args = process.argv.slice(2);
   const dry = args.includes('--dry');
@@ -444,6 +442,15 @@ async function main() {
       note('Brevet (grade 9), not the Baccalaureate');
       continue;
     }
+    // A separate exam sat in the same session, which this loader used to file
+    // into the ordinary paper's cycle — "Physics GS 2019 — session 1" showed
+    // seven exercises from two exams. Not shown (decided 2026-10-02); rows
+    // already loaded are hidden by hide-accommodation-papers.ts, and a full
+    // run retires them as no longer extracted.
+    if (ACCOMMODATION.test(path.basename(exam.path.replace(/\\/g, '/')))) {
+      note('accommodation paper (adapted edition), not shown');
+      continue;
+    }
     const subject = SUBJECTS.find((s) => s.match.test(exam.file));
     if (!subject) {
       note('subject not in the table (history, Arabic literature, …)');
@@ -511,7 +518,7 @@ async function main() {
           subjectId_year_session_language: {
             subjectId: subjectRow.id,
             year,
-            session: sessionOf(exam.session),
+            session: sessionOf(exam.session, exam.track),
             language: paperLanguage,
           },
         },
@@ -519,7 +526,7 @@ async function main() {
         create: {
           subjectId: subjectRow.id,
           year,
-          session: sessionOf(exam.session),
+          session: sessionOf(exam.session, exam.track),
           /*
            * Must match the `where` above.
            *
@@ -529,7 +536,7 @@ async function main() {
            * exists — which is exactly how this failed the first time it ran.
            */
           language: paperLanguage,
-          title: `${subjectName} ${exam.track} ${year} — ${sessionOf(exam.session) === 'session2' ? 'session 2' : 'session 1'}`,
+          title: `${subjectName} ${exam.track} ${year} — ${sessionOf(exam.session, exam.track) === 'session2' ? 'session 2' : 'session 1'}`,
         },
         select: { id: true },
       });

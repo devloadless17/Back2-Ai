@@ -522,6 +522,10 @@ export const ar: Dictionary = {
     answerMissing: 'الجواب غير متوفّر. لا نملك الحلّ الرسمي لهذا الجزء.',
     solveWithZaki: 'حُلّه مع زكي',
     paperNotice: 'يُعرض كورقة متصلة، بالترتيب المطبوع.',
+    partMarks: '{count} علامة',
+    showAnswer: 'إظهار الجواب',
+    hideAnswer: 'إخفاء الجواب',
+    partAnswerMissing: 'لا يوجد جواب رسمي لهذا الجزء.',
   },
 
   examSim: {
