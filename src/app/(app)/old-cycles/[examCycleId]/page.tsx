@@ -224,7 +224,7 @@ export default async function ExamCyclePage({
                * page showed before, and for some papers it is the only key
                * there is.
                */
-              const partsAnswered = Boolean(parts?.parts.some((p) => p.answer));
+              const partsAnswered = Boolean(parts?.parts.some((p) => p.answer || p.answerImage));
               const solution = partsAnswered
                 ? null
                 : bodyToRender(question.officialSolutionLatex, question.officialSolution ?? '').trim() || null;
@@ -253,8 +253,8 @@ export default async function ExamCyclePage({
                               </span>
                             )}
                           </div>
-                          {part.answer ? (
-                            <PartAnswer answer={part.answer} dir={paperDir} />
+                          {part.answer || part.answerImage ? (
+                            <PartAnswer answer={part.answer} image={part.answerImage} dir={paperDir} />
                           ) : partsAnswered && typeof part.marks === 'number' ? (
                             <p className="mt-2 text-meta text-ink-muted">{t.oldCycles.partAnswerMissing}</p>
                           ) : null}

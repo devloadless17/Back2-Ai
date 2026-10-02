@@ -14,6 +14,8 @@ export type PaperPart = {
   marks?: number;
   /** The scheme's answer for this part, verbatim. */
   answer?: string;
+  /** A tightly bounded crop of this part in the official answer key. */
+  answerImage?: string;
 };
 
 export type PaperParts = { intro: string; parts: PaperPart[] };
@@ -73,9 +75,16 @@ export function paperPartsOf(value: unknown): PaperParts | null {
       text: p.text,
       ...(typeof p.marks === 'number' && Number.isFinite(p.marks) ? { marks: p.marks } : {}),
     } satisfies Omit<PaperPart, 'answer'>;
+    // Never trust an arbitrary URL in corpus JSON.  Official answer evidence
+    // is a published crop stored with the application, not an external image
+    // embedded by an OCR result.
+    const answerImage = typeof p.answerImage === 'string' && /^\/answer-figures\/[a-z0-9][a-z0-9._-]*\.(?:png|jpe?g|webp)$/i.test(p.answerImage)
+      ? p.answerImage
+      : undefined;
     parts.push({
       ...part,
       ...(paperPartAnswerIsUsable(candidate, part) ? { answer: candidate } : {}),
+      ...(answerImage ? { answerImage } : {}),
     });
   }
   return { intro: typeof v.intro === 'string' ? v.intro : '', parts };

@@ -1,0 +1,5488 @@
+[
+  {
+    "paper": "ls/2004 1/chem_en.pdf",
+    "index": 2,
+    "label": "I.1",
+    "image": "/answer-figures/fb416e2e34e8-key-p6-e2-1.webp",
+    "page": 6,
+    "box": [
+      178,
+      2165,
+      1487,
+      536
+    ]
+  },
+  {
+    "paper": "ls/2004 1/chem_fr.pdf",
+    "index": 2,
+    "label": "II.3",
+    "image": "/answer-figures/19930cf5e324-key-p8-e2-5.webp",
+    "page": 8,
+    "box": [
+      176,
+      199,
+      1544,
+      678
+    ]
+  },
+  {
+    "paper": "ls/2004 1/chem_fr.pdf",
+    "index": 2,
+    "label": "II.4",
+    "image": "/answer-figures/19930cf5e324-key-p8-e2-6.webp",
+    "page": 8,
+    "box": [
+      176,
+      199,
+      1544,
+      678
+    ]
+  },
+  {
+    "paper": "ls/2004 1/math_Fr.pdf",
+    "index": 1,
+    "label": "1",
+    "image": "/answer-figures/7d8c69f6deec-key-p3-e1-0.webp",
+    "page": 3,
+    "box": [
+      75,
+      94,
+      1528,
+      690
+    ]
+  },
+  {
+    "paper": "ls/2004 1/math_Fr.pdf",
+    "index": 1,
+    "label": "2",
+    "image": "/answer-figures/7d8c69f6deec-key-p3-e1-1.webp",
+    "page": 3,
+    "box": [
+      75,
+      94,
+      1528,
+      690
+    ]
+  },
+  {
+    "paper": "ls/2004 1/phy_eng.pdf",
+    "index": 2,
+    "label": "A.1",
+    "image": "/answer-figures/37af5dd1f481-key-p4-e2-0.webp",
+    "page": 4,
+    "box": [
+      213,
+      1774,
+      1009,
+      97
+    ]
+  },
+  {
+    "paper": "ls/2004 1/phy_eng.pdf",
+    "index": 2,
+    "label": "A.2",
+    "image": "/answer-figures/37af5dd1f481-key-p4-e2-1.webp",
+    "page": 4,
+    "box": [
+      213,
+      1877,
+      921,
+      147
+    ]
+  },
+  {
+    "paper": "ls/2004 1/phy_eng.pdf",
+    "index": 2,
+    "label": "A.3",
+    "image": "/answer-figures/37af5dd1f481-key-p4-e2-2.webp",
+    "page": 4,
+    "box": [
+      276,
+      2025,
+      262,
+      40
+    ]
+  },
+  {
+    "paper": "ls/2004 1/phy_eng.pdf",
+    "index": 2,
+    "label": "B.2",
+    "image": "/answer-figures/37af5dd1f481-key-p5-e2-4.webp",
+    "page": 5,
+    "box": [
+      210,
+      162,
+      1666,
+      145
+    ]
+  },
+  {
+    "paper": "ls/2004 1/phy_eng.pdf",
+    "index": 3,
+    "label": "A.2",
+    "image": "/answer-figures/37af5dd1f481-key-p5-e3-1.webp",
+    "page": 5,
+    "box": [
+      213,
+      1115,
+      1027,
+      532
+    ]
+  },
+  {
+    "paper": "ls/2004 1/phy_fr.pdf",
+    "index": 2,
+    "label": "A.1",
+    "image": "/answer-figures/5610d8591cac-key-p5-e2-0.webp",
+    "page": 5,
+    "box": [
+      248,
+      390,
+      1508,
+      91
+    ]
+  },
+  {
+    "paper": "ls/2004 1/phy_fr.pdf",
+    "index": 2,
+    "label": "A.2",
+    "image": "/answer-figures/5610d8591cac-key-p5-e2-1.webp",
+    "page": 5,
+    "box": [
+      248,
+      488,
+      888,
+      99
+    ]
+  },
+  {
+    "paper": "ls/2004 1/phy_fr.pdf",
+    "index": 2,
+    "label": "A.3",
+    "image": "/answer-figures/5610d8591cac-key-p5-e2-2.webp",
+    "page": 5,
+    "box": [
+      248,
+      589,
+      241,
+      41
+    ]
+  },
+  {
+    "paper": "ls/2004 1/phy_fr.pdf",
+    "index": 2,
+    "label": "B.2",
+    "image": "/answer-figures/5610d8591cac-key-p5-e2-4.webp",
+    "page": 5,
+    "box": [
+      248,
+      996,
+      1549,
+      147
+    ]
+  },
+  {
+    "paper": "ls/2004 1/phy_fr.pdf",
+    "index": 2,
+    "label": "C.1",
+    "image": "/answer-figures/5610d8591cac-key-p5-e2-5.webp",
+    "page": 5,
+    "box": [
+      248,
+      1193,
+      1378,
+      258
+    ]
+  },
+  {
+    "paper": "ls/2004 1/phy_fr.pdf",
+    "index": 2,
+    "label": "C.2",
+    "image": "/answer-figures/5610d8591cac-key-p5-e2-6.webp",
+    "page": 5,
+    "box": [
+      248,
+      1458,
+      1080,
+      94
+    ]
+  },
+  {
+    "paper": "ls/2004 1/phy_fr.pdf",
+    "index": 3,
+    "label": "B.1",
+    "image": "/answer-figures/5610d8591cac-key-p4-e3-2.webp",
+    "page": 4,
+    "box": [
+      183,
+      2396,
+      570,
+      94
+    ]
+  },
+  {
+    "paper": "ls/2004 2/chem_en.pdf",
+    "index": 2,
+    "label": "II.1",
+    "image": "/answer-figures/b47da5dc872b-key-p6-e2-0.webp",
+    "page": 6,
+    "box": [
+      144,
+      923,
+      1192,
+      278
+    ]
+  },
+  {
+    "paper": "ls/2004 2/chem_en.pdf",
+    "index": 2,
+    "label": "II.5",
+    "image": "/answer-figures/b47da5dc872b-key-p6-e2-4.webp",
+    "page": 6,
+    "box": [
+      144,
+      2259,
+      1204,
+      233
+    ]
+  },
+  {
+    "paper": "ls/2004 2/phy_fr.pdf",
+    "index": 1,
+    "label": "1",
+    "image": "/answer-figures/e1020e03781a-key-p5-e1-0.webp",
+    "page": 5,
+    "box": [
+      192,
+      327,
+      921,
+      48
+    ]
+  },
+  {
+    "paper": "ls/2004 2/phy_fr.pdf",
+    "index": 1,
+    "label": "2",
+    "image": "/answer-figures/e1020e03781a-key-p5-e1-1.webp",
+    "page": 5,
+    "box": [
+      190,
+      375,
+      1128,
+      181
+    ]
+  },
+  {
+    "paper": "ls/2004 2/phy_fr.pdf",
+    "index": 1,
+    "label": "4",
+    "image": "/answer-figures/e1020e03781a-key-p5-e1-3.webp",
+    "page": 5,
+    "box": [
+      190,
+      1516,
+      1243,
+      418
+    ]
+  },
+  {
+    "paper": "ls/2005 1/bio_en.pdf",
+    "index": 4,
+    "label": "3",
+    "image": "/answer-figures/8a1001703f62-key-p8-e4-1.webp",
+    "page": 8,
+    "box": [
+      407,
+      1133,
+      1484,
+      96
+    ]
+  },
+  {
+    "paper": "ls/2005 1/bio_en.pdf",
+    "index": 4,
+    "label": "2",
+    "image": "/answer-figures/8a1001703f62-key-p8-e4-3.webp",
+    "page": 8,
+    "box": [
+      407,
+      1086,
+      1484,
+      43
+    ]
+  },
+  {
+    "paper": "ls/2005 1/bio_en.pdf",
+    "index": 4,
+    "label": "4",
+    "image": "/answer-figures/8a1001703f62-key-p8-e4-4.webp",
+    "page": 8,
+    "box": [
+      407,
+      1133,
+      1484,
+      96
+    ]
+  },
+  {
+    "paper": "ls/2005 1/bio_fr.pdf",
+    "index": 4,
+    "label": "4",
+    "image": "/answer-figures/0d7f40992248-key-p8-e4-0.webp",
+    "page": 8,
+    "box": [
+      344,
+      1038,
+      1548,
+      91
+    ]
+  },
+  {
+    "paper": "ls/2005 1/bio_fr.pdf",
+    "index": 4,
+    "label": "1",
+    "image": "/answer-figures/0d7f40992248-key-p8-e4-2.webp",
+    "page": 8,
+    "box": [
+      344,
+      1038,
+      1548,
+      48
+    ]
+  },
+  {
+    "paper": "ls/2005 1/bio_fr.pdf",
+    "index": 4,
+    "label": "3",
+    "image": "/answer-figures/0d7f40992248-key-p8-e4-3.webp",
+    "page": 8,
+    "box": [
+      407,
+      1133,
+      1446,
+      48
+    ]
+  },
+  {
+    "paper": "ls/2005 1/bio_fr.pdf",
+    "index": 4,
+    "label": "2",
+    "image": "/answer-figures/0d7f40992248-key-p8-e4-5.webp",
+    "page": 8,
+    "box": [
+      407,
+      1086,
+      1484,
+      43
+    ]
+  },
+  {
+    "paper": "ls/2005 1/chem_en.pdf",
+    "index": 1,
+    "label": "III.3",
+    "image": "/answer-figures/8c77a6d61361-key-p5-e1-7.webp",
+    "page": 5,
+    "box": [
+      135,
+      135,
+      1720,
+      630
+    ]
+  },
+  {
+    "paper": "ls/2005 1/chem_fr.pdf",
+    "index": 3,
+    "label": "II.3",
+    "image": "/answer-figures/77a536396df2-key-p7-e3-5.webp",
+    "page": 7,
+    "box": [
+      178,
+      154,
+      1708,
+      584
+    ]
+  },
+  {
+    "paper": "ls/2005 1/phy_en.pdf",
+    "index": 3,
+    "label": "A.2",
+    "image": "/answer-figures/cf358e088f54-key-p5-e3-2.webp",
+    "page": 5,
+    "box": [
+      560,
+      520,
+      1490,
+      325
+    ]
+  },
+  {
+    "paper": "ls/2005 1/phy_en.pdf",
+    "index": 3,
+    "label": "C.2",
+    "image": "/answer-figures/cf358e088f54-key-p5-e3-6.webp",
+    "page": 5,
+    "box": [
+      643,
+      1484,
+      754,
+      57
+    ]
+  },
+  {
+    "paper": "ls/2005 1/phy_fr.pdf",
+    "index": 1,
+    "label": "B.2",
+    "image": "/answer-figures/be8e6a22abcc-key-p5-e1-2.webp",
+    "page": 5,
+    "box": [
+      97,
+      1109,
+      1263,
+      111
+    ]
+  },
+  {
+    "paper": "ls/2005 1/phy_fr.pdf",
+    "index": 3,
+    "label": "A.2",
+    "image": "/answer-figures/be8e6a22abcc-key-p6-e3-2.webp",
+    "page": 6,
+    "box": [
+      560,
+      520,
+      1464,
+      330
+    ]
+  },
+  {
+    "paper": "ls/2005 1/phy_fr.pdf",
+    "index": 3,
+    "label": "C.2",
+    "image": "/answer-figures/be8e6a22abcc-key-p6-e3-6.webp",
+    "page": 6,
+    "box": [
+      643,
+      1484,
+      756,
+      60
+    ]
+  },
+  {
+    "paper": "ls/2005 2/chem_en.pdf",
+    "index": 2,
+    "label": "I.1",
+    "image": "/answer-figures/34c0fc3db7ac-key-p4-e2-0.webp",
+    "page": 4,
+    "box": [
+      127,
+      2418,
+      1811,
+      301
+    ]
+  },
+  {
+    "paper": "ls/2005 2/chem_en.pdf",
+    "index": 2,
+    "label": "I.2",
+    "image": "/answer-figures/34c0fc3db7ac-key-p4-e2-1.webp",
+    "page": 4,
+    "box": [
+      127,
+      2418,
+      1811,
+      301
+    ]
+  },
+  {
+    "paper": "ls/2005 2/chem_en.pdf",
+    "index": 2,
+    "label": "II.5",
+    "image": "/answer-figures/34c0fc3db7ac-key-p6-e2-7.webp",
+    "page": 6,
+    "box": [
+      127,
+      106,
+      1814,
+      115
+    ]
+  },
+  {
+    "paper": "ls/2005 2/chem_en.pdf",
+    "index": 3,
+    "label": "III.1",
+    "image": "/answer-figures/34c0fc3db7ac-key-p7-e3-6.webp",
+    "page": 7,
+    "box": [
+      127,
+      103,
+      1814,
+      538
+    ]
+  },
+  {
+    "paper": "ls/2005 2/chem_en.pdf",
+    "index": 3,
+    "label": "III.2",
+    "image": "/answer-figures/34c0fc3db7ac-key-p7-e3-7.webp",
+    "page": 7,
+    "box": [
+      127,
+      103,
+      1814,
+      538
+    ]
+  },
+  {
+    "paper": "ls/2005 2/chem_en.pdf",
+    "index": 3,
+    "label": "III.3",
+    "image": "/answer-figures/34c0fc3db7ac-key-p7-e3-8.webp",
+    "page": 7,
+    "box": [
+      127,
+      103,
+      1814,
+      538
+    ]
+  },
+  {
+    "paper": "ls/2005 2/chem_fr.pdf",
+    "index": 2,
+    "label": "I.1",
+    "image": "/answer-figures/4d7539a4cc7c-key-p4-e2-0.webp",
+    "page": 4,
+    "box": [
+      127,
+      2216,
+      1811,
+      493
+    ]
+  },
+  {
+    "paper": "ls/2005 2/chem_fr.pdf",
+    "index": 2,
+    "label": "I.2",
+    "image": "/answer-figures/4d7539a4cc7c-key-p4-e2-1.webp",
+    "page": 4,
+    "box": [
+      127,
+      2216,
+      1811,
+      493
+    ]
+  },
+  {
+    "paper": "ls/2005 2/chem_fr.pdf",
+    "index": 2,
+    "label": "I.3",
+    "image": "/answer-figures/4d7539a4cc7c-key-p4-e2-2.webp",
+    "page": 4,
+    "box": [
+      127,
+      2216,
+      1811,
+      493
+    ]
+  },
+  {
+    "paper": "ls/2005 2/chem_fr.pdf",
+    "index": 3,
+    "label": "III.1",
+    "image": "/answer-figures/4d7539a4cc7c-key-p7-e3-6.webp",
+    "page": 7,
+    "box": [
+      130,
+      148,
+      1811,
+      517
+    ]
+  },
+  {
+    "paper": "ls/2005 2/chem_fr.pdf",
+    "index": 3,
+    "label": "III.2",
+    "image": "/answer-figures/4d7539a4cc7c-key-p7-e3-7.webp",
+    "page": 7,
+    "box": [
+      130,
+      148,
+      1811,
+      517
+    ]
+  },
+  {
+    "paper": "ls/2005 2/chem_fr.pdf",
+    "index": 3,
+    "label": "III.3",
+    "image": "/answer-figures/4d7539a4cc7c-key-p7-e3-8.webp",
+    "page": 7,
+    "box": [
+      130,
+      148,
+      1811,
+      517
+    ]
+  },
+  {
+    "paper": "ls/2005 2/math_fr.pdf",
+    "index": 3,
+    "label": "1",
+    "image": "/answer-figures/29a4b079d4cf-key-p4-e3-0.webp",
+    "page": 4,
+    "box": [
+      173,
+      94,
+      1772,
+      557
+    ]
+  },
+  {
+    "paper": "ls/2005 2/math_fr.pdf",
+    "index": 3,
+    "label": "3",
+    "image": "/answer-figures/29a4b079d4cf-key-p4-e3-2.webp",
+    "page": 4,
+    "box": [
+      173,
+      94,
+      1772,
+      557
+    ]
+  },
+  {
+    "paper": "ls/2005 2/phy_en.pdf",
+    "index": 1,
+    "label": "1",
+    "image": "/answer-figures/e9b3918db4bb-key-p4-e1-0.webp",
+    "page": 4,
+    "box": [
+      95,
+      198,
+      262,
+      32
+    ]
+  },
+  {
+    "paper": "ls/2005 2/phy_en.pdf",
+    "index": 1,
+    "label": "A.3",
+    "image": "/answer-figures/e9b3918db4bb-key-p4-e1-3.webp",
+    "page": 4,
+    "box": [
+      176,
+      640,
+      1177,
+      99
+    ]
+  },
+  {
+    "paper": "ls/2005 2/phy_fr.pdf",
+    "index": 3,
+    "label": "I.2",
+    "image": "/answer-figures/2ccb882889a5-key-p5-e3-1.webp",
+    "page": 5,
+    "box": [
+      610,
+      307,
+      1199,
+      189
+    ]
+  },
+  {
+    "paper": "ls/2006 1/chem_en.pdf",
+    "index": 3,
+    "label": "III.1",
+    "image": "/answer-figures/17b6783bbffd-key-p8-e3-7.webp",
+    "page": 8,
+    "box": [
+      178,
+      197,
+      1711,
+      729
+    ]
+  },
+  {
+    "paper": "ls/2006 1/chem_en.pdf",
+    "index": 3,
+    "label": "III.2",
+    "image": "/answer-figures/17b6783bbffd-key-p8-e3-8.webp",
+    "page": 8,
+    "box": [
+      178,
+      197,
+      1711,
+      729
+    ]
+  },
+  {
+    "paper": "ls/2006 1/phy_en.pdf",
+    "index": 1,
+    "label": "3",
+    "image": "/answer-figures/2ed0ca53e6d3-key-p5-e1-2.webp",
+    "page": 5,
+    "box": [
+      118,
+      1029,
+      810,
+      69
+    ]
+  },
+  {
+    "paper": "ls/2006 1/phy_en.pdf",
+    "index": 2,
+    "label": "A.3",
+    "image": "/answer-figures/2ed0ca53e6d3-key-p5-e2-2.webp",
+    "page": 5,
+    "box": [
+      1461,
+      614,
+      780,
+      62
+    ]
+  },
+  {
+    "paper": "ls/2006 1/phy_en.pdf",
+    "index": 3,
+    "label": "I.4",
+    "image": "/answer-figures/2ed0ca53e6d3-key-p6-e3-6.webp",
+    "page": 6,
+    "box": [
+      253,
+      993,
+      1846,
+      97
+    ]
+  },
+  {
+    "paper": "ls/2006 1/phy_fr.pdf",
+    "index": 1,
+    "label": "3",
+    "image": "/answer-figures/c00e2a54cd02-key-p5-e1-2.webp",
+    "page": 5,
+    "box": [
+      118,
+      1086,
+      814,
+      70
+    ]
+  },
+  {
+    "paper": "ls/2006 1/phy_fr.pdf",
+    "index": 1,
+    "label": "5",
+    "image": "/answer-figures/c00e2a54cd02-key-p5-e1-4.webp",
+    "page": 5,
+    "box": [
+      181,
+      1652,
+      1099,
+      294
+    ]
+  },
+  {
+    "paper": "ls/2006 1/phy_fr.pdf",
+    "index": 2,
+    "label": "A.1",
+    "image": "/answer-figures/c00e2a54cd02-key-p5-e2-0.webp",
+    "page": 5,
+    "box": [
+      1400,
+      283,
+      998,
+      97
+    ]
+  },
+  {
+    "paper": "ls/2006 1/phy_fr.pdf",
+    "index": 2,
+    "label": "A.3",
+    "image": "/answer-figures/c00e2a54cd02-key-p5-e2-2.webp",
+    "page": 5,
+    "box": [
+      1466,
+      615,
+      1077,
+      61
+    ]
+  },
+  {
+    "paper": "ls/2006 1/phy_fr.pdf",
+    "index": 3,
+    "label": "I.4",
+    "image": "/answer-figures/c00e2a54cd02-key-p6-e3-4.webp",
+    "page": 6,
+    "box": [
+      253,
+      955,
+      1783,
+      61
+    ]
+  },
+  {
+    "paper": "ls/2006 1/phy_fr.pdf",
+    "index": 3,
+    "label": "II.3",
+    "image": "/answer-figures/c00e2a54cd02-key-p6-e3-7.webp",
+    "page": 6,
+    "box": [
+      290,
+      1489,
+      575,
+      90
+    ]
+  },
+  {
+    "paper": "ls/2006 2/math_en.pdf",
+    "index": 1,
+    "label": "1",
+    "image": "/answer-figures/de8a3425be7e-key-p3-e1-0.webp",
+    "page": 3,
+    "box": [
+      176,
+      279,
+      1774,
+      512
+    ]
+  },
+  {
+    "paper": "ls/2006 2/math_en.pdf",
+    "index": 1,
+    "label": "2",
+    "image": "/answer-figures/de8a3425be7e-key-p3-e1-1.webp",
+    "page": 3,
+    "box": [
+      176,
+      279,
+      1774,
+      512
+    ]
+  },
+  {
+    "paper": "ls/2006 2/math_en.pdf",
+    "index": 2,
+    "label": "B.1",
+    "image": "/answer-figures/de8a3425be7e-key-p3-e2-0.webp",
+    "page": 3,
+    "box": [
+      173,
+      836,
+      1777,
+      523
+    ]
+  },
+  {
+    "paper": "ls/2006 2/math_en.pdf",
+    "index": 2,
+    "label": "B.2",
+    "image": "/answer-figures/de8a3425be7e-key-p3-e2-1.webp",
+    "page": 3,
+    "box": [
+      173,
+      836,
+      1777,
+      523
+    ]
+  },
+  {
+    "paper": "ls/2006 2/math_fr.pdf",
+    "index": 1,
+    "label": "2",
+    "image": "/answer-figures/40c20c564034-key-p3-e1-1.webp",
+    "page": 3,
+    "box": [
+      176,
+      279,
+      1774,
+      512
+    ]
+  },
+  {
+    "paper": "ls/2006 2/math_fr.pdf",
+    "index": 2,
+    "label": "B.1",
+    "image": "/answer-figures/40c20c564034-key-p3-e2-0.webp",
+    "page": 3,
+    "box": [
+      173,
+      836,
+      1777,
+      523
+    ]
+  },
+  {
+    "paper": "ls/2006 2/math_fr.pdf",
+    "index": 2,
+    "label": "B.2",
+    "image": "/answer-figures/40c20c564034-key-p3-e2-1.webp",
+    "page": 3,
+    "box": [
+      173,
+      836,
+      1777,
+      523
+    ]
+  },
+  {
+    "paper": "ls/2006 2/phy_en.pdf",
+    "index": 1,
+    "label": "2",
+    "image": "/answer-figures/50518cee77ba-key-p4-e1-1.webp",
+    "page": 4,
+    "box": [
+      93,
+      337,
+      726,
+      143
+    ]
+  },
+  {
+    "paper": "ls/2006 2/phy_en.pdf",
+    "index": 1,
+    "label": "4",
+    "image": "/answer-figures/50518cee77ba-key-p4-e1-3.webp",
+    "page": 4,
+    "box": [
+      93,
+      1312,
+      565,
+      208
+    ]
+  },
+  {
+    "paper": "ls/2006 2/phy_en.pdf",
+    "index": 2,
+    "label": "6",
+    "image": "/answer-figures/50518cee77ba-key-p4-e2-5.webp",
+    "page": 4,
+    "box": [
+      864,
+      1774,
+      695,
+      78
+    ]
+  },
+  {
+    "paper": "ls/2006 2/phy_en.pdf",
+    "index": 3,
+    "label": "I.3",
+    "image": "/answer-figures/50518cee77ba-key-p4-e3-2.webp",
+    "page": 4,
+    "box": [
+      1683,
+      371,
+      932,
+      481
+    ]
+  },
+  {
+    "paper": "ls/2007 1/chem_en.pdf",
+    "index": 2,
+    "label": "II.1",
+    "image": "/answer-figures/b47da5dc872b-key-p6-e2-0.webp",
+    "page": 6,
+    "box": [
+      144,
+      923,
+      1192,
+      278
+    ]
+  },
+  {
+    "paper": "ls/2007 1/chem_en.pdf",
+    "index": 2,
+    "label": "II.5",
+    "image": "/answer-figures/b47da5dc872b-key-p6-e2-4.webp",
+    "page": 6,
+    "box": [
+      144,
+      2259,
+      1204,
+      233
+    ]
+  },
+  {
+    "paper": "ls/2007 1/phy_en.pdf",
+    "index": 2,
+    "label": "A.4",
+    "image": "/answer-figures/d4cf19c5cea9-key-p5-e2-3.webp",
+    "page": 5,
+    "box": [
+      1516,
+      597,
+      894,
+      41
+    ]
+  },
+  {
+    "paper": "ls/2007 1/phy_en.pdf",
+    "index": 3,
+    "label": "1",
+    "image": "/answer-figures/d4cf19c5cea9-key-p6-e3-0.webp",
+    "page": 6,
+    "box": [
+      441,
+      282,
+      1681,
+      60
+    ]
+  },
+  {
+    "paper": "ls/2007 1/phy_en.pdf",
+    "index": 3,
+    "label": "B.1",
+    "image": "/answer-figures/d4cf19c5cea9-key-p6-e3-12.webp",
+    "page": 6,
+    "box": [
+      367,
+      1183,
+      987,
+      51
+    ]
+  },
+  {
+    "paper": "ls/2007 1/phy_fr.pdf",
+    "index": 1,
+    "label": "A.1",
+    "image": "/answer-figures/6f0e1a5eb042-key-p5-e1-4.webp",
+    "page": 5,
+    "box": [
+      120,
+      249,
+      403,
+      41
+    ]
+  },
+  {
+    "paper": "ls/2007 1/phy_fr.pdf",
+    "index": 2,
+    "label": "B.2",
+    "image": "/answer-figures/6f0e1a5eb042-key-p5-e2-5.webp",
+    "page": 5,
+    "box": [
+      1493,
+      683,
+      932,
+      500
+    ]
+  },
+  {
+    "paper": "ls/2007 1/phy_fr.pdf",
+    "index": 3,
+    "label": "A.1",
+    "image": "/answer-figures/6f0e1a5eb042-key-p6-e3-0.webp",
+    "page": 6,
+    "box": [
+      441,
+      282,
+      1783,
+      60
+    ]
+  },
+  {
+    "paper": "ls/2007 1/phy_fr.pdf",
+    "index": 3,
+    "label": "A.3",
+    "image": "/answer-figures/6f0e1a5eb042-key-p6-e3-2.webp",
+    "page": 6,
+    "box": [
+      432,
+      529,
+      1624,
+      196
+    ]
+  },
+  {
+    "paper": "ls/2007 1/phy_fr.pdf",
+    "index": 3,
+    "label": "A.4",
+    "image": "/answer-figures/6f0e1a5eb042-key-p6-e3-3.webp",
+    "page": 6,
+    "box": [
+      429,
+      773,
+      1027,
+      57
+    ]
+  },
+  {
+    "paper": "ls/2007 1/phy_fr.pdf",
+    "index": 3,
+    "label": "A.5",
+    "image": "/answer-figures/6f0e1a5eb042-key-p6-e3-4.webp",
+    "page": 6,
+    "box": [
+      421,
+      867,
+      1617,
+      191
+    ]
+  },
+  {
+    "paper": "ls/2007 1/phy_fr.pdf",
+    "index": 3,
+    "label": "B.1",
+    "image": "/answer-figures/6f0e1a5eb042-key-p6-e3-6.webp",
+    "page": 6,
+    "box": [
+      370,
+      1257,
+      970,
+      51
+    ]
+  },
+  {
+    "paper": "ls/2007 1/phy_fr.pdf",
+    "index": 3,
+    "label": "B.2",
+    "image": "/answer-figures/6f0e1a5eb042-key-p6-e3-7.webp",
+    "page": 6,
+    "box": [
+      429,
+      1354,
+      1487,
+      63
+    ]
+  },
+  {
+    "paper": "ls/2007 1/phy_fr.pdf",
+    "index": 3,
+    "label": "B.3",
+    "image": "/answer-figures/6f0e1a5eb042-key-p6-e3-8.webp",
+    "page": 6,
+    "box": [
+      421,
+      1462,
+      1689,
+      54
+    ]
+  },
+  {
+    "paper": "ls/2007 2/bio_en.pdf",
+    "index": 1,
+    "label": "3",
+    "image": "/answer-figures/d7e894c691d5-key-p5-e1-2.webp",
+    "page": 5,
+    "box": [
+      143,
+      1240,
+      1821,
+      98
+    ]
+  },
+  {
+    "paper": "ls/2007 2/bio_en.pdf",
+    "index": 1,
+    "label": "4",
+    "image": "/answer-figures/d7e894c691d5-key-p5-e1-3.webp",
+    "page": 5,
+    "box": [
+      140,
+      1480,
+      1693,
+      379
+    ]
+  },
+  {
+    "paper": "ls/2007 2/bio_en.pdf",
+    "index": 2,
+    "label": "7",
+    "image": "/answer-figures/d7e894c691d5-key-p6-e2-6.webp",
+    "page": 6,
+    "box": [
+      142,
+      1251,
+      1778,
+      193
+    ]
+  },
+  {
+    "paper": "ls/2007 2/bio_en.pdf",
+    "index": 3,
+    "label": "1",
+    "image": "/answer-figures/d7e894c691d5-key-p7-e3-0.webp",
+    "page": 7,
+    "box": [
+      145,
+      293,
+      1817,
+      147
+    ]
+  },
+  {
+    "paper": "ls/2007 2/bio_en.pdf",
+    "index": 3,
+    "label": "2",
+    "image": "/answer-figures/d7e894c691d5-key-p7-e3-1.webp",
+    "page": 7,
+    "box": [
+      142,
+      486,
+      1817,
+      242
+    ]
+  },
+  {
+    "paper": "ls/2007 2/bio_en.pdf",
+    "index": 3,
+    "label": "3",
+    "image": "/answer-figures/d7e894c691d5-key-p7-e3-2.webp",
+    "page": 7,
+    "box": [
+      142,
+      870,
+      1783,
+      142
+    ]
+  },
+  {
+    "paper": "ls/2007 2/bio_en.pdf",
+    "index": 3,
+    "label": "4",
+    "image": "/answer-figures/d7e894c691d5-key-p7-e3-3.webp",
+    "page": 7,
+    "box": [
+      142,
+      1109,
+      1820,
+      335
+    ]
+  },
+  {
+    "paper": "ls/2007 2/bio_en.pdf",
+    "index": 3,
+    "label": "5",
+    "image": "/answer-figures/d7e894c691d5-key-p7-e3-4.webp",
+    "page": 7,
+    "box": [
+      142,
+      1490,
+      1829,
+      338
+    ]
+  },
+  {
+    "paper": "ls/2007 2/bio_en.pdf",
+    "index": 4,
+    "label": "1",
+    "image": "/answer-figures/d7e894c691d5-key-p7-e4-0.webp",
+    "page": 7,
+    "box": [
+      145,
+      2059,
+      1812,
+      392
+    ]
+  },
+  {
+    "paper": "ls/2007 2/bio_en.pdf",
+    "index": 4,
+    "label": "3",
+    "image": "/answer-figures/d7e894c691d5-key-p8-e4-2.webp",
+    "page": 8,
+    "box": [
+      143,
+      991,
+      1771,
+      247
+    ]
+  },
+  {
+    "paper": "ls/2007 2/bio_en.pdf",
+    "index": 4,
+    "label": "4",
+    "image": "/answer-figures/d7e894c691d5-key-p8-e4-3.webp",
+    "page": 8,
+    "box": [
+      143,
+      1285,
+      1803,
+      430
+    ]
+  },
+  {
+    "paper": "ls/2007 2/bio_en.pdf",
+    "index": 4,
+    "label": "5",
+    "image": "/answer-figures/d7e894c691d5-key-p8-e4-4.webp",
+    "page": 8,
+    "box": [
+      143,
+      1765,
+      1762,
+      145
+    ]
+  },
+  {
+    "paper": "ls/2007 2/bio_fr.pdf",
+    "index": 1,
+    "label": "4",
+    "image": "/answer-figures/07e539945f27-key-p5-e1-3.webp",
+    "page": 5,
+    "box": [
+      143,
+      1337,
+      1712,
+      532
+    ]
+  },
+  {
+    "paper": "ls/2007 2/bio_fr.pdf",
+    "index": 2,
+    "label": "1",
+    "image": "/answer-figures/07e539945f27-key-p6-e2-0.webp",
+    "page": 6,
+    "box": [
+      145,
+      341,
+      1834,
+      97
+    ]
+  },
+  {
+    "paper": "ls/2007 2/bio_fr.pdf",
+    "index": 2,
+    "label": "2",
+    "image": "/answer-figures/07e539945f27-key-p6-e2-1.webp",
+    "page": 6,
+    "box": [
+      142,
+      483,
+      1837,
+      148
+    ]
+  },
+  {
+    "paper": "ls/2007 2/bio_fr.pdf",
+    "index": 2,
+    "label": "3",
+    "image": "/answer-figures/07e539945f27-key-p6-e2-2.webp",
+    "page": 6,
+    "box": [
+      142,
+      677,
+      1837,
+      144
+    ]
+  },
+  {
+    "paper": "ls/2007 2/bio_fr.pdf",
+    "index": 2,
+    "label": "4",
+    "image": "/answer-figures/07e539945f27-key-p6-e2-3.webp",
+    "page": 6,
+    "box": [
+      142,
+      870,
+      1831,
+      94
+    ]
+  },
+  {
+    "paper": "ls/2007 2/bio_fr.pdf",
+    "index": 2,
+    "label": "5",
+    "image": "/answer-figures/07e539945f27-key-p6-e2-4.webp",
+    "page": 6,
+    "box": [
+      142,
+      1012,
+      1837,
+      97
+    ]
+  },
+  {
+    "paper": "ls/2007 2/bio_fr.pdf",
+    "index": 2,
+    "label": "6",
+    "image": "/answer-figures/07e539945f27-key-p6-e2-5.webp",
+    "page": 6,
+    "box": [
+      142,
+      1157,
+      1786,
+      94
+    ]
+  },
+  {
+    "paper": "ls/2007 2/bio_fr.pdf",
+    "index": 2,
+    "label": "7",
+    "image": "/answer-figures/07e539945f27-key-p6-e2-6.webp",
+    "page": 6,
+    "box": [
+      142,
+      1299,
+      1840,
+      190
+    ]
+  },
+  {
+    "paper": "ls/2007 2/bio_fr.pdf",
+    "index": 3,
+    "label": "1",
+    "image": "/answer-figures/07e539945f27-key-p7-e3-0.webp",
+    "page": 7,
+    "box": [
+      142,
+      341,
+      1837,
+      193
+    ]
+  },
+  {
+    "paper": "ls/2007 2/bio_fr.pdf",
+    "index": 3,
+    "label": "3",
+    "image": "/answer-figures/07e539945f27-key-p7-e3-2.webp",
+    "page": 7,
+    "box": [
+      142,
+      916,
+      1837,
+      144
+    ]
+  },
+  {
+    "paper": "ls/2007 2/bio_fr.pdf",
+    "index": 3,
+    "label": "4",
+    "image": "/answer-figures/07e539945f27-key-p7-e3-3.webp",
+    "page": 7,
+    "box": [
+      142,
+      1109,
+      1840,
+      335
+    ]
+  },
+  {
+    "paper": "ls/2007 2/bio_fr.pdf",
+    "index": 4,
+    "label": "1",
+    "image": "/answer-figures/07e539945f27-key-p7-e4-0.webp",
+    "page": 7,
+    "box": [
+      145,
+      2013,
+      1820,
+      389
+    ]
+  },
+  {
+    "paper": "ls/2007 2/bio_fr.pdf",
+    "index": 4,
+    "label": "3",
+    "image": "/answer-figures/07e539945f27-key-p8-e4-2.webp",
+    "page": 8,
+    "box": [
+      183,
+      1371,
+      1799,
+      249
+    ]
+  },
+  {
+    "paper": "ls/2007 2/bio_fr.pdf",
+    "index": 4,
+    "label": "4",
+    "image": "/answer-figures/07e539945f27-key-p8-e4-3.webp",
+    "page": 8,
+    "box": [
+      174,
+      1667,
+      1808,
+      433
+    ]
+  },
+  {
+    "paper": "ls/2007 2/bio_fr.pdf",
+    "index": 4,
+    "label": "5",
+    "image": "/answer-figures/07e539945f27-key-p8-e4-4.webp",
+    "page": 8,
+    "box": [
+      174,
+      2145,
+      1808,
+      145
+    ]
+  },
+  {
+    "paper": "ls/2007 2/chem_fr.pdf",
+    "index": 2,
+    "label": "3.2",
+    "image": "/answer-figures/7f1f23c6a9a8-key-p7-e2-12.webp",
+    "page": 7,
+    "box": [
+      209,
+      125,
+      1650,
+      813
+    ]
+  },
+  {
+    "paper": "ls/2007 2/math_fr.pdf",
+    "index": 2,
+    "label": "1",
+    "image": "/answer-figures/077cbd22b19d-key-p3-e2-0.webp",
+    "page": 3,
+    "box": [
+      118,
+      1715,
+      1831,
+      710
+    ]
+  },
+  {
+    "paper": "ls/2007 2/math_fr.pdf",
+    "index": 2,
+    "label": "2",
+    "image": "/answer-figures/077cbd22b19d-key-p3-e2-1.webp",
+    "page": 3,
+    "box": [
+      118,
+      1715,
+      1831,
+      710
+    ]
+  },
+  {
+    "paper": "ls/2007 2/phy_en.pdf",
+    "index": 3,
+    "label": "A.1",
+    "image": "/answer-figures/194aad0e4dba-key-p4-e3-0.webp",
+    "page": 4,
+    "box": [
+      1891,
+      290,
+      645,
+      114
+    ]
+  },
+  {
+    "paper": "ls/2008 1/bio_en.pdf",
+    "index": 1,
+    "label": "1",
+    "image": "/answer-figures/75b423fa979a-key-p5-e1-0.webp",
+    "page": 5,
+    "box": [
+      145,
+      579,
+      1839,
+      297
+    ]
+  },
+  {
+    "paper": "ls/2008 1/bio_en.pdf",
+    "index": 1,
+    "label": "2",
+    "image": "/answer-figures/75b423fa979a-key-p5-e1-1.webp",
+    "page": 5,
+    "box": [
+      143,
+      914,
+      1839,
+      249
+    ]
+  },
+  {
+    "paper": "ls/2008 1/bio_en.pdf",
+    "index": 1,
+    "label": "3",
+    "image": "/answer-figures/75b423fa979a-key-p5-e1-2.webp",
+    "page": 5,
+    "box": [
+      143,
+      1210,
+      1715,
+      550
+    ]
+  },
+  {
+    "paper": "ls/2008 1/bio_en.pdf",
+    "index": 1,
+    "label": "4",
+    "image": "/answer-figures/75b423fa979a-key-p5-e1-3.webp",
+    "page": 5,
+    "box": [
+      143,
+      1794,
+      1839,
+      249
+    ]
+  },
+  {
+    "paper": "ls/2008 1/bio_en.pdf",
+    "index": 1,
+    "label": "5",
+    "image": "/answer-figures/75b423fa979a-key-p5-e1-4.webp",
+    "page": 5,
+    "box": [
+      143,
+      2091,
+      1839,
+      145
+    ]
+  },
+  {
+    "paper": "ls/2008 1/bio_en.pdf",
+    "index": 2,
+    "label": "2",
+    "image": "/answer-figures/75b423fa979a-key-p6-e2-1.webp",
+    "page": 6,
+    "box": [
+      142,
+      819,
+      1840,
+      529
+    ]
+  },
+  {
+    "paper": "ls/2008 1/bio_en.pdf",
+    "index": 2,
+    "label": "3",
+    "image": "/answer-figures/75b423fa979a-key-p6-e2-2.webp",
+    "page": 6,
+    "box": [
+      205,
+      1348,
+      1777,
+      238
+    ]
+  },
+  {
+    "paper": "ls/2008 1/bio_en.pdf",
+    "index": 2,
+    "label": "4",
+    "image": "/answer-figures/75b423fa979a-key-p6-e2-3.webp",
+    "page": 6,
+    "box": [
+      142,
+      1635,
+      1837,
+      145
+    ]
+  },
+  {
+    "paper": "ls/2008 1/bio_en.pdf",
+    "index": 2,
+    "label": "5",
+    "image": "/answer-figures/75b423fa979a-key-p6-e2-4.webp",
+    "page": 6,
+    "box": [
+      142,
+      1826,
+      1837,
+      147
+    ]
+  },
+  {
+    "paper": "ls/2008 1/bio_en.pdf",
+    "index": 3,
+    "label": "1",
+    "image": "/answer-figures/75b423fa979a-key-p7-e3-0.webp",
+    "page": 7,
+    "box": [
+      145,
+      486,
+      1832,
+      193
+    ]
+  },
+  {
+    "paper": "ls/2008 1/bio_en.pdf",
+    "index": 3,
+    "label": "5",
+    "image": "/answer-figures/75b423fa979a-key-p7-e3-4.webp",
+    "page": 7,
+    "box": [
+      142,
+      1874,
+      1834,
+      144
+    ]
+  },
+  {
+    "paper": "ls/2008 1/bio_en.pdf",
+    "index": 4,
+    "label": "1",
+    "image": "/answer-figures/75b423fa979a-key-p8-e4-0.webp",
+    "page": 8,
+    "box": [
+      145,
+      438,
+      1294,
+      96
+    ]
+  },
+  {
+    "paper": "ls/2008 1/bio_en.pdf",
+    "index": 4,
+    "label": "2",
+    "image": "/answer-figures/75b423fa979a-key-p8-e4-1.webp",
+    "page": 8,
+    "box": [
+      142,
+      580,
+      1192,
+      96
+    ]
+  },
+  {
+    "paper": "ls/2008 1/bio_en.pdf",
+    "index": 4,
+    "label": "3",
+    "image": "/answer-figures/75b423fa979a-key-p8-e4-2.webp",
+    "page": 8,
+    "box": [
+      142,
+      725,
+      1843,
+      432
+    ]
+  },
+  {
+    "paper": "ls/2008 1/bio_en.pdf",
+    "index": 4,
+    "label": "4",
+    "image": "/answer-figures/75b423fa979a-key-p8-e4-3.webp",
+    "page": 8,
+    "box": [
+      142,
+      1206,
+      1843,
+      286
+    ]
+  },
+  {
+    "paper": "ls/2008 1/bio_en.pdf",
+    "index": 4,
+    "label": "5",
+    "image": "/answer-figures/75b423fa979a-key-p8-e4-4.webp",
+    "page": 8,
+    "box": [
+      142,
+      1541,
+      1837,
+      190
+    ]
+  },
+  {
+    "paper": "ls/2008 1/bio_fr.pdf",
+    "index": 1,
+    "label": "2",
+    "image": "/answer-figures/3027150253ff-key-p5-e1-1.webp",
+    "page": 5,
+    "box": [
+      143,
+      962,
+      1839,
+      249
+    ]
+  },
+  {
+    "paper": "ls/2008 1/bio_fr.pdf",
+    "index": 1,
+    "label": "3",
+    "image": "/answer-figures/3027150253ff-key-p5-e1-2.webp",
+    "page": 5,
+    "box": [
+      143,
+      1258,
+      1572,
+      502
+    ]
+  },
+  {
+    "paper": "ls/2008 1/bio_fr.pdf",
+    "index": 2,
+    "label": "6",
+    "image": "/answer-figures/3027150253ff-key-p6-e2-5.webp",
+    "page": 6,
+    "box": [
+      145,
+      1917,
+      1837,
+      150
+    ]
+  },
+  {
+    "paper": "ls/2008 1/bio_fr.pdf",
+    "index": 3,
+    "label": "1",
+    "image": "/answer-figures/3027150253ff-key-p7-e3-0.webp",
+    "page": 7,
+    "box": [
+      145,
+      483,
+      1834,
+      245
+    ]
+  },
+  {
+    "paper": "ls/2008 1/bio_fr.pdf",
+    "index": 4,
+    "label": "2",
+    "image": "/answer-figures/3027150253ff-key-p8-e4-2.webp",
+    "page": 8,
+    "box": [
+      142,
+      583,
+      1840,
+      429
+    ]
+  },
+  {
+    "paper": "ls/2008 1/bio_fr.pdf",
+    "index": 4,
+    "label": "3",
+    "image": "/answer-figures/3027150253ff-key-p8-e4-3.webp",
+    "page": 8,
+    "box": [
+      142,
+      1061,
+      1840,
+      286
+    ]
+  },
+  {
+    "paper": "ls/2008 1/math_en.pdf",
+    "index": 3,
+    "label": "1",
+    "image": "/answer-figures/5387fe8567b2-key-p3-e3-0.webp",
+    "page": 3,
+    "box": [
+      70,
+      2069,
+      1927,
+      628
+    ]
+  },
+  {
+    "paper": "ls/2008 1/math_en.pdf",
+    "index": 3,
+    "label": "2",
+    "image": "/answer-figures/5387fe8567b2-key-p3-e3-1.webp",
+    "page": 3,
+    "box": [
+      70,
+      2069,
+      1927,
+      628
+    ]
+  },
+  {
+    "paper": "ls/2008 1/math_en.pdf",
+    "index": 3,
+    "label": "3",
+    "image": "/answer-figures/5387fe8567b2-key-p3-e3-2.webp",
+    "page": 3,
+    "box": [
+      70,
+      2069,
+      1927,
+      628
+    ]
+  },
+  {
+    "paper": "ls/2008 1/math_en.pdf",
+    "index": 3,
+    "label": "5",
+    "image": "/answer-figures/5387fe8567b2-key-p3-e3-4.webp",
+    "page": 3,
+    "box": [
+      70,
+      2069,
+      1927,
+      628
+    ]
+  },
+  {
+    "paper": "ls/2008 1/math_fr.pdf",
+    "index": 3,
+    "label": "1",
+    "image": "/answer-figures/a7b206816925-key-p3-e3-0.webp",
+    "page": 3,
+    "box": [
+      48,
+      2155,
+      1939,
+      462
+    ]
+  },
+  {
+    "paper": "ls/2008 1/math_fr.pdf",
+    "index": 3,
+    "label": "2",
+    "image": "/answer-figures/a7b206816925-key-p3-e3-1.webp",
+    "page": 3,
+    "box": [
+      48,
+      2155,
+      1939,
+      462
+    ]
+  },
+  {
+    "paper": "ls/2008 1/math_fr.pdf",
+    "index": 3,
+    "label": "3",
+    "image": "/answer-figures/a7b206816925-key-p3-e3-2.webp",
+    "page": 3,
+    "box": [
+      48,
+      2155,
+      1939,
+      462
+    ]
+  },
+  {
+    "paper": "ls/2008 1/math_fr.pdf",
+    "index": 3,
+    "label": "4",
+    "image": "/answer-figures/a7b206816925-key-p3-e3-3.webp",
+    "page": 3,
+    "box": [
+      48,
+      2155,
+      1939,
+      462
+    ]
+  },
+  {
+    "paper": "ls/2008 2/bio_en.pdf",
+    "index": 1,
+    "label": "1",
+    "image": "/answer-figures/6f29f9fd8d4a-key-p5-e1-0.webp",
+    "page": 5,
+    "box": [
+      145,
+      398,
+      1835,
+      240
+    ]
+  },
+  {
+    "paper": "ls/2008 2/bio_en.pdf",
+    "index": 1,
+    "label": "2",
+    "image": "/answer-figures/6f29f9fd8d4a-key-p5-e1-1.webp",
+    "page": 5,
+    "box": [
+      143,
+      683,
+      1839,
+      148
+    ]
+  },
+  {
+    "paper": "ls/2008 2/bio_en.pdf",
+    "index": 1,
+    "label": "4",
+    "image": "/answer-figures/6f29f9fd8d4a-key-p5-e1-3.webp",
+    "page": 5,
+    "box": [
+      140,
+      1593,
+      1842,
+      385
+    ]
+  },
+  {
+    "paper": "ls/2008 2/bio_en.pdf",
+    "index": 1,
+    "label": "5",
+    "image": "/answer-figures/6f29f9fd8d4a-key-p5-e1-4.webp",
+    "page": 5,
+    "box": [
+      140,
+      2023,
+      1840,
+      194
+    ]
+  },
+  {
+    "paper": "ls/2008 2/bio_en.pdf",
+    "index": 1,
+    "label": "7",
+    "image": "/answer-figures/6f29f9fd8d4a-key-p5-e1-6.webp",
+    "page": 5,
+    "box": [
+      140,
+      2455,
+      1839,
+      99
+    ]
+  },
+  {
+    "paper": "ls/2008 2/bio_en.pdf",
+    "index": 2,
+    "label": "2",
+    "image": "/answer-figures/6f29f9fd8d4a-key-p6-e2-1.webp",
+    "page": 6,
+    "box": [
+      145,
+      643,
+      1835,
+      238
+    ]
+  },
+  {
+    "paper": "ls/2008 2/bio_en.pdf",
+    "index": 2,
+    "label": "3",
+    "image": "/answer-figures/6f29f9fd8d4a-key-p6-e2-2.webp",
+    "page": 6,
+    "box": [
+      142,
+      933,
+      1092,
+      45
+    ]
+  },
+  {
+    "paper": "ls/2008 2/bio_en.pdf",
+    "index": 2,
+    "label": "4",
+    "image": "/answer-figures/6f29f9fd8d4a-key-p6-e2-3.webp",
+    "page": 6,
+    "box": [
+      142,
+      1029,
+      1838,
+      188
+    ]
+  },
+  {
+    "paper": "ls/2008 2/bio_en.pdf",
+    "index": 2,
+    "label": "5",
+    "image": "/answer-figures/6f29f9fd8d4a-key-p6-e2-4.webp",
+    "page": 6,
+    "box": [
+      145,
+      1268,
+      1835,
+      239
+    ]
+  },
+  {
+    "paper": "ls/2008 2/bio_en.pdf",
+    "index": 2,
+    "label": "6",
+    "image": "/answer-figures/6f29f9fd8d4a-key-p6-e2-5.webp",
+    "page": 6,
+    "box": [
+      145,
+      1553,
+      1834,
+      96
+    ]
+  },
+  {
+    "paper": "ls/2008 2/bio_en.pdf",
+    "index": 4,
+    "label": "1",
+    "image": "/answer-figures/6f29f9fd8d4a-key-p8-e4-0.webp",
+    "page": 8,
+    "box": [
+      182,
+      199,
+      1798,
+      190
+    ]
+  },
+  {
+    "paper": "ls/2008 2/bio_en.pdf",
+    "index": 4,
+    "label": "2",
+    "image": "/answer-figures/6f29f9fd8d4a-key-p8-e4-1.webp",
+    "page": 8,
+    "box": [
+      179,
+      438,
+      1801,
+      193
+    ]
+  },
+  {
+    "paper": "ls/2008 2/bio_en.pdf",
+    "index": 4,
+    "label": "3",
+    "image": "/answer-figures/6f29f9fd8d4a-key-p8-e4-2.webp",
+    "page": 8,
+    "box": [
+      179,
+      677,
+      1801,
+      335
+    ]
+  },
+  {
+    "paper": "ls/2008 2/bio_en.pdf",
+    "index": 4,
+    "label": "4",
+    "image": "/answer-figures/6f29f9fd8d4a-key-p8-e4-3.webp",
+    "page": 8,
+    "box": [
+      179,
+      1061,
+      1801,
+      193
+    ]
+  },
+  {
+    "paper": "ls/2008 2/bio_en.pdf",
+    "index": 4,
+    "label": "5",
+    "image": "/answer-figures/6f29f9fd8d4a-key-p8-e4-4.webp",
+    "page": 8,
+    "box": [
+      182,
+      1302,
+      1797,
+      94
+    ]
+  },
+  {
+    "paper": "ls/2008 2/bio_fr.pdf",
+    "index": 1,
+    "label": "6",
+    "image": "/answer-figures/73577235e13a-key-p5-e1-5.webp",
+    "page": 5,
+    "box": [
+      152,
+      2262,
+      1830,
+      193
+    ]
+  },
+  {
+    "paper": "ls/2008 2/bio_fr.pdf",
+    "index": 2,
+    "label": "1",
+    "image": "/answer-figures/73577235e13a-key-p6-e2-0.webp",
+    "page": 6,
+    "box": [
+      176,
+      438,
+      1709,
+      367
+    ]
+  },
+  {
+    "paper": "ls/2008 2/bio_fr.pdf",
+    "index": 2,
+    "label": "2",
+    "image": "/answer-figures/73577235e13a-key-p6-e2-1.webp",
+    "page": 6,
+    "box": [
+      205,
+      950,
+      1777,
+      287
+    ]
+  },
+  {
+    "paper": "ls/2008 2/bio_fr.pdf",
+    "index": 2,
+    "label": "3",
+    "image": "/answer-figures/73577235e13a-key-p6-e2-2.webp",
+    "page": 6,
+    "box": [
+      205,
+      1285,
+      1120,
+      45
+    ]
+  },
+  {
+    "paper": "ls/2008 2/bio_fr.pdf",
+    "index": 2,
+    "label": "4",
+    "image": "/answer-figures/73577235e13a-key-p6-e2-3.webp",
+    "page": 6,
+    "box": [
+      205,
+      1427,
+      1777,
+      193
+    ]
+  },
+  {
+    "paper": "ls/2008 2/bio_fr.pdf",
+    "index": 2,
+    "label": "5",
+    "image": "/answer-figures/73577235e13a-key-p6-e2-4.webp",
+    "page": 6,
+    "box": [
+      208,
+      1666,
+      1774,
+      239
+    ]
+  },
+  {
+    "paper": "ls/2008 2/bio_fr.pdf",
+    "index": 3,
+    "label": "1",
+    "image": "/answer-figures/73577235e13a-key-p7-e3-0.webp",
+    "page": 7,
+    "box": [
+      142,
+      245,
+      1826,
+      625
+    ]
+  },
+  {
+    "paper": "ls/2008 2/bio_fr.pdf",
+    "index": 3,
+    "label": "2",
+    "image": "/answer-figures/73577235e13a-key-p7-e3-1.webp",
+    "page": 7,
+    "box": [
+      142,
+      964,
+      1823,
+      241
+    ]
+  },
+  {
+    "paper": "ls/2008 2/bio_fr.pdf",
+    "index": 3,
+    "label": "4",
+    "image": "/answer-figures/73577235e13a-key-p7-e3-3.webp",
+    "page": 7,
+    "box": [
+      142,
+      1732,
+      1834,
+      286
+    ]
+  },
+  {
+    "paper": "ls/2008 2/bio_fr.pdf",
+    "index": 4,
+    "label": "1",
+    "image": "/answer-figures/73577235e13a-key-p8-e4-0.webp",
+    "page": 8,
+    "box": [
+      145,
+      245,
+      1837,
+      241
+    ]
+  },
+  {
+    "paper": "ls/2008 2/bio_fr.pdf",
+    "index": 4,
+    "label": "2",
+    "image": "/answer-figures/73577235e13a-key-p8-e4-1.webp",
+    "page": 8,
+    "box": [
+      142,
+      535,
+      1840,
+      193
+    ]
+  },
+  {
+    "paper": "ls/2008 2/bio_fr.pdf",
+    "index": 4,
+    "label": "3",
+    "image": "/answer-figures/73577235e13a-key-p8-e4-2.webp",
+    "page": 8,
+    "box": [
+      142,
+      822,
+      1840,
+      383
+    ]
+  },
+  {
+    "paper": "ls/2008 2/bio_fr.pdf",
+    "index": 4,
+    "label": "4",
+    "image": "/answer-figures/73577235e13a-key-p8-e4-3.webp",
+    "page": 8,
+    "box": [
+      162,
+      1254,
+      1820,
+      190
+    ]
+  },
+  {
+    "paper": "ls/2008 2/bio_fr.pdf",
+    "index": 4,
+    "label": "5",
+    "image": "/answer-figures/73577235e13a-key-p8-e4-4.webp",
+    "page": 8,
+    "box": [
+      165,
+      1490,
+      1817,
+      96
+    ]
+  },
+  {
+    "paper": "ls/2008 2/chem_en.pdf",
+    "index": 1,
+    "label": "2.4",
+    "image": "/answer-figures/1109831ae8f7-key-p6-e1-7.webp",
+    "page": 6,
+    "box": [
+      209,
+      125,
+      1650,
+      767
+    ]
+  },
+  {
+    "paper": "ls/2008 2/chem_en.pdf",
+    "index": 1,
+    "label": "2.6",
+    "image": "/answer-figures/1109831ae8f7-key-p6-e1-9.webp",
+    "page": 6,
+    "box": [
+      209,
+      125,
+      1650,
+      767
+    ]
+  },
+  {
+    "paper": "ls/2008 2/chem_en.pdf",
+    "index": 1,
+    "label": "2.6.2",
+    "image": "/answer-figures/1109831ae8f7-key-p6-e1-11.webp",
+    "page": 6,
+    "box": [
+      209,
+      125,
+      1650,
+      767
+    ]
+  },
+  {
+    "paper": "ls/2008 2/math_en.pdf",
+    "index": 3,
+    "label": "1",
+    "image": "/answer-figures/56af6999178f-key-p4-e3-0.webp",
+    "page": 4,
+    "box": [
+      140,
+      144,
+      1838,
+      806
+    ]
+  },
+  {
+    "paper": "ls/2008 2/math_en.pdf",
+    "index": 3,
+    "label": "2",
+    "image": "/answer-figures/56af6999178f-key-p4-e3-1.webp",
+    "page": 4,
+    "box": [
+      140,
+      144,
+      1838,
+      806
+    ]
+  },
+  {
+    "paper": "ls/2008 2/math_en.pdf",
+    "index": 3,
+    "label": "3",
+    "image": "/answer-figures/56af6999178f-key-p4-e3-2.webp",
+    "page": 4,
+    "box": [
+      140,
+      144,
+      1838,
+      806
+    ]
+  },
+  {
+    "paper": "ls/2008 2/math_en.pdf",
+    "index": 4,
+    "label": "6",
+    "image": "/answer-figures/56af6999178f-key-p5-e4-5.webp",
+    "page": 5,
+    "box": [
+      127,
+      145,
+      1862,
+      278
+    ]
+  },
+  {
+    "paper": "ls/2008 2/math_fr.pdf",
+    "index": 3,
+    "label": "1",
+    "image": "/answer-figures/8bfcbcc81bf6-key-p4-e3-0.webp",
+    "page": 4,
+    "box": [
+      144,
+      144,
+      1828,
+      803
+    ]
+  },
+  {
+    "paper": "ls/2008 2/math_fr.pdf",
+    "index": 3,
+    "label": "2",
+    "image": "/answer-figures/8bfcbcc81bf6-key-p4-e3-1.webp",
+    "page": 4,
+    "box": [
+      144,
+      144,
+      1828,
+      803
+    ]
+  },
+  {
+    "paper": "ls/2008 2/math_fr.pdf",
+    "index": 3,
+    "label": "3",
+    "image": "/answer-figures/8bfcbcc81bf6-key-p4-e3-2.webp",
+    "page": 4,
+    "box": [
+      144,
+      144,
+      1828,
+      803
+    ]
+  },
+  {
+    "paper": "ls/2008 2/math_fr.pdf",
+    "index": 4,
+    "label": "6",
+    "image": "/answer-figures/8bfcbcc81bf6-key-p5-e4-5.webp",
+    "page": 5,
+    "box": [
+      151,
+      145,
+      1814,
+      327
+    ]
+  },
+  {
+    "paper": "ls/2009 1/bio_en.pdf",
+    "index": 1,
+    "label": "1",
+    "image": "/answer-figures/094ff6317f85-key-p5-e1-0.webp",
+    "page": 5,
+    "box": [
+      381,
+      503,
+      1371,
+      154
+    ]
+  },
+  {
+    "paper": "ls/2009 1/bio_en.pdf",
+    "index": 1,
+    "label": "2",
+    "image": "/answer-figures/094ff6317f85-key-p5-e1-1.webp",
+    "page": 5,
+    "box": [
+      375,
+      642,
+      1386,
+      197
+    ]
+  },
+  {
+    "paper": "ls/2009 1/bio_en.pdf",
+    "index": 1,
+    "label": "3",
+    "image": "/answer-figures/094ff6317f85-key-p5-e1-2.webp",
+    "page": 5,
+    "box": [
+      372,
+      824,
+      1386,
+      345
+    ]
+  },
+  {
+    "paper": "ls/2009 1/bio_en.pdf",
+    "index": 1,
+    "label": "4",
+    "image": "/answer-figures/094ff6317f85-key-p5-e1-3.webp",
+    "page": 5,
+    "box": [
+      369,
+      1148,
+      1377,
+      118
+    ]
+  },
+  {
+    "paper": "ls/2009 1/bio_en.pdf",
+    "index": 1,
+    "label": "5",
+    "image": "/answer-figures/094ff6317f85-key-p5-e1-4.webp",
+    "page": 5,
+    "box": [
+      366,
+      1242,
+      1392,
+      242
+    ]
+  },
+  {
+    "paper": "ls/2009 1/bio_en.pdf",
+    "index": 3,
+    "label": "1",
+    "image": "/answer-figures/094ff6317f85-key-p7-e3-0.webp",
+    "page": 7,
+    "box": [
+      372,
+      358,
+      1442,
+      148
+    ]
+  },
+  {
+    "paper": "ls/2009 1/bio_en.pdf",
+    "index": 3,
+    "label": "2",
+    "image": "/answer-figures/094ff6317f85-key-p7-e3-1.webp",
+    "page": 7,
+    "box": [
+      372,
+      509,
+      1445,
+      301
+    ]
+  },
+  {
+    "paper": "ls/2009 1/bio_en.pdf",
+    "index": 3,
+    "label": "3",
+    "image": "/answer-figures/094ff6317f85-key-p7-e3-2.webp",
+    "page": 7,
+    "box": [
+      372,
+      816,
+      1462,
+      560
+    ]
+  },
+  {
+    "paper": "ls/2009 1/bio_en.pdf",
+    "index": 3,
+    "label": "4",
+    "image": "/answer-figures/094ff6317f85-key-p7-e3-3.webp",
+    "page": 7,
+    "box": [
+      370,
+      1430,
+      1450,
+      199
+    ]
+  },
+  {
+    "paper": "ls/2009 1/bio_en.pdf",
+    "index": 3,
+    "label": "5",
+    "image": "/answer-figures/094ff6317f85-key-p7-e3-4.webp",
+    "page": 7,
+    "box": [
+      372,
+      1635,
+      1445,
+      349
+    ]
+  },
+  {
+    "paper": "ls/2009 1/bio_en.pdf",
+    "index": 4,
+    "label": "1",
+    "image": "/answer-figures/094ff6317f85-key-p7-e4-0.webp",
+    "page": 7,
+    "box": [
+      372,
+      2144,
+      1445,
+      352
+    ]
+  },
+  {
+    "paper": "ls/2009 1/bio_en.pdf",
+    "index": 4,
+    "label": "2",
+    "image": "/answer-figures/094ff6317f85-key-p8-e4-1.webp",
+    "page": 8,
+    "box": [
+      435,
+      307,
+      1379,
+      148
+    ]
+  },
+  {
+    "paper": "ls/2009 1/bio_en.pdf",
+    "index": 3,
+    "label": "1",
+    "image": "/answer-figures/094ff6317f85-key-p7-e3-0.webp",
+    "page": 7,
+    "box": [
+      372,
+      358,
+      1442,
+      148
+    ]
+  },
+  {
+    "paper": "ls/2009 1/bio_en.pdf",
+    "index": 4,
+    "label": "2",
+    "image": "/answer-figures/094ff6317f85-key-p8-e4-1.webp",
+    "page": 8,
+    "box": [
+      435,
+      307,
+      1379,
+      148
+    ]
+  },
+  {
+    "paper": "ls/2009 1/bio_fr.pdf",
+    "index": 1,
+    "label": "1",
+    "image": "/answer-figures/a66625301a1d-key-p5-e1-0.webp",
+    "page": 5,
+    "box": [
+      310,
+      466,
+      1569,
+      151
+    ]
+  },
+  {
+    "paper": "ls/2009 1/bio_fr.pdf",
+    "index": 1,
+    "label": "2",
+    "image": "/answer-figures/a66625301a1d-key-p5-e1-1.webp",
+    "page": 5,
+    "box": [
+      310,
+      620,
+      1569,
+      198
+    ]
+  },
+  {
+    "paper": "ls/2009 1/bio_fr.pdf",
+    "index": 1,
+    "label": "3",
+    "image": "/answer-figures/a66625301a1d-key-p5-e1-2.webp",
+    "page": 5,
+    "box": [
+      310,
+      825,
+      1567,
+      298
+    ]
+  },
+  {
+    "paper": "ls/2009 1/bio_fr.pdf",
+    "index": 1,
+    "label": "4",
+    "image": "/answer-figures/a66625301a1d-key-p5-e1-3.webp",
+    "page": 5,
+    "box": [
+      310,
+      1180,
+      1570,
+      148
+    ]
+  },
+  {
+    "paper": "ls/2009 1/bio_fr.pdf",
+    "index": 1,
+    "label": "6",
+    "image": "/answer-figures/a66625301a1d-key-p5-e1-5.webp",
+    "page": 5,
+    "box": [
+      310,
+      1587,
+      1570,
+      554
+    ]
+  },
+  {
+    "paper": "ls/2009 1/bio_fr.pdf",
+    "index": 2,
+    "label": "2",
+    "image": "/answer-figures/a66625301a1d-key-p6-e2-1.webp",
+    "page": 6,
+    "box": [
+      274,
+      407,
+      1606,
+      421
+    ]
+  },
+  {
+    "paper": "ls/2009 1/bio_fr.pdf",
+    "index": 2,
+    "label": "3",
+    "image": "/answer-figures/a66625301a1d-key-p6-e2-2.webp",
+    "page": 6,
+    "box": [
+      308,
+      1837,
+      1570,
+      304
+    ]
+  },
+  {
+    "paper": "ls/2009 1/bio_fr.pdf",
+    "index": 2,
+    "label": "4",
+    "image": "/answer-figures/a66625301a1d-key-p6-e2-3.webp",
+    "page": 6,
+    "box": [
+      308,
+      2186,
+      1574,
+      258
+    ]
+  },
+  {
+    "paper": "ls/2009 1/bio_fr.pdf",
+    "index": 3,
+    "label": "1",
+    "image": "/answer-figures/a66625301a1d-key-p7-e3-0.webp",
+    "page": 7,
+    "box": [
+      310,
+      358,
+      1569,
+      148
+    ]
+  },
+  {
+    "paper": "ls/2009 1/bio_fr.pdf",
+    "index": 3,
+    "label": "4",
+    "image": "/answer-figures/a66625301a1d-key-p7-e3-3.webp",
+    "page": 7,
+    "box": [
+      310,
+      1331,
+      1567,
+      195
+    ]
+  },
+  {
+    "paper": "ls/2009 1/bio_fr.pdf",
+    "index": 3,
+    "label": "5",
+    "image": "/answer-figures/a66625301a1d-key-p7-e3-4.webp",
+    "page": 7,
+    "box": [
+      310,
+      1535,
+      1569,
+      348
+    ]
+  },
+  {
+    "paper": "ls/2009 1/bio_fr.pdf",
+    "index": 4,
+    "label": "2",
+    "image": "/answer-figures/a66625301a1d-key-p8-e4-1.webp",
+    "page": 8,
+    "box": [
+      307,
+      304,
+      1573,
+      202
+    ]
+  },
+  {
+    "paper": "ls/2009 1/bio_fr.pdf",
+    "index": 4,
+    "label": "3",
+    "image": "/answer-figures/a66625301a1d-key-p8-e4-2.webp",
+    "page": 8,
+    "box": [
+      310,
+      560,
+      1569,
+      301
+    ]
+  },
+  {
+    "paper": "ls/2009 1/bio_fr.pdf",
+    "index": 4,
+    "label": "4",
+    "image": "/answer-figures/a66625301a1d-key-p8-e4-3.webp",
+    "page": 8,
+    "box": [
+      307,
+      918,
+      1572,
+      299
+    ]
+  },
+  {
+    "paper": "ls/2009 1/chem_fr.pdf",
+    "index": 1,
+    "label": "2.2.2",
+    "image": "/answer-figures/376469070530-key-p5-e1-8.webp",
+    "page": 5,
+    "box": [
+      209,
+      125,
+      1650,
+      301
+    ]
+  },
+  {
+    "paper": "ls/2009 1/chem_fr.pdf",
+    "index": 1,
+    "label": "2.2.3",
+    "image": "/answer-figures/376469070530-key-p5-e1-9.webp",
+    "page": 5,
+    "box": [
+      209,
+      125,
+      1650,
+      301
+    ]
+  },
+  {
+    "paper": "ls/2009 1/phy_eng.pdf",
+    "index": 2,
+    "label": "A.2",
+    "image": "/answer-figures/d7f8a58905d1-key-p4-e2-1.webp",
+    "page": 4,
+    "box": [
+      1646,
+      412,
+      952,
+      95
+    ]
+  },
+  {
+    "paper": "ls/2009 1/phy_eng.pdf",
+    "index": 2,
+    "label": "A.3",
+    "image": "/answer-figures/d7f8a58905d1-key-p4-e2-2.webp",
+    "page": 4,
+    "box": [
+      1641,
+      606,
+      483,
+      101
+    ]
+  },
+  {
+    "paper": "ls/2009 1/phy_eng.pdf",
+    "index": 2,
+    "label": "A.4",
+    "image": "/answer-figures/d7f8a58905d1-key-p4-e2-3.webp",
+    "page": 4,
+    "box": [
+      1644,
+      761,
+      561,
+      47
+    ]
+  },
+  {
+    "paper": "ls/2009 1/phy_eng.pdf",
+    "index": 2,
+    "label": "A.5",
+    "image": "/answer-figures/d7f8a58905d1-key-p4-e2-4.webp",
+    "page": 4,
+    "box": [
+      1644,
+      904,
+      936,
+      144
+    ]
+  },
+  {
+    "paper": "ls/2009 1/phy_eng.pdf",
+    "index": 2,
+    "label": "B.2",
+    "image": "/answer-figures/d7f8a58905d1-key-p4-e2-6.webp",
+    "page": 4,
+    "box": [
+      1641,
+      1457,
+      902,
+      99
+    ]
+  },
+  {
+    "paper": "ls/2009 1/phy_eng.pdf",
+    "index": 3,
+    "label": "1",
+    "image": "/answer-figures/d7f8a58905d1-key-p5-e3-0.webp",
+    "page": 5,
+    "box": [
+      156,
+      245,
+      1385,
+      51
+    ]
+  },
+  {
+    "paper": "ls/2009 1/phy_eng.pdf",
+    "index": 3,
+    "label": "3",
+    "image": "/answer-figures/d7f8a58905d1-key-p5-e3-2.webp",
+    "page": 5,
+    "box": [
+      94,
+      725,
+      2042,
+      262
+    ]
+  },
+  {
+    "paper": "ls/2009 1/phy_fr.pdf",
+    "index": 1,
+    "label": "A.2",
+    "image": "/answer-figures/c02c13740100-key-p4-e1-1.webp",
+    "page": 4,
+    "box": [
+      101,
+      318,
+      1337,
+      314
+    ]
+  },
+  {
+    "paper": "ls/2009 1/phy_fr.pdf",
+    "index": 1,
+    "label": "I.2",
+    "image": "/answer-figures/c02c13740100-key-p4-e1-3.webp",
+    "page": 4,
+    "box": [
+      101,
+      1482,
+      685,
+      34
+    ]
+  },
+  {
+    "paper": "ls/2009 1/phy_fr.pdf",
+    "index": 2,
+    "label": "A.2",
+    "image": "/answer-figures/c02c13740100-key-p4-e2-1.webp",
+    "page": 4,
+    "box": [
+      1646,
+      400,
+      911,
+      96
+    ]
+  },
+  {
+    "paper": "ls/2009 1/phy_fr.pdf",
+    "index": 2,
+    "label": "A.3",
+    "image": "/answer-figures/c02c13740100-key-p4-e2-2.webp",
+    "page": 4,
+    "box": [
+      1641,
+      593,
+      483,
+      99
+    ]
+  },
+  {
+    "paper": "ls/2009 1/phy_fr.pdf",
+    "index": 2,
+    "label": "A.4",
+    "image": "/answer-figures/c02c13740100-key-p4-e2-3.webp",
+    "page": 4,
+    "box": [
+      1644,
+      748,
+      587,
+      47
+    ]
+  },
+  {
+    "paper": "ls/2009 1/phy_fr.pdf",
+    "index": 2,
+    "label": "A.5",
+    "image": "/answer-figures/c02c13740100-key-p4-e2-4.webp",
+    "page": 4,
+    "box": [
+      1646,
+      892,
+      949,
+      191
+    ]
+  },
+  {
+    "paper": "ls/2009 1/phy_fr.pdf",
+    "index": 2,
+    "label": "B.2",
+    "image": "/answer-figures/c02c13740100-key-p4-e2-6.webp",
+    "page": 4,
+    "box": [
+      1641,
+      1491,
+      902,
+      99
+    ]
+  },
+  {
+    "paper": "ls/2009 1/phy_fr.pdf",
+    "index": 3,
+    "label": "3",
+    "image": "/answer-figures/c02c13740100-key-p5-e3-2.webp",
+    "page": 5,
+    "box": [
+      94,
+      870,
+      2113,
+      262
+    ]
+  },
+  {
+    "paper": "ls/2009 2/bio_en.pdf",
+    "index": 1,
+    "label": "1",
+    "image": "/answer-figures/2d3b1242ddf0-key-p5-e1-0.webp",
+    "page": 5,
+    "box": [
+      159,
+      775,
+      1789,
+      144
+    ]
+  },
+  {
+    "paper": "ls/2009 2/bio_en.pdf",
+    "index": 1,
+    "label": "3",
+    "image": "/answer-figures/2d3b1242ddf0-key-p5-e1-3.webp",
+    "page": 5,
+    "box": [
+      171,
+      1352,
+      1782,
+      144
+    ]
+  },
+  {
+    "paper": "ls/2009 2/bio_en.pdf",
+    "index": 2,
+    "label": "3",
+    "image": "/answer-figures/2d3b1242ddf0-key-p6-e2-2.webp",
+    "page": 6,
+    "box": [
+      158,
+      1183,
+      1807,
+      334
+    ]
+  },
+  {
+    "paper": "ls/2009 2/bio_en.pdf",
+    "index": 3,
+    "label": "1",
+    "image": "/answer-figures/2d3b1242ddf0-key-p6-e3-3.webp",
+    "page": 6,
+    "box": [
+      148,
+      2421,
+      1816,
+      147
+    ]
+  },
+  {
+    "paper": "ls/2009 2/bio_en.pdf",
+    "index": 3,
+    "label": "2",
+    "image": "/answer-figures/2d3b1242ddf0-key-p7-e3-4.webp",
+    "page": 7,
+    "box": [
+      156,
+      164,
+      1802,
+      153
+    ]
+  },
+  {
+    "paper": "ls/2009 2/bio_en.pdf",
+    "index": 3,
+    "label": "3",
+    "image": "/answer-figures/2d3b1242ddf0-key-p7-e3-5.webp",
+    "page": 7,
+    "box": [
+      159,
+      351,
+      1797,
+      96
+    ]
+  },
+  {
+    "paper": "ls/2009 2/bio_en.pdf",
+    "index": 4,
+    "label": "1",
+    "image": "/answer-figures/2d3b1242ddf0-key-p7-e4-0.webp",
+    "page": 7,
+    "box": [
+      154,
+      907,
+      1790,
+      240
+    ]
+  },
+  {
+    "paper": "ls/2009 2/bio_en.pdf",
+    "index": 4,
+    "label": "2",
+    "image": "/answer-figures/2d3b1242ddf0-key-p7-e4-1.webp",
+    "page": 7,
+    "box": [
+      159,
+      1147,
+      1811,
+      191
+    ]
+  },
+  {
+    "paper": "ls/2009 2/bio_en.pdf",
+    "index": 4,
+    "label": "3",
+    "image": "/answer-figures/2d3b1242ddf0-key-p7-e4-2.webp",
+    "page": 7,
+    "box": [
+      159,
+      1338,
+      1796,
+      288
+    ]
+  },
+  {
+    "paper": "ls/2009 2/bio_en.pdf",
+    "index": 4,
+    "label": "4",
+    "image": "/answer-figures/2d3b1242ddf0-key-p7-e4-3.webp",
+    "page": 7,
+    "box": [
+      159,
+      1626,
+      1802,
+      96
+    ]
+  },
+  {
+    "paper": "ls/2009 2/bio_fr.pdf",
+    "index": 1,
+    "label": "1",
+    "image": "/answer-figures/97d33af87a25-key-p5-e1-0.webp",
+    "page": 5,
+    "box": [
+      308,
+      606,
+      1570,
+      193
+    ]
+  },
+  {
+    "paper": "ls/2009 2/bio_fr.pdf",
+    "index": 1,
+    "label": "2",
+    "image": "/answer-figures/97d33af87a25-key-p5-e1-1.webp",
+    "page": 5,
+    "box": [
+      308,
+      846,
+      1572,
+      480
+    ]
+  },
+  {
+    "paper": "ls/2009 2/bio_fr.pdf",
+    "index": 1,
+    "label": "3",
+    "image": "/answer-figures/97d33af87a25-key-p5-e1-2.webp",
+    "page": 5,
+    "box": [
+      308,
+      1371,
+      1572,
+      243
+    ]
+  },
+  {
+    "paper": "ls/2009 2/bio_fr.pdf",
+    "index": 1,
+    "label": "4",
+    "image": "/answer-figures/97d33af87a25-key-p5-e1-3.webp",
+    "page": 5,
+    "box": [
+      308,
+      1661,
+      1572,
+      429
+    ]
+  },
+  {
+    "paper": "ls/2009 2/bio_fr.pdf",
+    "index": 1,
+    "label": "5",
+    "image": "/answer-figures/97d33af87a25-key-p5-e1-4.webp",
+    "page": 5,
+    "box": [
+      308,
+      2140,
+      1574,
+      385
+    ]
+  },
+  {
+    "paper": "ls/2009 2/bio_fr.pdf",
+    "index": 2,
+    "label": "3",
+    "image": "/answer-figures/97d33af87a25-key-p6-e2-2.webp",
+    "page": 6,
+    "box": [
+      308,
+      1586,
+      1572,
+      385
+    ]
+  },
+  {
+    "paper": "ls/2009 2/bio_fr.pdf",
+    "index": 3,
+    "label": "1.2",
+    "image": "/answer-figures/97d33af87a25-key-p7-e3-2.webp",
+    "page": 7,
+    "box": [
+      305,
+      751,
+      1573,
+      148
+    ]
+  },
+  {
+    "paper": "ls/2009 2/bio_fr.pdf",
+    "index": 3,
+    "label": "1.3",
+    "image": "/answer-figures/97d33af87a25-key-p7-e3-3.webp",
+    "page": 7,
+    "box": [
+      305,
+      943,
+      1573,
+      148
+    ]
+  },
+  {
+    "paper": "ls/2009 2/bio_fr.pdf",
+    "index": 3,
+    "label": "3",
+    "image": "/answer-figures/97d33af87a25-key-p7-e3-5.webp",
+    "page": 7,
+    "box": [
+      321,
+      1319,
+      1557,
+      107
+    ]
+  },
+  {
+    "paper": "ls/2009 2/bio_fr.pdf",
+    "index": 4,
+    "label": "1",
+    "image": "/answer-figures/97d33af87a25-key-p8-e4-0.webp",
+    "page": 8,
+    "box": [
+      310,
+      369,
+      1570,
+      287
+    ]
+  },
+  {
+    "paper": "ls/2009 2/bio_fr.pdf",
+    "index": 4,
+    "label": "2",
+    "image": "/answer-figures/97d33af87a25-key-p8-e4-1.webp",
+    "page": 8,
+    "box": [
+      308,
+      704,
+      1572,
+      242
+    ]
+  },
+  {
+    "paper": "ls/2009 2/bio_fr.pdf",
+    "index": 4,
+    "label": "3",
+    "image": "/answer-figures/97d33af87a25-key-p8-e4-2.webp",
+    "page": 8,
+    "box": [
+      308,
+      1041,
+      1572,
+      335
+    ]
+  },
+  {
+    "paper": "ls/2009 2/bio_fr.pdf",
+    "index": 4,
+    "label": "4",
+    "image": "/answer-figures/97d33af87a25-key-p8-e4-3.webp",
+    "page": 8,
+    "box": [
+      308,
+      1423,
+      1570,
+      98
+    ]
+  },
+  {
+    "paper": "ls/2009 2/math_fr.pdf",
+    "index": 4,
+    "label": "1",
+    "image": "/answer-figures/2f66b34da7af-key-p4-e4-0.webp",
+    "page": 4,
+    "box": [
+      209,
+      2492,
+      1650,
+      161
+    ]
+  },
+  {
+    "paper": "ls/2009 2/phy_fr.pdf",
+    "index": 2,
+    "label": "A.3",
+    "image": "/answer-figures/94777072a911-key-p4-e2-2.webp",
+    "page": 4,
+    "box": [
+      1575,
+      880,
+      1052,
+      389
+    ]
+  },
+  {
+    "paper": "ls/2009 2/phy_fr.pdf",
+    "index": 2,
+    "label": "B.2",
+    "image": "/answer-figures/94777072a911-key-p4-e2-4.webp",
+    "page": 4,
+    "box": [
+      1572,
+      1430,
+      529,
+      52
+    ]
+  },
+  {
+    "paper": "ls/2009 2/phy_fr.pdf",
+    "index": 3,
+    "label": "A.1",
+    "image": "/answer-figures/94777072a911-key-p5-e3-0.webp",
+    "page": 5,
+    "box": [
+      179,
+      357,
+      2260,
+      107
+    ]
+  },
+  {
+    "paper": "ls/2009 2/phy_fr.pdf",
+    "index": 3,
+    "label": "A.2",
+    "image": "/answer-figures/94777072a911-key-p5-e3-1.webp",
+    "page": 5,
+    "box": [
+      179,
+      412,
+      486,
+      52
+    ]
+  },
+  {
+    "paper": "ls/2009 2/phy_fr.pdf",
+    "index": 3,
+    "label": "B.1",
+    "image": "/answer-figures/94777072a911-key-p5-e3-2.webp",
+    "page": 5,
+    "box": [
+      118,
+      466,
+      321,
+      100
+    ]
+  },
+  {
+    "paper": "ls/2011 1/math_en.pdf",
+    "index": 3,
+    "label": "1",
+    "image": "/answer-figures/548499f54595-key-p3-e3-1.webp",
+    "page": 3,
+    "box": [
+      96,
+      2449,
+      1855,
+      284
+    ]
+  },
+  {
+    "paper": "ls/2011 1/math_en.pdf",
+    "index": 3,
+    "label": "2",
+    "image": "/answer-figures/548499f54595-key-p4-e3-2.webp",
+    "page": 4,
+    "box": [
+      94,
+      75,
+      1860,
+      370
+    ]
+  },
+  {
+    "paper": "ls/2011 1/math_en.pdf",
+    "index": 3,
+    "label": "3",
+    "image": "/answer-figures/548499f54595-key-p4-e3-3.webp",
+    "page": 4,
+    "box": [
+      94,
+      75,
+      1860,
+      370
+    ]
+  },
+  {
+    "paper": "ls/2011 1/math_fr.pdf",
+    "index": 3,
+    "label": "2",
+    "image": "/answer-figures/47de03c9519b-key-p4-e3-2.webp",
+    "page": 4,
+    "box": [
+      94,
+      123,
+      1860,
+      488
+    ]
+  },
+  {
+    "paper": "ls/2011 1/math_fr.pdf",
+    "index": 3,
+    "label": "3",
+    "image": "/answer-figures/47de03c9519b-key-p4-e3-3.webp",
+    "page": 4,
+    "box": [
+      94,
+      123,
+      1860,
+      488
+    ]
+  },
+  {
+    "paper": "ls/2011 1/math_fr_estekmeleye.pdf",
+    "index": 2,
+    "label": "A.1",
+    "image": "/answer-figures/5aa0821bc529-key-p3-e2-0.webp",
+    "page": 3,
+    "box": [
+      120,
+      1708,
+      1867,
+      799
+    ]
+  },
+  {
+    "paper": "ls/2011 1/math_fr_estekmeleye.pdf",
+    "index": 2,
+    "label": "A.2",
+    "image": "/answer-figures/5aa0821bc529-key-p3-e2-1.webp",
+    "page": 3,
+    "box": [
+      120,
+      1708,
+      1867,
+      799
+    ]
+  },
+  {
+    "paper": "ls/2011 1/math_fr_estekmeleye.pdf",
+    "index": 2,
+    "label": "A.84",
+    "image": "/answer-figures/5aa0821bc529-key-p3-e2-2.webp",
+    "page": 3,
+    "box": [
+      120,
+      1708,
+      1867,
+      799
+    ]
+  },
+  {
+    "paper": "ls/2011 1/math_fr_estekmeleye.pdf",
+    "index": 2,
+    "label": "B.2",
+    "image": "/answer-figures/5aa0821bc529-key-p3-e2-4.webp",
+    "page": 3,
+    "box": [
+      120,
+      1708,
+      1867,
+      799
+    ]
+  },
+  {
+    "paper": "ls/2011 2/chem_en.pdf",
+    "index": 2,
+    "label": "1",
+    "image": "/answer-figures/8e0fd2d94094-key-p5-e2-0.webp",
+    "page": 5,
+    "box": [
+      209,
+      2165,
+      1650,
+      527
+    ]
+  },
+  {
+    "paper": "ls/2011 2/chem_en.pdf",
+    "index": 2,
+    "label": "1.1",
+    "image": "/answer-figures/8e0fd2d94094-key-p5-e2-1.webp",
+    "page": 5,
+    "box": [
+      209,
+      2165,
+      1650,
+      527
+    ]
+  },
+  {
+    "paper": "ls/2011 2/chem_en.pdf",
+    "index": 3,
+    "label": "1",
+    "image": "/answer-figures/8e0fd2d94094-key-p6-e3-0.webp",
+    "page": 6,
+    "box": [
+      209,
+      2141,
+      1650,
+      539
+    ]
+  },
+  {
+    "paper": "ls/2011 2/chem_en.pdf",
+    "index": 3,
+    "label": "1.2",
+    "image": "/answer-figures/8e0fd2d94094-key-p6-e3-2.webp",
+    "page": 6,
+    "box": [
+      209,
+      2141,
+      1650,
+      539
+    ]
+  },
+  {
+    "paper": "ls/2011 2/chem_fr.pdf",
+    "index": 2,
+    "label": "1",
+    "image": "/answer-figures/4005fcaa8203-key-p6-e2-0.webp",
+    "page": 6,
+    "box": [
+      212,
+      2377,
+      1645,
+      325
+    ]
+  },
+  {
+    "paper": "ls/2011 2/chem_fr.pdf",
+    "index": 2,
+    "label": "1.1",
+    "image": "/answer-figures/4005fcaa8203-key-p6-e2-1.webp",
+    "page": 6,
+    "box": [
+      212,
+      2377,
+      1645,
+      325
+    ]
+  },
+  {
+    "paper": "ls/2011 2/chem_fr.pdf",
+    "index": 3,
+    "label": "1",
+    "image": "/answer-figures/4005fcaa8203-key-p7-e3-0.webp",
+    "page": 7,
+    "box": [
+      209,
+      2136,
+      1650,
+      585
+    ]
+  },
+  {
+    "paper": "ls/2011 2/math_fr.pdf",
+    "index": 3,
+    "label": "1",
+    "image": "/answer-figures/9a9d79510bc7-key-p4-e3-0.webp",
+    "page": 4,
+    "box": [
+      102,
+      122,
+      1921,
+      733
+    ]
+  },
+  {
+    "paper": "ls/2011 2/math_fr.pdf",
+    "index": 3,
+    "label": "2",
+    "image": "/answer-figures/9a9d79510bc7-key-p4-e3-1.webp",
+    "page": 4,
+    "box": [
+      102,
+      122,
+      1921,
+      733
+    ]
+  },
+  {
+    "paper": "ls/2011 2/math_fr.pdf",
+    "index": 3,
+    "label": "3",
+    "image": "/answer-figures/9a9d79510bc7-key-p4-e3-2.webp",
+    "page": 4,
+    "box": [
+      102,
+      122,
+      1921,
+      733
+    ]
+  },
+  {
+    "paper": "ls/2011 2/math_fr.pdf",
+    "index": 3,
+    "label": "4",
+    "image": "/answer-figures/9a9d79510bc7-key-p4-e3-3.webp",
+    "page": 4,
+    "box": [
+      102,
+      122,
+      1921,
+      733
+    ]
+  },
+  {
+    "paper": "ls/2012 2/math_en.pdf",
+    "index": 3,
+    "label": "1",
+    "image": "/answer-figures/a708bbb04eee-key-p3-e3-0.webp",
+    "page": 3,
+    "box": [
+      125,
+      1973,
+      1850,
+      690
+    ]
+  },
+  {
+    "paper": "ls/2012 2/math_en.pdf",
+    "index": 3,
+    "label": "3",
+    "image": "/answer-figures/a708bbb04eee-key-p3-e3-2.webp",
+    "page": 3,
+    "box": [
+      125,
+      1973,
+      1850,
+      690
+    ]
+  },
+  {
+    "paper": "ls/2012 2/math_fr.pdf",
+    "index": 3,
+    "label": "1",
+    "image": "/answer-figures/07580d26ca6c-key-p3-e3-0.webp",
+    "page": 3,
+    "box": [
+      125,
+      1862,
+      1848,
+      693
+    ]
+  },
+  {
+    "paper": "ls/2012 2/math_fr.pdf",
+    "index": 3,
+    "label": "2",
+    "image": "/answer-figures/07580d26ca6c-key-p3-e3-1.webp",
+    "page": 3,
+    "box": [
+      125,
+      1862,
+      1848,
+      693
+    ]
+  },
+  {
+    "paper": "ls/2012 2/math_fr.pdf",
+    "index": 3,
+    "label": "3",
+    "image": "/answer-figures/07580d26ca6c-key-p3-e3-2.webp",
+    "page": 3,
+    "box": [
+      125,
+      1862,
+      1848,
+      693
+    ]
+  },
+  {
+    "paper": "ls/2013 1/math_en.pdf",
+    "index": 1,
+    "label": "1",
+    "image": "/answer-figures/9ebbb71457be-key-p3-e1-0.webp",
+    "page": 3,
+    "box": [
+      102,
+      281,
+      1948,
+      758
+    ]
+  },
+  {
+    "paper": "ls/2013 1/math_en.pdf",
+    "index": 1,
+    "label": "2",
+    "image": "/answer-figures/9ebbb71457be-key-p3-e1-1.webp",
+    "page": 3,
+    "box": [
+      102,
+      281,
+      1948,
+      758
+    ]
+  },
+  {
+    "paper": "ls/2013 1/math_en.pdf",
+    "index": 1,
+    "label": "3",
+    "image": "/answer-figures/9ebbb71457be-key-p3-e1-2.webp",
+    "page": 3,
+    "box": [
+      102,
+      281,
+      1948,
+      758
+    ]
+  },
+  {
+    "paper": "ls/2013 1/math_en.pdf",
+    "index": 1,
+    "label": "4",
+    "image": "/answer-figures/9ebbb71457be-key-p3-e1-3.webp",
+    "page": 3,
+    "box": [
+      102,
+      281,
+      1948,
+      758
+    ]
+  },
+  {
+    "paper": "ls/2013 1/math_en.pdf",
+    "index": 2,
+    "label": "1",
+    "image": "/answer-figures/9ebbb71457be-key-p3-e2-5.webp",
+    "page": 3,
+    "box": [
+      97,
+      1905,
+      1952,
+      640
+    ]
+  },
+  {
+    "paper": "ls/2013 1/math_en.pdf",
+    "index": 2,
+    "label": "2",
+    "image": "/answer-figures/9ebbb71457be-key-p3-e2-6.webp",
+    "page": 3,
+    "box": [
+      97,
+      1905,
+      1952,
+      640
+    ]
+  },
+  {
+    "paper": "ls/2013 1/math_en.pdf",
+    "index": 2,
+    "label": "3",
+    "image": "/answer-figures/9ebbb71457be-key-p3-e2-7.webp",
+    "page": 3,
+    "box": [
+      97,
+      1905,
+      1952,
+      640
+    ]
+  },
+  {
+    "paper": "ls/2013 1/math_fr.pdf",
+    "index": 2,
+    "label": "1",
+    "image": "/answer-figures/848d1f6e893a-key-p3-e2-0.webp",
+    "page": 3,
+    "box": [
+      95,
+      1213,
+      1971,
+      654
+    ]
+  },
+  {
+    "paper": "ls/2013 1/math_fr.pdf",
+    "index": 2,
+    "label": "2",
+    "image": "/answer-figures/848d1f6e893a-key-p3-e2-1.webp",
+    "page": 3,
+    "box": [
+      95,
+      1213,
+      1971,
+      654
+    ]
+  },
+  {
+    "paper": "ls/2013 1/math_fr.pdf",
+    "index": 2,
+    "label": "3",
+    "image": "/answer-figures/848d1f6e893a-key-p3-e2-2.webp",
+    "page": 3,
+    "box": [
+      95,
+      1213,
+      1971,
+      654
+    ]
+  },
+  {
+    "paper": "ls/2013 1/math_fr.pdf",
+    "index": 2,
+    "label": "4",
+    "image": "/answer-figures/848d1f6e893a-key-p3-e2-3.webp",
+    "page": 3,
+    "box": [
+      95,
+      1213,
+      1971,
+      654
+    ]
+  },
+  {
+    "paper": "ls/2013 1/math_fr.pdf",
+    "index": 3,
+    "label": "1",
+    "image": "/answer-figures/848d1f6e893a-key-p3-e3-0.webp",
+    "page": 3,
+    "box": [
+      90,
+      1964,
+      1975,
+      631
+    ]
+  },
+  {
+    "paper": "ls/2013 1/math_fr.pdf",
+    "index": 3,
+    "label": "2",
+    "image": "/answer-figures/848d1f6e893a-key-p3-e3-1.webp",
+    "page": 3,
+    "box": [
+      90,
+      1964,
+      1975,
+      631
+    ]
+  },
+  {
+    "paper": "ls/2013 1/math_fr.pdf",
+    "index": 3,
+    "label": "3",
+    "image": "/answer-figures/848d1f6e893a-key-p3-e3-2.webp",
+    "page": 3,
+    "box": [
+      90,
+      1964,
+      1975,
+      631
+    ]
+  },
+  {
+    "paper": "ls/2013 2/chem_fr.pdf",
+    "index": 1,
+    "label": "1",
+    "image": "/answer-figures/118ab864f50c-key-p5-e1-0.webp",
+    "page": 5,
+    "box": [
+      717,
+      476,
+      633,
+      111
+    ]
+  },
+  {
+    "paper": "ls/2013 2/chem_fr.pdf",
+    "index": 2,
+    "label": "1",
+    "image": "/answer-figures/118ab864f50c-key-p6-e2-0.webp",
+    "page": 6,
+    "box": [
+      751,
+      245,
+      601,
+      111
+    ]
+  },
+  {
+    "paper": "ls/2013 2/chem_fr.pdf",
+    "index": 3,
+    "label": "1",
+    "image": "/answer-figures/118ab864f50c-key-p7-e3-0.webp",
+    "page": 7,
+    "box": [
+      671,
+      135,
+      724,
+      99
+    ]
+  },
+  {
+    "paper": "ls/2013 2/chem_fr.pdf",
+    "index": 3,
+    "label": "2",
+    "image": "/answer-figures/118ab864f50c-key-p7-e3-6.webp",
+    "page": 7,
+    "box": [
+      671,
+      135,
+      724,
+      99
+    ]
+  },
+  {
+    "paper": "ls/2013 2/chem_fr.pdf",
+    "index": 3,
+    "label": "3",
+    "image": "/answer-figures/118ab864f50c-key-p7-e3-9.webp",
+    "page": 7,
+    "box": [
+      671,
+      135,
+      724,
+      99
+    ]
+  },
+  {
+    "paper": "ls/2013 2/math_en.pdf",
+    "index": 1,
+    "label": "1",
+    "image": "/answer-figures/0e5fe97f2292-key-p3-e1-0.webp",
+    "page": 3,
+    "box": [
+      84,
+      214,
+      1898,
+      698
+    ]
+  },
+  {
+    "paper": "ls/2013 2/math_en.pdf",
+    "index": 1,
+    "label": "2",
+    "image": "/answer-figures/0e5fe97f2292-key-p3-e1-1.webp",
+    "page": 3,
+    "box": [
+      84,
+      214,
+      1898,
+      698
+    ]
+  },
+  {
+    "paper": "ls/2013 2/math_en.pdf",
+    "index": 2,
+    "label": "1",
+    "image": "/answer-figures/0e5fe97f2292-key-p3-e2-0.webp",
+    "page": 3,
+    "box": [
+      84,
+      1051,
+      1898,
+      669
+    ]
+  },
+  {
+    "paper": "ls/2013 2/math_en.pdf",
+    "index": 2,
+    "label": "2",
+    "image": "/answer-figures/0e5fe97f2292-key-p3-e2-1.webp",
+    "page": 3,
+    "box": [
+      84,
+      1051,
+      1898,
+      669
+    ]
+  },
+  {
+    "paper": "ls/2013 2/math_en.pdf",
+    "index": 3,
+    "label": "A.1",
+    "image": "/answer-figures/0e5fe97f2292-key-p3-e3-0.webp",
+    "page": 3,
+    "box": [
+      84,
+      1809,
+      1898,
+      712
+    ]
+  },
+  {
+    "paper": "ls/2013 2/math_en.pdf",
+    "index": 3,
+    "label": "A.2",
+    "image": "/answer-figures/0e5fe97f2292-key-p3-e3-1.webp",
+    "page": 3,
+    "box": [
+      84,
+      1809,
+      1898,
+      712
+    ]
+  },
+  {
+    "paper": "ls/2013 2/math_en.pdf",
+    "index": 3,
+    "label": "B.1",
+    "image": "/answer-figures/0e5fe97f2292-key-p3-e3-2.webp",
+    "page": 3,
+    "box": [
+      84,
+      1809,
+      1898,
+      712
+    ]
+  },
+  {
+    "paper": "ls/2013 2/math_en.pdf",
+    "index": 3,
+    "label": "B.2",
+    "image": "/answer-figures/0e5fe97f2292-key-p3-e3-3.webp",
+    "page": 3,
+    "box": [
+      84,
+      1809,
+      1898,
+      712
+    ]
+  },
+  {
+    "paper": "ls/2013 2/math_fr.pdf",
+    "index": 3,
+    "label": "A.1",
+    "image": "/answer-figures/d7559a33a2f0-key-p3-e3-0.webp",
+    "page": 3,
+    "box": [
+      103,
+      1617,
+      1792,
+      712
+    ]
+  },
+  {
+    "paper": "ls/2013 2/math_fr.pdf",
+    "index": 3,
+    "label": "A.2",
+    "image": "/answer-figures/d7559a33a2f0-key-p3-e3-1.webp",
+    "page": 3,
+    "box": [
+      103,
+      1617,
+      1792,
+      712
+    ]
+  },
+  {
+    "paper": "ls/2013 2/math_fr.pdf",
+    "index": 3,
+    "label": "B.1",
+    "image": "/answer-figures/d7559a33a2f0-key-p3-e3-2.webp",
+    "page": 3,
+    "box": [
+      103,
+      1617,
+      1792,
+      712
+    ]
+  },
+  {
+    "paper": "ls/2013 2/math_fr.pdf",
+    "index": 3,
+    "label": "B.2",
+    "image": "/answer-figures/d7559a33a2f0-key-p3-e3-3.webp",
+    "page": 3,
+    "box": [
+      103,
+      1617,
+      1792,
+      712
+    ]
+  },
+  {
+    "paper": "ls/2015 1/chem_en.pdf",
+    "index": 3,
+    "label": "2.3",
+    "image": "/answer-figures/cc74ae18dfed-key-p8-e3-8.webp",
+    "page": 8,
+    "box": [
+      102,
+      247,
+      1899,
+      734
+    ]
+  },
+  {
+    "paper": "ls/2015 1/chem_fr.pdf",
+    "index": 1,
+    "label": "1",
+    "image": "/answer-figures/67cdb9f2fbbc-key-p5-e1-0.webp",
+    "page": 5,
+    "box": [
+      706,
+      489,
+      715,
+      50
+    ]
+  },
+  {
+    "paper": "ls/2015 1/chem_fr.pdf",
+    "index": 1,
+    "label": "2.3",
+    "image": "/answer-figures/67cdb9f2fbbc-key-p6-e1-7.webp",
+    "page": 6,
+    "box": [
+      102,
+      247,
+      1917,
+      680
+    ]
+  },
+  {
+    "paper": "ls/2015 1/chem_fr.pdf",
+    "index": 1,
+    "label": "2.4",
+    "image": "/answer-figures/67cdb9f2fbbc-key-p6-e1-8.webp",
+    "page": 6,
+    "box": [
+      102,
+      247,
+      1917,
+      680
+    ]
+  },
+  {
+    "paper": "ls/2015 1/math_en.pdf",
+    "index": 1,
+    "label": "1",
+    "image": "/answer-figures/03f0aa641db0-key-p3-e1-0.webp",
+    "page": 3,
+    "box": [
+      122,
+      464,
+      1801,
+      672
+    ]
+  },
+  {
+    "paper": "ls/2015 1/math_en.pdf",
+    "index": 1,
+    "label": "2",
+    "image": "/answer-figures/03f0aa641db0-key-p3-e1-1.webp",
+    "page": 3,
+    "box": [
+      122,
+      464,
+      1801,
+      672
+    ]
+  },
+  {
+    "paper": "ls/2015 1/math_en.pdf",
+    "index": 1,
+    "label": "3",
+    "image": "/answer-figures/03f0aa641db0-key-p3-e1-2.webp",
+    "page": 3,
+    "box": [
+      122,
+      464,
+      1801,
+      672
+    ]
+  },
+  {
+    "paper": "ls/2015 1/math_en.pdf",
+    "index": 2,
+    "label": "1",
+    "image": "/answer-figures/03f0aa641db0-key-p3-e2-0.webp",
+    "page": 3,
+    "box": [
+      120,
+      1217,
+      1821,
+      491
+    ]
+  },
+  {
+    "paper": "ls/2015 1/math_en.pdf",
+    "index": 2,
+    "label": "2",
+    "image": "/answer-figures/03f0aa641db0-key-p3-e2-1.webp",
+    "page": 3,
+    "box": [
+      120,
+      1217,
+      1821,
+      491
+    ]
+  },
+  {
+    "paper": "ls/2015 1/math_en.pdf",
+    "index": 3,
+    "label": "1",
+    "image": "/answer-figures/03f0aa641db0-key-p3-e3-0.webp",
+    "page": 3,
+    "box": [
+      120,
+      1880,
+      1817,
+      600
+    ]
+  },
+  {
+    "paper": "ls/2015 1/math_en.pdf",
+    "index": 3,
+    "label": "2",
+    "image": "/answer-figures/03f0aa641db0-key-p3-e3-1.webp",
+    "page": 3,
+    "box": [
+      120,
+      1880,
+      1817,
+      600
+    ]
+  },
+  {
+    "paper": "ls/2015 2/math_en.pdf",
+    "index": 3,
+    "label": "A.1",
+    "image": "/answer-figures/f1d5feef76d6-key-p4-e3-0.webp",
+    "page": 4,
+    "box": [
+      123,
+      111,
+      1826,
+      491
+    ]
+  },
+  {
+    "paper": "ls/2015 2/math_en.pdf",
+    "index": 3,
+    "label": "A.3",
+    "image": "/answer-figures/f1d5feef76d6-key-p4-e3-2.webp",
+    "page": 4,
+    "box": [
+      123,
+      111,
+      1826,
+      491
+    ]
+  },
+  {
+    "paper": "ls/2015 2/math_en.pdf",
+    "index": 3,
+    "label": "B.1",
+    "image": "/answer-figures/f1d5feef76d6-key-p4-e3-3.webp",
+    "page": 4,
+    "box": [
+      123,
+      111,
+      1826,
+      491
+    ]
+  },
+  {
+    "paper": "ls/2015 2/math_en.pdf",
+    "index": 3,
+    "label": "B.2",
+    "image": "/answer-figures/f1d5feef76d6-key-p4-e3-4.webp",
+    "page": 4,
+    "box": [
+      123,
+      111,
+      1826,
+      491
+    ]
+  },
+  {
+    "paper": "ls/2015 2/math_fr.pdf",
+    "index": 3,
+    "label": "A.3",
+    "image": "/answer-figures/4081ed9dc6f3-key-p4-e3-2.webp",
+    "page": 4,
+    "box": [
+      123,
+      111,
+      1826,
+      491
+    ]
+  },
+  {
+    "paper": "ls/2015 2/math_fr.pdf",
+    "index": 3,
+    "label": "B.1",
+    "image": "/answer-figures/4081ed9dc6f3-key-p4-e3-3.webp",
+    "page": 4,
+    "box": [
+      123,
+      111,
+      1826,
+      491
+    ]
+  },
+  {
+    "paper": "ls/2015 2/math_fr.pdf",
+    "index": 3,
+    "label": "B.2",
+    "image": "/answer-figures/4081ed9dc6f3-key-p4-e3-4.webp",
+    "page": 4,
+    "box": [
+      123,
+      111,
+      1826,
+      491
+    ]
+  },
+  {
+    "paper": "ls/2016 1/chem_en.pdf",
+    "index": 1,
+    "label": "3.4",
+    "image": "/answer-figures/ba9078bca2c5-key-p6-e1-11.webp",
+    "page": 6,
+    "box": [
+      102,
+      122,
+      1911,
+      660
+    ]
+  },
+  {
+    "paper": "ls/2016 1/chem_fr.pdf",
+    "index": 1,
+    "label": "3.4",
+    "image": "/answer-figures/f8df0428aab2-key-p6-e1-11.webp",
+    "page": 6,
+    "box": [
+      162,
+      122,
+      1851,
+      557
+    ]
+  },
+  {
+    "paper": "ls/2016 1/math_en.pdf",
+    "index": 1,
+    "label": "1",
+    "image": "/answer-figures/b81e96dbf654-key-p3-e1-0.webp",
+    "page": 3,
+    "box": [
+      214,
+      409,
+      1643,
+      445
+    ]
+  },
+  {
+    "paper": "ls/2016 1/math_en.pdf",
+    "index": 1,
+    "label": "2",
+    "image": "/answer-figures/b81e96dbf654-key-p3-e1-1.webp",
+    "page": 3,
+    "box": [
+      214,
+      409,
+      1643,
+      445
+    ]
+  },
+  {
+    "paper": "ls/2016 1/math_en.pdf",
+    "index": 1,
+    "label": "4",
+    "image": "/answer-figures/b81e96dbf654-key-p3-e1-3.webp",
+    "page": 3,
+    "box": [
+      214,
+      409,
+      1643,
+      445
+    ]
+  },
+  {
+    "paper": "ls/2016 1/math_en.pdf",
+    "index": 2,
+    "label": "3",
+    "image": "/answer-figures/b81e96dbf654-key-p3-e2-2.webp",
+    "page": 3,
+    "box": [
+      212,
+      897,
+      1643,
+      765
+    ]
+  },
+  {
+    "paper": "ls/2016 1/math_fr.pdf",
+    "index": 1,
+    "label": "1",
+    "image": "/answer-figures/7177819e8705-key-p3-e1-0.webp",
+    "page": 3,
+    "box": [
+      224,
+      409,
+      1621,
+      445
+    ]
+  },
+  {
+    "paper": "ls/2016 1/math_fr.pdf",
+    "index": 1,
+    "label": "2",
+    "image": "/answer-figures/7177819e8705-key-p3-e1-1.webp",
+    "page": 3,
+    "box": [
+      224,
+      409,
+      1621,
+      445
+    ]
+  },
+  {
+    "paper": "ls/2016 1/math_fr.pdf",
+    "index": 1,
+    "label": "4",
+    "image": "/answer-figures/7177819e8705-key-p3-e1-3.webp",
+    "page": 3,
+    "box": [
+      224,
+      409,
+      1621,
+      445
+    ]
+  },
+  {
+    "paper": "ls/2016 1/math_fr.pdf",
+    "index": 2,
+    "label": "3",
+    "image": "/answer-figures/7177819e8705-key-p3-e2-2.webp",
+    "page": 3,
+    "box": [
+      219,
+      897,
+      1629,
+      763
+    ]
+  },
+  {
+    "paper": "ls/2016 1/phy_fr.pdf",
+    "index": 2,
+    "label": "A.1",
+    "image": "/answer-figures/a8a909701c95-key-p4-e2-0.webp",
+    "page": 4,
+    "box": [
+      108,
+      2283,
+      1852,
+      387
+    ]
+  },
+  {
+    "paper": "ls/2016 1/phy_fr.pdf",
+    "index": 2,
+    "label": "A.2",
+    "image": "/answer-figures/a8a909701c95-key-p4-e2-1.webp",
+    "page": 4,
+    "box": [
+      108,
+      2283,
+      1852,
+      387
+    ]
+  },
+  {
+    "paper": "ls/2016 1/phy_fr.pdf",
+    "index": 2,
+    "label": "A.3",
+    "image": "/answer-figures/a8a909701c95-key-p4-e2-2.webp",
+    "page": 4,
+    "box": [
+      108,
+      2283,
+      1852,
+      387
+    ]
+  },
+  {
+    "paper": "ls/2016 2/chem_en.pdf",
+    "index": 1,
+    "label": "3.2",
+    "image": "/answer-figures/e41f011736f2-key-p6-e1-11.webp",
+    "page": 6,
+    "box": [
+      188,
+      125,
+      1691,
+      462
+    ]
+  },
+  {
+    "paper": "ls/2016 2/chem_en.pdf",
+    "index": 3,
+    "label": "2.4",
+    "image": "/answer-figures/e41f011736f2-key-p8-e3-8.webp",
+    "page": 8,
+    "box": [
+      142,
+      125,
+      1783,
+      587
+    ]
+  },
+  {
+    "paper": "ls/2016 2/chem_en.pdf",
+    "index": 3,
+    "label": "2.5",
+    "image": "/answer-figures/e41f011736f2-key-p8-e3-9.webp",
+    "page": 8,
+    "box": [
+      142,
+      125,
+      1783,
+      587
+    ]
+  },
+  {
+    "paper": "ls/2016 2/chem_fr.pdf",
+    "index": 1,
+    "label": "3.2",
+    "image": "/answer-figures/d64798401f28-key-p6-e1-11.webp",
+    "page": 6,
+    "box": [
+      154,
+      125,
+      1761,
+      200
+    ]
+  },
+  {
+    "paper": "ls/2016 2/math_en.pdf",
+    "index": 2,
+    "label": "1",
+    "image": "/answer-figures/a8a4fb3c0f69-key-p3-e2-0.webp",
+    "page": 3,
+    "box": [
+      118,
+      1362,
+      1831,
+      611
+    ]
+  },
+  {
+    "paper": "ls/2016 2/math_en.pdf",
+    "index": 2,
+    "label": "2",
+    "image": "/answer-figures/a8a4fb3c0f69-key-p3-e2-1.webp",
+    "page": 3,
+    "box": [
+      118,
+      1362,
+      1831,
+      611
+    ]
+  },
+  {
+    "paper": "ls/2016 2/math_en.pdf",
+    "index": 2,
+    "label": "3",
+    "image": "/answer-figures/a8a4fb3c0f69-key-p3-e2-2.webp",
+    "page": 3,
+    "box": [
+      118,
+      1362,
+      1831,
+      611
+    ]
+  },
+  {
+    "paper": "ls/2016 2/math_fr.pdf",
+    "index": 2,
+    "label": "1",
+    "image": "/answer-figures/a6fe429dc02e-key-p3-e2-0.webp",
+    "page": 3,
+    "box": [
+      118,
+      1350,
+      1831,
+      606
+    ]
+  },
+  {
+    "paper": "ls/2016 2/math_fr.pdf",
+    "index": 2,
+    "label": "2",
+    "image": "/answer-figures/a6fe429dc02e-key-p3-e2-1.webp",
+    "page": 3,
+    "box": [
+      118,
+      1350,
+      1831,
+      606
+    ]
+  },
+  {
+    "paper": "ls/2016 2/math_fr.pdf",
+    "index": 2,
+    "label": "3",
+    "image": "/answer-figures/a6fe429dc02e-key-p3-e2-2.webp",
+    "page": 3,
+    "box": [
+      118,
+      1350,
+      1831,
+      606
+    ]
+  },
+  {
+    "paper": "ls/2017 1/chem_en.pdf",
+    "index": 1,
+    "label": "2.5.2",
+    "image": "/answer-figures/1853b614758f-key-p6-e1-12.webp",
+    "page": 6,
+    "box": [
+      162,
+      145,
+      1754,
+      173
+    ]
+  },
+  {
+    "paper": "ls/2017 1/chem_fr.pdf",
+    "index": 1,
+    "label": "2.5.1",
+    "image": "/answer-figures/46cd4024551b-key-p6-e1-11.webp",
+    "page": 6,
+    "box": [
+      168,
+      119,
+      1743,
+      398
+    ]
+  },
+  {
+    "paper": "ls/2017 1/chem_fr.pdf",
+    "index": 1,
+    "label": "2.5.2",
+    "image": "/answer-figures/46cd4024551b-key-p6-e1-12.webp",
+    "page": 6,
+    "box": [
+      168,
+      119,
+      1743,
+      398
+    ]
+  },
+  {
+    "paper": "ls/2017 1/phy_en.pdf",
+    "index": 1,
+    "label": "1",
+    "image": "/answer-figures/fa395042ece7-key-p5-e1-0.webp",
+    "page": 5,
+    "box": [
+      892,
+      491,
+      392,
+      43
+    ]
+  },
+  {
+    "paper": "ls/2017 2/bio_en.pdf",
+    "index": 3,
+    "label": "1",
+    "image": "/answer-figures/6262f671897e-key-p6-e3-0.webp",
+    "page": 6,
+    "box": [
+      227,
+      1919,
+      1681,
+      600
+    ]
+  },
+  {
+    "paper": "ls/2017 2/math_en.pdf",
+    "index": 2,
+    "label": "1",
+    "image": "/answer-figures/1f54f48aa0d6-key-p3-e2-0.webp",
+    "page": 3,
+    "box": [
+      125,
+      1386,
+      1848,
+      616
+    ]
+  },
+  {
+    "paper": "ls/2017 2/math_en.pdf",
+    "index": 2,
+    "label": "2",
+    "image": "/answer-figures/1f54f48aa0d6-key-p3-e2-1.webp",
+    "page": 3,
+    "box": [
+      125,
+      1386,
+      1848,
+      616
+    ]
+  },
+  {
+    "paper": "ls/2017 2/math_en.pdf",
+    "index": 2,
+    "label": "3",
+    "image": "/answer-figures/1f54f48aa0d6-key-p3-e2-2.webp",
+    "page": 3,
+    "box": [
+      125,
+      1386,
+      1848,
+      616
+    ]
+  },
+  {
+    "paper": "ls/2017 2/math_en.pdf",
+    "index": 2,
+    "label": "4",
+    "image": "/answer-figures/1f54f48aa0d6-key-p3-e2-3.webp",
+    "page": 3,
+    "box": [
+      125,
+      1386,
+      1848,
+      616
+    ]
+  },
+  {
+    "paper": "ls/2017 2/math_en.pdf",
+    "index": 3,
+    "label": "1",
+    "image": "/answer-figures/1f54f48aa0d6-key-p3-e3-0.webp",
+    "page": 3,
+    "box": [
+      125,
+      2023,
+      1848,
+      808
+    ]
+  },
+  {
+    "paper": "ls/2017 2/math_en.pdf",
+    "index": 3,
+    "label": "2",
+    "image": "/answer-figures/1f54f48aa0d6-key-p3-e3-1.webp",
+    "page": 3,
+    "box": [
+      125,
+      2023,
+      1848,
+      808
+    ]
+  },
+  {
+    "paper": "ls/2017 2/math_en.pdf",
+    "index": 3,
+    "label": "3",
+    "image": "/answer-figures/1f54f48aa0d6-key-p3-e3-2.webp",
+    "page": 3,
+    "box": [
+      125,
+      2023,
+      1848,
+      808
+    ]
+  },
+  {
+    "paper": "ls/2017 2/math_en.pdf",
+    "index": 3,
+    "label": "4",
+    "image": "/answer-figures/1f54f48aa0d6-key-p3-e3-3.webp",
+    "page": 3,
+    "box": [
+      125,
+      2023,
+      1848,
+      808
+    ]
+  },
+  {
+    "paper": "ls/2017 2/math_fr.pdf",
+    "index": 2,
+    "label": "1",
+    "image": "/answer-figures/6dd3415adb42-key-p3-e2-0.webp",
+    "page": 3,
+    "box": [
+      125,
+      1386,
+      1819,
+      616
+    ]
+  },
+  {
+    "paper": "ls/2017 2/math_fr.pdf",
+    "index": 2,
+    "label": "2",
+    "image": "/answer-figures/6dd3415adb42-key-p3-e2-1.webp",
+    "page": 3,
+    "box": [
+      125,
+      1386,
+      1819,
+      616
+    ]
+  },
+  {
+    "paper": "ls/2017 2/math_fr.pdf",
+    "index": 2,
+    "label": "3",
+    "image": "/answer-figures/6dd3415adb42-key-p3-e2-2.webp",
+    "page": 3,
+    "box": [
+      125,
+      1386,
+      1819,
+      616
+    ]
+  },
+  {
+    "paper": "ls/2017 2/math_fr.pdf",
+    "index": 2,
+    "label": "4",
+    "image": "/answer-figures/6dd3415adb42-key-p3-e2-3.webp",
+    "page": 3,
+    "box": [
+      125,
+      1386,
+      1819,
+      616
+    ]
+  },
+  {
+    "paper": "ls/2017 2/math_fr.pdf",
+    "index": 3,
+    "label": "1",
+    "image": "/answer-figures/6dd3415adb42-key-p3-e3-0.webp",
+    "page": 3,
+    "box": [
+      125,
+      2023,
+      1819,
+      763
+    ]
+  },
+  {
+    "paper": "ls/2017 2/math_fr.pdf",
+    "index": 3,
+    "label": "2",
+    "image": "/answer-figures/6dd3415adb42-key-p3-e3-1.webp",
+    "page": 3,
+    "box": [
+      125,
+      2023,
+      1819,
+      763
+    ]
+  },
+  {
+    "paper": "ls/2017 2/math_fr.pdf",
+    "index": 3,
+    "label": "3",
+    "image": "/answer-figures/6dd3415adb42-key-p3-e3-2.webp",
+    "page": 3,
+    "box": [
+      125,
+      2023,
+      1819,
+      763
+    ]
+  },
+  {
+    "paper": "ls/2017 2/math_fr.pdf",
+    "index": 3,
+    "label": "4",
+    "image": "/answer-figures/6dd3415adb42-key-p3-e3-3.webp",
+    "page": 3,
+    "box": [
+      125,
+      2023,
+      1819,
+      763
+    ]
+  },
+  {
+    "paper": "ls/2018 1/bio_en.pdf",
+    "index": 4,
+    "label": "1.1",
+    "image": "/answer-figures/fd14daf172d2-key-p7-e4-0.webp",
+    "page": 7,
+    "box": [
+      103,
+      2364,
+      1802,
+      375
+    ]
+  },
+  {
+    "paper": "ls/2018 1/bio_en.pdf",
+    "index": 4,
+    "label": "1.2",
+    "image": "/answer-figures/fd14daf172d2-key-p7-e4-1.webp",
+    "page": 7,
+    "box": [
+      103,
+      2364,
+      1802,
+      375
+    ]
+  },
+  {
+    "paper": "ls/2018 1/bio_fr.pdf",
+    "index": 1,
+    "label": "6",
+    "image": "/answer-figures/302525ad5e84-key-p6-e1-5.webp",
+    "page": 6,
+    "box": [
+      112,
+      163,
+      1841,
+      683
+    ]
+  },
+  {
+    "paper": "ls/2018 1/bio_fr.pdf",
+    "index": 1,
+    "label": "7",
+    "image": "/answer-figures/302525ad5e84-key-p6-e1-6.webp",
+    "page": 6,
+    "box": [
+      112,
+      163,
+      1841,
+      683
+    ]
+  },
+  {
+    "paper": "ls/2018 2/phy_en.pdf",
+    "index": 2,
+    "label": "1",
+    "image": "/answer-figures/9c3b1e30deb1-key-p5-e2-0.webp",
+    "page": 5,
+    "box": [
+      176,
+      270,
+      432,
+      57
+    ]
+  },
+  {
+    "paper": "ls/2018 2/phy_en.pdf",
+    "index": 3,
+    "label": "1",
+    "image": "/answer-figures/9c3b1e30deb1-key-p6-e3-0.webp",
+    "page": 6,
+    "box": [
+      182,
+      102,
+      409,
+      54
+    ]
+  },
+  {
+    "paper": "ls/2018 2/phy_en.pdf",
+    "index": 3,
+    "label": "2",
+    "image": "/answer-figures/9c3b1e30deb1-key-p6-e3-5.webp",
+    "page": 6,
+    "box": [
+      182,
+      102,
+      409,
+      54
+    ]
+  },
+  {
+    "paper": "ls/2018 2/phy_fr.pdf",
+    "index": 3,
+    "label": "1",
+    "image": "/answer-figures/65520950c83d-key-p6-e3-0.webp",
+    "page": 6,
+    "box": [
+      136,
+      182,
+      415,
+      54
+    ]
+  },
+  {
+    "paper": "ls/2018 2/phy_fr.pdf",
+    "index": 3,
+    "label": "2",
+    "image": "/answer-figures/65520950c83d-key-p6-e3-5.webp",
+    "page": 6,
+    "box": [
+      136,
+      182,
+      415,
+      54
+    ]
+  },
+  {
+    "paper": "ls/2019/phy_fr.pdf",
+    "index": 1,
+    "label": "1",
+    "image": "/answer-figures/b3bb293da6dd-key-p4-e1-0.webp",
+    "page": 4,
+    "box": [
+      140,
+      376,
+      403,
+      52
+    ]
+  },
+  {
+    "paper": "ls/2019 1/chem_fr.pdf",
+    "index": 2,
+    "label": "C.2.5",
+    "image": "/answer-figures/f38b23fcdbf7-key-p7-e2-8.webp",
+    "page": 7,
+    "box": [
+      101,
+      123,
+      1852,
+      471
+    ]
+  },
+  {
+    "paper": "ls/2021 2/SV_Bio_2021_2_Fr.pdf",
+    "index": 4,
+    "label": "2",
+    "image": "/answer-figures/73b89a11cde2-key-p7-e4-1.webp",
+    "page": 7,
+    "box": [
+      112,
+      2116,
+      1841,
+      714
+    ]
+  },
+  {
+    "paper": "ls/2021 2/SV_Bio_2021_2_Fr.pdf",
+    "index": 4,
+    "label": "3",
+    "image": "/answer-figures/73b89a11cde2-key-p8-e4-2.webp",
+    "page": 8,
+    "box": [
+      112,
+      76,
+      1841,
+      423
+    ]
+  },
+  {
+    "paper": "ls/2021 2/SV_Chim_2021_2_En.pdf",
+    "index": 1,
+    "label": "1",
+    "image": "/answer-figures/0f74d9923d4f-key-p5-e1-0.webp",
+    "page": 5,
+    "box": [
+      871,
+      404,
+      837,
+      53
+    ]
+  },
+  {
+    "paper": "ls/2021 2/SV_Chim_2021_2_En.pdf",
+    "index": 1,
+    "label": "2.4",
+    "image": "/answer-figures/0f74d9923d4f-key-p6-e1-8.webp",
+    "page": 6,
+    "box": [
+      229,
+      96,
+      1556,
+      375
+    ]
+  },
+  {
+    "paper": "ls/2021 2/SV_Chim_2021_2_Fr.pdf",
+    "index": 1,
+    "label": "1",
+    "image": "/answer-figures/1734f7b55241-key-p5-e1-0.webp",
+    "page": 5,
+    "box": [
+      243,
+      428,
+      1523,
+      53
+    ]
+  },
+  {
+    "paper": "ls/2023 1/SV_Chim_2023_1_Fr.pdf",
+    "index": 3,
+    "label": "3.2",
+    "image": "/answer-figures/de705b06bd96-key-p8-e3-15.webp",
+    "page": 8,
+    "box": [
+      247,
+      247,
+      1629,
+      256
+    ]
+  },
+  {
+    "paper": "ls/2023 1/SV_Math_2023_1_En.pdf",
+    "index": 2,
+    "label": "1",
+    "image": "/answer-figures/150e94661cb6-key-p3-e2-0.webp",
+    "page": 3,
+    "box": [
+      87,
+      1193,
+      1891,
+      741
+    ]
+  },
+  {
+    "paper": "ls/2023 1/SV_Math_2023_1_En.pdf",
+    "index": 2,
+    "label": "2",
+    "image": "/answer-figures/150e94661cb6-key-p3-e2-1.webp",
+    "page": 3,
+    "box": [
+      87,
+      1193,
+      1891,
+      741
+    ]
+  },
+  {
+    "paper": "ls/2023 1/SV_Math_2023_1_En.pdf",
+    "index": 2,
+    "label": "3",
+    "image": "/answer-figures/150e94661cb6-key-p3-e2-2.webp",
+    "page": 3,
+    "box": [
+      87,
+      1193,
+      1891,
+      741
+    ]
+  },
+  {
+    "paper": "ls/2023 1/SV_Math_2023_1_En.pdf",
+    "index": 2,
+    "label": "4",
+    "image": "/answer-figures/150e94661cb6-key-p3-e2-3.webp",
+    "page": 3,
+    "box": [
+      87,
+      1193,
+      1891,
+      741
+    ]
+  },
+  {
+    "paper": "ls/2023 1/SV_Math_2023_1_En.pdf",
+    "index": 2,
+    "label": "5",
+    "image": "/answer-figures/150e94661cb6-key-p3-e2-4.webp",
+    "page": 3,
+    "box": [
+      87,
+      1193,
+      1891,
+      741
+    ]
+  },
+  {
+    "paper": "ls/2023 1/SV_Math_2023_1_Fr.pdf",
+    "index": 3,
+    "label": "1",
+    "image": "/answer-figures/50c31a029557-key-p3-e3-0.webp",
+    "page": 3,
+    "box": [
+      84,
+      2040,
+      1898,
+      705
+    ]
+  },
+  {
+    "paper": "ls/2023 1/SV_Math_2023_1_Fr.pdf",
+    "index": 3,
+    "label": "2",
+    "image": "/answer-figures/50c31a029557-key-p3-e3-1.webp",
+    "page": 3,
+    "box": [
+      84,
+      2040,
+      1898,
+      705
+    ]
+  },
+  {
+    "paper": "ls/2024 1/SV_Bio_2024_1_En.pdf",
+    "index": 6,
+    "label": "1",
+    "image": "/answer-figures/f8a1de9c10c3-key-p9-e6-0.webp",
+    "page": 9,
+    "box": [
+      148,
+      1228,
+      1766,
+      689
+    ]
+  },
+  {
+    "paper": "ls/2024 1/SV_Bio_2024_1_En.pdf",
+    "index": 6,
+    "label": "2",
+    "image": "/answer-figures/f8a1de9c10c3-key-p9-e6-1.webp",
+    "page": 9,
+    "box": [
+      148,
+      1228,
+      1766,
+      689
+    ]
+  },
+  {
+    "paper": "ls/2024 1/SV_Bio_2024_1_En.pdf",
+    "index": 6,
+    "label": "3",
+    "image": "/answer-figures/f8a1de9c10c3-key-p9-e6-2.webp",
+    "page": 9,
+    "box": [
+      148,
+      1228,
+      1766,
+      689
+    ]
+  },
+  {
+    "paper": "ls/2024 1/SV_Bio_2024_1_En.pdf",
+    "index": 6,
+    "label": "4",
+    "image": "/answer-figures/f8a1de9c10c3-key-p9-e6-3.webp",
+    "page": 9,
+    "box": [
+      148,
+      1228,
+      1766,
+      689
+    ]
+  },
+  {
+    "paper": "ls/2024 1/SV_Bio_2024_1_En.pdf",
+    "index": 6,
+    "label": "5.1",
+    "image": "/answer-figures/f8a1de9c10c3-key-p9-e6-4.webp",
+    "page": 9,
+    "box": [
+      148,
+      1228,
+      1766,
+      689
+    ]
+  },
+  {
+    "paper": "ls/2024 1/SV_Bio_2024_1_En.pdf",
+    "index": 6,
+    "label": "5.2",
+    "image": "/answer-figures/f8a1de9c10c3-key-p9-e6-5.webp",
+    "page": 9,
+    "box": [
+      148,
+      1228,
+      1766,
+      689
+    ]
+  },
+  {
+    "paper": "ls/2024 1/SV_Chim_2024_1_Fr.pdf",
+    "index": 2,
+    "label": "1.1.2",
+    "image": "/answer-figures/04f1a2cc017c-key-p7-e2-3.webp",
+    "page": 7,
+    "box": [
+      144,
+      2059,
+      1754,
+      693
+    ]
+  },
+  {
+    "paper": "ls/2024 1/SV_Chim_2024_1_Fr.pdf",
+    "index": 2,
+    "label": "1.2",
+    "image": "/answer-figures/04f1a2cc017c-key-p7-e2-4.webp",
+    "page": 7,
+    "box": [
+      144,
+      2059,
+      1754,
+      693
+    ]
+  },
+  {
+    "paper": "ls/2024 1/SV_Chim_2024_1_Fr.pdf",
+    "index": 2,
+    "label": "1.2.1",
+    "image": "/answer-figures/04f1a2cc017c-key-p7-e2-5.webp",
+    "page": 7,
+    "box": [
+      144,
+      2059,
+      1754,
+      693
+    ]
+  },
+  {
+    "paper": "ls/2024 1/SV_Chim_2024_1_Fr.pdf",
+    "index": 2,
+    "label": "1.2.2",
+    "image": "/answer-figures/04f1a2cc017c-key-p7-e2-6.webp",
+    "page": 7,
+    "box": [
+      144,
+      2059,
+      1754,
+      693
+    ]
+  },
+  {
+    "paper": "ls/2024 1/SV_Math_2024_1_En.pdf",
+    "index": 2,
+    "label": "2",
+    "image": "/answer-figures/1d09d178b349-key-p4-e2-1.webp",
+    "page": 4,
+    "box": [
+      152,
+      1405,
+      1799,
+      818
+    ]
+  },
+  {
+    "paper": "ls/2024 1/SV_Math_2024_1_En.pdf",
+    "index": 2,
+    "label": "3",
+    "image": "/answer-figures/1d09d178b349-key-p4-e2-2.webp",
+    "page": 4,
+    "box": [
+      152,
+      1405,
+      1799,
+      818
+    ]
+  },
+  {
+    "paper": "ls/2024 1/SV_Math_2024_1_En.pdf",
+    "index": 2,
+    "label": "4",
+    "image": "/answer-figures/1d09d178b349-key-p4-e2-3.webp",
+    "page": 4,
+    "box": [
+      152,
+      1405,
+      1799,
+      818
+    ]
+  },
+  {
+    "paper": "ls/2024 1/SV_Math_2024_1_Fr.pdf",
+    "index": 2,
+    "label": "2",
+    "image": "/answer-figures/0228e53d4340-key-p4-e2-1.webp",
+    "page": 4,
+    "box": [
+      152,
+      1405,
+      1799,
+      818
+    ]
+  },
+  {
+    "paper": "ls/2024 1/SV_Math_2024_1_Fr.pdf",
+    "index": 2,
+    "label": "3",
+    "image": "/answer-figures/0228e53d4340-key-p4-e2-2.webp",
+    "page": 4,
+    "box": [
+      152,
+      1405,
+      1799,
+      818
+    ]
+  },
+  {
+    "paper": "ls/2024 1/SV_Math_2024_1_Fr.pdf",
+    "index": 2,
+    "label": "4",
+    "image": "/answer-figures/0228e53d4340-key-p4-e2-3.webp",
+    "page": 4,
+    "box": [
+      152,
+      1405,
+      1799,
+      818
+    ]
+  }
+]

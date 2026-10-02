@@ -18,13 +18,14 @@ describe('paperPartsOf', () => {
       intro: 'Exercise 2 (8 points)',
       parts: [
         { label: '1', text: '1) Redraw the circuit.', marks: 0.25, answer: '![](/answer-figures/x.png)' },
-        { label: '2', text: '2) Refer to document 4 to:' },
+        { label: '2', text: '2) Refer to document 4 to:', answerImage: '/answer-figures/key-row.png' },
       ],
       run: 'abc',
     });
     expect(got?.parts).toHaveLength(2);
     expect(got?.parts[0]).toMatchObject({ marks: 0.25, answer: '![](/answer-figures/x.png)' });
     expect(got?.parts[1]).not.toHaveProperty('answer');
+    expect(got?.parts[1]).toMatchObject({ answerImage: '/answer-figures/key-row.png' });
   });
 
   it('treats anything malformed as no parts', () => {
@@ -37,6 +38,15 @@ describe('paperPartsOf', () => {
   it('drops an empty answer and a mark that is not a number', () => {
     const got = paperPartsOf({ parts: [{ label: '1', text: 't', answer: '  ', marks: 'one' }] });
     expect(got?.parts[0]).toEqual({ label: '1', text: 't' });
+  });
+
+  it('accepts only local official-key crops', () => {
+    const got = paperPartsOf({ parts: [
+      { label: '1', text: 'Find x.', answerImage: '/answer-figures/official-1.webp' },
+      { label: '2', text: 'Find y.', answerImage: 'https://untrusted.example/key.png' },
+    ] });
+    expect(got?.parts[0]).toMatchObject({ answerImage: '/answer-figures/official-1.webp' });
+    expect(got?.parts[1]).not.toHaveProperty('answerImage');
   });
 
   it('withholds a copied question, another part’s answer, and table debris', () => {

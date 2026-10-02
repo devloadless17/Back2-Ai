@@ -31,7 +31,7 @@
  */
 
 import { createHash } from 'node:crypto';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { Prisma, PrismaClient } from '@prisma/client';
@@ -41,7 +41,9 @@ import { partMarkdown } from '../../src/lib/paper-parts';
 import { renderProblem } from './render-gate';
 
 const db = new PrismaClient();
-const SOURCE = path.join(process.cwd(), 'corpus/.mapping/paper-parts.json');
+const ROOT = process.cwd();
+const SOURCE = path.join(ROOT, 'corpus/.mapping/paper-parts.json');
+const ANSWER_CROPS = path.join(ROOT, 'corpus/science-answer-crops.json');
 
 type Part = { label: string; text: string; marks?: number; answer?: string };
 type Exercise = {
@@ -54,6 +56,7 @@ type Exercise = {
   answers?: { status: string };
 };
 type Paper = { paper: string; sha256: string; subject: string; language: string; exercises: Exercise[] };
+type AnswerCrop = { paper: string; index: number; label: string; image: string };
 
 type Wanted = {
   paper: string;
@@ -117,7 +120,7 @@ const refused = { exercises: 0, answers: 0, examples: [] as string[] };
  * badly and the exercise keeps its single block; an answer failing loses only
  * that answer, and its part says so.
  */
-function wantedFor(exercise: Exercise, run: string, paper: string): Omit<Wanted, 'paper' | 'sha' | 'index'> | null {
+function wantedFor(exercise: Exercise, run: string, paper: string, crops: Map<string, string>): Omit<Wanted, 'paper' | 'sha' | 'index'> | null {
   if (exercise.status !== 'split' || !exercise.parts?.length) return null;
   const textProblem =
     (exercise.intro?.trim() ? renderProblem(exercise.intro) : null) ??
@@ -141,6 +144,7 @@ function wantedFor(exercise: Exercise, run: string, paper: string): Omit<Wanted,
       text: p.text,
       ...(answered && typeof p.marks === 'number' ? { marks: p.marks } : {}),
       ...(answer ? { answer } : {}),
+      ...(crops.get(`${paper}#${exercise.index}#${p.label}`) ? { answerImage: crops.get(`${paper}#${exercise.index}#${p.label}`) } : {}),
     };
   });
   const withAnswers = parts.filter((p) => p.answer);
@@ -165,13 +169,21 @@ async function main() {
   const raw = readFileSync(arg('source') ?? SOURCE, 'utf8');
   const run = sha256(raw).slice(0, 16);
   const papers = JSON.parse(raw) as Paper[];
+  const crops = new Map<string, string>();
+  if (existsSync(ANSWER_CROPS)) {
+    for (const crop of JSON.parse(readFileSync(ANSWER_CROPS, 'utf8')) as AnswerCrop[]) {
+      if (/^\/answer-figures\/[a-z0-9][a-z0-9._-]*\.(?:png|jpe?g|webp)$/i.test(crop.image)) {
+        crops.set(`${crop.paper}#${crop.index}#${crop.label}`, crop.image);
+      }
+    }
+  }
   const subjects = await db.subject.findMany({ select: { id: true } });
 
   const wanted = new Map<string, Wanted>();
   const shownBy = new Map<string, Set<string>>(); // paper#index -> the words of its parts
   for (const p of papers) {
     for (const e of p.exercises) {
-      const w = wantedFor(e, run, p.paper);
+      const w = wantedFor(e, run, p.paper, crops);
       if (!w) continue;
       shownBy.set(`${p.sha256}#${e.index}`, words([e.intro ?? '', ...(e.parts ?? []).map((x) => x.text)].join(' ')));
       for (const s of subjects) {
@@ -274,6 +286,7 @@ async function main() {
   }
   const exercises = new Set([...wanted.values()].map((w) => `${w.paper}#${w.index}`)).size;
   console.log(`  exercises split into parts     ${exercises}`);
+  console.log(`  verified official-key crops    ${crops.size}`);
   console.log(`  questions found                ${rows.length}`);
   console.log(`  to write                       ${changes.length}`);
   console.log(`  left alone: stored text differs ${mismatched.length}`);
