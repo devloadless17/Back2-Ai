@@ -473,7 +473,18 @@ async function getWeakCards(
  * `TUNABLE`, but raising it much past a paragraph turns the deck back into a
  * reading list.
  */
-export const MAX_CARD_LENGTH = 320;
+/*
+ * A flashcard is one short question or one term to define, answered in a line
+ * or two. These bounds are what keep a practised exam question — a paragraph
+ * with numbered parts and a page of official solution — out of the deck.
+ */
+export const MAX_CARD_LENGTH = 160;
+/** The longest back a student can check at a glance. */
+export const MAX_CARD_ANSWER = 300;
+/** A second numbered part, or a second question: more than one card's worth. */
+const SEVERAL_PARTS = /\n\s*(?:\d{1,2}|[a-hA-H]|[أبجد])\s*[.)\-–]\s|[?؟][^?؟]+[?؟]/u;
+/** The longest front a generated card may have. */
+export const MAX_CARD_FRONT = 120;
 
 /**
  * Whether a question can carry a card.
@@ -484,9 +495,13 @@ export const MAX_CARD_LENGTH = 320;
 export function isCardShaped(question: {
   contentText: string;
   questionType?: string | null;
+  officialSolution?: string | null;
 }): boolean {
   const text = question.contentText.trim();
-  return text.length <= MAX_CARD_LENGTH && standsAlone(text);
+  if (text.length > MAX_CARD_LENGTH || SEVERAL_PARTS.test(text)) return false;
+  // A short question whose official answer runs a page is not a card either.
+  if ((question.officialSolution?.trim().length ?? 0) > MAX_CARD_ANSWER) return false;
+  return standsAlone(text);
 }
 
 /*
@@ -501,6 +516,11 @@ const NOT_A_QUESTION = [
   /عليك\s+اختيار|اختر\s+(?:أحد|إحدى)|القسم\s+الأول\s+بالكامل|\bchoose\s+(?:one|either)\b|\banswer\s+(?:one|either)\s+of\b|\bau\s+choix\b|\btraiter\s+(?:l['’]un|un\s+seul)\b/iu,
   // A marking scheme: a total, or a run of bare marks.
   /المجموع(?!ة)|\bbar[èe]me\b|(?:^|\s)(?:[\d٠-٩۰-۹](?:[.,]\d+)?\s+){3,}/iu,
+  // An exam part that states its marks — "(أربع علامات)", "(2 pts)" — is an
+  // exam question to write out, not a card to recall.
+  /\([^)]*(?:علامة|علامات|علامتان|\bpoints?\b|\bpts?\b)[^)]*\)/iu,
+  // A part label — "أ-", "a)", "2." — is one piece of a longer exercise.
+  /^\s*(?:[a-hA-H]|\d{1,2}|[أبجد])\s*[)\-–.]\s/u,
 ];
 /** A part that leans on the exercise above it. */
 const LEANS_ON_CONTEXT =
@@ -527,6 +547,7 @@ export function standsAlone(text: string): boolean {
  * O independent?" is a fragment of one paper, not something to learn.
  */
 export function generatedFrontStandsAlone(front: string, fromExam: boolean): boolean {
+  if (front.trim().length > MAX_CARD_FRONT) return false;
   if (!standsAlone(front)) return false;
   if (fromExam && /^\s*(?:19|20)\d{2}\b|\b(?:urns?|blood\s+table|exercise|exam)\b/i.test(front)) return false;
   return true;
@@ -546,7 +567,7 @@ export function generatedFrontStandsAlone(front: string, fromExam: boolean): boo
 export async function ensureCard(userId: string, questionId: string): Promise<void> {
   const question = await db.question.findUnique({
     where: { id: questionId },
-    select: { contentText: true, questionType: true },
+    select: { contentText: true, questionType: true, officialSolution: true },
   });
   if (!question || !isCardShaped(question)) return;
 

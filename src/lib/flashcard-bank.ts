@@ -106,7 +106,7 @@ export type FlashcardBankResult = {
 const LANGUAGE_NAME = { fr: 'French', en: 'English', ar: 'Arabic' } as const;
 
 /** Longest a back can be and still be self-gradeable at a glance. */
-const MAX_BACK = 320;
+const MAX_BACK = 240;
 
 function overlap(a: string, b: string): number {
   const words = (text: string) =>
@@ -252,12 +252,14 @@ export async function fillFlashcardBank(input: {
       '- Each card comes from one numbered source. Give that source number.',
       '- Use both source kinds when both are available: books for core knowledge and official',
       '  exams for the precise facts, conclusions and short methods that earn marks.',
-      '- front: a term to define, a formula to state, or one precise question. Short. Never',
-      '  "explain everything about X", which cannot be self-graded.',
+      '- front: a term to define ("What is X?", "Define X"), a formula to state, or one short',
+      '  precise question. At most 12 words. Never "explain everything about X", which cannot',
+      '  be self-graded.',
       '- The front must make sense with nothing else on screen. From an exam source, write the',
       '  general fact, formula or method it tests, never the exercise itself: no year, no "urn",',
       '  no table, document or figure, no numbers that only belong to that one exercise.',
-      '- back: the complete answer and nothing else. Two or three sentences at most, or the formula',
+      '- back: the complete answer and nothing else. One or two short sentences (40 words at most),',
+      '  or the formula',
       '  with what its symbols mean. A student holding the card must be able to decide in a moment',
       '  whether they got it right — so no hedging, no "see the chapter", no partial answer.',
       '- Use nothing that is not in the source you cite. No formula from memory, no constant you',

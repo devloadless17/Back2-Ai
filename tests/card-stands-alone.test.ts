@@ -13,6 +13,8 @@ describe('a flashcard has to make sense on its own', () => {
     'b) Deduce the value of the capacitance C.',
     'Using document 2, explain the role of the baroreceptors.',
     'Choose one of the two exercises below.',
+    'أ- عرف لبنان خلال الحرب العالمية الأولى ضائقة اقتصادية خانقة. عالج أسبابها وبيّن نتائجها. (أربع علامات)',
+    'Calculate the energy stored in the capacitor. (1.5 pts)',
   ])('drops: %s', (text) => {
     expect(isCardShaped({ contentText: text })).toBe(false);
   });
@@ -35,5 +37,22 @@ describe('a flashcard has to make sense on its own', () => {
     expect(generatedFrontStandsAlone('Formula for p(B/A)', true)).toBe(true);
     expect(generatedFrontStandsAlone('Mole fraction of a gas in a mixture', false)).toBe(true);
     expect(generatedFrontStandsAlone('ما وظيفة مؤتمر سان ريمو سنة 1920؟', false)).toBe(true);
+  });
+
+  it('keeps cards short: one question, a short answer', () => {
+    // Several numbered parts are several cards, not one.
+    expect(
+      isCardShaped({ contentText: 'Ethanoic acid reacts with ethanol.\n1. Write the equation.\n2. Name the ester.' }),
+    ).toBe(false);
+    // A paragraph is not a card.
+    expect(isCardShaped({ contentText: 'x'.repeat(200) })).toBe(false);
+    // Nor is a short question whose official answer runs a page.
+    expect(isCardShaped({ contentText: 'Define the half-life.', officialSolution: 'y'.repeat(400) })).toBe(false);
+    expect(isCardShaped({ contentText: 'Define the half-life.', officialSolution: 'The time for half the nuclei to decay.' })).toBe(true);
+  });
+
+  it('caps a generated front at a short line', () => {
+    expect(generatedFrontStandsAlone('What is a perfect gas?', false)).toBe(true);
+    expect(generatedFrontStandsAlone('w '.repeat(70), false)).toBe(false);
   });
 });
