@@ -73,7 +73,11 @@ const SUBJECTS: { match: RegExp; name: Record<string, string | string[]> }[] = [
   { match: /(?:^|[\s_-])(?:math|riyad)/i, name: { en: 'Mathematics', fr: 'Mathematiques' } },
   { match: /(?:^|[\s_-])(?:phys?|fizi)/i, name: { en: 'Physics', fr: 'Physique' } },
   { match: /(?:^|[\s_-])(?:chem|chim|kimi)/i, name: { en: 'Chemistry', fr: 'Chimie' } },
-  { match: /(?:^|[\s_-])(?:bio|svt|ahya)/i, name: { en: 'Life Sciences', fr: 'Sciences de la vie' } },
+  // CRDP's recent Life Sciences files use `SVSG` (Sciences de la Vie,
+  // section Sciences Générales), followed by the edition: `SVSG_Fran`.
+  // It must be claimed before French, otherwise the edition token files the
+  // whole biology paper under Français.
+  { match: /(?:^|[\s_-])(?:bio|svt|svsg|ahya)/i, name: { en: 'Life Sciences', fr: 'Sciences de la vie' } },
   // The trailing "e" is not always printed: se/2008 2/falsaf.pdf.
   { match: /(?:^|[\s_-])(?:falsafe?|philo)/i, name: { ar: ['فلسفة عامة', 'Philosophie'] } },
   { match: /(?:^|[\s_-])(?:geo|greo)/i, name: { ar: ['جغرافيا', 'Geographie'] } },
@@ -109,7 +113,9 @@ const SUBJECTS: { match: RegExp; name: Record<string, string | string[]> }[] = [
   // The terminator admits a full stop, so "arabe.pdf" is Arabic literature.
   // Without it the extension itself disqualified the match, and ten papers
   // named exactly that — ls/2004 2 through ls/2019 1 — had no subject at all.
-  { match: /(?:^|[\s_-])(?:arabe|arabic|arabeye|ar)(?:[\s_.-]|$)/i, name: { ar: ['أدب عربي', 'Arabe'] } },
+  // `se/2006 2/ra.pdf` is an Arabic literature paper whose two-letter name was
+  // transposed in the archive. Its printed heading confirms the subject.
+  { match: /(?:^|[\s_-])(?:arabe|arabic|arabeye|ar|ra)(?:[\s_.-]|$)/i, name: { ar: ['أدب عربي', 'Arabe'] } },
 ];
 
 /**

@@ -18,27 +18,31 @@ from collections import Counter, defaultdict
 sys.path.insert(0, str(__import__('pathlib').Path(__file__).resolve().parent))
 import extract_exams as E
 
+# Keep this in the same order as load-exams.ts: a suffix such as ``_ar`` or
+# ``_en`` is the edition of a science paper, while the same token on its own is
+# an Arabic or English paper.  The old substring list missed the corpus' real
+# spellings (tarekh/terekh, phy, ejteme and Fran), falsely reporting 298 papers
+# as unidentified even though the loader classified most of them correctly.
 SUBJECT_HINTS = [
-    ('Arabic',    ('arabe', 'arabic', 'عرب')),
-    ('Philosophy',('falsafe', 'philo', 'فلسف')),
-    ('French',    ('french', 'francais', 'français', 'fr_', 'fr.')),
-    ('English',   ('eng', 'english', 'angl')),
-    ('History',   ('hist', 'tarikh', 'تاريخ')),
-    ('Geography', ('geo', 'joghraf', 'جغراف')),
-    ('Civics',    ('civ', 'tarbi', 'tarbeya', 'تربية')),
-    ('Sociology', ('socio', 'ejtema', 'اجتماع')),
-    ('Economics', ('econo', 'ektesad', 'اقتصاد')),
-    ('Maths',     ('math', 'ryadiyat')),
-    ('Physics',   ('phys', 'fizia')),
-    ('Chemistry', ('chim', 'chem', 'kimia')),
-    ('Biology',   ('svt', 'bio', 'science')),
+    ('Maths',      re.compile(r'(?:^|[\s_-])(?:math|riyad)', re.I)),
+    ('Physics',    re.compile(r'(?:^|[\s_-])(?:phys?|fizi)', re.I)),
+    ('Chemistry',  re.compile(r'(?:^|[\s_-])(?:chem|chim|kimi)', re.I)),
+    ('Biology',    re.compile(r'(?:^|[\s_-])(?:bio|svt|ahya|svsg)', re.I)),
+    ('Philosophy', re.compile(r'(?:^|[\s_-])(?:falsafe?|philo)', re.I)),
+    ('Geography',  re.compile(r'(?:^|[\s_-])(?:geo|greo|joghraf)', re.I)),
+    ('Sociology',  re.compile(r'(?:^|[\s_-])(?:ejteme|ejtema|socio)', re.I)),
+    ('Economics',  re.compile(r'(?:^|[\s_-])(?:ektesad|eqtesad|eco(?:no)?)', re.I)),
+    ('Civics',     re.compile(r'(?:^|[\s_-])(?:civ|tarbeya|tarbia)', re.I)),
+    ('History',    re.compile(r'(?:^|[\s_-])(?:tarekh|terekh|tarikh|history|hsitory)', re.I)),
+    ('English',    re.compile(r'(?:^|[\s_-])(?:eng|english|emg)|(?:^|[\s_-])en(?:[\s_.-]|$)', re.I)),
+    ('French',     re.compile(r'(?:^|[\s_-])(?:fr|fran|french|francais|français)(?:[\s_.-]|$)', re.I)),
+    ('Arabic',     re.compile(r'(?:^|[\s_-])(?:arabe|arabic|arabeye|ar|ra)(?:[\s_.-]|$)', re.I)),
 ]
 
 
 def subject_of(name: str) -> str:
-    low = name.lower()
-    for label, keys in SUBJECT_HINTS:
-        if any(k in low for k in keys):
+    for label, pattern in SUBJECT_HINTS:
+        if pattern.search(name):
             return label
     return 'unidentified'
 

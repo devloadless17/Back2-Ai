@@ -315,14 +315,14 @@ SUBJECT_PROFILE = [
     ("maths", re.compile(r"(?:^|[\s_-])(?:math|riyad)", re.I)),
     ("physics", re.compile(r"(?:^|[\s_-])(?:phys?|fizi)", re.I)),
     ("chemistry", re.compile(r"(?:^|[\s_-])(?:chem|chim|kimi)", re.I)),
-    ("biology", re.compile(r"(?:^|[\s_-])(?:bio|svt|ahya)", re.I)),
+    ("biology", re.compile(r"(?:^|[\s_-])(?:bio|svt|svsg|ahya)", re.I)),
     ("philosophy", re.compile(r"(?:^|[\s_-])(?:falsafe?|philo)", re.I)),
     ("civics", re.compile(r"(?:^|[\s_-])(?:tarbeya|tarbia)", re.I)),
     ("history", re.compile(r"(?:^|[\s_-])(?:tarekh|terekh|tarikh|history)", re.I)),
     ("geography", re.compile(r"(?:^|[\s_-])(?:geo|greo)", re.I)),
     ("economics", re.compile(r"(?:^|[\s_-])(?:ektesad|eqtesad|eco(?:no)?)", re.I)),
     ("sociology", re.compile(r"(?:^|[\s_-])(?:ejteme|ejtema|socio)", re.I)),
-    ("arabic", re.compile(r"(?:^|[\s_-])(?:arabe|arabic|arabeye|ar)(?:[\s_.-]|$)", re.I)),
+    ("arabic", re.compile(r"(?:^|[\s_-])(?:arabe|arabic|arabeye|ar|ra)(?:[\s_.-]|$)", re.I)),
     ("language", re.compile(r"(?:^|[\s_-])(?:eng|english|emg|fr|french|francais)(?:[\s_.-]|$)", re.I)),
 ]
 
