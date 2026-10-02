@@ -10,7 +10,6 @@ import { GroundingState, TechnicalError, type RefusalKind } from '@/components/c
 import { MathText } from '@/components/ui/math';
 import { IconCamera, IconClose, IconPaperclip } from '@/components/shell/icons';
 import { cn } from '@/lib/cn';
-import { subjectIcon } from '@/lib/subject-icon';
 import { aiErrorMessage } from '@/lib/client/ai-error';
 import { ApiRequestError, sendForm } from '@/lib/client/request';
 import { useI18n } from '@/lib/i18n/client';
@@ -841,7 +840,7 @@ export function ChatThread({
               placeholder={t.chat.placeholder}
               disabled={disabled || streaming}
               rows={2}
-              className="min-h-[3.75rem] resize-none border-0 bg-transparent px-1 text-body shadow-none focus-visible:ring-0"
+              className="min-h-[3.75rem] resize-none rounded-none border-0 bg-transparent px-1 text-body shadow-none outline-none hover:border-transparent focus:outline-none focus-visible:outline-none focus-visible:ring-0"
             />
             <div className="flex items-center justify-between gap-2">
               <input
@@ -919,7 +918,6 @@ export function ChatThread({
                 <p className="ms-1 hidden min-w-0 items-center gap-1.5 truncate text-caption text-ink-faint sm:flex">
                   {subject ? (
                     <>
-                      <span aria-hidden>{subjectIcon(subject.name)}</span>
                       {/* `dir` on the name only. The row is laid out by the page. */}
                       <span
                         lang={subject.language}
@@ -928,12 +926,9 @@ export function ChatThread({
                       >
                         {subject.name}
                       </span>
-                      <span aria-hidden>·</span>
-                      <span className="uppercase">{subject.language}</span>
                     </>
                   ) : (
                     <>
-                      <span aria-hidden>🔎</span>
                       <span>{t.chat.subjectAll}</span>
                     </>
                   )}

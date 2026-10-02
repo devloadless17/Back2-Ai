@@ -166,7 +166,7 @@ export default async function ChatSessionPage({
           {configured && <NewConversationButton variant="secondary" fullWidth />}
           <nav aria-label={t.chat.recents}>
             <p className="mb-2 px-2 text-caption font-medium text-ink-faint">{t.chat.recents}</p>
-            <ul className="max-h-[65vh] space-y-0.5 overflow-y-auto">
+            <ul className="thin-scroll max-h-[65vh] space-y-0.5 overflow-y-auto pe-1">
               {recents.map((recent) => (
                 <li key={recent.id}>
                   <Link
@@ -176,9 +176,10 @@ export default async function ChatSessionPage({
                       'block truncate rounded-lg px-2 py-1.5 text-meta text-ink-muted hover:bg-paper-sunken hover:text-ink',
                       recent.id === session.id && 'bg-paper-sunken font-medium text-ink',
                     )}
-                    dir="auto"
                   >
-                    {recent.title ?? t.chat.title}
+                    {/* `dir` on the text, not the row: an Arabic title reads
+                        right-to-left but still lines up with the rest. */}
+                    <bdi>{recent.title ?? t.chat.title}</bdi>
                   </Link>
                 </li>
               ))}

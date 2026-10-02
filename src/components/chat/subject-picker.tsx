@@ -3,9 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
-import { Sheet, SheetBody } from '@/components/ui/sheet';
 import { cn } from '@/lib/cn';
-import { subjectIcon } from '@/lib/subject-icon';
 
 export type PickableSubject = {
   id: string;
@@ -88,88 +86,44 @@ export function SubjectPicker({
     }
   }
 
+  /*
+   * Small chips under the box, not a grid of cards. The choice is optional
+   * (the box already works across every subject), so it sits quietly beneath
+   * it: one line of names, "all subjects" first, nothing to read past.
+   */
+  const chip = cn(
+    'rounded-full border border-rule bg-paper-raised px-3.5 py-1.5 text-meta text-ink-muted',
+    'transition-colors duration-150 hover:border-rule-strong hover:bg-paper-sunken hover:text-ink',
+    'disabled:pointer-events-none disabled:opacity-50',
+  );
+
   return (
-    <Sheet>
-      <SheetBody>
-        <p className="text-sm font-medium text-ink">{labels.title}</p>
-        <p className="mt-1 text-caption text-ink-faint">{labels.hint}</p>
-
-        <div className="mt-4 grid gap-2.5 sm:grid-cols-2">
-          {subjects.map((subject) => (
-            <button
-              key={subject.id}
-              type="button"
-              disabled={saving !== null}
-              onClick={() => choose(subject.id)}
-              /*
-               * `dir` goes on the NAME, not on the card — see the span below.
-               *
-               * Setting it here flipped the whole flex row, so Arabic subjects
-               * put their icon on the right and their text hard against the
-               * far edge while the Latin ones did the opposite. In a grid that
-               * mixes both — which every Lebanese track does — the result is a
-               * ragged column that looks like a rendering fault rather than
-               * like two languages.
-               */
-              className={cn(
-                'group flex items-center gap-3 rounded-xl border border-rule bg-paper-raised px-4 py-3.5',
-                'text-start transition-all duration-150',
-                'hover:-translate-y-px hover:border-primary hover:shadow-sm',
-                'disabled:pointer-events-none disabled:opacity-50',
-                saving === subject.id && 'border-primary shadow-sm',
-              )}
-            >
-              {/*
-                The icon sits in a tinted tile rather than loose beside the text.
-                A bare emoji at text size disappears into the label; a tile the
-                eye can land on is what makes a grid scannable, which is the
-                whole job of this screen.
-              */}
-              <span
-                aria-hidden
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-paper-sunken text-lg transition-colors duration-150 group-hover:bg-primary-soft"
-              >
-                {subjectIcon(subject.name)}
-              </span>
-
-              <span className="min-w-0 flex-1">
-                {/*
-                  The name carries its own direction so Arabic punctuation and
-                  any Latin fragment inside it — "SE اقتصاد" — render correctly,
-                  while the card itself stays laid out like every other card.
-                */}
-                <span
-                  lang={subject.language}
-                  dir={subject.language === 'ar' ? 'rtl' : 'ltr'}
-                  className="block truncate text-sm font-medium text-ink"
-                >
-                  {subject.name}
-                </span>
-                {subject.chapterCount > 0 && (
-                  <span className="block text-caption text-ink-faint">
-                    {labels.chapters.replace('{count}', String(subject.chapterCount))}
-                  </span>
-                )}
-              </span>
-            </button>
-          ))}
-        </div>
-
+    <div className="text-center">
+      <p className="text-caption text-ink-faint">{labels.title}</p>
+      <div className="mt-3 flex flex-wrap justify-center gap-2">
         <button
           type="button"
           disabled={saving !== null}
           onClick={() => choose(null)}
-          className={cn(
-            'mt-3 w-full rounded-lg px-4 py-2.5 text-start transition-colors duration-150',
-            'hover:bg-paper-sunken disabled:opacity-50',
-          )}
+          title={labels.anyHint}
+          className={cn(chip, saving === 'any' && 'border-primary text-ink')}
         >
-          <span className="text-sm text-ink">{labels.any}</span>
-          <span className="ms-2 text-caption text-ink-faint">{labels.anyHint}</span>
+          {labels.any}
         </button>
-
-        {failed && <p className="mt-3 text-caption text-danger">{labels.error}</p>}
-      </SheetBody>
-    </Sheet>
+        {subjects.map((subject) => (
+          <button
+            key={subject.id}
+            type="button"
+            disabled={saving !== null}
+            onClick={() => choose(subject.id)}
+            className={cn(chip, saving === subject.id && 'border-primary text-ink')}
+          >
+            {/* Direction on the name only, so Arabic and Latin chips sit in one row. */}
+            <bdi lang={subject.language}>{subject.name}</bdi>
+          </button>
+        ))}
+      </div>
+      {failed && <p className="mt-3 text-caption text-danger">{labels.error}</p>}
+    </div>
   );
 }
