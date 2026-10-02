@@ -283,10 +283,11 @@ type CardRow = {
  * would not be true of a table-wide query, and this is not one.
  */
 function isCardRow(row: CardRow): boolean {
-  // A generated card is length-bounded when it is written, so there is nothing
-  // to re-check here. The filter exists for decks built before questions were
-  // length-bounded at all.
-  if (row.generatedCard) return true;
+  // Every card is re-checked as it is dealt, so a deck built before a rule
+  // existed loses its bad cards on the next load rather than after a backfill.
+  if (row.generatedCard) {
+    return generatedFrontStandsAlone(row.generatedCard.front, Boolean(row.generatedCard.sourceQuestionId));
+  }
   return row.question ? isCardShaped(row.question) : false;
 }
 
@@ -484,7 +485,51 @@ export function isCardShaped(question: {
   contentText: string;
   questionType?: string | null;
 }): boolean {
-  return question.contentText.trim().length <= MAX_CARD_LENGTH;
+  const text = question.contentText.trim();
+  return text.length <= MAX_CARD_LENGTH && standsAlone(text);
+}
+
+/*
+ * What a card must NOT be. Short was the only test, and short let through the
+ * lines a student met as "random sentences": a paper's instructions ("عليك
+ * اختيار إما القسم الأول…"), a marking scheme ("… ۱ ۱ ۲ المجموع"), a part that
+ * only means something under its exercise ("b) Deduce…"), and a question about
+ * a document or figure the card cannot show.
+ */
+const NOT_A_QUESTION = [
+  // Paper instructions: pick one of the sections / exercises.
+  /عليك\s+اختيار|اختر\s+(?:أحد|إحدى)|القسم\s+الأول\s+بالكامل|\bchoose\s+(?:one|either)\b|\banswer\s+(?:one|either)\s+of\b|\bau\s+choix\b|\btraiter\s+(?:l['’]un|un\s+seul)\b/iu,
+  // A marking scheme: a total, or a run of bare marks.
+  /المجموع(?!ة)|\bbar[èe]me\b|(?:^|\s)(?:[\d٠-٩۰-۹](?:[.,]\d+)?\s+){3,}/iu,
+];
+/** A part that leans on the exercise above it. */
+const LEANS_ON_CONTEXT =
+  /^\s*(?:[a-hA-H]|\d{1,2}|[أبجد])\s*[)\.\-–]\s*(?:.*\b(?:deduce|d[ée]duire|en\s+d[ée]duire|previous|pr[ée]c[ée]dent|above|ci-dessus)\b|.*(?:استنتج|السابق))/iu;
+/** A question about something printed beside it that a card cannot show. */
+const NEEDS_THE_PAPER =
+  /\b(?:document|figure|fig\.|tableau|table|graph|courbe|curve|map|carte)\s*(?:\d|[IVX]+\b)|الوثيقة|المستند|الشكل\s*\d|الجدول|الخريطة/iu;
+
+/**
+ * Whether a line makes sense as a flashcard with nothing else on screen.
+ * Shared by practised-question cards and generated ones, at creation and at
+ * review — so a deck built before this rule drops its bad cards on next load.
+ */
+export function standsAlone(text: string): boolean {
+  if (NOT_A_QUESTION.some((pattern) => pattern.test(text))) return false;
+  if (LEANS_ON_CONTEXT.test(text)) return false;
+  if (NEEDS_THE_PAPER.test(text)) return false;
+  return true;
+}
+
+/**
+ * A generated card's front, held to the same rule — and, for one written from
+ * an exam exercise, never a pointer back at that exercise: "2021 urn: are R and
+ * O independent?" is a fragment of one paper, not something to learn.
+ */
+export function generatedFrontStandsAlone(front: string, fromExam: boolean): boolean {
+  if (!standsAlone(front)) return false;
+  if (fromExam && /^\s*(?:19|20)\d{2}\b|\b(?:urns?|blood\s+table|exercise|exam)\b/i.test(front)) return false;
+  return true;
 }
 
 /**

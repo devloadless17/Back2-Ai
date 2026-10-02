@@ -6,6 +6,7 @@ import { ai } from '@/lib/ai';
 import { db } from '@/lib/db';
 import { isAiConfigured } from '@/lib/env';
 import { isMissingRequiredPassage, isUnusableFrenchExercise } from '@/lib/question-shape';
+import { generatedFrontStandsAlone } from '@/lib/queries/flashcards';
 
 /**
  * Flashcards written from the textbook, for chapters a student has not
@@ -253,6 +254,9 @@ export async function fillFlashcardBank(input: {
       '  exams for the precise facts, conclusions and short methods that earn marks.',
       '- front: a term to define, a formula to state, or one precise question. Short. Never',
       '  "explain everything about X", which cannot be self-graded.',
+      '- The front must make sense with nothing else on screen. From an exam source, write the',
+      '  general fact, formula or method it tests, never the exercise itself: no year, no "urn",',
+      '  no table, document or figure, no numbers that only belong to that one exercise.',
       '- back: the complete answer and nothing else. Two or three sentences at most, or the formula',
       '  with what its symbols mean. A student holding the card must be able to decide in a moment',
       '  whether they got it right — so no hedging, no "see the chapter", no partial answer.',
@@ -308,6 +312,10 @@ export async function fillFlashcardBank(input: {
     }
     if (card.back.length > MAX_BACK) {
       rejected.push({ reason: 'back too long to self-grade', front: card.front });
+      continue;
+    }
+    if (!generatedFrontStandsAlone(card.front, cited.source.kind === 'exam')) {
+      rejected.push({ reason: 'front only makes sense beside its exercise or paper', front: card.front });
       continue;
     }
     if (candidates.some((c) => overlap(c.card.front, card.front) >= NEAR_DUPLICATE)) {
