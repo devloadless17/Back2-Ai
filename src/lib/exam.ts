@@ -4,6 +4,7 @@ import type { ExamSourceMode, Prisma } from '@prisma/client';
 
 import { AuditAction, recordAudit } from '@/lib/audit';
 import { db } from '@/lib/db';
+import { paperDuration } from '@/lib/exam-duration';
 import { paperIsComplete } from '@/lib/ai-exam-production';
 import { withShowableFigures } from '@/lib/exam-figure-gate';
 import { figureContext, parseExamFigures, type ExamFigure } from '@/lib/exam-figures';
@@ -101,6 +102,12 @@ export async function startSimulation(input: StartInput): Promise<{ id: string }
  * `TUNABLE` — `src/lib/exam.ts`.
  */
 const ASSEMBLED_PAPER_MINUTES = 120;
+
+/** The exam length an admin set for this subject in Exam timing, if any. */
+async function subjectExamMinutes(subjectId: string): Promise<number | null> {
+  const subject = await db.subject.findUnique({ where: { id: subjectId }, select: { examDurationMinutes: true } });
+  return subject?.examDurationMinutes ?? null;
+}
 
 /**
  * A mock paper built from real questions the student has not met.
@@ -297,7 +304,8 @@ async function startFromRealPool(input: StartInput): Promise<{ id: string }> {
     : officialBaremes;
 
   const startedAt = new Date();
-  const duration = ASSEMBLED_PAPER_MINUTES;
+  // The subject's own Bac length when an admin has set one; two hours otherwise.
+  const duration = (await subjectExamMinutes(input.subjectId)) ?? ASSEMBLED_PAPER_MINUTES;
 
   const simulation = await db.examSimulation.create({
     data: {
@@ -372,7 +380,7 @@ async function startFromRealCycle(input: StartInput): Promise<{ id: string }> {
       subjectId: { in: [...(await paperScopeFor([input.subjectId])).keys()] },
       ...OWN_EDITION_ONLY,
     },
-    select: { id: true, durationMinutes: true },
+    select: { id: true, durationMinutes: true, durationIsOfficial: true },
   });
   if (!cycle) throw new ExamError('NOT_FOUND', 'That paper does not exist for this subject.');
 
@@ -387,7 +395,9 @@ async function startFromRealCycle(input: StartInput): Promise<{ id: string }> {
   }
 
   const startedAt = new Date();
-  const duration = cycle.durationMinutes || DEFAULT_DURATION_MINUTES;
+  // The paper's own confirmed length, else the student's subject's, else three
+  // hours — see `paperDuration`.
+  const duration = paperDuration(cycle, await subjectExamMinutes(input.subjectId)).minutes;
 
   const simulation = await db.examSimulation.create({
     data: {
@@ -830,7 +840,7 @@ async function startFromGeneratedPool(input: StartInput): Promise<{ id: string }
 // ---------------------------------------------------------------------------
 
 const SIMULATION_INCLUDE = {
-  subject: { select: { id: true, name: true, language: true } },
+  subject: { select: { id: true, name: true, language: true, examDurationMinutes: true } },
   examCycle: {
     select: {
       id: true,

@@ -37,7 +37,13 @@ export default async function AdminExamTimingPage({
   const subjectId = (Array.isArray(raw) ? raw[0] : raw) ?? '';
 
   const subjects = await db.subject.findMany({
-    select: { id: true, name: true, track: { select: { code: true } } },
+    select: {
+      id: true,
+      name: true,
+      examDurationMinutes: true,
+      track: { select: { code: true } },
+      _count: { select: { examCycles: true } },
+    },
     orderBy: [{ track: { code: 'asc' } }, { name: 'asc' }],
   });
 
@@ -80,6 +86,10 @@ export default async function AdminExamTimingPage({
       subjects={subjects.map((s) => ({
         id: s.id,
         label: `${s.track?.code ?? '—'} · ${s.name}`,
+        track: s.track?.code ?? '—',
+        name: s.name,
+        examDurationMinutes: s.examDurationMinutes,
+        paperCount: s._count.examCycles,
       }))}
       subjectId={subjectId}
     />

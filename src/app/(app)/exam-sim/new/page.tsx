@@ -5,6 +5,7 @@ import { NewSimulationForm, type SimulationOption } from '@/components/exam/new-
 import { PageHeader } from '@/components/ui/sheet';
 import { requireUser } from '@/lib/auth/guards';
 import { db } from '@/lib/db';
+import { paperDuration } from '@/lib/exam-duration';
 import { SHARED_ACROSS_TRACKS } from '@/lib/exam';
 import { paperIsComplete } from '@/lib/ai-exam-production';
 import { getTranslations } from '@/lib/i18n';
@@ -48,6 +49,11 @@ export default async function NewSimulationPage({
   const subjects = await listSubjects(user.trackId, user.preferredLanguage);
 
   const subjectIds = subjects.map((subject) => subject.id);
+  // Each subject's exam length, which a paper without its own falls back to.
+  const subjectMinutes = new Map(
+    (await db.subject.findMany({ where: { id: { in: subjectIds } }, select: { id: true, examDurationMinutes: true } }))
+      .map((s) => [s.id, s.examDurationMinutes]),
+  );
 
   // Complete official papers remain in their printed section. The map keeps
   // the ownership lookup explicit for the queries and picker below.
@@ -205,8 +211,8 @@ export default async function NewSimulationPage({
         `${cycle.session ? ` · ${cycle.session}` : ''}` +
         ` · ${LOCALE_LABELS[cycle.language]}`,
       questionCount: cycle._count.questions,
-      durationMinutes: cycle.durationMinutes,
-      durationIsOfficial: cycle.durationIsOfficial,
+      durationMinutes: paperDuration(cycle, subjectMinutes.get(subject.id)).minutes,
+      durationIsOfficial: paperDuration(cycle, subjectMinutes.get(subject.id)).official,
     })),
     generatedAvailable: generatedBySubject.get(subject.id) ?? 0,
     generatedPapers: generatedRows.filter((p) => p.subjectId === subject.id && paperIsComplete(p) && p.problems.every((q) => q.verificationStatus === 'approved' && q.publishedAt))

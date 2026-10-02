@@ -5,6 +5,7 @@ import { Alert, Badge, EmptyAction, EmptyState } from '@/components/ui/feedback'
 import { PageHeader, Sheet, SheetBody, SheetHeader } from '@/components/ui/sheet';
 import { requireUser } from '@/lib/auth/guards';
 import { db } from '@/lib/db';
+import { paperDuration } from '@/lib/exam-duration';
 import {
   HAS_LIVE_QUESTIONS,
   OWN_EDITION_ONLY,
@@ -83,7 +84,8 @@ export default async function OldCyclesPage({
       title: true,
       language: true,
       durationMinutes: true,
-      subject: { select: { id: true, name: true } },
+      durationIsOfficial: true,
+      subject: { select: { id: true, name: true, examDurationMinutes: true } },
       // Only the questions a student can actually be shown: a count that
       // included rejected rows promised a paper fuller than it is.
       _count: { select: { questions: { where: { verifiedStatus: { not: 'rejected' } } } } },
@@ -167,7 +169,7 @@ export default async function OldCyclesPage({
                           <p className="text-caption text-ink-faint">
                             {format(t.oldCycles.questionCount, { count: cycle._count.questions })}
                             {' · '}
-                            {format(t.oldCycles.duration, { count: cycle.durationMinutes })}
+                            {format(t.oldCycles.duration, { count: paperDuration(cycle, cycle.subject.examDurationMinutes).minutes })}
                           </p>
                         </div>
                         <div className="flex shrink-0 items-center gap-1.5">

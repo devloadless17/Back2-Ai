@@ -65,7 +65,10 @@ export default async function ExamSittingPage({
        * real cycle can disagree with the paper it claims to reproduce.
        */
       durationIsOfficial={
-        simulation.sourceMode !== 'real_cycle' || (simulation.examCycle?.durationIsOfficial ?? false)
+        simulation.sourceMode !== 'real_cycle' ||
+        (simulation.examCycle?.durationIsOfficial ?? false) ||
+        // The subject's length, set once in Exam timing, is the Bac's own.
+        simulation.subject.examDurationMinutes !== null
       }
       title={simulation.examCycle?.title ?? simulation.questions[0]?.generatedProblem?.generatedPaper?.title ?? simulation.subject.name}
       slots={slots}

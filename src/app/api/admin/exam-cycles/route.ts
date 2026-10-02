@@ -41,7 +41,7 @@ const patchSchema = z
      * examinations; both are a guard against a slip that would be invisible
      * afterwards.
      */
-    durationMinutes: z.number().int().min(15).max(240).nullable(),
+    durationMinutes: z.number().int().min(15).max(300).nullable(),
   })
   .strict();
 

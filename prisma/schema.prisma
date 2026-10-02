@@ -306,6 +306,13 @@ model Subject {
   /// must answer against the questions it must refuse and moves the gate only
   /// where those two populations separate. Re-calibrate after re-chunking.
   conceptGate Float? @map("concept_gate")
+  /// How long this subject's Bac paper runs, set once by an admin (Exam timing).
+  ///
+  /// The length belongs to the subject far more than to any one paper — every
+  /// GS Chemistry paper is sat on the same clock — so it is set here, and a
+  /// paper falls back to it unless that paper carries its own confirmed length.
+  /// Null: not set yet; papers run on the standard length and say so.
+  examDurationMinutes Int? @map("exam_duration_minutes")
 
   track Track? @relation(fields: [trackId], references: [id], onDelete: SetNull)
 

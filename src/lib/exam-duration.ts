@@ -29,3 +29,31 @@ export function formatDuration(minutes: number, labels: DurationLabels): string 
     .replace('{hours}', String(h))
     .replace('{minutes}', String(m).padStart(2, '0'));
 }
+
+/** The standard clock when neither the paper nor its subject has a length. */
+export const STANDARD_EXAM_MINUTES = 180;
+
+export type PaperDuration = {
+  minutes: number;
+  /** True when the length came from the paper or from its subject's setting. */
+  official: boolean;
+  source: 'paper' | 'subject' | 'standard';
+};
+
+/**
+ * How long a paper is sat for.
+ *
+ * The paper's own confirmed length first; then its subject's — set once in
+ * Exam timing, because every GS Chemistry paper runs on the same clock; then
+ * the standard three hours, which the exam screen labels as ours.
+ */
+export function paperDuration(
+  paper: { durationMinutes: number; durationIsOfficial: boolean } | null,
+  subjectMinutes: number | null | undefined,
+): PaperDuration {
+  if (paper?.durationIsOfficial) {
+    return { minutes: paper.durationMinutes, official: true, source: 'paper' };
+  }
+  if (subjectMinutes) return { minutes: subjectMinutes, official: true, source: 'subject' };
+  return { minutes: STANDARD_EXAM_MINUTES, official: false, source: 'standard' };
+}

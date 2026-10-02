@@ -13,6 +13,7 @@ import { PageHeader, Sheet } from '@/components/ui/sheet';
 import { BackLink } from '@/components/ui/back-link';
 import { requireUser } from '@/lib/auth/guards';
 import { db } from '@/lib/db';
+import { paperDuration } from '@/lib/exam-duration';
 import { getTranslations } from '@/lib/i18n';
 import { format } from '@/lib/i18n/format';
 import { dirForLanguage } from '@/lib/i18n/config';
@@ -80,7 +81,7 @@ export default async function ExamCyclePage({
       session: true,
       durationMinutes: true,
       durationIsOfficial: true,
-      subject: { select: { id: true, name: true, language: true } },
+      subject: { select: { id: true, name: true, language: true, examDurationMinutes: true } },
       questions: {
         where: { verifiedStatus: { not: 'rejected' } },
         select: {
@@ -169,8 +170,10 @@ export default async function ExamCyclePage({
           cycle.subject.name,
           String(cycle.year),
           cycle.session || null,
-          `${format(t.oldCycles.duration, { count: cycle.durationMinutes })} · ${
-            cycle.durationIsOfficial ? t.examSim.durationOfficial : t.examSim.durationStandardShort
+          `${format(t.oldCycles.duration, { count: paperDuration(cycle, cycle.subject.examDurationMinutes).minutes })} · ${
+            paperDuration(cycle, cycle.subject.examDurationMinutes).official
+              ? t.examSim.durationOfficial
+              : t.examSim.durationStandardShort
           }`,
         ]
           .filter(Boolean)
