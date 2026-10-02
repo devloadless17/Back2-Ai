@@ -86,19 +86,25 @@ function CriterionText({ text, dir }: { text: string; dir?: 'ltr' | 'rtl' }) {
 
   if (bullets.length === 0) {
     return (
-      <p className="break-words text-sm font-medium text-ink" dir={dir} lang={lang}>
-        {text}
-      </p>
+      // Through MathText: a criterion quoting the answer — "z = \frac{5}{2}" —
+      // was printed as raw LaTeX source.
+      <div className="break-words text-sm font-medium text-ink" dir={dir} lang={lang}>
+        <MathText compact dir={dir}>{text}</MathText>
+      </div>
     );
   }
 
   return (
     <div dir={dir} lang={lang}>
-      {intro && <p className="break-words text-sm font-medium text-ink">{intro}</p>}
+      {intro && (
+        <div className="break-words text-sm font-medium text-ink">
+          <MathText compact dir={dir}>{intro}</MathText>
+        </div>
+      )}
       <ul className="mt-1 list-disc space-y-1 ps-5 text-sm text-ink">
         {bullets.map((bullet, i) => (
           <li key={i} className="break-words">
-            {bullet}
+            <MathText compact dir={dir}>{bullet}</MathText>
           </li>
         ))}
       </ul>

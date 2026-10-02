@@ -230,6 +230,9 @@ export const OWN_EDITION_ONLY: Prisma.ExamCycleWhereInput = {
     { subject: { language: 'en' }, language: 'en' },
     { subject: { language: 'fr' }, language: 'fr' },
   ],
+  // The demo seed's hand-written "(illustrative)" papers are not ministry
+  // papers, and every list of real papers reads through this filter.
+  NOT: { title: { contains: '(illustrative)' } },
 };
 
 export function subjectLanguagesFor(language: string): ('en' | 'fr' | 'ar')[] {
