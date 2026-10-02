@@ -18,6 +18,46 @@ export type PaperPart = {
 
 export type PaperParts = { intro: string; parts: PaperPart[] };
 
+/**
+ * An official answer is evidence, not merely non-empty text.
+ *
+ * Some legacy answer-key rows contain a table cell ("& 1"), the printed
+ * question copied from a bad range, or a line for another numbered part.  It
+ * is safer to say that an answer has not been recorded than to put a confident
+ * but unrelated ministry answer under a student's question.
+ */
+export function paperPartAnswerIsUsable(answer: string, part: Pick<PaperPart, 'label' | 'text'>): boolean {
+  const value = answer.trim();
+  if (!value || /[\uFFFD]|Ã[\x80-\xBF]|Â[\x80-\xBF]|â(?:€™|€œ|€|€“|€”)/u.test(value)) return false;
+
+  // A bare table row or mark does not answer the question. A compact equation
+  // such as "x = 2" is allowed because it includes a mathematical relation.
+  const words = value.match(/[\p{L}]{3,}/gu) ?? [];
+  const hasMath = /[=+\-*/^]|\\(?:frac|sqrt|mathrm|left|right)\b/u.test(value);
+  if (words.length === 0 && !hasMath) return false;
+  if (words.length === 0 && value.replace(/[\d\s.,()\[\]{}$\\=&;:—–\-]/g, '').length === 0) return false;
+
+  const compact = (text: string) => text
+    .replace(/^\s*[A-ZIVX]+[.\-]?\s*\d*(?:[.\-][a-z\d]+)?\s*[.)\-:]?\s*/i, '')
+    .replace(/[\W_]/g, '')
+    .toLocaleLowerCase();
+  const question = compact(part.text);
+  const candidate = compact(value);
+  // A short key range that is really the question itself has no answer in it.
+  if (question.length >= 24 && candidate.length >= 24 &&
+      (candidate.includes(question) || question.includes(candidate))) return false;
+
+  const keyOf = (text: string) => {
+    const match = text.match(/^\s*(?:[A-Z]+\s*[.\-]\s*)?(\d+(?:\s*[.\-]\s*\d+)*)(?:\s*([a-z]))?\b/i);
+    return match ? `${match[1].replace(/\D/g, '')}${(match[2] ?? '').toLowerCase()}` : '';
+  };
+  const expected = keyOf(part.label);
+  const actual = keyOf(value);
+  if (expected && actual && actual !== expected && !actual.startsWith(expected) && !expected.startsWith(actual)) return false;
+
+  return true;
+}
+
 export function paperPartsOf(value: unknown): PaperParts | null {
   if (!value || typeof value !== 'object') return null;
   const v = value as { intro?: unknown; parts?: unknown };
@@ -27,11 +67,15 @@ export function paperPartsOf(value: unknown): PaperParts | null {
     if (!raw || typeof raw !== 'object') return null;
     const p = raw as Record<string, unknown>;
     if (typeof p.label !== 'string' || typeof p.text !== 'string') return null;
-    parts.push({
+    const candidate = typeof p.answer === 'string' ? p.answer : '';
+    const part = {
       label: p.label,
       text: p.text,
       ...(typeof p.marks === 'number' && Number.isFinite(p.marks) ? { marks: p.marks } : {}),
-      ...(typeof p.answer === 'string' && p.answer.trim() ? { answer: p.answer } : {}),
+    } satisfies Omit<PaperPart, 'answer'>;
+    parts.push({
+      ...part,
+      ...(paperPartAnswerIsUsable(candidate, part) ? { answer: candidate } : {}),
     });
   }
   return { intro: typeof v.intro === 'string' ? v.intro : '', parts };

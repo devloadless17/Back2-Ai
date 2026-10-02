@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { formatMarks, paperPartsOf, partMarkdown } from '@/lib/paper-parts';
+import { formatMarks, paperPartAnswerIsUsable, paperPartsOf, partMarkdown } from '@/lib/paper-parts';
 import { normalizeMathDelimiters } from '@/lib/math-delimiters';
 
 import { renderProblem } from '../scripts/corpus/render-gate';
@@ -37,6 +37,14 @@ describe('paperPartsOf', () => {
   it('drops an empty answer and a mark that is not a number', () => {
     const got = paperPartsOf({ parts: [{ label: '1', text: 't', answer: '  ', marks: 'one' }] });
     expect(got?.parts[0]).toEqual({ label: '1', text: 't' });
+  });
+
+  it('withholds a copied question, another part’s answer, and table debris', () => {
+    const part = { label: '2.1', text: '2.1 Determine the pH of the solution.' };
+    expect(paperPartAnswerIsUsable('2.1 Determine the pH of the solution.', part)).toBe(false);
+    expect(paperPartAnswerIsUsable('3.2 The concentration is 0.1 mol/L.', part)).toBe(false);
+    expect(paperPartAnswerIsUsable('& 1', part)).toBe(false);
+    expect(paperPartAnswerIsUsable('2.1 $\\mathrm{pH}=3.4$', part)).toBe(true);
   });
 });
 
