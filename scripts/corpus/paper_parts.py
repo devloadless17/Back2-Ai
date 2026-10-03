@@ -1248,7 +1248,8 @@ def split_statement(md, parts):
 # One paper
 # --------------------------------------------------------------------------
 
-def build_paper(exam, display):
+def paper_rows(exam):
+    """Every answer row of a paper's key, each with a stable `rid`, and why there are none."""
     sha = exam['sha256']
     track = exam['path'].replace('\\', '/').split('/')[0].lower()
     rows, why = scheme_rows(exam, sha, track)
@@ -1257,6 +1258,26 @@ def build_paper(exam, display):
     listed = list_rows(exam, sha, track) if not why else None
     if listed and len({r['exercise'] for r in listed}) > len({r['exercise'] for r in rows or []}):
         rows = listed
+    for i, r in enumerate(rows or []):
+        r['rid'] = i
+    return rows, why
+
+
+MATCHES = ROOT / 'corpus' / '.mapping' / 'key-row-matches.json'
+_matches = None
+
+
+def model_matches(sha):
+    """{rid: (ordinal, part label)} for a paper, from match_key_rows.py, or {}."""
+    global _matches
+    if _matches is None:
+        _matches = json.loads(MATCHES.read_text(encoding='utf-8')) if MATCHES.exists() else {}
+    return {int(k): tuple(v) for k, v in (_matches.get(sha) or {}).items() if v}
+
+
+def build_paper(exam, display):
+    sha = exam['sha256']
+    rows, why = paper_rows(exam)
     by_ex = collections.defaultdict(list)
     for r in rows or []:
         by_ex[r['exercise']].append(r)
@@ -1319,9 +1340,25 @@ def build_paper(exam, display):
                     rec['parts'] = [{'label': p['label'], 'text': s} for p, s in zip(more, more_segs)]
                     rec['answers'] = again
                     rec['sectionsAdded'] = added
+        if rec['answers']['status'] != 'bound' and not why:
+            # Last: the model's reading of which key row answers which part
+            # (match_key_rows.py). It only points; the rows are the key's own,
+            # and order, marks and belonging are judged exactly as above.
+            matched = model_matches(sha)
+            labels = {p['label'] for p in parts}
+            mine_m = [{**r, 'exercise': ex['index'], 'tokens': label_tokens(matched[r['rid']][1])}
+                      for r in rows or [] if r['rid'] in matched
+                      and matched[r['rid']][0] == order + 1 and matched[r['rid']][1] in labels]
+            if len(mine_m) >= 2:
+                again = prebind(parts, mine_m, why)
+                if again['status'] == 'bound':
+                    rec['answers'] = again
+                    rec['matchedBy'] = 'model'
         out.append((rec, ex, parts))
 
-    scale = paper_scale([(item[0]['answers'], item[1]) for item in out if isinstance(item, tuple)])
+    # The scale is voted by exercises bound by label; a model-placed one follows it.
+    scale = paper_scale([(item[0]['answers'], item[1]) for item in out
+                         if isinstance(item, tuple) and not item[0].get('matchedBy')])
     final = []
     for item in out:
         if not isinstance(item, tuple):
@@ -1573,6 +1610,45 @@ def finish_answers(ex, parts, pre, scale, pdf_path, sha):
     }
 
 
+C1_PATH = ROOT / 'corpus' / '.mapping' / 'positioned-structure.json'
+
+
+def recover_display(display, exams_by_sha):
+    """Clean text for exercises display_text.py refused, from lines it never tried.
+
+    The line map records, beside each exercise's own lines, a lead-in (a
+    document box printed above the exercise's title) and trailing lines.
+    display_text.py reads the own lines only, so gs/2019/phy_en.pdf III lost
+    "Doc. 5" — the text its questions ask about — and was refused for low
+    recall, leaving the flattened text-layer formulas on screen. Each refused
+    exercise is tried again with those lines added, through display_text's own
+    `build` and every gate it applies. Returns {(sha, ordinal): markdown}.
+    """
+    import display_text as dt
+    found = {}
+    for c1 in json.loads(C1_PATH.read_text(encoding='utf-8')):
+        exam = exams_by_sha.get(c1['sha256'])
+        if not exam or not c1['paper'].startswith('gs/'):
+            continue
+        c1 = {**c1, 'paper': c1['paper']}
+        for c in c1['containers']:
+            key = (c1['sha256'], c['ordinal'])
+            if key in display:
+                continue
+            lead, trail = c.get('leadInSpans') or [], c.get('trailingSpans') or []
+            for spans in (lead + c['spans'], c['spans'] + trail, lead + c['spans'] + trail):
+                if spans == c['spans']:
+                    continue
+                try:
+                    got = dt.build(c1, exam, {**c, 'spans': spans})
+                except (IndexError, KeyError):
+                    continue
+                if got.get('verdict') == 'ok' and got.get('markdown'):
+                    found[key] = got['markdown']
+                    break
+    return found
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--track', default='gs')
@@ -1585,6 +1661,9 @@ def main():
     for d in json.loads(DISPLAY.read_text(encoding='utf-8')):
         if d.get('verdict') == 'ok' and d.get('markdown'):
             display[(d['sha256'], d['ordinal'])] = d['markdown']
+    recovered = recover_display(display, {e['sha256']: e for e in exams})
+    display.update(recovered)
+    print(f'clean text recovered for {len(recovered)} exercise(s) display_text.py had refused')
 
     if args.show:
         exam = next(e for e in exams if e['path'].replace('\\', '/') == args.show[0])
