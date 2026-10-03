@@ -1625,16 +1625,35 @@ def recover_display(display, exams_by_sha):
     `build` and every gate it applies. Returns {(sha, ordinal): markdown}.
     """
     import display_text as dt
+    import position_structure as ps
     found = {}
-    for c1 in json.loads(C1_PATH.read_text(encoding='utf-8')):
+    mapped = json.loads(C1_PATH.read_text(encoding='utf-8'))
+    # A paper Mathpix read after the line map was built (gs/2013 2/phy_1.pdf,
+    # sent 2026-10-03) is mapped here, in memory, the way the map maps any.
+    have = {c['sha256'] for c in mapped}
+    fresh = []
+    for exam in exams_by_sha.values():
+        if exam['sha256'] not in have and exam['path'].replace('\\', '/').startswith('gs/') and subject_of(exam['file']):
+            got = ps.position_paper(exam)
+            if got:
+                fresh.append(got)
+    for c1 in mapped + fresh:
         exam = exams_by_sha.get(c1['sha256'])
         if not exam or not c1['paper'].startswith('gs/'):
             continue
-        c1 = {**c1, 'paper': c1['paper']}
+        new = c1 in fresh
         for c in c1['containers']:
             key = (c1['sha256'], c['ordinal'])
             if key in display:
                 continue
+            if new:
+                try:
+                    got = dt.build(c1, exam, c)
+                except (IndexError, KeyError):
+                    got = {}
+                if got.get('verdict') == 'ok' and got.get('markdown'):
+                    found[key] = got['markdown']
+                    continue
             lead, trail = c.get('leadInSpans') or [], c.get('trailingSpans') or []
             # A paper's last exercise can run on into the key: its words are all
             # there but a third of what follows is answers (precision 0.33).
