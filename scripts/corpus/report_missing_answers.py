@@ -35,6 +35,10 @@ NOT_IN_ORIGINAL = {
 NOTES = {
     'gs/2004 2/chem_en.pdf': 'the file is the key only, no questions',
     'gs/2011 2/eng.pdf': 'the database stored this paper\'s key as its question text; hidden for GS, shown split for LS',
+    'gs/2004 1/2004 gs arabe 1.pdf': 'wrong file: it holds a French paper, not the Arabic one; not split (arabic_parts.py)',
+    'gs/2006 2/tarbeya.pdf': 'the key\'s rows slid (part 3 shows question 1\'s answer): left as one block',
+    'gs/2012 2/arabe.pdf': 'passage paragraphs and questions mixed, answers shifted by one: left as one block',
+    'gs/2017 2/arabe.pdf': 'passage paragraphs and questions mixed: left as one block',
 }
 SUBJECT = [('chem', 'Chemistry'), ('chim', 'Chemistry'), ('phy', 'Physics'), ('math', 'Maths'), ('eng', 'English'), ('fr', 'French')]
 
