@@ -31,7 +31,7 @@
  */
 
 import { createHash } from 'node:crypto';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { Prisma, PrismaClient } from '@prisma/client';
@@ -45,6 +45,8 @@ const ROOT = process.cwd();
 const SOURCE = path.join(ROOT, 'corpus/.mapping/paper-parts.json');
 const ANSWER_CROPS = path.join(ROOT, 'corpus/science-answer-crops.json');
 const OFFICIAL_ANSWER_CROPS = path.join(ROOT, 'corpus/official-answer-crops.json');
+// Drawn answers (graphs, structural formulas) cut from GS key cells: crop_gs_key_cells.py.
+const GS_KEY_CELL_CROPS = path.join(ROOT, 'corpus/gs-key-cell-crops.json');
 
 type Part = { label: string; text: string; marks?: number; answer?: string };
 type Exercise = {
@@ -119,7 +121,7 @@ function criterion(part: Part): string {
   return `${part.label} ${words}`.slice(0, 300);
 }
 
-const refused = { exercises: 0, answers: 0, examples: [] as string[] };
+const refused = { exercises: 0, answers: 0, examples: [] as string[], parts: [] as Array<{ paper: string; index: number; label: string }> };
 
 /**
  * The page's own renderer has the last word. The parts are slices of text
@@ -144,6 +146,7 @@ function wantedFor(exercise: Exercise, run: string, paper: string, crops: Map<st
     if (answer && renderProblem(answer)) {
       refused.answers += 1;
       if (refused.examples.length < 6) refused.examples.push(`${paper} #${exercise.index} ${p.label}: ${renderProblem(answer)}`);
+      refused.parts.push({ paper, index: exercise.index, label: p.label });
       answer = undefined;
     }
     return {
@@ -186,7 +189,7 @@ async function main() {
   const run = sha256(raw).slice(0, 16);
   const papers = JSON.parse(raw) as Paper[];
   const crops = new Map<string, string>();
-  for (const source of [ANSWER_CROPS, OFFICIAL_ANSWER_CROPS]) {
+  for (const source of [ANSWER_CROPS, OFFICIAL_ANSWER_CROPS, GS_KEY_CELL_CROPS]) {
     if (!existsSync(source)) continue;
     for (const crop of JSON.parse(readFileSync(source, 'utf8')) as AnswerCrop[]) {
       if (/^\/answer-figures\/[a-z0-9][a-z0-9._-]*\.(?:png|jpe?g|webp)$/i.test(crop.image)) {
@@ -202,7 +205,12 @@ async function main() {
     for (const e of p.exercises) {
       const w = wantedFor(e, run, p.paper, crops);
       if (!w) continue;
-      shownBy.set(`${p.sha256}#${e.index}`, words([e.passage ?? '', e.intro ?? '', ...(e.parts ?? []).map((x) => x.text)].join(' ')));
+      // The answers count too: gs/2011 2/eng.pdf's row stores its own key as
+      // the exercise's text, and another exercise's key reads nothing like it.
+      shownBy.set(
+        `${p.sha256}#${e.index}`,
+        words([e.passage ?? '', e.intro ?? '', ...(e.parts ?? []).flatMap((x) => [x.text, x.answer ?? ''])].join(' ')),
+      );
       for (const s of subjects) {
         wanted.set(sha256(`${s.id}:${p.sha256}:${e.index}:${e.ordinal - 1}`), {
           paper: p.paper,
@@ -317,6 +325,9 @@ async function main() {
     console.log(`    ${w.paper} #${w.index}: ${r.contentText.replace(/\s+/g, ' ').slice(0, 60)}`);
   }
   console.log(`  refused by the page's renderer ${refused.exercises} exercise(s) kept whole, ${refused.answers} answer(s) dropped`);
+  // The dropped answers, for crop_gs_key_cells.py to cut from the key page instead.
+  const refusedOut = arg('refused-out');
+  if (refusedOut) writeFileSync(refusedOut, JSON.stringify(refused.parts, null, 1));
   for (const e of refused.examples) console.log(`    ${e}`);
   console.log('  by subject (parts / with official answers per part):');
   for (const [k, v] of [...tally].sort((a, b) => b[1].parts - a[1].parts)) {

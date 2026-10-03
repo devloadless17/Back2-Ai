@@ -105,6 +105,15 @@ export function partMarkdown(text: string): string {
   );
 }
 
+/**
+ * A part that only heads others ("2- Preliminary study" above 2.1, 2.2): its
+ * sub-parts carry the answers, so its own lack of one is not a gap.
+ */
+export function partOnlyHeads(parts: Pick<PaperPart, 'label'>[], index: number): boolean {
+  const own = parts[index]?.label;
+  return Boolean(own) && parts.some((p, i) => i !== index && p.label.startsWith(`${own}.`));
+}
+
 /** "0.75", "1", "1.5" — a mark as the paper prints it, without trailing zeros. */
 export function formatMarks(marks: number): string {
   return String(Math.round(marks * 100) / 100);

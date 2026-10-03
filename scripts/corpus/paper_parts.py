@@ -890,9 +890,13 @@ def move_section_heads(segs, labels):
     return segs
 
 
-def printed_labels(md, intro, segs):
+def printed_labels(md, intro, segs, nest=False):
     """Each part's label as the paper prints it: its own number ("2-1)") under the
     last section heading above it ("B-"). None where a part prints no label.
+
+    With `nest`, a lone small letter ("b- Calculate the probability …",
+    gs/2005 1/gs math_en 1.pdf, a part the extractor labelled "8") is the
+    sub-part of the number printed above it: "1.B".
 
     The extractor's labels lose sections (gs/2016 1 maths reads 1, 2, 1, 2, 1, 2,
     3 for A1, A2, B1, B2, C1…) and take formula numbers for labels ("B.72").
@@ -925,6 +929,12 @@ def printed_labels(md, intro, segs):
             if m is None:
                 return None
             own = label_tokens(m.group(0))
+            if nest and re.fullmatch(r'\s*[a-z]\s*[-.)]', m.group(0)) and out:
+                above = out[-1].split('.')
+                numbered = [k for k, t in enumerate(above) if t.isdigit()]
+                if numbered:
+                    out.append('.'.join(above[:numbered[-1] + 1] + list(own)))
+                    continue
         if own and section and own[0] == section:
             own = own[1:]  # "A-1)" carries its section already
         toks = ((section,) if section else ()) + own
@@ -1330,6 +1340,23 @@ def build_paper(exam, display):
                     segs = move_section_heads(segs, printed)
                     rec['parts'] = [{'label': lab, 'text': s} for lab, s in zip(printed, segs)]
                     rec['answers'] = again
+        if rec['answers']['status'] == 'bound':
+            # Bound, but under labels the extractor took from formulas ("8",
+            # "16", "A.88"): a row went to a neighbour's prefix and the part
+            # it answers stayed empty. The printed labels are tried; they are
+            # kept only if the key still binds whole, in order, and — judged
+            # after the marks, below — answers more of the exercise's
+            # last-level parts than the extractor's labels do, both passing.
+            # (gs/2004 2/phy_en.pdf III: relabelled it passed with 2 of 4
+            # parts where the original failed and showed the whole key.)
+            printed = printed_labels(shown, intro, segs, nest=True)
+            if printed and printed != [p['label'] for p in parts]:
+                relabelled = [{**p, 'label': lab} for p, lab in zip(parts, printed)]
+                again = prebind(relabelled, mine, why)
+                if again['status'] == 'bound' and \
+                        label_coverage(relabelled, again['bound']) > label_coverage(parts, rec['answers']['bound']):
+                    rec['_alt'] = {'parts': relabelled, 'answers': again, 'printed': printed,
+                                   'segs': move_section_heads(segs, printed)}
         if rec['answers']['status'] == 'orphan rows':
             grown = add_missing_sections(shown, intro, parts, segs, mine)
             if grown:
@@ -1369,8 +1396,19 @@ def build_paper(exam, display):
             final.append(item)
             continue
         rec, ex, parts = item
-        rec['answers'] = finish_answers(ex, parts, rec['answers'], scale,
-                                        ROOT / 'corpus' / 'exams' / exam['path'].replace('\\', '/'), sha)
+        alt = rec.pop('_alt', None)
+        pdf_path = ROOT / 'corpus' / 'exams' / exam['path'].replace('\\', '/')
+        rec['answers'] = finish_answers(ex, parts, rec['answers'], scale, pdf_path, sha)
+        if alt and rec['answers'].get('status') == 'ok':
+            other = finish_answers(ex, alt['parts'], alt['answers'], scale, pdf_path, sha)
+            # By share: "8" becoming "1.B" makes "1" a parent, so the count of
+            # last-level parts changes with the labels.
+            share = lambda a: a['leavesAnswered'] / a['leaves'] if a['leaves'] else 0  # noqa: E731
+            if other.get('status') == 'ok' and share(other) > share(rec['answers']) \
+                    and other['leavesAnswered'] >= rec['answers']['leavesAnswered']:
+                rec['labelsFromText'] = {'was': [p['label'] for p in parts], 'now': alt['printed']}
+                rec['parts'] = [{'label': lab, 'text': s} for lab, s in zip(alt['printed'], alt['segs'])]
+                rec['answers'] = other
         final.append((rec, ex))
 
     check_belonging(exam, [(rec, ex) for rec, ex in (f for f in final if isinstance(f, tuple))], display)

@@ -18,7 +18,7 @@ import { paperDuration } from '@/lib/exam-duration';
 import { getTranslations } from '@/lib/i18n';
 import { format } from '@/lib/i18n/format';
 import { dirForLanguage } from '@/lib/i18n/config';
-import { formatMarks, paperPartsOf, partMarkdown } from '@/lib/paper-parts';
+import { formatMarks, paperPartsOf, partMarkdown, partOnlyHeads } from '@/lib/paper-parts';
 import { OWN_EDITION_ONLY, paperScopeFor, subjectIdsForTrack } from '@/lib/queries/taxonomy';
 import { visualKeysFor } from '@/lib/visual-evidence';
 import { bodyToRender } from '@/lib/question-body';
@@ -255,7 +255,7 @@ export default async function ExamCyclePage({
                           </div>
                           {part.answer || part.answerImage ? (
                             <PartAnswer answer={part.answer} image={part.answerImage} dir={paperDir} />
-                          ) : partsAnswered && typeof part.marks === 'number' ? (
+                          ) : partsAnswered && !partOnlyHeads(parts.parts, i) ? (
                             <p className="mt-2 text-meta text-ink-muted">{t.oldCycles.partAnswerMissing}</p>
                           ) : null}
                         </li>

@@ -71,5 +71,25 @@ check("a lone letter stays prose", got == "Vitamin b. is not a list", got)
 got = lp.letter_lines("Il y a. Puis c. ensuite")
 check("letters out of order stay prose", got == "Il y a. Puis c. ensuite", got)
 
+print("labels the text layer squeezed")
+check("a section and its first number on one line (gs/2004 2/eng.pdf)",
+      lp.section_then_number("A. 1. The objective of the 1999 National Summit") == ["A.", "1. The objective of the 1999 National Summit"])
+check("no space after the label (gs/2015 1/french.pdf)", bool(lp.LINE_LABEL.match("5-Relevezles énumérations")))
+check("a number then a letter, no space", bool(lp.LINE_LABEL.match("4-a.Relevezles groupes verbaux")))
+check("an en dash (gs/2009 2/fr.pdf)", bool(lp.LINE_LABEL.match("3– a. Après avoir identifié la figure")))
+check("a decimal is not a label", not lp.LINE_LABEL.match("1.5 pt pour la justification"))
+check("Questions heading with an en dash (gs/2008 1/french.pdf)", bool(lp.QUESTIONS_HEAD.match("I– Questions (13 pts)")))
+
+print("choices, writing rows, language")
+items = lp.labelled(["2- Lisez le texte puis choisissez :", "A- En relisant la citation", "B- Au XXIème siècle :", "3- Le thème"])
+check("capitals under a number are its choices (gs/2017 2/fr.pdf)",
+      [i["label"] for i in items] == ["I.2", "I.2.A", "I.2.B", "I.3"], [i["label"] for i in items])
+items = lp.labelled(["A. Answer the following.", "1. What is it?", "B. Find words."])
+check("capitals before any number are sections", [i["label"] for i in items] == ["I.A", "I.A.1", "I.B"], [i["label"] for i in items])
+rows = [{"tokens": t} for t in [("I", "A", "1"), ("I", "E", "4"), ("I", "A"), ("I", "B")]]
+check("a section letter going back starts the writing grid (gs/2017 1/eng.pdf)", len(lp.reading_rows(rows)) == 2)
+check("French text is French", lp.written_in("Le candidat relève les termes et les expressions dans le texte") == "fr")
+check("English text is English", lp.written_in("The writer uses a lot of questions in the selection and the reader") == "en")
+
 print(f"\n{len(FAILURES)} failure(s)")
 sys.exit(1 if FAILURES else 0)

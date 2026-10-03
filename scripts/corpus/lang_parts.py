@@ -48,14 +48,17 @@ PAGE_MARK = re.compile(r'^\s*(?:\d+\s*/\s*\d+|page\s*\d+.*|-\s*\d+\s*-)\s*$', re
 # sub-question follows on the same line.
 # "2-a. Relevez …" (gs/2013 1/french.pdf) runs the number into its first letter.
 LINE_LABEL = re.compile(
-    r'^\s*(?:([A-F])|(\d{1,2})|([a-e]))\s*(?:[.\-)]\s+(?=\S)|[.\-)]?\s*(?=[a-e]\s*[.\-)]\s))')
+    r'^\s*(?:([A-F])|(\d{1,2})|([a-e]))\s*'
+    r'(?:[.\-–)]\s+(?=\S)|[.\-–)](?=[A-ZÀ-Ý«])|[.\-–)]?\s*(?=[a-e]\s*[.\-)]\s*[A-ZÀ-Ý«\s]))')
+# "5-Relevezles …", "4-a.Relevez …" (gs/2015 1/french.pdf): the text layer
+# lost the space after the label; a capital after it still marks one.
 QUESTIONS_HEAD = re.compile(
-    r'^\s*(?:I\s*[-.]?\s*Questions\b|Part\s+One\b|PART\s+ONE\b|I\s*[-.]\s*(?:Compr|Reading)|Questions\s*\()', re.I)
+    r'^\s*(?:I\s*[-.–]?\s*Questions\b|Part\s+One\b|PART\s+ONE\b|I\s*[-.–]\s*(?:Compr|Reading)|Questions\s*\(|Questions\s*:?\s*$)', re.I)
 WRITING_HEAD = re.compile(
-    r'^\s*(?:II\s*[-.]\s*(?:Production|Writing|Expression)|Part\s+Two\b|PART\s+TWO\b|II\s*[-.]?\s*Production)', re.I)
+    r'^\s*(?:II\s*[-.–]\s*(?:Production|Writing|Expression)|Part\s+Two\b|PART\s+TWO\b|II\s*[-.–]?\s*Production)', re.I)
 ANSWER_HEAD = re.compile(r'^(?:answers?|expected answers?|éléments de réponses?|eléments de réponses?|corrigé|réponses?)', re.I)
 MARK_HEAD = re.compile(r'^(?:score|marks?|note|notation|nota-? ?tion|grade|pts?|points?)$', re.I)
-CRITERIA_HEAD = re.compile(r'^critères', re.I)
+CRITERIA_HEAD = re.compile(r'^crit[èe]res?\b', re.I)
 HEAD_WORDS = re.compile(
     r"^(?:\s*(?:[ée]l[ée]ments de r[ée]ponses?|crit[èe]res|d['’][ée]valuation|notation|nota|tion|note"
     r"|expected answers?|answers?|score|marks?)\b[\s:\-]*)+", re.I)
@@ -73,9 +76,9 @@ def clean_line(line):
     return re.sub(r'\s{2,}', ' ', line).strip()
 
 
-def paper_lines(pdf, pages):
+def paper_lines(pdf, pages, start=0):
     out = []
-    for i in range(pages):
+    for i in range(start, pages):
         for line in (pdf.pages[i].extract_text() or '').split('\n'):
             if not line.strip() or ARABIC.search(line) or PAGE_MARK.match(line):
                 continue
@@ -102,7 +105,7 @@ def paragraphs(lines):
 def read_paper(exam):
     """(passage, [items], writing) read from the paper's own pages."""
     path = pp.ROOT / 'corpus' / 'exams' / exam['path'].replace('\\', '/')
-    pages = exam.get('paperPages') or (exam['pages'] - (exam.get('schemePages') or 0))
+    pages, _ = layout(exam)
     with pdfplumber.open(str(path)) as pdf:
         lines = paper_lines(pdf, pages)
     heads = [i for i, l in enumerate(lines) if QUESTIONS_HEAD.match(l)]
@@ -114,6 +117,15 @@ def read_paper(exam):
                         and (LINE_LABEL.match(l).group(1) or LINE_LABEL.match(l).group(2))
                         and any(h < i for h in heads)), None)
     if first_label is not None:
+        # The passage's own numbered paragraphs ("1. When Ramon Vasques
+        # died …", gs/2004 2/eng.pdf) come before a "Questions" heading that
+        # still stands above section A: the questions start after it.
+        first_section = next((i for i in range(first_label, writing) if SECTION_ALONE.match(lines[i])
+                              or (LINE_LABEL.match(lines[i]) and LINE_LABEL.match(lines[i]).group(1))), None)
+        later = [h for h in heads if first_section is not None and first_label < h <= first_section]
+        if later:
+            first_label = next((i for i in range(later[-1], writing) if LINE_LABEL.match(lines[i])
+                                or SECTION_ALONE.match(lines[i])), first_label)
         # The heading printed just above the questions ("I-Questions") is not passage.
         heads = [h for h in heads if h < first_label]
     if first_label is None:
@@ -123,9 +135,17 @@ def read_paper(exam):
     # English prints its heading over the passage, French under it: either
     # way the passage is what stands before the first question.
     passage_lines = [l for l in lines[:first_label] if not QUESTIONS_HEAD.match(l)]
+    items = labelled(lines[first_label:writing])
+    # A blank box of a diagram to copy ("1. 1.", "2. 2.") is not a question.
+    items = [it for it in items if not LABEL_ONLY.match(it['text'])]
+    return paragraphs(passage_lines), in_print_order(items), paragraphs(lines[writing:])
+
+
+def labelled(lines):
+    """Lines as items, each under the section, number and letter it prints."""
     items = []
     stack = [None, None, None]  # section letter, number, sub letter
-    for line in (seg for l in lines[first_label:writing] for seg in split_columns(l)):
+    for line in (seg for l in lines for s in section_then_number(l) for seg in split_columns(s)):
         if SECTION_ALONE.match(line):
             stack = [SECTION_ALONE.match(line).group(1), None, None]
             items.append({'label': f'I.{stack[0]}', 'lines': [line]})
@@ -133,6 +153,10 @@ def read_paper(exam):
         m = LINE_LABEL.match(line)
         if m:
             sec, num, sub = m.groups()
+            # "2- … A- … B- …" (gs/2017 2/fr.pdf): a capital after a number,
+            # in a paper with no sections, is that question's choice.
+            if sec and stack[0] is None and stack[1] is not None:
+                sec, sub = None, sec.lower()
             if sec:
                 stack = [sec, None, None]
             elif num:
@@ -147,9 +171,42 @@ def read_paper(exam):
             items.append({'label': 'I', 'lines': [line]})
     for it in items:
         it['text'] = paragraphs(it.pop('lines'))
-    # A blank box of a diagram to copy ("1. 1.", "2. 2.") is not a question.
-    items = [it for it in items if not LABEL_ONLY.match(it['text'])]
-    return paragraphs(passage_lines), in_print_order(items), paragraphs(lines[writing:])
+    return items
+
+
+# "A. 1. The objective of …" (gs/2004 2/eng.pdf): a section's letter and its
+# first question's number printed on one line.
+SECTION_THEN_NUMBER = re.compile(r'^\s*([A-F])\s*[.\-)]\s+(?=\d{1,2}\s*[.\-)]\s)')
+
+
+def section_then_number(line):
+    m = SECTION_THEN_NUMBER.match(line)
+    return [line[:m.end()].strip(), line[m.end():]] if m else [line]
+
+
+# Where the key starts, read from the pages themselves: the recorded page
+# count is 0 for keys printed in the same file (gs/2005 1/gs french 1.pdf).
+# "barème de notation" is not a marker: the writing grid prints it.
+KEY_PAGE = re.compile(r"answer key|marking scheme|expected answers|[ée]l[ée]ments de r[ée]ponses?"
+                      r"|r[ée]ponses\s+crit[èe]res|crit[èe]res d['’]\s*[ée]valuation|partie de la q\b|\bcorrig[ée]\b", re.I)
+_layouts = {}
+
+
+def layout(exam):
+    """(number of question pages, first key page or None)."""
+    path = exam['path'].replace('\\', '/')
+    if path not in _layouts:
+        first = None
+        with pdfplumber.open(str(pp.ROOT / 'corpus' / 'exams' / path)) as pdf:
+            for i in range(1, len(pdf.pages)):
+                if KEY_PAGE.search(pdf.pages[i].extract_text() or ''):
+                    first = i
+                    break
+        n = exam.get('schemePages') or 0
+        if first is None and n:
+            first = exam['pages'] - n
+        _layouts[path] = (first if first is not None else exam['pages'], first)
+    return _layouts[path]
 
 
 # "B." alone on its line, its questions below it (gs/2013 2/eng.pdf).
@@ -205,8 +262,8 @@ def in_print_order(items):
 
 def key_rows(exam):
     """The key's rows: {tokens, label, answer, criteria, marks}, read as table cells."""
-    n = exam.get('schemePages') or 0
-    if not n:
+    _, first = layout(exam)
+    if first is None:
         return []
     path = pp.ROOT / 'corpus' / 'exams' / exam['path'].replace('\\', '/')
     # Read row by row, by shape: the columns move between pages (thirteen
@@ -218,7 +275,7 @@ def key_rows(exam):
     header = lambda c: len(c) <= 40 and bool(  # noqa: E731
         ANSWER_HEAD.match(c) or MARK_HEAD.match(c) or CRITERIA_HEAD.match(c) or LABEL_HEAD.match(c))
     with pdfplumber.open(str(path)) as pdf:
-        for i in range(exam['pages'] - n, exam['pages']):
+        for i in range(first, exam['pages']):
             for table in pdf.pages[i].extract_tables():
                 for raw in table:
                     cells = [re.sub(r'\s+', ' ', c or '').strip() for c in raw]
@@ -273,8 +330,33 @@ def key_rows(exam):
                             r['criteria'] = (r['criteria'] + ' ' + criteria).strip()
     for r in rows:
         r.pop('mixed', None)
-    return rows
+    # "3 | Critère d'évaluation" (gs/2009 2/fr.pdf): a heading row with a
+    # number in its first cell, still empty once its continuations are read.
+    rows = [r for r in rows if r['answer'] or r['criteria'] or r['marks'] is not None or r['label'] == 'II']
+    return rows or text_key_rows(exam, first)
 
+
+SCORE = re.compile(r'\(\s*(?:score|note)\s*:?\s*(\d+(?:[.,]\d+)?)?\s*([½¼¾])?\s*(?:pts?)?\s*\)', re.I)
+FRACTION = {'½': 0.5, '¼': 0.25, '¾': 0.75}
+
+
+def text_key_rows(exam, first):
+    """A key printed as text, not a table (gs/2004 2/eng.pdf: "A. 1. The
+    objective … (Score: 01)"): its lines labelled as the questions are."""
+    path = pp.ROOT / 'corpus' / 'exams' / exam['path'].replace('\\', '/')
+    with pdfplumber.open(str(path)) as pdf:
+        lines = paper_lines(pdf, exam['pages'], first)
+    writing = next((i for i, l in enumerate(lines) if WRITING_HEAD.match(l)), len(lines))
+    rows = []
+    for it in labelled(lines[:writing]):
+        if it['label'] == 'I':
+            continue  # the key's title and competencies
+        text = re.sub(r'^\s*(?:[A-F]|\d{1,2}|[a-e])\s*[.\-)]\s*', '', it['text'])
+        marks = [float((a or '0').replace(',', '.')) + FRACTION.get(b, 0) for a, b in SCORE.findall(text)]
+        text = SCORE.sub('', text).strip()
+        rows.append({'tokens': pp.label_tokens(it['label']), 'label': it['label'], 'answer': text,
+                     'criteria': '', 'marks': round(sum(marks), 2) if marks else None})
+    return rows
 
 def word_set(text):
     return {w for w in re.findall(r'\w+', text.lower()) if len(w) >= 3}
@@ -358,12 +440,45 @@ def answer_text(item, rs):
     return '\n\n'.join(chunks)
 
 
+def written_in(text):
+    """'en' or 'fr', by the commonest small words."""
+    words = re.findall(r"[a-zà-ÿ]+", text.lower())
+    en = sum(w in EN_WORDS for w in words)
+    fr = sum(w in FR_WORDS for w in words)
+    return 'en' if en > fr else 'fr'
+
+
+EN_WORDS = {'the', 'and', 'of', 'is', 'to', 'in', 'that', 'are', 'with', 'for'}
+FR_WORDS = {'le', 'la', 'les', 'des', 'du', 'est', 'une', 'dans', 'et', 'que'}
+
+
+def reading_rows(rows):
+    """The key's rows for the reading part. The writing part's rows are
+    labelled II, or (gs/2017 1/eng.pdf) "I-A, I-B, I-C" again after I-E: a
+    section letter going back means the writing grid has begun."""
+    out, top = [], ''
+    for r in rows:
+        toks = r['tokens'][1:] if r['tokens'][:1] == ('I',) else r['tokens']
+        if r['tokens'][:1] == ('II',):
+            break
+        sec = toks[0] if toks and re.fullmatch(r'[A-F]', toks[0]) else ''
+        if sec and top and sec < top:
+            break
+        top = max(top, sec)
+        out.append(r)
+    return out
+
+
 def build(exam):
     got = read_paper(exam)
     if not got:
         return {'status': 'questions not found'}
     passage, items, writing = got
-    rows = [r for r in key_rows(exam) if r['tokens'][:1] != ('II',)]
+    # gs/2006 2/eng.pdf is the French 2006 session-1 paper, byte for byte.
+    named = 'en' if re.match(r'(?:gs\s+)?eng', Path(exam['path']).name, re.I) else 'fr'
+    if written_in(passage + ' '.join(it['text'] for it in items)) != named:
+        return {'status': 'wrong file: not in its language'}
+    rows = reading_rows(key_rows(exam))
     rec = {'passage': passage, 'items': items, 'writing': writing, 'rows': len(rows)}
     if not items:
         return {**rec, 'status': 'no questions'}

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { formatMarks, paperPartAnswerIsUsable, paperPartsOf, partMarkdown } from '@/lib/paper-parts';
+import { formatMarks, paperPartAnswerIsUsable, paperPartsOf, partMarkdown, partOnlyHeads } from '@/lib/paper-parts';
 import { normalizeMathDelimiters } from '@/lib/math-delimiters';
 
 import { renderProblem } from '../scripts/corpus/render-gate';
@@ -100,5 +100,27 @@ describe('a sub-answer that opens display maths', () => {
     const formula = '$$\n\\begin{aligned}\n& u_2 = F(3) - F(2)\n\\end{aligned}\n$$';
     expect(renderProblem(`**a)**\n\n${formula}`)).toBeNull();
     expect(renderProblem(`**a)** ${formula}`)).not.toBeNull();
+  });
+});
+
+/**
+ * Which unanswered parts the page flags "no official answer": every part but
+ * a heading whose sub-parts carry the answers.
+ */
+describe('partOnlyHeads', () => {
+  const parts = [{ label: '1' }, { label: '2' }, { label: '2.1' }, { label: '2.2' }, { label: 'I.A' }, { label: 'I.A.1' }];
+
+  it('is a heading when a later part extends its label', () => {
+    expect(partOnlyHeads(parts, 1)).toBe(true);
+    expect(partOnlyHeads(parts, 4)).toBe(true);
+  });
+
+  it('is not a heading when nothing extends it', () => {
+    expect(partOnlyHeads(parts, 0)).toBe(false);
+    expect(partOnlyHeads(parts, 2)).toBe(false);
+  });
+
+  it('does not take "2" for the head of "21"', () => {
+    expect(partOnlyHeads([{ label: '2' }, { label: '21' }], 0)).toBe(false);
   });
 });
