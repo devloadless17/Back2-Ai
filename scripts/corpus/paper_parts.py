@@ -1357,8 +1357,12 @@ def build_paper(exam, display):
         out.append((rec, ex, parts))
 
     # The scale is voted by exercises bound by label; a model-placed one follows it.
-    scale = paper_scale([(item[0]['answers'], item[1]) for item in out
-                         if isinstance(item, tuple) and not item[0].get('matchedBy')])
+    voters = [(item[0]['answers'], item[1]) for item in out
+              if isinstance(item, tuple) and not item[0].get('matchedBy')]
+    if not any(a.get('status') == 'bound' for a, _ in voters):
+        # Every exercise placed by the model (gs/2005 2/math_en.pdf): they vote.
+        voters = [(item[0]['answers'], item[1]) for item in out if isinstance(item, tuple)]
+    scale = paper_scale(voters)
     final = []
     for item in out:
         if not isinstance(item, tuple):
@@ -1567,7 +1571,7 @@ def finish_answers(ex, parts, pre, scale, pdf_path, sha):
         # an equation number to it). Too few marks is a reading gap; too MANY
         # means another exercise's rows came in, and stays refused.
         stated = (ex['marks'] or 0) * scale
-        if total < stated - 0.01 and len(bound) >= 2 and label_coverage(parts, bound) >= 0.8:
+        if total < stated - 0.01 and len(bound) >= 2 and label_coverage(parts, bound) >= 0.5:
             unmarked = True
         else:
             return {'status': 'marks disagree', 'sum': round(total, 2), 'stated': ex['marks'], 'scale': scale}
