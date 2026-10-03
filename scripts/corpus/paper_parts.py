@@ -1636,7 +1636,12 @@ def recover_display(display, exams_by_sha):
             if key in display:
                 continue
             lead, trail = c.get('leadInSpans') or [], c.get('trailingSpans') or []
-            for spans in (lead + c['spans'], c['spans'] + trail, lead + c['spans'] + trail):
+            # A paper's last exercise can run on into the key: its words are all
+            # there but a third of what follows is answers (precision 0.33).
+            # Cut at the key's first page.
+            paper_pages = (exam.get('pages') or 0) - (exam.get('schemePages') or 0)
+            own = [s for s in c['spans'] if not paper_pages or s['page'] <= paper_pages]
+            for spans in (lead + c['spans'], c['spans'] + trail, lead + c['spans'] + trail, own, lead + own):
                 if spans == c['spans']:
                     continue
                 try:
