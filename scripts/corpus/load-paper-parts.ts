@@ -55,6 +55,8 @@ type Exercise = {
   marks: number;
   status: string;
   intro?: string;
+  /** A language paper's reading passage (lang_parts.py), shown first where the row has none of its own. */
+  passage?: string;
   parts?: Part[];
   answers?: { status: string };
 };
@@ -66,6 +68,8 @@ type Wanted = {
   sha: string;
   index: number;
   parts: Prisma.InputJsonValue;
+  /** The same parts with the passage on top, for a row that stores no passage. */
+  partsWithPassage: Prisma.InputJsonValue | null;
   solution: string | null;
   bareme: Array<{ criterion: string; points: number }> | null;
 };
@@ -161,8 +165,12 @@ function wantedFor(exercise: Exercise, run: string, paper: string, crops: Map<st
   const bareme = answered
     ? exercise.parts.filter((p) => typeof p.marks === 'number').map((p) => ({ criterion: criterion(p), points: p.marks! }))
     : null;
+  const passage = exercise.passage?.trim() && !renderProblem(exercise.passage) ? exercise.passage.trim() : '';
   return {
     parts: { intro: exercise.intro ?? '', parts, run } as Prisma.InputJsonValue,
+    partsWithPassage: passage
+      ? ({ intro: [passage, exercise.intro ?? ''].filter(Boolean).join('\n\n'), parts, run } as Prisma.InputJsonValue)
+      : null,
     solution,
     bareme: bareme && bareme.length ? bareme : null,
   };
@@ -194,7 +202,7 @@ async function main() {
     for (const e of p.exercises) {
       const w = wantedFor(e, run, p.paper, crops);
       if (!w) continue;
-      shownBy.set(`${p.sha256}#${e.index}`, words([e.intro ?? '', ...(e.parts ?? []).map((x) => x.text)].join(' ')));
+      shownBy.set(`${p.sha256}#${e.index}`, words([e.passage ?? '', e.intro ?? '', ...(e.parts ?? []).map((x) => x.text)].join(' ')));
       for (const s of subjects) {
         wanted.set(sha256(`${s.id}:${p.sha256}:${e.index}:${e.ordinal - 1}`), {
           paper: p.paper,
@@ -216,6 +224,7 @@ async function main() {
     paperParts: Prisma.JsonValue;
     officialSolution: string | null;
     contentText: string;
+    sourcePassage: string | null;
     chapter: { subject: { name: string } };
   }> = [];
   for (let i = 0; i < refs.length; i += 5000) {
@@ -229,6 +238,7 @@ async function main() {
           paperParts: true,
           officialSolution: true,
           contentText: true,
+          sourcePassage: true,
           chapter: { select: { subject: { select: { name: true } } } },
         },
       })),
@@ -281,9 +291,12 @@ async function main() {
     );
   const same = (a: Prisma.JsonValue, b: Prisma.InputJsonValue) =>
     a !== null && canonical({ ...(a as object), run: null }) === canonical({ ...(b as object), run: null });
+  // A row that stores its reading passage already shows it above the parts.
+  const partsFor = (r: (typeof rows)[number], w: Wanted) =>
+    w.partsWithPassage && !r.sourcePassage?.trim() ? w.partsWithPassage : w.parts;
   const changes = rows.filter((r) => {
     const w = wanted.get(r.sourceRef!)!;
-    return !same(r.paperParts, w.parts) || (w.solution !== null && r.officialSolution !== w.solution);
+    return !same(r.paperParts, partsFor(r, w)) || (w.solution !== null && r.officialSolution !== w.solution);
   });
 
   const tally = new Map<string, { parts: number; answers: number }>();
@@ -329,7 +342,7 @@ async function main() {
     await db.question.update({
       where: { id: c.id },
       data: {
-        paperParts: w.parts,
+        paperParts: partsFor(c, w),
         ...(w.solution !== null
           ? {
               officialSolution: w.solution,

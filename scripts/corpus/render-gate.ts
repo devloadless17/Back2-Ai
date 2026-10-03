@@ -38,6 +38,7 @@ export function renderProblem(markdown: string): string | null {
   const tree = pipeline.runSync(pipeline.parse(body)) as unknown as Node;
   let problem: string | null = null;
   let tables = 0;
+  let escaped = body.split(String.raw`\$`).length - 1;
   const walk = (n: Node, inMath: boolean) => {
     if (problem) return;
     const cls = n.properties?.className;
@@ -49,9 +50,14 @@ export function renderProblem(markdown: string): string | null {
     }
     if (n.tagName === 'table') tables += 1;
     const math = inMath || classes.some((c) => c.startsWith('katex'));
-    if (n.type === 'text' && !math && n.value && LEAK.test(n.value)) {
-      problem = `latex in prose: ${n.value.trim().slice(0, 60)}`;
-      return;
+    if (n.type === 'text' && !math && n.value) {
+      // A dollar written escaped is money in prose, meant to show as itself.
+      const dollars = n.value.split('$').length - 1;
+      escaped -= dollars;
+      if (LEAK.test(n.value.replaceAll('$', '')) || (dollars && escaped < 0)) {
+        problem = `latex in prose: ${n.value.trim().slice(0, 60)}`;
+        return;
+      }
     }
     for (const c of n.children ?? []) walk(c, math);
   };
