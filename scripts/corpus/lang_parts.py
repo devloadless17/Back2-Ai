@@ -301,6 +301,8 @@ def key_rows(exam):
                         continue
                     # "I.1. -" (gs/2019/fr.pdf): a dash left after the label.
                     head = re.sub(r'[\s\-–]+$', '', filled[0])
+                    # "1.5. b" (gs/2017 1/fr.pdf): the key's "I" read as a one.
+                    head = re.sub(r'^1(?=\s*[.\-]\s*\d)', 'I', head)
                     label = head if KEY_LABEL.match(head) and pp.label_tokens(head) else ''
                     # "II Production écrite - Introduction : 1pt ½ …" (gs/2012 2/fr.pdf)
                     # starts the writing part's rows; it must not join the last question.

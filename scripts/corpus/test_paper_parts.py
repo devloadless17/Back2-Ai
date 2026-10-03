@@ -213,6 +213,27 @@ right = {"answers": dict(geometry)}
 pp.check_belonging(exam, [(right, exam["exercises"][0])])
 check("an exercise's own answers are kept", right["answers"]["status"] == "ok", str(right["answers"]))
 
+print("rows the model placed")
+check("a row keeps its own letter on the part it extends",
+      pp.placed_tokens(("A", "2", "A"), "A.2") == ("A", "2", "A"))
+check("'2.a' placed on 'B.2' keeps its a",
+      pp.placed_tokens(("2", "A"), "B.2") == ("B", "2", "A"))
+check("a row with no letter takes the part's label", pp.placed_tokens(("I", "2"), "II.2") == ("II", "2"))
+check("a part's printed sub-questions",
+      pp.printed_letters("1. a) Determine the period\n\nb) Determine the maximum\n\nc) Calculate the phase") == ["a", "b", "c"])
+check("a line's name is not a sub-question",
+      pp.printed_letters("4) Designate by (d) the line. a- Give (d). b- Calculate. c- Prove.") == ["a", "b", "c"])
+
+parts = [{"label": "B.1"}, {"label": "B.2"}]
+texts = {"B.1": "1. a) Determine the period\n\nb) the maximum\n\nc) the phase", "B.2": "2. Knowing that i"}
+rows = [{"rid": r, "tokens": t, "answer": ""} for r, t in
+        [("A", ("A",)), ("a", ("B", "1", "A")), ("b", ("B", "1", "B")), ("c", ("B", "1", "C")), ("x", ("B", "2"))]]
+placed = [rows[0], rows[4]]
+check("the model passing over B.1.a, B.1.b, B.1.c for another row is refused (gs/2004 2/phy_en.pdf)",
+      pp.ignores_named_rows(parts, texts, rows, placed, {"A": (2, "B.1"), "x": (2, "B.2")}))
+check("the same rows placed where their labels say pass",
+      not pp.ignores_named_rows(parts, texts, rows, rows[1:], {"a": (2, "B.1"), "b": (2, "B.1"), "c": (2, "B.1"), "x": (2, "B.2")}))
+
 print()
 if FAILURES:
     print(f"{len(FAILURES)} failure(s): {', '.join(FAILURES)}")

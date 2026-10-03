@@ -1285,6 +1285,85 @@ def model_matches(sha):
     return {int(k): tuple(v) for k, v in (_matches.get(sha) or {}).items() if v}
 
 
+def placed_tokens(own, part_label):
+    """A row the model placed on a part keeps its own sub-letter: "A.2.a" and
+    "A.2.b" placed on part A.2 answer it as a) and b), not as one block with
+    the letters lost (55 parts of 27 exercises showed a and b run together).
+    "2.a" placed on part "B.2" keeps its "a" the same way."""
+    part = label_tokens(part_label)
+    own = tuple(own or ())
+    if len(own) > len(part) and own[:len(part)] == part:
+        return own
+    if len(own) >= 2 and re.fullmatch('[A-H]', own[-1]) and part and own[-2] == part[-1]:
+        return part + own[-1:]
+    return part
+
+
+def ignores_named_rows(parts, texts, rows, placed, matched):
+    """The model filled a part while passing over every row the key labels for it.
+
+    gs/2004 2/phy_en.pdf II: the key prints rows B.1.a, B.1.b, B.1.c; the
+    model put section A's row on part B.1 and used none of those three, so
+    B.1 showed another question's answer. A part is suspect only when rows
+    name it by label (the longest-prefix rule of bind_rows) and NONE of them
+    is among what the model placed there: the model may still re-file rows
+    ("1" under section 2 as 2.1, gs/2019/phy_en.pdf), move them between
+    exercises, or pick one of two rows labelled alike (a key that also prints
+    another paper's exercise, gs/2016 2/chem_fr.pdf) — all measured right.
+
+    Labels alone also refused five right placements, where the key misprints
+    its labels (I.2 for II.2) — the very case the model is for — and the
+    words of a physics answer are too few to judge by. What only the wrong
+    case has: the part prints sub-questions a, b, c, and the key has one row
+    for each, labelled for this part (B.1.a, B.1.b, B.1.c), all passed over."""
+    ptoks = [label_tokens(p['label']) for p in parts]
+
+    def named(toks):
+        best = None
+        for i, pt in enumerate(ptoks):
+            if pt and tuple(toks[:len(pt)]) == pt and (best is None or len(pt) > len(ptoks[best])):
+                best = i
+        return None if best is None else parts[best]['label']
+
+    on = collections.defaultdict(set)
+    for r in placed:
+        on[matched[r['rid']][1]].add(r['rid'])
+    by_name = collections.defaultdict(set)
+    here = matched[placed[0]['rid']][0] if placed else None
+    for r in rows or []:
+        if r['rid'] in matched and matched[r['rid']][0] != here:
+            continue  # the model filed it under another exercise; its "1.1" is that exercise's
+        own = named(r['tokens'])
+        if own:
+            by_name[own].add(r['rid'])
+    letters_of = collections.defaultdict(set)
+    for r in rows or []:
+        if r['rid'] in by_name.get(named(r['tokens']) or '', ()):
+            own = named(r['tokens'])
+            tail = r['tokens'][len(label_tokens(own)):]
+            if len(tail) == 1 and re.fullmatch('[A-H]', tail[0]):
+                letters_of[own].add(tail[0].lower())
+    for label, ids in on.items():
+        asked = printed_letters(texts.get(label, ''))
+        if asked and letters_of.get(label) == set(asked) and not (ids & by_name[label]):
+            return True
+    return False
+
+
+SUB_LETTER = re.compile(r'(?:^|\n|\s)\*{0,2}([a-h])\*{0,2}\s?[-.)]\s', re.M)
+
+
+def printed_letters(text):
+    """The sub-questions a, b, c … a part prints, in order; [] if fewer than two.
+    "(d)" is a line's name, not a sub-question."""
+    want, got = 'a', []
+    for m in SUB_LETTER.finditer(text or ''):
+        if m.group(1) == want and (text[m.start(1) - 1] if m.start(1) else '') != '(':
+            got.append(want)
+            want = chr(ord(want) + 1)
+    return got if len(got) >= 2 else []
+
+
 def build_paper(exam, display):
     sha = exam['sha256']
     rows, why = paper_rows(exam)
@@ -1373,10 +1452,11 @@ def build_paper(exam, display):
             # and order, marks and belonging are judged exactly as above.
             matched = model_matches(sha)
             labels = {p['label'] for p in parts}
-            mine_m = [{**r, 'exercise': ex['index'], 'tokens': label_tokens(matched[r['rid']][1])}
+            mine_m = [{**r, 'exercise': ex['index'], 'tokens': placed_tokens(r['tokens'], matched[r['rid']][1])}
                       for r in rows or [] if r['rid'] in matched
                       and matched[r['rid']][0] == order + 1 and matched[r['rid']][1] in labels]
-            if len(mine_m) >= 2:
+            texts = {p['label']: s for p, s in zip(parts, segs)}
+            if len(mine_m) >= 2 and not ignores_named_rows(parts, texts, rows, mine_m, matched):
                 again = prebind(parts, mine_m, why)
                 if again['status'] == 'bound':
                     rec['answers'] = again
