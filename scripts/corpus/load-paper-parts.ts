@@ -49,6 +49,8 @@ const OFFICIAL_ANSWER_CROPS = path.join(ROOT, 'corpus/official-answer-crops.json
 type Part = { label: string; text: string; marks?: number; answer?: string };
 type Exercise = {
   ordinal: number;
+  /** The exercise's key as printed, where its rows could not be matched part by part. */
+  wholeKey?: string;
   index: number;
   marks: number;
   status: string;
@@ -149,8 +151,13 @@ function wantedFor(exercise: Exercise, run: string, paper: string, crops: Map<st
     };
   });
   const withAnswers = parts.filter((p) => p.answer);
+  // Not matched part by part: the exercise's whole key, as the ministry printed
+  // it, replaces the scraps the text layer had stored. The barème is left alone.
+  const wholeKey = !answered && exercise.wholeKey && !renderProblem(exercise.wholeKey) ? exercise.wholeKey : null;
   const solution =
-    answered && withAnswers.length ? withAnswers.map((p) => `**${p.label}**\n\n${p.answer}`).join('\n\n') : null;
+    answered && withAnswers.length
+      ? withAnswers.map((p) => `**${p.label}**\n\n${p.answer}`).join('\n\n')
+      : wholeKey;
   const bareme = answered
     ? exercise.parts.filter((p) => typeof p.marks === 'number').map((p) => ({ criterion: criterion(p), points: p.marks! }))
     : null;

@@ -556,6 +556,11 @@ def scheme_rows(exam, sha, track):
                 # "II-" alone, or with its title: a section's heading row.
                 if len(tokens) == 1 and not tokens[0].isdigit() and marks is None and section_title(answer):
                     continue
+                # "1 | Organic synthesis |": a numbered heading row, its title
+                # shown as the answer to part 1 (gs/2007 2/chem_en.pdf I).
+                if len(tokens) == 1 and marks is None and not spanned and section_title(answer) \
+                        and not re.search(r'\d', answer) and len(answer.split()) <= 5:
+                    continue
                 if not tokens and not answer.strip() and marks is None:
                     continue
                 # Before an exercise's first labelled row, an unlabelled one is a
@@ -774,6 +779,55 @@ def add_missing_sections(md, intro, parts, segs, rows):
     by_label = {p['label']: p for p in parts}
     new_parts = [by_label.get(lab, {'label': lab, 'text': ''}) for lab in labels]
     return new_parts, new_segs, missing + [".".join(h) for h in numbered]
+
+
+SIDECARS = ROOT / 'corpus' / 'schemes'
+WHOLE_KEY_STATUSES = {'orphan rows', 'out of order', 'marks disagree'}
+
+
+def whole_key(rows, exam, ex_index, pdf_path, sha, display):
+    """The exercise's answer key as printed, under the key's own labels.
+
+    For an exercise whose rows could not be bound part by part, the old stored
+    answer is the scheme pages' text layer — scraps like "1.5 2 ME7 < MEo …".
+    The clean rows are on hand, so the key is shown whole, each row under its
+    own label ("1-2)", "2-1)"), and the student matches them. Only when the
+    rows read like this exercise and no other (`check_belonging`).
+    """
+    rows = [r for r in rows if r['answer'].strip()]
+    if len(rows) < 2:
+        return None
+    chunks = [('.'.join(r['tokens']).lower(), r['answer']) for r in rows]
+    md, figures = answer_markdown(chunks)
+    text = '\n\n'.join(labelled(lab, m) for lab, m in md if m.strip())
+    if figures:
+        for k, path in enumerate(cut_figures(pdf_path, sha, figures)):
+            text = text.replace(f'[[figure:{k}]]', f'\n\n![]({path})\n\n' if path else '')
+    text = re.sub(r'\n{3,}', '\n\n', text).strip()
+    if not text or SMILES.search(text):
+        return None
+    probe = {'answers': {'status': 'ok', 'byPart': {0: {'answer': text}}}}
+    ex = next(e for e in exam['exercises'] if e['index'] == ex_index)
+    check_belonging(exam, [(probe, ex)], display)
+    return text if probe['answers']['status'] == 'ok' else None
+
+
+def drop_sandwiched(parts):
+    """A "part" whose label breaks the run it sits in is not a part.
+
+    gs/2019/phy_en.pdf I lists 1-6, "4", 1-7: the "4" is a graph's axis
+    ("4 – 2 – 4 – 6 – 8 – 10 t1 Doc. 2") read as a question, and it stopped
+    the exercise being split. Dropped only when both neighbours belong to one
+    family (1.6 and 1.7) and it does not.
+    """
+    toks = [label_tokens(p['label']) for p in parts]
+    keep = []
+    for k, p in enumerate(parts):
+        if 0 < k < len(parts) - 1 and toks[k - 1] and toks[k + 1] and toks[k] \
+                and toks[k - 1][0] == toks[k + 1][0] != toks[k][0] and len(toks[k + 1]) > 1:
+            continue
+        keep.append(p)
+    return keep
 
 
 def table_questions(md):
@@ -1209,7 +1263,7 @@ def build_paper(exam, display):
     out = []
     for order, ex in enumerate(exam['exercises']):
         rec = {'ordinal': order + 1, 'index': ex['index'], 'marks': ex['marks'], 'title': ex.get('title') or ''}
-        parts = ex.get('parts') or []
+        parts = drop_sandwiched(ex.get('parts') or [])
         shown = display.get((sha, order + 1))
         # A question table is read as the exercise's parts when the extractor
         # found none — or only debris: one "part", or labels like "21" and
@@ -1293,6 +1347,12 @@ def build_paper(exam, display):
                         p['marks'] = got['marks']
                     if got['answer']:
                         p['answer'] = got['answer']
+        elif rec['answers']['status'] in WHOLE_KEY_STATUSES and not (SIDECARS / f'{sha}.json').exists():
+            # A paper whose maths key the scheme reader already took keeps it.
+            key = whole_key(by_ex.get(ex['index']) or [], exam, ex['index'],
+                            ROOT / 'corpus' / 'exams' / exam['path'].replace('\\', '/'), sha, display)
+            if key:
+                rec['wholeKey'] = key
         final.append(rec)
     return final
 
@@ -1552,6 +1612,7 @@ def main():
             tally[key]['status: ' + e['status']] += 1
             if e['status'] == 'split':
                 tally[key]['answers: ' + e['answers']['status']] += 1
+                tally[key]['whole answer key shown instead'] += bool(e.get('wholeKey'))
                 if e['answers']['status'] == 'ok':
                     tally[key]['leaves'] += e['answers']['leaves']
                     tally[key]['leaves answered'] += e['answers']['leavesAnswered']
