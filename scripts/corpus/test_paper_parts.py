@@ -213,6 +213,27 @@ right = {"answers": dict(geometry)}
 pp.check_belonging(exam, [(right, exam["exercises"][0])])
 check("an exercise's own answers are kept", right["answers"]["status"] == "ok", str(right["answers"]))
 
+print("answers that are misplaced")
+by = lambda *answers: {i: {"answer": a} for i, a in enumerate(answers)}  # noqa: E731
+shifted = [{"label": "1", "text": "1) Prove that P = 2/15."},
+           {"label": "2", "text": "2) Determine the probability distribution of X."},
+           {"label": "3", "text": "3) Show that the probability is 4/9."}]
+check("sub-answers a), b) under a question that asks none (gs/2013 2/math_en.pdf V)",
+      bool(pp.misplaced_trace(shifted, by("P(4)=1/3", "**a)** X(Ω)={0;1;2} **b)** P=4/9", "P=13/36"))))
+check("a), b) under a question that asks a, b pass",
+      not pp.misplaced_trace([{"label": "2", "text": "2) a- Find f(B). b - Specify the ratio."}],
+                             by("**a)** f(B)=F **b)** ratio 2/3")))
+check("a), b) under letters written as maths pass",
+      not pp.misplaced_trace([{"label": "2", "text": "2) $\\boldsymbol{a}$ - Find σ. $\\boldsymbol{b}$ - Deduce."}],
+                             by("**a)** σ=Mt **b)** …")))
+leaky = [{"label": "I.2", "text": "2 - Name the ester formed."}, {"label": "I.3", "text": "3 - Give two characteristics."}]
+check("the next part's answer inside this one (gs/2005 2/chem_en.pdf)",
+      bool(pp.misplaced_trace(leaky, by("2- The ester is propyl ethanoate. 3- This reaction is slow.", "slow"))))
+check("the next part's number opening a maths span (gs/2004 1 physics_fr A.1)",
+      bool(pp.misplaced_trace([{"label": "A.1", "text": "1) Justify."}, {"label": "A.2", "text": "2) a) Find."}],
+                              by("$1-E_1=-13.6$ discontinuous. $2-\\mathrm{a}) E_f$ n=1", "x"))))
+check("an answer of its own passes", not pp.misplaced_trace(leaky, by("The ester is propyl ethanoate.", "slow")))
+
 print("rows the model placed")
 check("a row keeps its own letter on the part it extends",
       pp.placed_tokens(("A", "2", "A"), "A.2") == ("A", "2", "A"))

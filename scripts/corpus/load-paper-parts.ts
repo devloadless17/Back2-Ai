@@ -72,6 +72,7 @@ type Wanted = {
   parts: Prisma.InputJsonValue;
   /** The same parts with the passage on top, for a row that stores no passage. */
   partsWithPassage: Prisma.InputJsonValue | null;
+  withdrawn: boolean;
   solution: string | null;
   bareme: Array<{ criterion: string; points: number }> | null;
 };
@@ -141,6 +142,9 @@ function wantedFor(exercise: Exercise, run: string, paper: string, crops: Map<st
     return null;
   }
   const answered = exercise.answers?.status === 'ok';
+  // Not matched part by part: the exercise's whole key, as the ministry printed
+  // it, replaces the scraps the text layer had stored.
+  const wholeKey = !answered && exercise.wholeKey && !renderProblem(exercise.wholeKey) ? exercise.wholeKey : null;
   const parts = exercise.parts.map((p) => {
     let answer = answered && p.answer ? p.answer : undefined;
     if (answer && renderProblem(answer)) {
@@ -154,13 +158,14 @@ function wantedFor(exercise: Exercise, run: string, paper: string, crops: Map<st
       text: p.text,
       ...(answered && typeof p.marks === 'number' ? { marks: p.marks } : {}),
       ...(answer ? { answer } : {}),
-      ...(crops.get(`${paper}#${exercise.index}#${p.label}`) ? { answerImage: crops.get(`${paper}#${exercise.index}#${p.label}`) } : {}),
+      // A cut under one part would put the page in per-part mode and hide the
+      // whole key the exercise shows instead.
+      ...(!wholeKey && crops.get(`${paper}#${exercise.index}#${p.label}`)
+        ? { answerImage: crops.get(`${paper}#${exercise.index}#${p.label}`) }
+        : {}),
     };
   });
   const withAnswers = parts.filter((p) => p.answer);
-  // Not matched part by part: the exercise's whole key, as the ministry printed
-  // it, replaces the scraps the text layer had stored. The barème is left alone.
-  const wholeKey = !answered && exercise.wholeKey && !renderProblem(exercise.wholeKey) ? exercise.wholeKey : null;
   const solution =
     answered && withAnswers.length
       ? withAnswers.map((p) => `**${p.label}**\n\n${p.answer}`).join('\n\n')
@@ -176,6 +181,10 @@ function wantedFor(exercise: Exercise, run: string, paper: string, crops: Map<st
       : null,
     solution,
     bareme: bareme && bareme.length ? bareme : null,
+    // Per-part answers withdrawn (paper_parts.py `misplaced_trace`): the marks a
+    // past load wrote part by part carry the same shift, so the barème the
+    // row had before any parts load is put back.
+    withdrawn: exercise.answers?.status === 'answers misplaced',
   };
 }
 
@@ -348,8 +357,26 @@ async function main() {
          FROM questions WHERE id = ANY($1::uuid[])`,
     changes.map((c) => c.id),
   );
+  // The barème a withdrawn row had before any parts load: its oldest backup.
+  const withdrawn = changes.filter((c) => wanted.get(c.sourceRef!)!.withdrawn).map((c) => c.id);
+  const firstBareme = new Map<string, Prisma.JsonValue>();
+  if (withdrawn.length) {
+    const tables = await db.$queryRawUnsafe<Array<{ tablename: string }>>(
+      `SELECT tablename FROM pg_tables WHERE tablename LIKE 'backup_paper_parts_%' AND tablename <> $1 ORDER BY tablename`,
+      table,
+    );
+    for (const { tablename } of tables) {
+      const got = await db.$queryRawUnsafe<Array<{ id: string; bareme: Prisma.JsonValue }>>(
+        `SELECT id::text AS id, bareme FROM ${tablename} WHERE id = ANY($1::uuid[])`,
+        withdrawn,
+      );
+      for (const g of got) if (!firstBareme.has(g.id)) firstBareme.set(g.id, g.bareme);
+    }
+    console.log(`  barème put back from before the first parts load: ${firstBareme.size} of ${withdrawn.length}`);
+  }
   for (const c of changes) {
     const w = wanted.get(c.sourceRef!)!;
+    const before = firstBareme.has(c.id) ? firstBareme.get(c.id) : undefined;
     await db.question.update({
       where: { id: c.id },
       data: {
@@ -361,6 +388,7 @@ async function main() {
               ...(w.bareme ? { bareme: w.bareme } : {}),
             }
           : {}),
+        ...(before !== undefined ? { bareme: before === null ? Prisma.DbNull : (before as Prisma.InputJsonValue) } : {}),
       },
     });
   }

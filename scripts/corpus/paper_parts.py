@@ -782,7 +782,7 @@ def add_missing_sections(md, intro, parts, segs, rows):
 
 
 SIDECARS = ROOT / 'corpus' / 'schemes'
-WHOLE_KEY_STATUSES = {'orphan rows', 'out of order', 'marks disagree'}
+WHOLE_KEY_STATUSES = {'orphan rows', 'out of order', 'marks disagree', 'answers misplaced'}
 
 
 def whole_key(rows, exam, ex_index, pdf_path, sha, display):
@@ -1364,6 +1364,43 @@ def printed_letters(text):
     return got if len(got) >= 2 else []
 
 
+# An answer's own sub-labels, as finish_answers writes them: **a)**, **b.i)**.
+ANSWER_LETTER = re.compile(r'\*\*([a-h])(?:\)|\.[ivx0-9]+\))\*\*')
+# A question's letters written as maths: "$\boldsymbol{a}$ - Find".
+MATH_LETTER = re.compile(r'\$\s*\\(?:boldsymbol|mathbf|mathrm|textbf|mathit)\{\s*([a-h])\s*\}\s*\$')
+ANY_QUESTION_LETTER = re.compile(r'(?:^|\s|\()([a-h])\s?[-.)]', re.M)
+
+
+def misplaced_trace(parts, by_part):
+    """Why an exercise's per-part answers cannot be trusted, or None.
+
+    Two traces of a key numbered differently from its paper, which order,
+    marks and labels all let through (a 40-answer sample, 2026-10-03, had 2):
+    - an answer with sub-answers a), b) under a part that asks no a, b:
+      gs/2013 2/math_en.pdf V, whose key's 2-a, 2-b are the paper's 2 and 3,
+      so every later part showed the next one's answer;
+    - an answer holding the next part's own number, "2- The ester is propyl
+      ethanoate. 3- This reaction is…" (gs/2005 2/chem_en.pdf II).
+    The exercise then shows its whole key, which is the ministry's as printed."""
+    for i, p in enumerate(parts):
+        ans = (by_part.get(i) or {}).get('answer') or ''
+        if not ans:
+            continue
+        letters = set(ANSWER_LETTER.findall(ans))
+        text = MATH_LETTER.sub(r' \1', p['text'])
+        if len(letters) >= 2 and not ANY_QUESTION_LETTER.search(text):
+            return f"{p['label']}: answers a), b) its question does not ask"
+        if i + 1 < len(parts):
+            own, nxt = label_tokens(p['label']), label_tokens(parts[i + 1]['label'])
+            if nxt and nxt[-1].isdigit() and nxt[:-1] == own[:-1] and nxt != own:
+                prose = MATH.sub(' ', ans)
+                # Or opening a maths span: "$2-\mathrm{a}) E_f …" (gs/2004 1 physics_fr A.1).
+                if re.search(rf'(?:^|\n|\s){nxt[-1]}\s?[-–)]\s', prose) \
+                        or re.search(rf'\$\s*{nxt[-1]}\s?[-–]\s?\\mathrm\{{[a-h]\}}\s?\)', ans):
+                    return f"{p['label']}: holds part {parts[i + 1]['label']}'s answer"
+    return None
+
+
 def build_paper(exam, display):
     sha = exam['sha256']
     rows, why = paper_rows(exam)
@@ -1499,6 +1536,14 @@ def build_paper(exam, display):
             continue
         rec, ex = item
         if rec['answers']['status'] == 'ok':
+            trace = misplaced_trace(rec['parts'], rec['answers']['byPart'])
+            if trace:
+                # The key's own text, in its order, for when no whole key can be
+                # cut from the scheme (rows the model placed across exercises).
+                in_order = [v['answer'] for _, v in sorted(rec['answers']['byPart'].items()) if v.get('answer')]
+                rec['answers'] = {'status': 'answers misplaced', 'trace': trace}
+                rec['_inOrder'] = '\n\n'.join(in_order)
+        if rec['answers']['status'] == 'ok':
             for i, p in enumerate(rec['parts']):
                 got = rec['answers']['byPart'].get(i)
                 if got:
@@ -1506,12 +1551,18 @@ def build_paper(exam, display):
                         p['marks'] = got['marks']
                     if got['answer']:
                         p['answer'] = got['answer']
-        elif rec['answers']['status'] in WHOLE_KEY_STATUSES and not (SIDECARS / f'{sha}.json').exists():
-            # A paper whose maths key the scheme reader already took keeps it.
+        elif rec['answers']['status'] in WHOLE_KEY_STATUSES and (
+                rec['answers']['status'] == 'answers misplaced' or not (SIDECARS / f'{sha}.json').exists()):
+            # A paper whose maths key the scheme reader already took keeps it —
+            # unless its parts were answered and are now refused: the stored
+            # solution is then the per-part text being withdrawn.
             key = whole_key(by_ex.get(ex['index']) or [], exam, ex['index'],
                             ROOT / 'corpus' / 'exams' / exam['path'].replace('\\', '/'), sha, display)
+            if not key and rec['answers']['status'] == 'answers misplaced':
+                key = rec.get('_inOrder')
             if key:
                 rec['wholeKey'] = key
+        rec.pop('_inOrder', None)
         final.append(rec)
     return final
 
