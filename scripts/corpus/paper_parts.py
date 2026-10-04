@@ -1929,7 +1929,8 @@ def paper_scale(items):
     """The scale the scheme is printed on, relative to the paper's own marks.
 
     Usually 1. GS maths schemes are printed out of 40 for a paper marked out of
-    20, so every exercise sums to twice its header. A scale other than 1 is
+    20, so every exercise sums to twice its header; SE maths schemes out of 25,
+    a factor of 1.25 (19 SE maths exercises). A scale other than 1 is
     accepted only when at least two exercises land on it independently: a
     misread moves one exercise, not several by the same factor.
     """
@@ -1938,7 +1939,7 @@ def paper_scale(items):
         if a.get('status') == 'bound' and ex['marks']:
             ratios[round(a['sum'] / ex['marks'], 2)] += 1
     best = max((r for r in ratios if r != 1.0), key=lambda r: ratios[r], default=None)
-    if best and best in (2.0, 0.5, 1.75, 1.5) and ratios[best] >= 2 and ratios[best] > ratios.get(1.0, 0):
+    if best and best in (2.0, 0.5, 1.75, 1.5, 1.25) and ratios[best] >= 2 and ratios[best] > ratios.get(1.0, 0):
         return best
     return 1.0
 

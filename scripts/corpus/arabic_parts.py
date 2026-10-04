@@ -36,7 +36,11 @@ import paper_parts as pp  # noqa: E402
 ROOT = pp.ROOT
 SOURCE = ROOT / 'corpus' / 'exams-arabic.json'
 OUT = ROOT / 'corpus' / '.mapping' / 'arabic-parts.json'
+# Economics and sociology are SE's own ("ektesad_ar.pdf", "se_eco_2021_1_ar.pdf",
+# "ejteme3_ar.pdf", "se_socio_2021_1_ar.pdf"); their French and English
+# editions are left out with the others by NOT_ARABIC.
 SUBJECTS = [(re.compile(r'(?i)tarbeya|tarbia'), 'civics'), (re.compile(r'(?i)geo'), 'geography'),
+            (re.compile(r'(?i)e?s?ktesad|_eco_'), 'economics'), (re.compile(r'(?i)ejteme|_socio_'), 'sociology'),
             (re.compile(r'(?i)arab|/ar\.pdf$'), 'arabic')]
 NOT_ARABIC = re.compile(r'(?i)_(?:fr|en)\b|_(?:fr|en)\.pdf$|falsafe|philo|tarekh|histo')
 
@@ -143,6 +147,13 @@ def misplaced(parts, intro):
     vocabulary: "the documents", "the text"), so only this sign is read."""
     # NFKC: some papers' text is in Arabic presentation forms ("ﻧﻮﻋﻪ" for "نوعه").
     plain = lambda t: unicodedata.normalize('NFKC', t or '')  # noqa: E731
+    # One-word items ("١- سويسرا", "٢- كوريا الجنوبية") of a "link the columns"
+    # exercise carrying paragraph answers: another exercise's rows
+    # (se/2019 1/geo_crdp.pdf III, ls/2017 2/geo_crdp.pdf III — the only two on
+    # GS, LS and SE).
+    odd = [p for p in parts if len(squash(p['text'])) < 25 and len(squash(p.get('answer'))) > 100]
+    if len(odd) >= 2:
+        return f"{odd[0]['label']}: one-word items carry paragraph answers"
     for p in parts:
         if PRESENTS_DOCUMENTS.search(plain(p.get('answer'))) and not ASKS_PRESENTATION.search(plain(p['text'])):
             return f"{p['label']}: shows the documents' type and source, which it does not ask"
