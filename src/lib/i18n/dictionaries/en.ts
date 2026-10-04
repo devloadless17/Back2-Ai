@@ -1304,6 +1304,7 @@ export const en = {
     bookEmpty: 'No course material has been loaded for this subject yet.',
     index: 'Chapter index',
     indexHint: 'Every chapter in the official programme, in syllabus order.',
+    chooseChapter: 'Choose a chapter',
     bank: 'Question bank',
     bankHint: 'Practise on real questions from the programme.',
     bankEmpty: 'No questions have been ingested for this subject yet.',

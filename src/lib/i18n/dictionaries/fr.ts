@@ -1286,6 +1286,7 @@ export const fr: Dictionary = {
     bookEmpty: 'Aucun contenu de cours n’a encore été chargé pour cette matière.',
     index: 'Sommaire des chapitres',
     indexHint: 'Tous les chapitres du programme officiel, dans l’ordre.',
+    chooseChapter: 'Choisis un chapitre',
     bank: 'Banque de questions',
     bankHint: 'Entraînez-vous sur de vraies questions du programme.',
     bankEmpty: 'Aucune question n’a encore été chargée pour cette matière.',

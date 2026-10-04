@@ -77,25 +77,8 @@ export async function SubjectHub({
         <LanguageSwitcher />
       </div>
 
-      <Section title={t.hub.learn}>
-        <HubCard
-          href={`/summaries/${subjectId}`}
-          icon={IconBook}
-          title={t.hub.book}
-          hint={t.hub.bookHint}
-          count={format(t.hub.chapterCount, { count: counts.chaptersWithMaterial })}
-          disabled={counts.chaptersWithMaterial === 0}
-          emptyHint={t.hub.bookEmpty}
-        />
-        <HubCard
-          href={`/practice/${subjectId}#chapters`}
-          icon={IconPractice}
-          title={t.hub.index}
-          hint={t.hub.indexHint}
-          count={format(t.hub.chapterCount, { count: counts.chapters })}
-        />
-      </Section>
-
+      {/* No "Learn" section (2026-10-04): the course summaries and the chapter
+          index both led to a list of chapters, which the dropdown below now is. */}
       <Section title={t.hub.practise}>
         <HubCard
           href={`/practice/${subjectId}#chapters`}
