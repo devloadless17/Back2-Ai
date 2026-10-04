@@ -3,6 +3,7 @@
 English and French papers as their printed parts, each with the key's answer.
 
     python scripts/corpus/lang_parts.py                     # GS, writes corpus/.mapping/lang-parts.json
+    python scripts/corpus/lang_parts.py --track ls --out corpus/.mapping/ls-lang-parts.json
     python scripts/corpus/lang_parts.py --show "gs/2018 1/eng.pdf"
 
 WHY A SECOND READER. paper_parts.py builds on the extractor's part labels and
@@ -260,6 +261,29 @@ def in_print_order(items):
     return out
 
 
+def split_run_on(rows):
+    """A row that runs on into the next item's: "They refers to Fisher … WI-eD - 4
+    We refers to Fisher …" (ls/2011 1/english.pdf I-D-3): the key's row for 4
+    lost its cell border. Split at the next number, only where the key has no
+    row of its own for it and the number is followed by a capital."""
+    out = []
+    have = {tuple(r['tokens']) for r in rows}
+    for r in rows:
+        toks = tuple(r['tokens'])
+        if toks and toks[-1].isdigit():
+            nxt = toks[:-1] + (str(int(toks[-1]) + 1),)
+            m = re.search(rf'\s[-–]?\s*{nxt[-1]}\s*[-.)]?\s+(?=[A-Z“"])', r['answer'])
+            if nxt not in have and m and m.start() >= 10:
+                head = re.sub(r'\s+[A-Za-z]{1,3}-[A-Za-z]{1,3}\s*[-–]?\s*$', '', r['answer'][:m.start()]).rstrip(' -–')
+                out.append({**r, 'answer': head})
+                out.append({**r, 'tokens': nxt, 'label': '-'.join(nxt), 'answer': r['answer'][m.end():].strip(),
+                            'marks': r['marks']})
+                have.add(nxt)
+                continue
+        out.append(r)
+    return out
+
+
 def key_rows(exam):
     """The key's rows: {tokens, label, answer, criteria, marks}, read as table cells."""
     _, first = layout(exam)
@@ -270,6 +294,7 @@ def key_rows(exam):
     # cells on one page, four on the next) and a French header is split over
     # two rows, the second of which is also question I.1's row.
     rows, started = [], False
+    carried = None  # (row, text, page) a label-less row just added to
     # A heading is a short cell: "Réponse par vrai ou faux et justification …"
     # (gs/2019/fr.pdf) is question I.2's answer, not the column's name.
     header = lambda c: len(c) <= 40 and bool(  # noqa: E731
@@ -322,6 +347,14 @@ def key_rows(exam):
                     answer = ' '.join(c for c in rest if not CRITERION.match(c) and not is_mixed(c))
                     mixed = ' '.join(c for c in rest if not CRITERION.match(c) and is_mixed(c))
                     if label:
+                        # A row with no label at a page's foot, "First, parents …
+                        # might be interested because the", is the start of the
+                        # next page's row, "selection informs them …" (ls/2019 1/eng.pdf I-C-4).
+                        if carried and carried[2] < i and re.match(r'[a-z]', answer) and carried[0] is rows[-1] \
+                                and rows[-1]['answer'].endswith(carried[1]):
+                            rows[-1]['answer'] = rows[-1]['answer'][:-len(carried[1])].rstrip()
+                            answer = carried[1] + ' ' + answer
+                        carried = None
                         rows.append({'tokens': pp.label_tokens(label), 'label': label, 'answer': answer,
                                      'criteria': criteria, 'marks': pp.parse_mark(mark_cell),
                                      **({'mixed': word_set(mixed)} if mixed else {})})
@@ -330,8 +363,13 @@ def key_rows(exam):
                         r['answer'] = (r['answer'] + ' ' + answer).strip()
                         if criteria:
                             r['criteria'] = (r['criteria'] + ' ' + criteria).strip()
+                        # Only a page's last row carries on, onto the next page, and
+                        # only a row of one answer cell: three cells are a table inside
+                        # an answer ("Culturally | Robots are … | …", ls/2011 2/eng.pdf I-B).
+                        carried = (r, answer, i) if answer and len(filled) <= 2 and not re.search(r'[.!?)"”»:]\s*$', answer) else None
     for r in rows:
         r.pop('mixed', None)
+    rows = split_run_on(rows)
     # "3 | Critère d'évaluation" (gs/2009 2/fr.pdf): a heading row with a
     # number in its first cell, still empty once its continuations are read.
     rows = [r for r in rows if r['answer'] or r['criteria'] or r['marks'] is not None or r['label'] == 'II']
@@ -477,7 +515,8 @@ def build(exam):
         return {'status': 'questions not found'}
     passage, items, writing = got
     # gs/2006 2/eng.pdf is the French 2006 session-1 paper, byte for byte.
-    named = 'en' if re.match(r'(?:gs\s+)?eng', Path(exam['path']).name, re.I) else 'fr'
+    # The name says English as "eng.pdf", "en.pdf", "2004 gs english 1.pdf", "SVSG_Eng_2021_1.pdf".
+    named = 'en' if re.search(r'(?:^|[\s_])(?:eng(?:lish)?|en)(?=[\s_.]|$)', Path(exam['path']).name, re.I) else 'fr'
     if written_in(passage + ' '.join(it['text'] for it in items)) != named:
         return {'status': 'wrong file: not in its language'}
     rows = reading_rows(key_rows(exam))
@@ -546,7 +585,9 @@ def to_paper_parts(exam, rec):
     return exercises
 
 
-LANG = re.compile(r'^(?:eng|english|en\b|en\.|fr\b|fr\.|french|.*\bfrench\b)', re.I)
+# "gs english 1.pdf" (2004–2006) and "SVSG_Eng_2021_1.pdf" (2021–2024) too: both
+# were missed, on GS and LS alike.
+LANG = re.compile(r'^(?:eng|english|en\b|en\.|fr\b|fr\.|french|.*\bfrench\b|.*\benglish\b|svsg_(?:eng|fran)_)', re.I)
 
 
 def language_papers(track):
@@ -566,6 +607,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--track', default='gs')
     ap.add_argument('--show')
+    ap.add_argument('--out', default=str(OUT))  # another track: corpus/.mapping/<track>-lang-parts.json
     args = ap.parse_args()
     if args.show:
         exam = next(e for e in language_papers(args.track) if e['path'].replace('\\', '/') == args.show)
@@ -587,10 +629,10 @@ def main():
         if exercises:
             papers.append({'paper': exam['path'].replace('\\', '/'), 'sha256': exam['sha256'],
                            'subject': 'language', 'language': exam['language'], 'exercises': exercises})
-    OUT.write_text(json.dumps(papers, ensure_ascii=False, indent=1), encoding='utf-8')
+    Path(args.out).write_text(json.dumps(papers, ensure_ascii=False, indent=1), encoding='utf-8')
     for k, v in sorted(tally.items()):
         print(k, v)
-    print(f'wrote {OUT}: {len(papers)} papers')
+    print(f'wrote {args.out}: {len(papers)} papers')
 
 
 if __name__ == '__main__':

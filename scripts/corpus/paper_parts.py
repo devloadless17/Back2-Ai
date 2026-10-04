@@ -58,7 +58,8 @@ OUT = ROOT / 'corpus' / '.mapping' / 'paper-parts.json'
 ARABIC = re.compile(r'[\u0600-\u06FF\uFB50-\uFDFF\uFE70-\uFEFF]')
 # The adapted papers set for candidates with special needs. They are separate
 # exams with their own exercises, and the product does not show them.
-ADAPTED = re.compile(r'ehteyejet|makf', re.I)
+# Every spelling the filenames use (accommodation.ts keeps the same list).
+ADAPTED = re.compile(r'ehte[uy]ejet|ehtiyejet|makf|mu5tasa|mokhtasa|mukhtasar', re.I)
 ARABIC_EDITION = re.compile(r'(_ar\b|_ar[._]|arab|_dr\.pdf)', re.I)
 
 
@@ -70,6 +71,8 @@ def subject_of(file):
         return 'chemistry'
     if 'math' in f:
         return 'maths'
+    if 'bio' in f:  # LS: bio_en, sv_bio_..._fr
+        return 'biology'
     return None
 
 
@@ -119,6 +122,7 @@ def roman(s):
 
 ORDINALS = {
     'first': 1, 'second': 2, 'third': 3, 'fourth': 4, 'fifth': 5, 'sixth': 6,
+    'thierd': 3,  # sic, gs/2008 1/physics_en.pdf's key
     'premier': 1, 'première': 1, 'premiere': 1, 'deuxième': 2, 'deuxieme': 2, 'second': 2, 'seconde': 2,
     'troisième': 3, 'troisieme': 3, 'quatrième': 4, 'quatrieme': 4, 'cinquième': 5, 'cinquieme': 5,
     'sixième': 6, 'sixieme': 6,
@@ -186,7 +190,12 @@ def parse_mark(cell):
         if m.group(1):
             if int(m.group(2)) not in (2, 3, 4, 8):
                 return None
-            total += Fraction(int(m.group(1)), int(m.group(2)))
+            top = m.group(1)
+            # "11/2" is 1½ with its ½ read as "1/2" (ls/2016 2/bio_en.pdf), not 5.5.
+            if len(top) >= 2 and int(top[-1]) < int(m.group(2)):
+                total += int(top[:-1])
+                top = top[-1]
+            total += Fraction(int(top), int(m.group(2)))
         elif m.group(3):
             total += Fraction(m.group(3))
         else:
@@ -200,14 +209,18 @@ def parse_mark(cell):
 
 ANSWER_HEAD = re.compile(
     r'^(?:expected\s+)?answers?$|^short\s+answers?$|^(?:expected\s+)?answers?\s+expected$|^réponses?(?:\s+attendues?)?$'
-    r'|^corrigé$|^éléments\s+de\s+réponses?$|^eléments\s+des?\s+réponses?$|^réponse\s+attendue$|^solutions?$',
+    r'|^corrigé$|^éléments\s+de\s+réponses?$|^eléments\s+des?\s+réponses?$|^réponse\s+attendue$|^solutions?$'
+    r'|^answer\s+key$|^correction$',
     re.I)
-MARK_HEAD = re.compile(r'^(?:marks?|m|g|n|notes?|pts?|points?|barème|grades?)$', re.I)
+MARK_HEAD = re.compile(r'^(?:mar ?ks?|m|g|n|notes?|pts?|points?|barème|grades?)$', re.I)  # "Mar k": ls/2018 2 physics
 # The label cell of a maths header names the exercise: "QI | Solution | G".
 # Upper-case numerals only: a lone "ii" or "v" is a sub-part label.
-HEADER_EXERCISE = re.compile(r'^(?:[Qq](?:uestion|UESTION)?|[Ee]x(?:ercise|ercice)?)?\s*[-._]?\s*([IVX]{1,4}|\d)$')
+HEADER_EXERCISE = re.compile(r'^(?:[Qq](?:uestion|UESTION)?|[Ee]x(?:ercise|ercice)?)?\s*[-._]?\s*([IVX]{1,4}|\d)\.?$')
 LABEL_HEAD = re.compile(r'^(?:part(?:ie)?(?:\s+(?:of\s+the|de\s+la)\s+q\.?)?|q\.?|questions?|n°)$', re.I)
 COMMENT_HEAD = re.compile(r'^(?:comments?|commentaires?|remarques?)$', re.I)
+# The label column's heading in a biology key: "Q.", "Q", "Parts", "Part of the Ex", "Partie de l'ex".
+SHORT_LABEL_HEAD = re.compile(
+    r"^(?:q\.?\s*\d?\.?|parts?|parties?|part\s+of\s+(?:the\s+)?ex(?:ercise)?\.?|partie\s+de\s+l\W?\s*ex(?:ercice)?\.?)$", re.I)
 
 FIGURE = re.compile(r'!\[[^\]]*\]\((https://cdn\.mathpix\.com/cropped/[^)\s]+)\)')
 
@@ -310,6 +323,9 @@ def table_rows(body):
 
 # The mark column's heading may be the exercise's total: "3pts", "14 points".
 MARK_TOTAL_HEAD = re.compile(r'^\d+(?:[.,]\d+)?\s*(?:pts?|points?)$', re.I)
+# Or both: "Grade 5 pts", "Note (5 pts)", "Note/4".
+MARK_HEAD_WITH_TOTAL = re.compile(
+    r'^(?:marks?|grades?|notes?)\s*(?:/\s*\d+(?:[.,]\d+)?|\(?\s*\d+(?:[.,]\d+)?\s*(?:pts?|points?)?\s*\)?)$', re.I)
 # The exercise named in a header's first cell: "Q.I", "QV", "Q. 3", "Question I (4 points)".
 EXERCISE_CELL = re.compile(
     r'^(?:[Qq](?:uestion|UESTION)?|[Ee]x(?:ercise|ercice)?)\s*[-._]?\s*([IVX]{1,4}|\d)\s*(?:\([^)]*\))?$'
@@ -320,13 +336,14 @@ def header_layout(cells):
     """If this row is the table's header, which column is what."""
     texts = [plain(c) for c, _ in cells]
     answer = [i for i, t in enumerate(texts) if ANSWER_HEAD.match(t)]
-    mark = [i for i, t in enumerate(texts) if MARK_HEAD.match(t)]
+    mark = [i for i, t in enumerate(texts) if MARK_HEAD.match(t) or MARK_HEAD_WITH_TOTAL.match(t)]
     if not answer or not mark:
         # Known by its shape instead: the exercise in the first cell, the mark
         # column's heading (or the exercise's total) in the last, whatever the
         # middle says — "I | Answers | 3pts", "Q1 | MATH GS ■ FIRST SESSION | | M",
         # "Question I (4 points) | | Points".
-        named = EXERCISE_CELL.match(texts[0]) if texts else None
+        # Mathpix may read a mark printed before the label: "₹ Q2", "z Q3" (ls/2007 1 maths).
+        named = EXERCISE_CELL.match(re.sub(r'^(?:[^\w\s]|z)\s+(?=Q)', '', texts[0])) if texts else None
         last = texts[-1] if texts else ''
         if len(texts) >= 3 and named and (MARK_HEAD.match(last) or MARK_TOTAL_HEAD.match(last)):
             v = named.group(1) or named.group(2)
@@ -334,6 +351,15 @@ def header_layout(cells):
                 'labels': [0], 'answer': 1, 'mark': len(texts) - 1, 'skip': [], 'width': len(cells),
                 'exercise': int(v) if v.isdigit() else roman(v), 'shape': True,
             }
+        # Or named in the answer column's heading, as biology keys do:
+        # "Part of the Ex | Exercise 2 (5 points) | Grade", "Q. | Exercice 1 | Note".
+        if len(texts) >= 3 and SHORT_LABEL_HEAD.match(texts[0]) and (MARK_HEAD.match(last) or MARK_HEAD_WITH_TOTAL.match(last)):
+            n = exercise_heading(texts[1])
+            if n:
+                return {
+                    'labels': [0], 'answer': 1, 'mark': len(texts) - 1, 'skip': [], 'width': len(cells),
+                    'exercise': n, 'shape': True,
+                }
         return None
     a = answer[0]
     labels = [i for i in range(a) if not COMMENT_HEAD.match(texts[i])]
@@ -391,16 +417,67 @@ def infer_layout(grid):
     return {'labels': labels, 'answer': len(labels), 'mark': width - 1, 'width': width}
 
 
+def key_start_by_content(data):
+    """The first page after the first holding a key table's header row, or None.
+
+    The splitter finds no key in some papers whose key is plainly there
+    (ls/2009 1/bio_en.pdf, ls/2015 1/bio_en.pdf: "Part | Answer key | Grade"),
+    and then reads the key as more exercises.
+    """
+    for pg in data['pages']:
+        if pg.get('page', 0) < 2:
+            continue
+        text = '\n'.join(str(ln.get('text') or '') for ln in pg.get('lines', []))
+        pos = 0
+        while True:
+            t = find_tabular(text, pos)
+            if not t:
+                break
+            pos = t[3]
+            grid = table_rows(flatten_nested(text[t[1]:t[2]]))
+            if any(header_layout(cells) for cells in grid[:2]):
+                return pg['page']
+    return None
+
+
+_MISSED = {}
+
+
+def missed_key_start(exam):
+    """The page the key starts on, when the splitter put it later or nowhere; else None.
+
+    The stored statement of the paper's last exercise then runs on through the
+    key pages it missed, so it reads like every exercise's answers, and text
+    rebuilt from it can run into the key.
+    """
+    sha = exam['sha256']
+    if sha not in _MISSED:
+        path = META / sha / 'lines.json'
+        start = key_start_by_content(json.loads(path.read_text(encoding='utf-8'))) if path.exists() else None
+        n = exam.get('schemePages') or 0
+        splitter = exam['pages'] - n + 1 if n else None
+        _MISSED[sha] = start if start and (splitter is None or start < splitter) else None
+    return _MISSED[sha]
+
+
 def scheme_text(exam, sha):
     """The scheme pages' Mathpix text, in reading order, page by page."""
     path = META / sha / 'lines.json'
     if not path.exists():
         return None
     n = exam.get('schemePages') or 0
-    if not n:
-        return None
-    first = exam['pages'] - n + 1
     data = json.loads(path.read_text(encoding='utf-8'))
+    by_content = key_start_by_content(data)
+    if n:
+        first = exam['pages'] - n + 1
+        # A key that starts before the pages the splitter gave it
+        # (ls/2018 1/bio_en.pdf: from page 5, not 7).
+        if by_content and by_content < first:
+            first = by_content
+    elif by_content:
+        first = by_content
+    else:
+        return None
     out = []
     for pg in data['pages']:
         if pg.get('page', 0) >= first:
@@ -498,10 +575,12 @@ def scheme_rows(exam, sha, track):
                 if lay:
                     if lay.get('exercise'):
                         n = lay['exercise']
-                        # A key lists its exercises in order; a number that does
-                        # not move forward is misprinted (gs/2021 2 heads its
-                        # fifth exercise "III" a second time).
-                        if current and n < current and rows_since_heading:
+                        # A number that goes back to an exercise already
+                        # answered is misprinted (gs/2021 2 heads its fifth
+                        # exercise "III" a second time). One not yet answered
+                        # is the key's own order (ls/2018 1/bio_en.pdf: 1, 2, 4, 3).
+                        if current and n < current and rows_since_heading \
+                                and any(r['exercise'] == n for r in rows):
                             n = current + 1
                         current, rows_since_heading, section = n, 0, None
                     elif rows_since_heading and not skipping:
@@ -510,8 +589,10 @@ def scheme_rows(exam, sha, track):
                     continue
                 # A row holding only the exercise's number: "II", "Question III | 6 pts".
                 filled = [plain(c) for c, _ in cells if c.strip()]
+                # Or "QIV | Short answers", a header with no marks column (gs/2005 2/math_en.pdf).
                 alone = HEADER_EXERCISE.match(filled[0]) if filled and (
-                    len(filled) == 1 or (len(filled) == 2 and parse_mark(filled[1]) is not None)) else None
+                    len(filled) == 1 or (len(filled) == 2 and (
+                        parse_mark(filled[1]) is not None or ANSWER_HEAD.match(filled[1])))) else None
                 if alone and (alone.group(0)[:1].isalpha() or not alone.group(1).isdigit()):
                     v = alone.group(1)
                     current = int(v) if v.isdigit() else roman(v)
@@ -1277,12 +1358,34 @@ MATCHES = ROOT / 'corpus' / '.mapping' / 'key-row-matches.json'
 _matches = None
 
 
-def model_matches(sha):
-    """{rid: (ordinal, part label)} for a paper, from match_key_rows.py, or {}."""
+def row_print(row):
+    """What a placement remembers of its row: the label and the answer's first words."""
+    return [row['label'], plain(row['answer'])[:120]]
+
+
+def model_matches(sha, rows):
+    """{rid: (ordinal, part label)} for a paper's current rows, from match_key_rows.py, or {}.
+
+    A placement names its row by position, and also keeps the row's label and
+    first words. Rows are found again by those: a change to how the key is
+    read (a heading row no longer read as an answer) moves every later row's
+    position, and gs/2005 2/math_en.pdf VI then showed A.4's answer under A.2.
+    A placement whose row is no longer read is dropped.
+    """
     global _matches
     if _matches is None:
         _matches = json.loads(MATCHES.read_text(encoding='utf-8')) if MATCHES.exists() else {}
-    return {int(k): tuple(v) for k, v in (_matches.get(sha) or {}).items() if v}
+    found = {}
+    free = collections.defaultdict(list)
+    for r in rows or []:
+        free[json.dumps(row_print(r), ensure_ascii=False)].append(r['rid'])
+    for k, v in sorted((_matches.get(sha) or {}).items(), key=lambda kv: int(kv[0])):
+        if not v or len(v) < 3:
+            continue
+        rids = free.get(json.dumps(v[2], ensure_ascii=False))
+        if rids:
+            found[rids.pop(0)] = (v[0], v[1])
+    return found
 
 
 def placed_tokens(own, part_label):
@@ -1366,9 +1469,106 @@ def printed_letters(text):
 
 # An answer's own sub-labels, as finish_answers writes them: **a)**, **b.i)**.
 ANSWER_LETTER = re.compile(r'\*\*([a-h])(?:\)|\.[ivx0-9]+\))\*\*')
+# The same letters as a key also prints them: "a- x' = …", "$\mathbf{a}-K.E…", "**2.a)**".
+LOOSE_ANSWER_LETTER = re.compile(
+    r'(?:^|\n|\*\*|\$\s*|\\quad\s*|&\s*)\s*(?:\d{1,2}\s*[.\-]\s*)?(?:\\math(?:bf|rm)\{\s*)?([a-h])(?:\s*\})?\$?\s?[-.)]')
 # A question's letters written as maths: "$\boldsymbol{a}$ - Find".
 MATH_LETTER = re.compile(r'\$\s*\\(?:boldsymbol|mathbf|mathrm|textbf|mathit)\{\s*([a-h])\s*\}\s*\$')
+# Or bare: "$c$ - Write the expression of i" (gs/2005 2/phy_en.pdf II).
+BARE_MATH_LETTER = re.compile(r'\$\s*([a-h])\s*\$')
 ANY_QUESTION_LETTER = re.compile(r'(?:^|\s|\()([a-h])\s?[-.)]', re.M)
+# A letter that opens a question: at a line's start or after its number, "3) a- Write".
+# Not "(d)", the name of a line.
+# "b-Deduce" too (gs/2011 1/math_en.pdf V).
+ASKED_LETTER = re.compile(r'(?:^|\n|[).\-–]\s)\s*(?:\*\*)?([a-h])\s?[-.)](?:\s|(?=[A-Z$\\]))')  # "3 - a) Prove"
+# A sentence that asks: what a question's cut-off last sentence starts with.
+ASKING = re.compile(
+    r'\s*(?:show|prove|determine|calculate|deduce|verify|find|write|justify|specify|draw|study|give|'
+    r'montrer|démontrer|déterminer|calculer|déduire|vérifier|trouver|écrire|justifier|préciser|tracer|étudier|donner)\b',
+    re.I)
+# A part's text that opens with a letter: "b- Determine the probability distribution of X".
+LEAD_LETTER = re.compile(r'^\s*(?:\*\*)?([a-h])\s?[-.)](?:\s|(?=[A-Z$\\]))')
+
+
+def reattach_letters(md, parts, segs):
+    """Give a question's last letters back to it, from the next part's head.
+
+    The extractor sometimes starts a new part at a question's letter b or c,
+    under a label of its own: "3) a- Verify …" then a part "3" (or "20", or
+    "A.2") whose text is "b- Determine the law of X". The key answers 3-a and
+    3-b under the first, and the second shows a question with no answer
+    (ls/2006 1/math_en.pdf II). The letter's text goes back to its question; a
+    part left with nothing of its own is dropped. A part labelled with that
+    letter ("1.b") is a part, and is left alone.
+    """
+    # Every piece stays a slice of the page's text: later steps find each
+    # part's text in it (add_missing_sections), and a joined copy is not there.
+    spans, pos = [], 0
+    for seg in segs:
+        at = md.find(seg, pos)
+        if at < 0:
+            return parts, segs
+        spans.append([at, at + len(seg)])
+        pos = at + len(seg)
+    spans0 = [list(s) for s in spans]
+    parts = list(parts)
+    text = lambda k: md[spans[k][0]:spans[k][1]]  # noqa: E731
+
+    def join(k):  # part k into part k-1, and whatever lies between them
+        spans[k - 1][1] = spans[k][1]
+        del parts[k], spans[k]
+
+    def give(k, cut):  # the first `cut` characters of part k to part k-1
+        spans[k - 1][1] = spans[k][0] + cut
+        spans[k][0] += cut
+
+    i = 1
+    while i < len(parts):
+        # The same label twice in a row is one question cut in two: "2) Prove
+        # that the point I(0 ; 1/2) is a" + "center of symmetry of (C)." — the
+        # fraction's "2 )" read as a label (ls/2011 1/math_en.pdf IV).
+        if parts[i]['label'] == parts[i - 1]['label']:
+            join(i)
+            continue
+        # A question's last sentence cut onto the next part's head: "Show that
+        # f(x) > 0 for all x > 0. 2) a- Determine …" (gs/2021 2/SG_Math_2021_2_En.pdf V).
+        own = label_tokens(parts[i]['label'])
+        num = next((t for t in reversed(own) if t.isdigit()), None)
+        # Or the rest of its sentence: "Calculate C0 so that" + "the pH of (S) is
+        # equal to 9. 1.2 - The table…" (ls/2009 2/chem_en.pdf III).
+        if num and own[:-1] == label_tokens(parts[i - 1]['label'])[:-1] \
+                and (ASKING.match(text(i)) or re.match(r'\s*[a-zà-ÿ]{2}', text(i))):
+            # "1.2 -" printed whole, or "2)" under its section.
+            printed = r'\s*[.\-]\s*'.join(own) if all(t.isdigit() for t in own) else num
+            start = re.search(rf'(?:^|\n|\s)(?:\*\*)?{printed}\s?[-.)]\s', text(i))
+            if start and start.start() > 0:
+                give(i, start.start())
+        m = LEAD_LETTER.match(text(i))
+        prev = set(ASKED_LETTER.findall(MATH_LETTER.sub(r' \1', text(i - 1))))
+        own = label_tokens(parts[i]['label'])
+        follows = m and prev and m.group(1) == chr(ord(max(prev)) + 1)
+        # Or a question's first letter, under a label an earlier part already
+        # has: "2) Suppose that the plane is referred to …" then a part "1"
+        # reading "a - Give the complex form of S" (gs/2005 2/math_en.pdf III).
+        opens = m and not prev and m.group(1) == 'a' \
+            and any(p['label'] == parts[i]['label'] for p in parts[:i])
+        if not (follows or opens) or (own and own[-1] == m.group(1).upper()):
+            i += 1
+            continue
+        # Where the part's own question starts, "2) a) The figure 3 shows",
+        # or its section's heading, "B) Oscillations of the car" (ls/2004 1/phy_eng.pdf).
+        num = next((t for t in reversed(own) if t.isdigit()), None)
+        own_start = rf'{num}\s?[-.)]|' if num else ''
+        start = re.search(rf'(?:^|\n)\s*(?:\*\*)?(?:{own_start}[A-H]\s?[-.)])', text(i)[m.end():])
+        if start:
+            give(i, m.end() + start.start())
+            i += 1
+        else:
+            join(i)
+    # A part left as it was keeps its text exactly; a changed one, trimmed, is
+    # still a slice of the page.
+    kept = {(a, a + len(seg)): seg for (a, _), seg in zip(spans0, segs)}
+    return parts, [kept.get(tuple(spans[k])) or text(k).strip() for k in range(len(parts))]
 
 
 def misplaced_trace(parts, by_part):
@@ -1382,6 +1582,23 @@ def misplaced_trace(parts, by_part):
     - an answer holding the next part's own number, "2- The ester is propyl
       ethanoate. 3- This reaction is…" (gs/2005 2/chem_en.pdf II).
     The exercise then shows its whole key, which is the ministry's as printed."""
+    labels = [p['label'] for p in parts]
+    leaves = [i for i, p in enumerate(parts) if not any(lab.startswith(p['label'] + '.') for lab in labels)]
+    answered = lambda i: (by_part.get(i) or {}).get('answer')  # noqa: E731
+    for k in range(1, len(leaves) - 1):
+        before, i, after = leaves[k - 1], leaves[k], leaves[k + 1]
+        # A printed question with no key row between two answered ones: the
+        # key's row for it lost its label and ran on into the row before
+        # ("L'auto-induction. 2) u_AC = L di/dt …" under B.1, ls/2007 1/phy_fr.pdf
+        # II). An introduction with no label of its own is not a question.
+        # A number out of sequence is not a question's: "12. La proportion de ces
+        # deux isotopes…" before C.1 is carbon 12 (ls/2011 1/phy_fr.pdf III).
+        mine, theirs = label_tokens(parts[i]['label']), label_tokens(parts[after]['label'])
+        phantom = mine and theirs and mine[-1].isdigit() and theirs[-1].isdigit() \
+            and mine[:-1] == theirs[:-1] and int(mine[-1]) >= int(theirs[-1])
+        if i not in by_part and answered(before) and answered(after) and not phantom \
+                and (PRINTED_LABEL.match(parts[i]['text']) or ASKING.match(parts[i]['text'])):
+            return f"{parts[i]['label']}: no key row of its own, between answered parts"
     for i, p in enumerate(parts):
         ans = (by_part.get(i) or {}).get('answer') or ''
         if not ans:
@@ -1390,6 +1607,28 @@ def misplaced_trace(parts, by_part):
         text = MATH_LETTER.sub(r' \1', p['text'])
         if len(letters) >= 2 and not ANY_QUESTION_LETTER.search(text):
             return f"{p['label']}: answers a), b) its question does not ask"
+        # Or one letter past the question's last: the paper's 3) asks a and b,
+        # the key's 3-c is the paper's 4) (ls/2015 1/math_en.pdf I).
+        asked = set(ASKED_LETTER.findall(BARE_MATH_LETTER.sub(r' \1', text)))
+        if letters and asked and i + 1 < len(parts) and max(letters) > max(asked):
+            return f"{p['label']}: answers {max(letters)}) its question does not ask"
+        # Or starts past a): the question asks a, b, c and the key's a and b
+        # lost their labels, read on into the row before (ls/2011 1/
+        # math_fr_estekmeleye.pdf IV: 6-b's g(x) shown under "Tracer (T) et (C)").
+        # Only after a part that asks no letters: that is where they were read
+        # into. A key may also just not answer a "verify" a) (ls/2015 2/math_en.pdf B.4).
+        written = letters | set(LOOSE_ANSWER_LETTER.findall(ans))
+        # One letter heading the answer in plain text is an option picked
+        # ("c- Complete and exothermic"); a key's own sub-part label is bold, "**c)**".
+        picked = len(written) == 1 and re.match(r'\s*[a-h]\s?[-.)]', ans)
+        # Options printed on one line are choices, not questions:
+        # "a. pH<3.2 ; b. pH=4 ; c. pH>5.2" (ls/2019/chem_en.pdf III).
+        picked = picked or any(len(re.findall(r'(?:^|\s)[a-h]\s?[-.)]\s', line)) >= 2
+                               for line in BARE_MATH_LETTER.sub(r' \1', text).split('\n'))
+        picked = picked or re.search(r'\b(?:choose|choisir|select)\b|bonne réponse|correct answer', text, re.I)
+        if written and not picked and 'a' in asked and min(written) > 'a' and i \
+                and not ASKED_LETTER.search(BARE_MATH_LETTER.sub(r' \1', MATH_LETTER.sub(r' \1', parts[i - 1]['text']))):
+            return f"{p['label']}: answers from {min(written)}), its a) is elsewhere"
         if i + 1 < len(parts):
             own, nxt = label_tokens(p['label']), label_tokens(parts[i + 1]['label'])
             if nxt and nxt[-1].isdigit() and nxt[:-1] == own[:-1] and nxt != own:
@@ -1441,6 +1680,8 @@ def build_paper(exam, display):
             rec['partsDropped'] = dropped  # not parts: no words, no printed label
             parts = [p for p, s in zip(parts, segs) if s is not None]
             segs = [s for s in segs if s is not None]
+        if not questions:
+            parts, segs = reattach_letters(shown, parts, segs)
         rec.update(status='split', intro=intro,
                    parts=[{'label': p['label'], 'text': s} for p, s in zip(parts, segs)])
         mine = by_ex.get(ex['index']) or []
@@ -1487,7 +1728,7 @@ def build_paper(exam, display):
             # Last: the model's reading of which key row answers which part
             # (match_key_rows.py). It only points; the rows are the key's own,
             # and order, marks and belonging are judged exactly as above.
-            matched = model_matches(sha)
+            matched = model_matches(sha, rows)
             labels = {p['label'] for p in parts}
             mine_m = [{**r, 'exercise': ex['index'], 'tokens': placed_tokens(r['tokens'], matched[r['rid']][1])}
                       for r in rows or [] if r['rid'] in matched
@@ -1530,11 +1771,20 @@ def build_paper(exam, display):
 
     check_belonging(exam, [(rec, ex) for rec, ex in (f for f in final if isinstance(f, tuple))], display)
     out, final = final, []
+    indexed = set()
     for item in out:
         if not isinstance(item, tuple):
             final.append(item)
             continue
         rec, ex = item
+        if ex['index'] in indexed:
+            # Two exercises the extractor numbered alike (ls/2009 1/math_en.pdf
+            # misprints IV as "III"): the key's exercise of that number is the
+            # first one's, so the second gets no answers and no key from it.
+            rec['answers'] = {'status': 'index shared with an earlier exercise'}
+            final.append(rec)
+            continue
+        indexed.add(ex['index'])
         if rec['answers']['status'] == 'ok':
             trace = misplaced_trace(rec['parts'], rec['answers']['byPart'])
             if trace:
@@ -1624,6 +1874,12 @@ def check_belonging(exam, answered, display=None):
     texts = {}
     for order, e in enumerate(exam['exercises']):
         shown = (display or {}).get((exam['sha256'], order + 1), '')
+        if shown and missed_key_start(exam):
+            # The splitter missed the key, so the last exercise's stored text
+            # runs on through it and reads like every exercise's answers
+            # (ls/2016 1/bio_en.pdf). Mathpix's own text stops at the key.
+            texts[e['index']] = vocabulary(' '.join([e.get('title') or '', shown]))
+            continue
         texts[e['index']] = vocabulary(' '.join(
             [e.get('title') or '', e.get('statement') or '', shown]
             + [p.get('text') or '' for p in e.get('parts') or []]))
@@ -1795,7 +2051,7 @@ def finish_answers(ex, parts, pre, scale, pdf_path, sha):
 C1_PATH = ROOT / 'corpus' / '.mapping' / 'positioned-structure.json'
 
 
-def recover_display(display, exams_by_sha):
+def recover_display(display, exams_by_sha, track='gs'):
     """Clean text for exercises display_text.py refused, from lines it never tried.
 
     The line map records, beside each exercise's own lines, a lead-in (a
@@ -1815,13 +2071,13 @@ def recover_display(display, exams_by_sha):
     have = {c['sha256'] for c in mapped}
     fresh = []
     for exam in exams_by_sha.values():
-        if exam['sha256'] not in have and exam['path'].replace('\\', '/').startswith('gs/') and subject_of(exam['file']):
+        if exam['sha256'] not in have and exam['path'].replace('\\', '/').startswith(track + '/') and subject_of(exam['file']):
             got = ps.position_paper(exam)
             if got:
                 fresh.append(got)
     for c1 in mapped + fresh:
         exam = exams_by_sha.get(c1['sha256'])
-        if not exam or not c1['paper'].startswith('gs/'):
+        if not exam or not c1['paper'].startswith(track + '/'):
             continue
         new = c1 in fresh
         for c in c1['containers']:
@@ -1841,8 +2097,17 @@ def recover_display(display, exams_by_sha):
             # there but a third of what follows is answers (precision 0.33).
             # Cut at the key's first page.
             paper_pages = (exam.get('pages') or 0) - (exam.get('schemePages') or 0)
+            found_key = missed_key_start(exam)
+            if found_key:
+                # Or where a key table starts, when the splitter found no key
+                # (ls/2016 1/bio_en.pdf). The stored statement then holds the
+                # key too, so the word gate passes text that runs into it:
+                # every attempt is cut there.
+                paper_pages = found_key - 1
             own = [s for s in c['spans'] if not paper_pages or s['page'] <= paper_pages]
             for spans in (lead + c['spans'], c['spans'] + trail, lead + c['spans'] + trail, own, lead + own):
+                if found_key:
+                    spans = [s for s in spans if s['page'] <= paper_pages]
                 if spans == c['spans']:
                     continue
                 try:
@@ -1867,7 +2132,7 @@ def main():
     for d in json.loads(DISPLAY.read_text(encoding='utf-8')):
         if d.get('verdict') == 'ok' and d.get('markdown'):
             display[(d['sha256'], d['ordinal'])] = d['markdown']
-    recovered = recover_display(display, {e['sha256']: e for e in exams})
+    recovered = recover_display(display, {e['sha256']: e for e in exams}, args.track)
     display.update(recovered)
     print(f'clean text recovered for {len(recovered)} exercise(s) display_text.py had refused')
 

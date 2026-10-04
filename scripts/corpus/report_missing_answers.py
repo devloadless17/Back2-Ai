@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 """
-Which GS past-paper parts still show no official answer, and why.
+Which past-paper parts of a track still show no official answer, and why.
 
     python scripts/corpus/report_missing_answers.py     # writes corpus/reports/gs-missing-answers.md
+    python scripts/corpus/report_missing_answers.py --track ls   # ls-missing-answers.md
 
 Read from the files the loader writes from (paper_parts.py, lang_parts.py,
 crop_gs_key_cells.py), so it lists what the page will show after a load.
@@ -15,6 +16,7 @@ Two kinds of gap, kept apart because only one can be fixed:
   place it on its part without doubt, so the part was left empty rather than
   given a guess.
 """
+import argparse
 import collections
 import json
 import sys
@@ -23,7 +25,6 @@ from pathlib import Path
 sys.stdout.reconfigure(encoding='utf-8')
 ROOT = Path(__file__).resolve().parents[2]
 MAP = ROOT / 'corpus' / '.mapping'
-OUT = ROOT / 'corpus' / 'reports' / 'gs-missing-answers.md'
 
 # Read page by page on 2026-10-03.
 # CRDP checked 2026-10-04: it publishes no GS chemistry for 2005 at all, the
@@ -36,6 +37,12 @@ NOT_IN_ORIGINAL = {
     'gs/2021 2/SG_Chim_2021_2_Fr.pdf': 'the PDF has the questions only, no key; CRDP publishes it without one',
     'gs/2006 2/eng.pdf': ('wrong file: byte for byte the French 2006 session-1 paper; the August 2006 English '
                           'paper is not on CRDP either (both labels serve the June one)'),
+    # LS, read 2026-10-04.
+    'ls/2006 2/eng.pdf': 'wrong file: byte for byte the French 2006 session-1 paper (as gs/2006 2/eng.pdf)',
+    'ls/2017 1/bio_en.pdf': ('no key in the PDF: its last two pages are exercises 3 and 4, which the extractor '
+                             'took for a key, so those two exercises are not in the database either'),
+    'ls/2017 1/bio_fr.pdf': 'no key in the PDF; as ls/2017 1/bio_en.pdf, exercises 3 and 4 were read as a key',
+    'ls/2019 1/bio_en.pdf': 'the PDF has the questions only (4 pages), no key; the French key is a separate file',
 }
 NOTES = {
     'gs/2004 2/chem_en.pdf': 'the file is the key only, no questions',
@@ -64,14 +71,21 @@ def is_heading(parts, k):
 
 
 def main():
-    crops = {(c['paper'], c['index'], c['label']) for c in json.loads((ROOT / 'corpus' / 'gs-key-cell-crops.json').read_text('utf-8'))}
+    ap = argparse.ArgumentParser()
+    ap.add_argument('--track', default='gs')
+    track = ap.parse_args().track
+    out = ROOT / 'corpus' / 'reports' / f'{track}-missing-answers.md'
+    crops = {(c['paper'], c['index'], c['label'])
+             for c in json.loads((ROOT / 'corpus' / f'{track}-key-cell-crops.json').read_text('utf-8'))}
     for name in ('science-answer-crops.json', 'official-answer-crops.json'):
         f = ROOT / 'corpus' / name
         if f.exists():
             crops |= {(c['paper'], c['index'], c['label']) for c in json.loads(f.read_text('utf-8'))}
-    no_drawing = {(m['paper'], m['index'], m['label']) for m in json.loads((MAP / 'gs-key-no-drawing.json').read_text('utf-8'))}
-    papers = json.loads((MAP / 'gs-paper-parts.json').read_text('utf-8')) + \
-        [p for p in json.loads((MAP / 'lang-parts.json').read_text('utf-8')) if p['paper'].startswith('gs/')]
+    no_drawing = {(m['paper'], m['index'], m['label'])
+                  for m in json.loads((MAP / f'{track}-key-no-drawing.json').read_text('utf-8'))}
+    lang = MAP / ('lang-parts.json' if track == 'gs' else f'{track}-lang-parts.json')
+    papers = json.loads((MAP / f'{track}-paper-parts.json').read_text('utf-8')) + \
+        [p for p in json.loads(lang.read_text('utf-8')) if p['paper'].startswith(track + '/')]
     exams = {e['path'].replace('\\', '/'): e for e in json.loads((ROOT / 'corpus' / 'exams.json').read_text('utf-8'))}
 
     gone = collections.defaultdict(list)    # subject -> lines: not in the original
@@ -118,11 +132,11 @@ def main():
                 unplaced[subj].append(f'- {paper} — exercise {e["ordinal"]}, part {", ".join(missing)}{why}')
                 totals['parts in the key, not shown'] += len(missing)
     for paper, why in NOT_IN_ORIGINAL.items():
-        if paper not in seen:
+        if paper not in seen and paper.startswith(track + '/'):
             gone[subject_of(paper)].append(f'- {paper}: whole paper — {why}')
             totals['papers not in the original'] += 1
 
-    lines = ['# GS past papers: answers still missing', '',
+    lines = [f'# {track.upper()} past papers: answers still missing', '',
              'Made by scripts/corpus/report_missing_answers.py from the files the loader reads.',
              'Headings whose sub-parts carry the answers, and the writing tasks of the language papers,',
              'are not counted.', '',
@@ -136,13 +150,13 @@ def main():
               'Each one needs a person to match it, or a better reader.', '']
     for subj in sorted(unplaced):
         lines += [f'### {subj} ({len(unplaced[subj])} exercises)', ''] + unplaced[subj] + ['']
-    lines += ['## Notes', ''] + [f'- {k}: {v}' for k, v in NOTES.items()] + ['']
+    lines += ['## Notes', ''] + [f'- {k}: {v}' for k, v in NOTES.items() if k.startswith(track + '/')] + ['']
     lines += ['## Totals', ''] + [f'- {k}: {v}' for k, v in sorted(totals.items())] + ['']
-    OUT.parent.mkdir(parents=True, exist_ok=True)
-    OUT.write_text('\n'.join(lines), encoding='utf-8')
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text('\n'.join(lines), encoding='utf-8')
     for k, v in sorted(totals.items()):
         print(f'{k}: {v}')
-    print(f'wrote {OUT}')
+    print(f'wrote {out}')
 
 
 if __name__ == '__main__':

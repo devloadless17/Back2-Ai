@@ -4,6 +4,7 @@ GS papers taught in Arabic — Arabic, civics, geography — as their printed
 parts, each with the key's answer, in paper_parts.py's shape.
 
     python scripts/corpus/arabic_parts.py                 # writes corpus/.mapping/arabic-parts.json
+    python scripts/corpus/arabic_parts.py --track ls --out corpus/.mapping/ls-arabic-parts.json
     python scripts/corpus/arabic_parts.py --show "gs/2005 2/tarbeya.pdf"
 
 The OCR extraction (exams-arabic.json, 2026-09-24) already split each
@@ -167,6 +168,40 @@ def passage_paragraph(text, passage):
     return len(body) > 120 and not MARKS.search(body) and not ASKING.search(body[:200]) and '؟' not in body
 
 
+# The essay section's heading: what follows it in an answer is the essay's plan.
+ESSAY_HEAD = re.compile(r'(?:^|\s)(?:ثانيًا|ثانياً|ثانيا)\s*[:：-]?\s*(?:في\s+)?التّ?عبير')
+
+
+def unglue(parts):
+    """Take a neighbour's answer back out of an answer it was read into.
+
+    The OCR's answer spans run on: question 7's vocalised passage carried
+    question 8's whole answer, which 8 also had (ls/2012 1/arabe_crdp.pdf);
+    question 2's began with question 1's (ls/2012 2/arabe.pdf); question 7's ran
+    into the essay's plan, "ثانيًا: في التعبير الكتابي …" (ls/2004 1/arabe_crdp.pdf).
+    Only a neighbour's whole answer, 40 characters or more, is taken out."""
+    for p in parts:
+        # Only under a numbered question: the essay's own answer prints the
+        # heading again before its second topic's plan (ls/2018 2/arabe.pdf II).
+        if p.get('answer') and (p.get('label') or '').strip():
+            m = ESSAY_HEAD.search(p['answer'])
+            if m and m.start() > 40:
+                p['answer'] = p['answer'][:m.start()].strip()
+    for i, p in enumerate(parts):
+        mine = p.get('answer') or ''
+        for j in (i - 1, i + 1):
+            if not 0 <= j < len(parts):
+                continue
+            other = (parts[j].get('answer') or '').strip()
+            if len(other) >= 40 and other != mine.strip() and other in mine:
+                mine = mine.replace(other, ' ').strip(' |\n')
+        if mine != (p.get('answer') or ''):
+            if mine:
+                p['answer'] = mine
+            else:
+                p.pop('answer', None)
+
+
 def build(exam):
     exercises = []
     passage = exam.get('passage') or ''
@@ -206,6 +241,7 @@ def build(exam):
                       for p in parts],
             **({'passageParagraphsDropped': len(dropped)} if dropped else {}),
         }
+        unglue(rec['parts'])
         answered = any(p.get('answer') for p in rec['parts'])
         why = misplaced(rec['parts'], intro) if answered else None
         if reading and not why:
@@ -240,11 +276,13 @@ def build(exam):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--show')
+    ap.add_argument('--track', default='gs')
+    ap.add_argument('--out', default=str(OUT))  # another track: corpus/.mapping/<track>-arabic-parts.json
     args = ap.parse_args()
     papers = []
     for exam in json.loads(SOURCE.read_text(encoding='utf-8')):
         path = exam['path'].replace('\\', '/')
-        if not path.startswith('gs/') or not subject(path):
+        if not path.startswith(args.track + '/') or not subject(path):
             continue
         if args.show and path != args.show:
             continue
@@ -265,9 +303,9 @@ def main():
                     print(f"        A: {squash(p.get('answer'))[:150]}")
             return
         papers.append({'paper': path, 'sha256': exam['sha256'], 'exercises': exercises})
-    OUT.write_text(json.dumps(papers, ensure_ascii=False, indent=1), encoding='utf-8')
+    Path(args.out).write_text(json.dumps(papers, ensure_ascii=False, indent=1), encoding='utf-8')
     n = sum(len(p['exercises']) for p in papers)
-    print(f'wrote {OUT}: {len(papers)} papers, {n} exercises')
+    print(f'wrote {args.out}: {len(papers)} papers, {n} exercises')
 
 
 if __name__ == '__main__':

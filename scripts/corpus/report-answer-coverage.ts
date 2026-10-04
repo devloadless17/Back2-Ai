@@ -1,11 +1,11 @@
 /**
- * What a GS student sees under every past-paper part, per subject: its own
+ * What a student of a track sees under every past-paper part, per subject: its own
  * official answer, the exercise's full official key, the whole official
  * answer, or the answer written on request (labelled, not the ministry's).
  * Read through the page's own `paperPartsOf`, so answers the page hides count
  * as not shown.
  *
- *   node --conditions=react-server --env-file=.env --import tsx scripts/corpus/report-answer-coverage.ts
+ *   node --conditions=react-server --env-file=.env --import tsx scripts/corpus/report-answer-coverage.ts [--track LS]
  */
 import { PrismaClient } from '@prisma/client';
 
@@ -15,8 +15,10 @@ import { bodyToRender } from '@/lib/question-body';
 const db = new PrismaClient();
 
 async function main() {
+  const i = process.argv.indexOf('--track');
+  const track = ` ${(i >= 0 ? process.argv[i + 1] : 'GS')!.toUpperCase()} `;
   const rows = await db.question.findMany({
-    where: { verifiedStatus: { not: 'rejected' }, sourceExam: { title: { contains: ' GS ' } } },
+    where: { verifiedStatus: { not: 'rejected' }, sourceExam: { title: { contains: track } } },
     select: { id: true, paperParts: true, officialSolution: true, officialSolutionLatex: true, modelSolution: true,
       sourceExam: { select: { title: true } } },
   });
@@ -27,7 +29,7 @@ async function main() {
     tally.set(subject, t);
   };
   for (const r of rows) {
-    const subject = r.sourceExam!.title.split(' GS ')[0]!;
+    const subject = r.sourceExam!.title.split(track)[0]!;
     const parts = paperPartsOf(r.paperParts);
     const official = bodyToRender(r.officialSolutionLatex, r.officialSolution ?? '').trim();
     if (!parts) {

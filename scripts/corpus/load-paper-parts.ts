@@ -31,7 +31,7 @@
  */
 
 import { createHash } from 'node:crypto';
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { Prisma, PrismaClient } from '@prisma/client';
@@ -45,7 +45,7 @@ const ROOT = process.cwd();
 const SOURCE = path.join(ROOT, 'corpus/.mapping/paper-parts.json');
 const ANSWER_CROPS = path.join(ROOT, 'corpus/science-answer-crops.json');
 const OFFICIAL_ANSWER_CROPS = path.join(ROOT, 'corpus/official-answer-crops.json');
-// Drawn answers (graphs, structural formulas) cut from GS key cells: crop_gs_key_cells.py.
+// Drawn answers (graphs, structural formulas) cut from key cells: crop_gs_key_cells.py --track.
 const GS_KEY_CELL_CROPS = path.join(ROOT, 'corpus/gs-key-cell-crops.json');
 
 type Part = { label: string; text: string; marks?: number; answer?: string };
@@ -252,7 +252,13 @@ async function main() {
   const run = sha256(raw).slice(0, 16);
   const papers = JSON.parse(raw) as Paper[];
   const crops = new Map<string, string>();
-  for (const source of [ANSWER_CROPS, OFFICIAL_ANSWER_CROPS, GS_KEY_CELL_CROPS]) {
+  // One key-cell list per track (crop_gs_key_cells.py --track): gs-, ls-, se-, lh-key-cell-crops.json.
+  const keyCells = existsSync(path.dirname(GS_KEY_CELL_CROPS))
+    ? readdirSync(path.dirname(GS_KEY_CELL_CROPS))
+        .filter((f) => /^[a-z]+-key-cell-crops\.json$/.test(f))
+        .map((f) => path.join(path.dirname(GS_KEY_CELL_CROPS), f))
+    : [];
+  for (const source of [ANSWER_CROPS, OFFICIAL_ANSWER_CROPS, ...keyCells]) {
     if (!existsSync(source)) continue;
     for (const crop of JSON.parse(readFileSync(source, 'utf8')) as AnswerCrop[]) {
       if (/^\/answer-figures\/[a-z0-9][a-z0-9._-]*\.(?:png|jpe?g|webp)$/i.test(crop.image)) {

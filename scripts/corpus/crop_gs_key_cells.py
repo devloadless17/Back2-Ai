@@ -6,6 +6,7 @@ structural formula Mathpix wrote as SMILES.
 
     python scripts/corpus/crop_gs_key_cells.py            # report
     python scripts/corpus/crop_gs_key_cells.py --write    # cut, write corpus/gs-key-cell-crops.json
+    python scripts/corpus/crop_gs_key_cells.py --track ls --write   # reads ls-paper-parts.json
 
 A crop is cut only from a ruled table in the PDF's own text layer, and only
 when it can be placed without doubt: the row's label cell reads exactly the
@@ -38,13 +39,25 @@ sys.path.insert(0, str(Path(__file__).parent))
 import paper_parts as pp  # noqa: E402
 
 ROOT = pp.ROOT
-PARTS = ROOT / 'corpus' / '.mapping' / 'paper-parts.json'
-OUT = ROOT / 'corpus' / 'gs-key-cell-crops.json'
-# Answers the page's renderer refused (a tabular inside a table cell, broken
-# maths): written by `load-paper-parts.ts --refused-out`. Cut like a drawing.
-REFUSED = ROOT / 'corpus' / '.mapping' / 'gs-refused-answers.json'
-# Parts whose key row is only the word ("Figure"): no answer in the original.
-NO_DRAWING = ROOT / 'corpus' / '.mapping' / 'gs-key-no-drawing.json'
+
+
+def paths(track):
+    """The parts read, the crops written, and the side files, for a track.
+
+    GS keeps the files it was built with. Another track reads its own
+    `<track>-paper-parts.json` (paper_parts.py --track … --out …).
+    """
+    mapping = ROOT / 'corpus' / '.mapping'
+    parts = mapping / ('paper-parts.json' if track == 'gs' else f'{track}-paper-parts.json')
+    return {
+        'parts': parts,
+        'out': ROOT / 'corpus' / f'{track}-key-cell-crops.json',
+        # Answers the page's renderer refused (a tabular inside a table cell, broken
+        # maths): written by `load-paper-parts.ts --refused-out`. Cut like a drawing.
+        'refused': mapping / f'{track}-refused-answers.json',
+        # Parts whose key row is only the word ("Figure"): no answer in the original.
+        'no_drawing': mapping / f'{track}-key-no-drawing.json',
+    }
 FIGURES = ROOT / 'public' / 'answer-figures'
 SCALE = 2  # render scale: 144 dpi
 
@@ -102,9 +115,12 @@ def key_lines(pdf, first, last):
 def find_cell(pdf, exam, ordinal, row_label, formula):
     """(page index, box) of the row's answer cells, or the reason it is not placed."""
     n = exam.get('schemePages') or 0
-    if not n:
+    # Where paper_parts read the key: from a key table found earlier than the
+    # splitter's pages, or found where the splitter saw none (ls/2016 1/bio_en.pdf).
+    missed = pp.missed_key_start(exam)
+    if not n and not missed:
         return None, 'no key pages'
-    first = exam['pages'] - n
+    first = missed - 1 if missed else exam['pages'] - n
     lines = key_lines(pdf, first, exam['pages'])
     if not lines:
         return None, 'key is a scan'
@@ -208,11 +224,14 @@ def cut(path, page_index, box, name):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--write', action='store_true')
+    ap.add_argument('--track', default='gs')
     args = ap.parse_args()
+    files = paths(args.track)
     meta = {e['path'].replace('\\', '/'): e for e in json.loads(pp.EXAMS.read_text(encoding='utf-8'))}
-    papers = [p for p in json.loads(PARTS.read_text(encoding='utf-8')) if p['paper'].startswith('gs/')]
+    papers = [p for p in json.loads(files['parts'].read_text(encoding='utf-8')) if p['paper'].startswith(args.track + '/')]
     crops, missing, unplaced = [], [], collections.Counter()
-    refused = {(r['paper'], r['index'], r['label']) for r in json.loads(REFUSED.read_text(encoding='utf-8'))}         if REFUSED.exists() else set()
+    refused = {(r['paper'], r['index'], r['label']) for r in json.loads(files['refused'].read_text(encoding='utf-8'))} \
+        if files['refused'].exists() else set()
     for p in papers:
         exam = meta[p['paper']]
         todo = [(e, part) for e in p['exercises'] for part in e.get('parts') or []
@@ -239,7 +258,7 @@ def main():
                         missing.append({'paper': p['paper'], 'index': e['index'], 'label': part['label'], 'where': where})
                     continue
                 page_index, box = got
-                name = (f"{exam['sha256'][:12]}-gskey-p{page_index + 1}-e{e['index']}-"
+                name = (f"{exam['sha256'][:12]}-{args.track}key-p{page_index + 1}-e{e['index']}-"
                         f"{re.sub(r'[^a-z0-9]+', '-', part['label'].lower()).strip('-')}.webp")
                 image = cut(path, page_index, box, name) if args.write else f'/answer-figures/{name}'
                 crops.append({'paper': p['paper'], 'index': e['index'], 'label': part['label'], 'image': image,
@@ -251,9 +270,9 @@ def main():
     for m in missing:
         print('   ', m['where'])
     if args.write:
-        OUT.write_text(json.dumps(crops, ensure_ascii=False, indent=1), encoding='utf-8')
-        NO_DRAWING.write_text(json.dumps(missing, ensure_ascii=False, indent=1), encoding='utf-8')
-        print(f'wrote {OUT}')
+        files['out'].write_text(json.dumps(crops, ensure_ascii=False, indent=1), encoding='utf-8')
+        files['no_drawing'].write_text(json.dumps(missing, ensure_ascii=False, indent=1), encoding='utf-8')
+        print(f"wrote {files['out']}")
     else:
         for c in crops[:40]:
             print('   ', c['paper'], c['index'], c['label'], c['page'], c['box'])

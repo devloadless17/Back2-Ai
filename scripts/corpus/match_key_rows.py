@@ -105,12 +105,19 @@ def main():
     display = {(d['sha256'], d['ordinal']): d['markdown']
                for d in json.loads(pp.DISPLAY.read_text(encoding='utf-8'))
                if d.get('verdict') == 'ok' and d.get('markdown')}
-    display.update(pp.recover_display(display, {e['sha256']: e for e in exams}))
+    display.update(pp.recover_display(display, {e['sha256']: e for e in exams}, args.track))
+
+    # Placements are stored per PDF. A PDF another track also files
+    # (ls/2004 2/math_en.pdf is gs/2004 2's) keeps the placements made for it there.
+    placed = json.loads(pp.MATCHES.read_text(encoding='utf-8')) if pp.MATCHES.exists() else {}
+    elsewhere = {e['sha256'] for e in exams if not e['path'].replace('\\', '/').startswith(args.track + '/')}
 
     jobs = []
     for exam in exams:
         path = exam['path'].replace('\\', '/')
         if not path.startswith(args.track + '/') or not pp.subject_of(exam['file']):
+            continue
+        if exam['sha256'] in placed and exam['sha256'] in elsewhere:
             continue
         if pp.ADAPTED.search(exam['file']) or pp.ARABIC_EDITION.search(exam['file']) or exam['language'] == 'ar':
             continue
@@ -155,7 +162,9 @@ def main():
                 continue
             part = ids.get(item.get('part') or '')
             if 0 <= rid < len(rows) and part:
-                paper[str(rid)] = list(part)
+                # The row's label and first words too: paper_parts finds the row
+                # by them when a change to the key's reading moves its position.
+                paper[str(rid)] = list(part) + [pp.row_print(rows[rid])]
         out[exam['sha256']] = paper
         print(f"  {exam['path'].replace(chr(92), '/')}: {len(paper)}/{len(rows)} rows placed  (spent ${spent:.3f})")
     pp.MATCHES.write_text(json.dumps(out, ensure_ascii=False, indent=1), encoding='utf-8')
