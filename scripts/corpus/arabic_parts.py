@@ -50,6 +50,18 @@ def squash(text):
     return re.sub(r'\s+', ' ', text or '').strip()
 
 
+def tidy(text):
+    """The OCR's table furniture out of a text: "<br>" inside a cell
+    (gs/2018 1/tarbeya.pdf) is a line break, and a line holding only the
+    table's "|" borders showed on the page as stray bars."""
+    text = re.sub(r'\s*<br\s*/?>\s*', '\n', text or '', flags=re.I)
+    text = re.sub(r'(?m)^[ \t|]*\|[ \t|]*$\n?', '', text)
+    # The key's marks column, one figure per line ("١" — which reads as a bar
+    # on the page, gs/2005 2/tarbeya.pdf): a marking note, not the answer.
+    text = re.sub(r'(?m)^[ \t]*[0-9٠-٩][0-9٠-٩.,/½¼¾ ]{0,4}[ \t]*$\n?', '', text)
+    return re.sub(r'\n{3,}', '\n\n', text).strip()
+
+
 def intro_of(exercise):
     """The title, and whatever the statement prints before its first part."""
     statement = exercise.get('statement') or ''
@@ -187,10 +199,10 @@ def build(exam):
             intro = (e.get('title') or '').strip() if not in_passage(e.get('title') or '', passage) else ''
         rec = {
             'ordinal': order, 'index': e['index'], 'marks': e.get('marks'), 'status': 'split',
-            'intro': intro,
-            'parts': [{'label': p.get('label') or '', 'text': p['text'].strip(),
+            'intro': tidy(intro),
+            'parts': [{'label': p.get('label') or '', 'text': tidy(p['text']),
                        **({'marks': p['marks']} if isinstance(p.get('marks'), (int, float)) else {}),
-                       **({'answer': p['answer'].strip()} if (p.get('answer') or '').strip() else {})}
+                       **({'answer': tidy(p['answer'])} if tidy(p.get('answer')) else {})}
                       for p in parts],
             **({'passageParagraphsDropped': len(dropped)} if dropped else {}),
         }

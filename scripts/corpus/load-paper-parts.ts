@@ -123,6 +123,43 @@ function criterion(part: Part): string {
 }
 
 const refused = { exercises: 0, answers: 0, examples: [] as string[], parts: [] as Array<{ paper: string; index: number; label: string }> };
+const notAnswers = { count: 0, examples: [] as string[] };
+
+/** Text as a reader compares it: maths markup, bold and spacing gone. */
+function plainOf(text: string): string {
+  return text
+    .replace(/\\(?:mathrm|text|mathbf|boldsymbol)\s*\{([^}]*)\}/g, '$1')
+    .replace(/[\s$*{}\\]+/g, ' ')
+    .trim()
+    .toLowerCase();
+}
+
+// A question that offers what to choose from: its answer is one of its own words.
+const OFFERS_CHOICE = /\b(?:choose|choisir|choisis|which|lequel|laquelle|parmi|among|true|false|vrai|faux)\b|\bor\b|\bou\b|اختر|أيّ?|صح|خطأ/i;
+// Or lists them: "a. pipette jaugée de 20 mL. b. pipette jaugée de 10 mL" (gs/2018 1/chem_fr.pdf).
+const LISTS_OPTIONS = /(?:^|\s)a\s?[.)-]\s[\s\S]*?\sb\s?[.)-]\s/i;
+const ASKS_DRAWING = /\b(?:draw|trace|tracer|plot|represent|représenter|sketch)\b|ارسم/i;
+const ONLY_MARKS = /^[\s(]*[\d.,½¼¾/\s]+\s*(?:pts?|points?|marks?|علامة|علامات|علامتان)[\s)]*$/i;
+
+/**
+ * Why a key row standing under a part is not its answer, or null. Every
+ * answer comes from the key's pages, but a key page also prints section
+ * titles, marks and figure captions; 9 of 4,301 stored answers were such
+ * ("Formule moléculaire et isomérie de (A)" — the section's own title;
+ * "(1/4pt)"; "the curve" and "(d)" where the answer is a drawing).
+ */
+function notAnAnswer(answer: string, question: string): string | null {
+  const plain = answer.replace(/\*\*[^*]*\*\*/g, '').trim();
+  if (ONLY_MARKS.test(plain)) return 'only marks';
+  const a = plainOf(answer);
+  if (ASKS_DRAWING.test(question) && a.replace(/[^\p{L}\p{N}]/gu, '').length <= 3) return 'a label where a drawing is asked';
+  // A choice's answer is one of the question's own options; any other
+  // answer copied from its question is a title.
+  if (a.length <= 60 && plainOf(question).includes(a) && !OFFERS_CHOICE.test(question) && !LISTS_OPTIONS.test(question)) {
+    return 'copied from its question';
+  }
+  return null;
+}
 
 /**
  * The page's own renderer has the last word. The parts are slices of text
@@ -145,8 +182,18 @@ function wantedFor(exercise: Exercise, run: string, paper: string, crops: Map<st
   // Not matched part by part: the exercise's whole key, as the ministry printed
   // it, replaces the scraps the text layer had stored.
   const wholeKey = !answered && exercise.wholeKey && !renderProblem(exercise.wholeKey) ? exercise.wholeKey : null;
+  // One long answer under two parts: the key gave one of them the other's
+  // (gs/2016 2/arabe.pdf ٢ and ٣), and which is unknown, so neither shows it.
+  const seen = new Map<string, number>();
+  for (const p of exercise.parts) if (p.answer && p.answer.length >= 30) seen.set(p.answer, (seen.get(p.answer) ?? 0) + 1);
   const parts = exercise.parts.map((p) => {
     let answer = answered && p.answer ? p.answer : undefined;
+    const not = answer ? ((seen.get(answer) ?? 0) > 1 ? 'the same answer under another part' : notAnAnswer(answer, p.text)) : null;
+    if (answer && not) {
+      notAnswers.count += 1;
+      if (notAnswers.examples.length < 30) notAnswers.examples.push(`${paper} #${exercise.index} ${p.label}: ${not}`);
+      answer = undefined;
+    }
     if (answer && renderProblem(answer)) {
       refused.answers += 1;
       if (refused.examples.length < 6) refused.examples.push(`${paper} #${exercise.index} ${p.label}: ${renderProblem(answer)}`);
@@ -334,6 +381,8 @@ async function main() {
     console.log(`    ${w.paper} #${w.index}: ${r.contentText.replace(/\s+/g, ' ').slice(0, 60)}`);
   }
   console.log(`  refused by the page's renderer ${refused.exercises} exercise(s) kept whole, ${refused.answers} answer(s) dropped`);
+  console.log(`  key rows that are not answers ${notAnswers.count} dropped`);
+  for (const e of notAnswers.examples) console.log(`    ${e}`);
   // The dropped answers, for crop_gs_key_cells.py to cut from the key page instead.
   const refusedOut = arg('refused-out');
   if (refusedOut) writeFileSync(refusedOut, JSON.stringify(refused.parts, null, 1));
