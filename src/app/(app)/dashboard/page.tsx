@@ -2,11 +2,13 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 
 import { SubjectCircles, type SubjectCircle } from '@/components/dashboard/subject-circles';
+import { NextUpCard } from '@/components/progress/next-up-card';
 import { LinkButton } from '@/components/ui/button';
 import { requireUser } from '@/lib/auth/guards';
 import { getTranslations } from '@/lib/i18n';
 import { format } from '@/lib/i18n/format';
 import { getProgressForUser } from '@/lib/queries/progress';
+import { getNextUp } from '@/lib/queries/next-up';
 
 // Browser-tab titles are resolved per request from the user's locale, like
 // every other string — a hardcoded French title would follow an English-track
@@ -29,6 +31,10 @@ export default async function DashboardPage() {
   const { t } = await getTranslations();
 
   const progress = await getProgressForUser(user.id, user.trackId, user.preferredLanguage);
+  // One decision before the subject chooser. `getNextUp` reuses this progress
+  // snapshot, so the dashboard gains an action without a second full progress
+  // query or a wall of new information.
+  const next = await getNextUp(user.id, user.trackId, user.preferredLanguage, progress);
 
   // One circle per subject; mean chapter mastery is the small figure under it.
   const subjectCircles: SubjectCircle[] = progress.map((subject) => {
@@ -62,6 +68,10 @@ export default async function DashboardPage() {
         <span className="home-word mx-1 inline-block rounded-2xl px-3 py-0.5">{t.dashboard.homeWord}</span>
         {after}
       </h1>
+
+      <div className="mx-auto mt-8 max-w-2xl">
+        <NextUpCard next={next} />
+      </div>
 
       <div className="mt-10 sm:mt-12">
         {subjectCircles.length === 0 ? (
