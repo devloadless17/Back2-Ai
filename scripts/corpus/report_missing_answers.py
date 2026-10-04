@@ -26,16 +26,23 @@ MAP = ROOT / 'corpus' / '.mapping'
 OUT = ROOT / 'corpus' / 'reports' / 'gs-missing-answers.md'
 
 # Read page by page on 2026-10-03.
+# CRDP checked 2026-10-04: it publishes no GS chemistry for 2005 at all, the
+# 2021-2 files without keys (the same bytes we hold), and for English 2006
+# only the June paper, under both session labels. Students get the answer
+# written on request (labelled) for these.
 NOT_IN_ORIGINAL = {
-    'gs/2005 1/gs chemistry_en 1.pdf': 'the PDF has the questions only, no key',
-    'gs/2021 2/SG_Chim_2021_2_En.pdf': 'the PDF has the questions only, no key',
-    'gs/2021 2/SG_Chim_2021_2_Fr.pdf': 'the PDF has the questions only, no key',
-    'gs/2006 2/eng.pdf': 'wrong file: byte for byte the French 2006 session-1 paper; the English paper is not in our files',
+    'gs/2005 1/gs chemistry_en 1.pdf': 'the PDF has the questions only, no key; CRDP has no GS chemistry 2005',
+    'gs/2021 2/SG_Chim_2021_2_En.pdf': 'the PDF has the questions only, no key; CRDP publishes it without one',
+    'gs/2021 2/SG_Chim_2021_2_Fr.pdf': 'the PDF has the questions only, no key; CRDP publishes it without one',
+    'gs/2006 2/eng.pdf': ('wrong file: byte for byte the French 2006 session-1 paper; the August 2006 English '
+                          'paper is not on CRDP either (both labels serve the June one)'),
 }
 NOTES = {
     'gs/2004 2/chem_en.pdf': 'the file is the key only, no questions',
     'gs/2011 2/eng.pdf': 'the database stored this paper\'s key as its question text; hidden for GS, shown split for LS',
-    'gs/2004 1/2004 gs arabe 1.pdf': 'wrong file: it holds a French paper, not the Arabic one; not split (arabic_parts.py)',
+    'gs/2004 1/2004 gs arabe 1.pdf': ('wrong file (a French paper; its rows are hidden). FIXED 2026-10-04: the real '
+                                      'GS/LS paper, ls/2004 1/arabe_crdp.pdf, is filed for GS as gs/2004 1/arabe_crdp.pdf; '
+                                      'its third "exercise" was the answer key and is hidden'),
     'gs/2006 2/tarbeya.pdf': 'the key\'s rows slid (part 3 shows question 1\'s answer): left as one block',
     'gs/2012 2/arabe.pdf': 'passage paragraphs and questions mixed, answers shifted by one: left as one block',
     'gs/2017 2/arabe.pdf': 'passage paragraphs and questions mixed: left as one block',
