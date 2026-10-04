@@ -62,6 +62,8 @@ SMILES_LINE = re.compile(r'\s*`[A-Za-z0-9@+\-\[\]()=#$/\.%]+`\s*')
 TABLE_RULE = re.compile(r'^\s*\|?(?:\s*:?-{2,}:?\s*\|)+\s*:?-*:?\s*$')
 # A question's own numbered line: "2.1. Choose", "3) Calculate".
 QUESTION_LINE = re.compile(r'(?m)^\s*\d+(?:\.\d+)+\.?\s+[A-ZÀ-Ý]|^\s*\d+\s*\)\s+[A-ZÀ-Ý][a-zà-ÿ]+\s')
+# A question numbered "1- Dégager", "2- Cite".
+NUMBERED_ASK = re.compile(r'(?m)^\s*\d+\s*-\s+[A-ZÀ-Ý][a-zà-ÿ]')
 
 
 def parts_file(track):
@@ -148,7 +150,11 @@ def region_for(page, cap, lo, hi):
              if not (area[0] - 2 <= float(w['x0']) and float(w['x1']) <= area[2] + 2
                      and area[1] - 2 <= float(w['top']) and float(w['bottom']) <= area[3] + 2)
              and float(w['top']) < top - 1]
-    if len(loose) > 8 or QUESTION_LINE.search(page.crop(b).extract_text() or ''):
+    # Nor one that reaches a numbered question ("1- Dégager …") or another
+    # document's caption (lh/2024 1/LH_Bio_2024_1_Fr.pdf Document 2).
+    inside = page.crop(b).extract_text() or ''
+    if (len(loose) > 8 or QUESTION_LINE.search(inside) or NUMBERED_ASK.search(inside)
+            or len(re.findall(r'(?m)^\s*(?:Document|Doc\.?)\s*[-–]?\s*\d{1,2}\s*$', inside)) > 1):
         return None
     return 'figure', b
 
