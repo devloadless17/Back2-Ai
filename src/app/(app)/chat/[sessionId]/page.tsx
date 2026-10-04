@@ -289,6 +289,22 @@ export default async function ChatSessionPage({
         disabled={!configured}
         autoPrompt={autoPrompt}
         greeting={session.messages.length === 0 && !session.question ? greetingFor(t, user.displayName) : null}
+        aboveComposer={
+          askForSubject ? (
+            <SubjectPicker
+                  sessionId={session.id}
+                  subjects={subjects}
+                  labels={{
+                    title: t.chat.subjectPickTitle,
+                    hint: t.chat.subjectPickHint,
+                    any: t.chat.subjectPickAny,
+                    anyHint: t.chat.subjectPickAnyHint,
+                    chapters: t.chat.subjectPickChapters,
+                    error: t.common.unknownError,
+                  }}
+                />
+          ) : null
+        }
         subject={
           session.subject
             ? { name: session.subject.name, language: String(session.subject.language) }
@@ -296,22 +312,6 @@ export default async function ChatSessionPage({
         }
       />
 
-      {askForSubject && (
-        <div className="mx-auto mt-10 max-w-3xl">
-          <SubjectPicker
-            sessionId={session.id}
-            subjects={subjects}
-            labels={{
-              title: t.chat.subjectPickTitle,
-              hint: t.chat.subjectPickHint,
-              any: t.chat.subjectPickAny,
-              anyHint: t.chat.subjectPickAnyHint,
-              chapters: t.chat.subjectPickChapters,
-              error: t.common.unknownError,
-            }}
-          />
-        </div>
-      )}
       </div>
     </div>
   );

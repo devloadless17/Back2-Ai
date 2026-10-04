@@ -117,6 +117,7 @@ export function ChatThread({
   subject,
   autoPrompt,
   greeting,
+  aboveComposer,
 }: {
   sessionId: string;
   initialMessages: ChatMessageView[];
@@ -138,6 +139,8 @@ export function ChatThread({
   autoPrompt?: string | null;
   /** "Good evening, Maya" — shown over the box while the conversation is empty. */
   greeting?: string | null;
+  /** Shown between the greeting and the box on a fresh conversation — the subject chips. */
+  aboveComposer?: React.ReactNode;
 }) {
   const { t } = useI18n();
 
@@ -516,6 +519,7 @@ export function ChatThread({
             {greeting ?? t.chat.title}
           </h2>
         )}
+        {fresh && aboveComposer}
 
         {messages.map((message) =>
           message.role === 'user' ? (
