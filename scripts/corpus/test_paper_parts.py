@@ -111,13 +111,24 @@ check("heading row with marks is a heading", got == [(1, "1.1", 1.0), (1, "1.2",
 # gs/2021 2/SG_Math_2021_2_En.pdf: the header names the exercise and carries its
 # total where "Mark" would be; the fifth exercise is misprinted "III".
 rows = rows_of(
+    "\\begin{tabular}[t]{|l|l|l|}\n\\hline III & Answers & 4pts \\\\\n"
+    "\\hline 1 & $y=2$ & 1 \\\\\n\\hline\n\\end{tabular}\n"
     "\\begin{tabular}[t]{|l|l|l|}\n\\hline IV & Answers & 6pts \\\\\n"
     "\\hline 1.a & $x=1$ & 1 \\\\\n\\hline\n\\end{tabular}\n"
     "\\begin{tabular}[t]{|l|l|l|}\n\\hline III & Answers & 12pts \\\\\n"
     "\\hline 1 & $f(0)=2$ & 1 \\\\\n\\hline\n\\end{tabular}")
 got = [(r["exercise"], ".".join(r["tokens"])) for r in rows]
-check("a header known by its shape; a backwards number is the next exercise",
-      got == [(4, "1.A"), (5, "1")], str(got))
+check("a header known by its shape; going back to an answered number is the next exercise",
+      got == [(3, "1"), (4, "1.A"), (5, "1")], str(got))
+# ls/2018 1/bio_en.pdf prints its key's exercises 1, 2, 4, 3: a number not yet
+# answered is the key's own order, not a misprint.
+rows = rows_of(
+    "\\begin{tabular}[t]{|l|l|l|}\n\\hline Q4. & Correction & Marks \\\\\n"
+    "\\hline 1 & a & 1 \\\\\n\\hline\n\\end{tabular}\n"
+    "\\begin{tabular}[t]{|l|l|l|}\n\\hline Q & Exercise 3 & Marks \\\\\n"
+    "\\hline 1 & b & 1 \\\\\n\\hline\n\\end{tabular}")
+got = [(r["exercise"], ".".join(r["tokens"])) for r in rows]
+check("a backwards number not yet answered is that exercise", got == [(4, "1"), (3, "1")], str(got))
 # gs/2005 1/gs math_en 1.pdf repeats a header when its table runs on: same exercise.
 rows = rows_of(
     "\\begin{tabular}[t]{|l|l|l|}\n\\hline Q2 & Short Answers & M \\\\\n"
