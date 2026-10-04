@@ -59,7 +59,7 @@ ARABIC = re.compile(r'[\u0600-\u06FF\uFB50-\uFDFF\uFE70-\uFEFF]')
 # The adapted papers set for candidates with special needs. They are separate
 # exams with their own exercises, and the product does not show them.
 # Every spelling the filenames use (accommodation.ts keeps the same list).
-ADAPTED = re.compile(r'ehte[uy]ejet|ehtiyejet|makf|mu5tasa|mokhtasa|mukhtasar', re.I)
+ADAPTED = re.compile(r'ehte[uy]ejet|ehtie?yejet|su3ubet|makf|mu5tasa|mokhtasa|mukhtasar', re.I)
 ARABIC_EDITION = re.compile(r'(_ar\b|_ar[._]|arab|_dr\.pdf)', re.I)
 
 

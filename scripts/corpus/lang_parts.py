@@ -586,8 +586,9 @@ def to_paper_parts(exam, rec):
 
 
 # "gs english 1.pdf" (2004–2006) and "SVSG_Eng_2021_1.pdf" (2021–2024) too: both
-# were missed, on GS and LS alike.
-LANG = re.compile(r'^(?:eng|english|en\b|en\.|fr\b|fr\.|french|.*\bfrench\b|.*\benglish\b|svsg_(?:eng|fran)_)', re.I)
+# were missed, on GS and LS alike. SE and LH name theirs "SE_Eng_2021_2.pdf",
+# "LH_Fran_2024_1.pdf".
+LANG = re.compile(r'^(?:eng|english|en\b|en\.|fr\b|fr\.|french|.*\bfrench\b|.*\benglish\b|(?:svsg|se|lh)_(?:eng|fran)_)', re.I)
 
 
 def language_papers(track):

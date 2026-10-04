@@ -6,4 +6,4 @@
  * makfufin / makfoufen / makfofen, mu5tasa / mokhtasa. The same list
  * `mathpix-batch.ts` refuses to send.
  */
-export const ACCOMMODATION = /ehte[uy]ejet|ehtiyejet|makfuf|makfouf|makfof|mu5tasa|mokhtasa|mukhtasar/i;
+export const ACCOMMODATION = /ehte[uy]ejet|ehtie?yejet|su3ubet|makfuf|makfouf|makfof|mu5tasa|mokhtasa|mukhtasar/i;
