@@ -528,6 +528,8 @@ export const en = {
     showAnswer: 'Show answer',
     hideAnswer: 'Hide answer',
     partAnswerMissing: 'No official answer for this part.',
+    partAnswerInFullKey: 'Its answer is in the full official key below.',
+    fullKey: 'Full official key for this exercise',
   },
 
   examSim: {

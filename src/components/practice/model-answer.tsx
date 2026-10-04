@@ -25,7 +25,16 @@ type State =
  * stored copy. The note under the heading stays — a student must be able to
  * tell this apart from the ministry's answer key.
  */
-export function ModelAnswer({ questionId, dir }: { questionId: string; dir?: 'rtl' | 'ltr' }) {
+export function ModelAnswer({
+  questionId,
+  dir,
+  beyondOfficial = false,
+}: {
+  questionId: string;
+  dir?: 'rtl' | 'ltr';
+  /** A past-paper exercise whose official key leaves some parts without an answer. */
+  beyondOfficial?: boolean;
+}) {
   const { t } = useI18n();
   const [state, setState] = useState<State>({ kind: 'idle' });
 
@@ -34,7 +43,10 @@ export function ModelAnswer({ questionId, dir }: { questionId: string; dir?: 'rt
     if (state.kind === 'message' && !state.retry) return;
     setState({ kind: 'loading' });
     try {
-      const response = await sendJson<Response>('/api/questions/model-solution', 'POST', { questionId });
+      const response = await sendJson<Response>('/api/questions/model-solution', 'POST', {
+        questionId,
+        ...(beyondOfficial ? { beyondOfficial: true } : {}),
+      });
       if (response.status === 'ok') {
         setState({ kind: 'ready', solution: response.solution, official: response.official });
       } else {

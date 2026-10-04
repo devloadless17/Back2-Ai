@@ -3,6 +3,7 @@ import 'server-only';
 import { ai } from '@/lib/ai';
 import { db } from '@/lib/db';
 import { isAiConfigured } from '@/lib/env';
+import { paperPartsOf, partsWithoutAnswer } from '@/lib/paper-parts';
 import { bodyToRender } from '@/lib/question-body';
 import { retrieveGrounding } from '@/lib/retrieval';
 
@@ -83,6 +84,12 @@ export async function modelSolutionFor(input: {
   /** Whose programme to ground the answer in. Needed for the course retrieval. */
   userId?: string;
   canSpend: () => Promise<boolean>;
+  /**
+   * Answer even though an official answer exists — for a past-paper exercise
+   * some of whose parts the official key leaves without an answer the page can
+   * show. Checked here against the stored parts, not taken on trust.
+   */
+  beyondOfficial?: boolean;
 }): Promise<ModelSolutionResult> {
   const question = await db.question.findFirst({
     where: {
@@ -100,6 +107,7 @@ export async function modelSolutionFor(input: {
       officialSolutionLatex: true,
       modelSolution: true,
       modelSolutionAt: true,
+      paperParts: true,
       contentImages: true,
       _count: { select: { visuals: { where: { status: 'active' } } } },
       chapter: { select: { name: true, subjectId: true, subject: { select: { name: true, language: true } } } },
@@ -111,7 +119,9 @@ export async function modelSolutionFor(input: {
     question.officialSolutionLatex,
     question.officialSolution ?? '',
   ).trim();
-  if (official) return { status: 'ok', solution: official, official: true, cached: true };
+  const parts = paperPartsOf(question.paperParts);
+  const gap = Boolean(input.beyondOfficial && parts && !parts.fullKey && partsWithoutAnswer(parts.parts) > 0);
+  if (official && !gap) return { status: 'ok', solution: official, official: true, cached: true };
 
   if (question.modelSolutionAt) {
     const stored = question.modelSolution?.trim();

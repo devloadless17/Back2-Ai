@@ -5,6 +5,7 @@ import { notFound } from 'next/navigation';
 import { TutorAnchor } from '@/components/chat/tutor-context';
 import { AskWhy } from '@/components/practice/ask-why';
 import { FlagButton } from '@/components/practice/flag-button';
+import { ModelAnswer } from '@/components/practice/model-answer';
 import { PartAnswer } from '@/components/practice/part-answer';
 import { RevealableSolution } from '@/components/practice/revealable-solution';
 import { Alert, EmptyAction, EmptyState } from '@/components/ui/feedback';
@@ -18,7 +19,7 @@ import { paperDuration } from '@/lib/exam-duration';
 import { getTranslations } from '@/lib/i18n';
 import { format } from '@/lib/i18n/format';
 import { dirForLanguage } from '@/lib/i18n/config';
-import { formatMarks, paperPartsOf, partMarkdown, partOnlyHeads } from '@/lib/paper-parts';
+import { formatMarks, paperPartsOf, partMarkdown, partOnlyHeads, partsWithoutAnswer } from '@/lib/paper-parts';
 import { OWN_EDITION_ONLY, paperScopeFor, subjectIdsForTrack } from '@/lib/queries/taxonomy';
 import { visualKeysFor } from '@/lib/visual-evidence';
 import { bodyToRender } from '@/lib/question-body';
@@ -128,6 +129,9 @@ export default async function ExamCyclePage({
    * words, and counting characters would call it French.
    */
   const paperDir = dirForLanguage(cycle.subject.language);
+  // Philosophy papers get no answers added (the user, 2026-10-02): only the
+  // ministry's own key is shown, never one written on request.
+  const answersWritten = !/philo|فلسف/i.test(cycle.subject.name);
   // Shown unless the paper's own first question already prints it.
   const paperPassage = (() => {
     const passage = paperQuestions.find((q) => q.sourcePassage?.trim())?.sourcePassage ?? null;
@@ -225,6 +229,8 @@ export default async function ExamCyclePage({
                * there is.
                */
               const partsAnswered = Boolean(parts?.parts.some((p) => p.answer || p.answerImage));
+              // Parts the official key leaves without an answer the page can show.
+              const gaps = parts ? partsWithoutAnswer(parts.parts) : 0;
               const solution = partsAnswered
                 ? null
                 : bodyToRender(question.officialSolutionLatex, question.officialSolution ?? '').trim() || null;
@@ -256,11 +262,25 @@ export default async function ExamCyclePage({
                           {part.answer || part.answerImage ? (
                             <PartAnswer answer={part.answer} image={part.answerImage} dir={paperDir} />
                           ) : partsAnswered && !partOnlyHeads(parts.parts, i) ? (
-                            <p className="mt-2 text-meta text-ink-muted">{t.oldCycles.partAnswerMissing}</p>
+                            <p className="mt-2 text-meta text-ink-muted">
+                              {parts.fullKey ? t.oldCycles.partAnswerInFullKey : t.oldCycles.partAnswerMissing}
+                            </p>
                           ) : null}
                         </li>
                       ))}
                     </ol>
+                    {/* The key has the missing parts' answers but could not place
+                        them: the whole key, as printed, so nothing is left out. */}
+                    {partsAnswered && gaps > 0 && parts.fullKey && (
+                      <details className="mt-2 rounded border border-rule">
+                        <summary className="cursor-pointer list-none px-3 py-2 text-meta font-medium text-ink hover:bg-paper-sunken">
+                          {t.oldCycles.fullKey}
+                        </summary>
+                        <div className="px-3 pb-3">
+                          <MathText dir={paperDir}>{parts.fullKey}</MathText>
+                        </div>
+                      </details>
+                    )}
                   </>
                 ) : (
                   <QuestionBody
@@ -289,6 +309,13 @@ export default async function ExamCyclePage({
                 </div>
 
                 <RevealableSolution solution={solution} dir={paperDir} />
+                {/* No official answer at all, or parts the key leaves bare with
+                    no whole key to fall back on: an answer written on request,
+                    labelled as not the ministry's. Nothing is left blank. */}
+                {answersWritten && !solution && !partsAnswered && <ModelAnswer questionId={question.id} dir={paperDir} />}
+                {answersWritten && partsAnswered && gaps > 0 && !parts?.fullKey && (
+                  <ModelAnswer questionId={question.id} dir={paperDir} beyondOfficial />
+                )}
               </section>
               );
             })}

@@ -1551,6 +1551,15 @@ def build_paper(exam, display):
                         p['marks'] = got['marks']
                     if got['answer']:
                         p['answer'] = got['answer']
+            # A part left without its answer (its row read only as a title, a
+            # drawing, a label the extractor took from a formula): the key has
+            # it, so the whole key is kept beside the parts and the page offers
+            # it, rather than leaving the part with nothing.
+            if rec['answers'].get('leavesAnswered', 0) < rec['answers'].get('leaves', 0):
+                full = whole_key(by_ex.get(ex['index']) or [], exam, ex['index'],
+                                 ROOT / 'corpus' / 'exams' / exam['path'].replace('\\', '/'), sha, display)
+                if full:
+                    rec['fullKey'] = full
         elif rec['answers']['status'] in WHOLE_KEY_STATUSES and (
                 rec['answers']['status'] == 'answers misplaced' or not (SIDECARS / f'{sha}.json').exists()):
             # A paper whose maths key the scheme reader already took keeps it —

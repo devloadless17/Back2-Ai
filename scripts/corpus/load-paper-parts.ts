@@ -53,6 +53,8 @@ type Exercise = {
   ordinal: number;
   /** The exercise's key as printed, where its rows could not be matched part by part. */
   wholeKey?: string;
+  /** The whole key, kept beside answered parts when some part has none (paper_parts.py). */
+  fullKey?: string;
   index: number;
   marks: number;
   status: string;
@@ -213,6 +215,11 @@ function wantedFor(exercise: Exercise, run: string, paper: string, crops: Map<st
     };
   });
   const withAnswers = parts.filter((p) => p.answer);
+  // Some part has no answer of its own: the whole key goes with the parts, so
+  // the page can show it rather than leave the part with nothing.
+  const gap = answered && parts.some((p) => !p.answer && !p.answerImage);
+  const fullKey = gap && exercise.fullKey && !renderProblem(exercise.fullKey) ? exercise.fullKey : undefined;
+  const extra = fullKey ? { fullKey } : {};
   const solution =
     answered && withAnswers.length
       ? withAnswers.map((p) => `**${p.label}**\n\n${p.answer}`).join('\n\n')
@@ -222,9 +229,9 @@ function wantedFor(exercise: Exercise, run: string, paper: string, crops: Map<st
     : null;
   const passage = exercise.passage?.trim() && !renderProblem(exercise.passage) ? exercise.passage.trim() : '';
   return {
-    parts: { intro: exercise.intro ?? '', parts, run } as Prisma.InputJsonValue,
+    parts: { intro: exercise.intro ?? '', parts, run, ...extra } as Prisma.InputJsonValue,
     partsWithPassage: passage
-      ? ({ intro: [passage, exercise.intro ?? ''].filter(Boolean).join('\n\n'), parts, run } as Prisma.InputJsonValue)
+      ? ({ intro: [passage, exercise.intro ?? ''].filter(Boolean).join('\n\n'), parts, run, ...extra } as Prisma.InputJsonValue)
       : null,
     solution,
     bareme: bareme && bareme.length ? bareme : null,

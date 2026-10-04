@@ -526,6 +526,8 @@ export const ar: Dictionary = {
     showAnswer: 'إظهار الجواب',
     hideAnswer: 'إخفاء الجواب',
     partAnswerMissing: 'لا يوجد جواب رسمي لهذا الجزء.',
+    partAnswerInFullKey: 'جواب هذا الجزء في الحلّ الرسمي الكامل أدناه.',
+    fullKey: 'الحلّ الرسمي الكامل للتمرين',
   },
 
   examSim: {

@@ -7,7 +7,7 @@ import { modelSolutionFor } from '@/lib/model-solution';
 
 export const maxDuration = 60;
 
-const bodySchema = z.object({ questionId: z.string().uuid() });
+const bodySchema = z.object({ questionId: z.string().uuid(), beyondOfficial: z.boolean().optional() });
 
 export const POST = route(async (request) => {
   assertSameOrigin(request);
@@ -19,6 +19,7 @@ export const POST = route(async (request) => {
   const body = await parseBody(request, bodySchema);
   const result = await modelSolutionFor({
     questionId: body.questionId,
+    beyondOfficial: body.beyondOfficial,
     trackId: auth.user.trackId,
     userId: auth.user.id,
     // Only consulted when an answer has to be written; stored ones are free.

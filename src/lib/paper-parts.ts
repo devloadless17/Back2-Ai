@@ -18,7 +18,12 @@ export type PaperPart = {
   answerImage?: string;
 };
 
-export type PaperParts = { intro: string; parts: PaperPart[] };
+export type PaperParts = {
+  intro: string;
+  parts: PaperPart[];
+  /** The exercise's whole official key, kept when some part has no answer of its own. */
+  fullKey?: string;
+};
 
 /**
  * An official answer is evidence, not merely non-empty text.
@@ -87,7 +92,17 @@ export function paperPartsOf(value: unknown): PaperParts | null {
       ...(answerImage ? { answerImage } : {}),
     });
   }
-  return { intro: typeof v.intro === 'string' ? v.intro : '', parts };
+  const fullKey = (value as { fullKey?: unknown }).fullKey;
+  return {
+    intro: typeof v.intro === 'string' ? v.intro : '',
+    parts,
+    ...(typeof fullKey === 'string' && fullKey.trim() ? { fullKey } : {}),
+  };
+}
+
+/** Parts the page shows with no answer of their own: not headings, no text, no crop. */
+export function partsWithoutAnswer(parts: PaperPart[]): number {
+  return parts.filter((p, i) => !p.answer && !p.answerImage && !partOnlyHeads(parts, i)).length;
 }
 
 /**

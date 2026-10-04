@@ -504,6 +504,8 @@ export const fr: Dictionary = {
     showAnswer: 'Afficher la réponse',
     hideAnswer: 'Masquer la réponse',
     partAnswerMissing: 'Pas de corrigé officiel pour cette partie.',
+    partAnswerInFullKey: 'Sa réponse est dans le corrigé officiel complet ci-dessous.',
+    fullKey: 'Corrigé officiel complet de l’exercice',
   },
 
   examSim: {
