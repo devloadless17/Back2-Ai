@@ -83,6 +83,8 @@ type AttemptResponse = {
   /** True only for a past-exam question. A generated problem's is ours. */
   solutionIsOfficial?: boolean;
   solution: string | null;
+  /** False for a subject that shows no answer at all (philosophy). */
+  answersShown?: boolean;
   mastery: { chapterId: string; masteryScore: number; attemptsCount: number };
 };
 
@@ -607,7 +609,7 @@ export function PracticeRunner({
 
         {/* No answer came with it — most book exercises. One is written on
             request and kept, so only the first student to ask pays for it. */}
-        {!outcome.solution && question && question.kind !== 'generated' && question.questionType !== 'mcq' && (
+        {!outcome.solution && outcome.answersShown !== false && question && question.kind !== 'generated' && question.questionType !== 'mcq' && (
           <ModelAnswer key={question.id} questionId={question.id} dir={paperDir} />
         )}
       </Sheet>

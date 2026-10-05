@@ -21,6 +21,7 @@ import { isUsableBareme, modelBaremeFor } from '@/lib/model-bareme';
 import { retrieveGrounding } from '@/lib/retrieval';
 import { ensureCard } from '@/lib/queries/flashcards';
 import { recomputeChapterMastery } from '@/lib/queries/progress';
+import { showsAnswers } from '@/lib/answer-policy';
 import { bodyToRender } from '@/lib/question-body';
 
 /**
@@ -360,9 +361,12 @@ export const POST = route(async (request) => {
     baremeResult,
     repeats,
     needsHumanReview,
-    solution: isQuestion
-      ? bodyToRender(source.officialSolutionLatex, source.officialSolution ?? '') || null
-      : source.generatedSolution,
+    // None for philosophy: see `showsAnswers`. Marking above still read it.
+    solution: !showsAnswers(source.chapter.subject.name)
+      ? null
+      : isQuestion
+        ? bodyToRender(source.officialSolutionLatex, source.officialSolution ?? '') || null
+        : source.generatedSolution,
     /*
      * The right option of a multiple-choice question, so a wrong answer can
      * show which one it should have been. Sent only after the answer is in.
@@ -378,6 +382,8 @@ export const POST = route(async (request) => {
      * travels so the label can be true.
      */
     solutionIsOfficial: isQuestion,
+    // False for philosophy, so the screen does not offer to write one either.
+    answersShown: showsAnswers(source.chapter.subject.name),
     mastery: {
       chapterId: creditChapterId,
       masteryScore: Number(mastery?.masteryScore ?? 0),

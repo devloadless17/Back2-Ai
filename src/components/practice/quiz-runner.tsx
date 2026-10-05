@@ -52,6 +52,8 @@ type AttemptResponse = {
   repeats?: Record<string, { times: number; pointsLost: number }>;
   solution: string | null;
   solutionIsOfficial?: boolean;
+  /** False for a subject that shows no answer at all (philosophy). */
+  answersShown?: boolean;
   /** The right option, for a multiple-choice question. */
   correctOptionId?: string | null;
   needsHumanReview: boolean;
@@ -304,7 +306,7 @@ export function QuizRunner({
                   </SheetBody>
                 </details>
               ) : (
-                q.questionType !== 'mcq' && <ModelAnswer questionId={q.id} dir={paperDir} />
+                q.questionType !== 'mcq' && outcome.answersShown !== false && <ModelAnswer questionId={q.id} dir={paperDir} />
               )}
 
               {/* The attempt goes with it, so Zaki reads what they wrote and

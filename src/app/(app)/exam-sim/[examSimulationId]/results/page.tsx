@@ -18,6 +18,7 @@ import { RefreshWhile } from '@/components/ui/refresh-while';
 import { requireUser } from '@/lib/auth/guards';
 import { getNextUp } from '@/lib/queries/next-up';
 import { db } from '@/lib/db';
+import { showsAnswers } from '@/lib/answer-policy';
 import { loadSimulation, slotContent } from '@/lib/exam';
 import { parseBaremeResult } from '@/lib/grading';
 import { getTranslations } from '@/lib/i18n';
@@ -392,8 +393,8 @@ export default async function ExamResultsPage({
                   </div>
                 )}
 
-                {/* Official solution */}
-                {content.officialSolution && (
+                {/* Official solution. None for philosophy: see `showsAnswers`. */}
+                {content.officialSolution && showsAnswers(simulation.subject.name) && (
                   <>
                     {/* "Official solution" only when an examiner wrote it.
                         A generated problem's solution is a model answer, and

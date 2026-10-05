@@ -19,9 +19,17 @@ import { paperDuration } from '@/lib/exam-duration';
 import { getTranslations } from '@/lib/i18n';
 import { format } from '@/lib/i18n/format';
 import { dirForLanguage } from '@/lib/i18n/config';
-import { formatMarks, paperPartsOf, partMarkdown, partOnlyHeads, partsWithoutAnswer } from '@/lib/paper-parts';
+import {
+  formatMarks,
+  paperPartsOf,
+  partMarkdown,
+  partOnlyHeads,
+  partsWithoutAnswer,
+  type PaperParts,
+} from '@/lib/paper-parts';
 import { OWN_EDITION_ONLY, paperScopeFor, subjectIdsForTrack } from '@/lib/queries/taxonomy';
 import { visualKeysFor } from '@/lib/visual-evidence';
+import { showsAnswers } from '@/lib/answer-policy';
 import { bodyToRender } from '@/lib/question-body';
 import { isForeignToFrenchCourse } from '@/lib/question-shape';
 
@@ -129,9 +137,9 @@ export default async function ExamCyclePage({
    * words, and counting characters would call it French.
    */
   const paperDir = dirForLanguage(cycle.subject.language);
-  // Philosophy papers get no answers added (the user, 2026-10-02): only the
-  // ministry's own key is shown, never one written on request.
-  const answersWritten = !/philo|فلسف/i.test(cycle.subject.name);
+  // Philosophy papers show no answer: neither the ministry's key nor one
+  // written on request. See `showsAnswers`.
+  const answersShown = showsAnswers(cycle.subject.name);
   // Shown unless the paper's own first question already prints it.
   const paperPassage = (() => {
     const passage = paperQuestions.find((q) => q.sourcePassage?.trim())?.sourcePassage ?? null;
@@ -237,7 +245,14 @@ export default async function ExamCyclePage({
               floating each one on its own card. */}
           <div className="ruled">
             {paperQuestions.map((question) => {
-              const parts = paperPartsOf(question.paperParts);
+              const stored = paperPartsOf(question.paperParts);
+              const parts: PaperParts | null =
+                stored && !answersShown
+                  ? {
+                      intro: stored.intro,
+                      parts: stored.parts.map(({ answer: _a, answerImage: _i, ...p }) => p),
+                    }
+                  : stored;
               /*
                * With parts, each carries its own answer. The exercise-level
                * solution is still shown when NO part has one: it is what the
@@ -247,7 +262,7 @@ export default async function ExamCyclePage({
               const partsAnswered = Boolean(parts?.parts.some((p) => p.answer || p.answerImage));
               // Parts the official key leaves without an answer the page can show.
               const gaps = parts ? partsWithoutAnswer(parts.parts) : 0;
-              const solution = partsAnswered
+              const solution = partsAnswered || !answersShown
                 ? null
                 : bodyToRender(question.officialSolutionLatex, question.officialSolution ?? '').trim() || null;
               return (
@@ -311,14 +326,14 @@ export default async function ExamCyclePage({
 
                 {/* No answer stored: say so, rather than showing nothing and
                     leaving the student to wonder whether they missed it. */}
-                {!solution && !partsAnswered && (
+                {answersShown && !solution && !partsAnswered && (
                   <p className="mt-3 rounded border border-rule bg-paper-sunken px-3 py-2 text-meta text-ink-muted">
                     {t.oldCycles.answerMissing}
                   </p>
                 )}
 
                 <div className="mt-3 flex flex-wrap items-center justify-end gap-3">
-                  <AskWhy questionId={question.id} mode={solution ? 'why' : 'solve'} />
+                  {answersShown && <AskWhy questionId={question.id} mode={solution ? 'why' : 'solve'} />}
                   {/* Reporting a bad transcription matters most here: past
                       papers are the material students trust the most, so an OCR
                       error in one is the error most likely to be revised from —
@@ -330,8 +345,8 @@ export default async function ExamCyclePage({
                 {/* No official answer at all, or parts the key leaves bare with
                     no whole key to fall back on: an answer written on request,
                     labelled as not the ministry's. Nothing is left blank. */}
-                {answersWritten && !solution && !partsAnswered && <ModelAnswer questionId={question.id} dir={paperDir} />}
-                {answersWritten && partsAnswered && gaps > 0 && !parts?.fullKey && (
+                {answersShown && !solution && !partsAnswered && <ModelAnswer questionId={question.id} dir={paperDir} />}
+                {answersShown && partsAnswered && gaps > 0 && !parts?.fullKey && (
                   <ModelAnswer questionId={question.id} dir={paperDir} beyondOfficial />
                 )}
               </section>

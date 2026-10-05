@@ -6,6 +6,7 @@ import { isAiConfigured } from '@/lib/env';
 import { paperPartsOf, partsWithoutAnswer } from '@/lib/paper-parts';
 import { bodyToRender } from '@/lib/question-body';
 import { retrieveGrounding } from '@/lib/retrieval';
+import { showsAnswers } from '@/lib/answer-policy';
 
 const LANGUAGE_NAME: Record<string, string> = { ar: 'Arabic', en: 'English', fr: 'French' };
 
@@ -114,6 +115,8 @@ export async function modelSolutionFor(input: {
     },
   });
   if (!question) return { status: 'not_found' };
+  // Philosophy shows no answer, official or written (see `showsAnswers`).
+  if (!showsAnswers(question.chapter.subject.name)) return { status: 'declined' };
 
   const official = bodyToRender(
     question.officialSolutionLatex,

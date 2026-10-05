@@ -8,6 +8,7 @@ import { getTranslations } from '@/lib/i18n';
 import { listChapters, listSubjectsForStudent } from '@/lib/queries/taxonomy';
 import { buildWorksheet } from '@/lib/queries/worksheet';
 import { dirForLanguage } from '@/lib/i18n/config';
+import { showsAnswers } from '@/lib/answer-policy';
 
 export const metadata: Metadata = { title: 'Worksheet' };
 
@@ -217,13 +218,13 @@ export default async function WorksheetPage({
                         </ul>
                       )}
 
-                      {q.officialSolution && (
+                      {q.officialSolution && showsAnswers(worksheet.subjectName) && (
                         <div className="mt-2 text-sm text-ink-muted">
                           <QuestionBody contentText={q.officialSolution} dir={sheetDir} />
                         </div>
                       )}
 
-                      {q.bareme.length === 0 && !q.officialSolution && (
+                      {q.bareme.length === 0 && !(q.officialSolution && showsAnswers(worksheet.subjectName)) && (
                         <p className="mt-1 text-caption text-ink-faint">{t.worksheet.noKey}</p>
                       )}
                     </li>
