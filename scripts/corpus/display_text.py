@@ -365,6 +365,30 @@ FOOTER = re.compile(
     r'^\s*(\d{1,2}|page\s*\d+(\s*(?:/|of|de)\s*\d+)?|\d+\s*/\s*\d+|-+\s*\d+\s*-+)\s*$', re.I
 )
 
+# The NEXT exercise's heading, "II- Exponential Functions (5 points)". C1 ends
+# a span where the next statement starts, so on the 2024 maths papers the
+# heading printed between the two fell inside the earlier span and a student
+# saw it as the last line of the wrong exercise (31 exercises, every track).
+NEXT_HEADING = re.compile(
+    r'^(?:[IVX]{1,4}\s*[-–.]|(?:exercise|exercice)\s*(?:n\s*[°o]\s*)?(?:\d+|[IVX]+)\b)'
+    r'.{0,80}\(\s*\d+(?:[.,]\d+)?\s*(?:points?|pts?)\s*\)$', re.I)
+
+
+def squash(text):
+    return ' '.join(re.findall(r'[^\W_]+', text.lower()))
+
+
+def is_next_heading(line, canonical):
+    """A trailing line that is a heading the canonical statement does not have.
+
+    The shape alone is not enough: "IV- Deduce x. (1 pt)" can be a statement's
+    real last question. That one is in the canonical text; a heading the
+    extractor stripped is not.
+    """
+    t = re.sub(r'\\section\*?|[{}*#]', ' ', line)
+    t = re.sub(r'\s+', ' ', t).strip()
+    return bool(NEXT_HEADING.match(t)) and squash(t) not in squash(canonical)
+
 
 # --------------------------------------------------------------------------
 # Coverage
@@ -496,10 +520,10 @@ def build(paper, exam, container):
     L = lines_of(paper['sha256'])
     HDR = header_band_of(paper['sha256'])
     idx = sorted({i for s in container['spans'] for i in range(s['lineFrom'], s['lineTo'] + 1)})
-    raw = ''.join(
-        L[i] for i in idx
-        if not FOOTER.match(L[i]) and not (HDR[i] and ARABIC.search(L[i]))
-    )
+    idx = [i for i in idx if not FOOTER.match(L[i]) and not (HDR[i] and ARABIC.search(L[i]))]
+    while idx and (not L[idx[-1]].strip() or is_next_heading(L[idx[-1]], canonical)):
+        idx.pop()
+    raw = ''.join(L[i] for i in idx)
     md = to_markdown(raw)
     if ARABIC.search(md):
         return {**rec, 'verdict': 'refused', 'reason': 'arabic in output'}
