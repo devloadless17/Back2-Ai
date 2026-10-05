@@ -77,6 +77,78 @@ def run_span(text, sample):
     return None
 
 
+WHY = []  # why the last locate_by_words refused, for the report
+
+
+def locate_strip(pdf, run_lines, paper_pages):
+    """A full-width strip of the paper holding the run's own words, grown to
+    hold every drawing it touches; (page_index, page, box) or None.
+
+    Where a document cannot be cut on its own (prose set beside it, a drawing
+    with no frame), the strip of the page it sits in is still the paper as
+    printed: nothing is sliced, and the prose beside it is the exercise's own.
+    Refused on the marking-key pages and when the strip would be most of a
+    page."""
+    want = [norm(l) for l in run_lines if len(norm(l)) >= 4]
+    if len(want) < 2:
+        return None
+    best = None
+    for i, page in enumerate(pdf.pages[:paper_pages or len(pdf.pages)]):
+        words = page.extract_words()
+        keys = [norm(w['text']) for w in words]
+        found, boxes = 0, []
+        for target in want:
+            for a in range(len(words)):
+                acc, hit = '', None
+                for b in range(a, min(len(words), a + 12)):
+                    acc += keys[b]
+                    if acc == target:
+                        hit = words[a:b + 1]
+                        break
+                    if not target.startswith(acc):
+                        break
+                if hit:
+                    found += 1
+                    boxes += [(float(w['top']), float(w['bottom'])) for w in hit]
+                    break
+        if found and (best is None or found > best[0]):
+            best = (found, i, page, boxes)
+    if not best or best[0] < max(2, 0.6 * len(want)):
+        return None
+    found, i, page, boxes = best
+    boxes.sort()
+    groups = [[boxes[0]]]
+    for b in boxes[1:]:
+        if b[0] - max(x[1] for x in groups[-1]) > 60:
+            groups.append([])
+        groups[-1].append(b)
+    group = max(groups, key=len)
+    top, bottom = min(b[0] for b in group) - 6, max(b[1] for b in group) + 6
+    h, w = float(page.height), float(page.width)
+    graphics = [(float(g['top']), float(g['bottom']))
+                for g in list(page.images) + list(page.curves) + list(page.rects) + list(page.lines)
+                if float(g['bottom']) - float(g['top']) < h * 0.6]
+    # A table whose borders are drawn row by row: an upright border segment
+    # that starts at the strip's edge means the table goes on past it
+    # (ls/2018 1/bio_en.pdf, the Botox table cut after two rows).
+    posts = [(float(g['top']), float(g['bottom']))
+             for g in list(page.rects) + list(page.lines)
+             if float(g['x1']) - float(g['x0']) <= 3 and float(g['bottom']) - float(g['top']) < h * 0.6]
+    graphics += [(t - 4, b + 4) for t, b in posts]
+    # Grown until no drawing and no line of text is cut across by an edge.
+    lines = [(float(x['top']), float(x['bottom'])) for x in page.extract_words()]
+    changed = True
+    while changed and bottom - top <= h * 0.6:
+        changed = False
+        for gt, gb in graphics + lines:
+            if gt < bottom and gb > top and (gt < top - 0.5 or gb > bottom + 0.5):
+                top, bottom = min(top, gt - 3), max(bottom, gb + 3)
+                changed = True
+    if bottom - top > h * 0.6:
+        return None
+    return i, page, (0.0, max(0.0, top), w, min(h, bottom))
+
+
 def norm(s):
     return re.sub(r'[^0-9a-zà-ÿ]', '', s.lower())
 
@@ -92,10 +164,18 @@ def locate_by_words(pdf, span, run_lines):
     if len(want) < 2:
         return None
     best = None
+    # The exercise's own span first; then whole pages, since a span can stop
+    # short of a document printed beside or after it. The words themselves
+    # say which document it is.
+    places = []
     for s in span['spans']:
         page = pdf.pages[s['page'] - 1]
         scale = float(page.height) / s['pageHeight']
-        lo, hi = s['yStart'] * scale - 5, s['yEnd'] * scale + 5
+        places.append((s, s['yStart'] * scale - 5, s['yEnd'] * scale + 5))
+    for i, page in enumerate(pdf.pages):
+        places.append(({'page': i + 1}, 0.0, float(page.height)))
+    for s, lo, hi in places:
+        page = pdf.pages[s['page'] - 1]
         words = [w for w in page.extract_words() if lo <= float(w['top']) <= hi]
         keys = [norm(w['text']) for w in words]
         found, boxes = 0, []
@@ -118,36 +198,67 @@ def locate_by_words(pdf, span, run_lines):
         if found and (best is None or found > best[0]):
             best = (found, s, page, boxes, lo, hi)
     if not best or best[0] < max(2, 0.6 * len(want)):
+        WHY.append(f'lines found {best[0] if best else 0}/{len(want)}')
         return None
     found, s, page, boxes, lo, hi = best
+    # The biggest group of found words, top to bottom: a line found again far
+    # away on the page ("Document 2" in a sentence) does not stretch the cut.
+    boxes.sort(key=lambda b: b[1])
+    groups = [[boxes[0]]]
+    for b in boxes[1:]:
+        if b[1] - max(x[3] for x in groups[-1]) > 60:
+            groups.append([])
+        groups[-1].append(b)
+    boxes = max(groups, key=len)
     region = [min(b[0] for b in boxes), min(b[1] for b in boxes), max(b[2] for b in boxes), max(b[3] for b in boxes)]
     graphics = [(float(g['x0']), float(g['top']), float(g['x1']), float(g['bottom']))
                 for g in list(page.images) + list(page.curves) + list(page.rects) + list(page.lines)]
     graphics = [g for g in graphics if lo <= g[1] and g[3] <= hi and g[3] - g[1] < float(page.height) * 0.6]
+
+    def mostly_near(g, r, pad=40):
+        """Most of the drawing lies within `pad` of the region: a page frame or
+        a rule across the page does not."""
+        ix0, iy0 = max(g[0], r[0] - pad), max(g[1], r[1] - pad)
+        ix1, iy1 = min(g[2], r[2] + pad), min(g[3], r[3] + pad)
+        if ix1 < ix0 or iy1 < iy0:
+            return False
+        size = max(g[2] - g[0], 1) * max(g[3] - g[1], 1)
+        return max(ix1 - ix0, 1) * max(iy1 - iy0, 1) >= 0.7 * size
+
     changed = True
     while changed:
         changed = False
         for g in graphics:
-            near = g[0] < region[2] + 15 and g[2] > region[0] - 15 and g[1] < region[3] + 15 and g[3] > region[1] - 15
             inside = g[0] >= region[0] and g[2] <= region[2] and g[1] >= region[1] and g[3] <= region[3]
-            if near and not inside:
+            if not inside and mostly_near(g, region):
                 region = [min(region[0], g[0]), min(region[1], g[1]), max(region[2], g[2]), max(region[3], g[3])]
                 changed = True
     w, h = float(page.width), float(page.height)
-    box = (max(0.0, region[0]), max(0.0, region[1]), min(w, region[2]), min(h, region[3]))
+    box = (max(0.0, region[0] - 2), max(0.0, region[1] - 2), min(w, region[2] + 2), min(h, region[3] + 2))
     if box[3] - box[1] > h * 0.6 or box[3] - box[1] < 20:
+        WHY.append('size')
         return None
+    # Nor a cut through a drawing that goes on outside it.
+    for g in graphics:
+        meets = g[0] < box[2] - 3 and g[2] > box[0] + 3 and g[1] < box[3] - 3 and g[3] > box[1] + 3
+        if meets and (g[0] < box[0] - 3 or g[2] > box[2] + 3 or g[1] < box[1] - 3 or g[3] > box[3] + 3):
+            WHY.append('slices a drawing')
+            return None
     inside = page.crop(box).extract_text() or ''
     if df.QUESTION_LINE.search(inside) or df.NUMBERED_ASK.search(inside):
+        WHY.append('holds a question')
         return None
     # The run is the document's own words: words in the region that are not in
     # it are the exercise's prose or questions set beside the document.
     own = {norm(t) for l in run_lines for t in l.split()}
     foreign = [w for w in page.within_bbox(box).extract_words()
                if len(norm(w['text'])) >= 2 and norm(w['text']) not in own]
+    # Painting them out was tried: it erased labels inside drawings and the
+    # cells of tables whose words the run had lost. So: refused.
     if len(foreign) > 6:
+        WHY.append(f'{len(foreign)} foreign words')
         return None
-    return s['page'] - 1, page, box
+    return s['page'] - 1, page, box, []
 
 
 def main():
@@ -170,6 +281,7 @@ def main():
                 and (not subjects or f['subject'] in subjects)]
     subject_ids = [l.strip() for l in open(args.subject_ids, encoding='utf-8') if l.strip()]
     where = exercises_by_ref(subject_ids)
+    paper_pages = {e['sha256']: e.get('paperPages') for e in json.loads(pp.EXAMS.read_text(encoding='utf-8'))}
     spans = {(c['sha256'], k['ordinal']): k for c in json.loads(pp.C1_PATH.read_text(encoding='utf-8'))
              for k in c['containers']}
 
@@ -220,16 +332,19 @@ def main():
                 cuts.append((n, kind, page_index, page, box, name, df.strays(page, box, cap) if kind == 'figure' else []))
             how = 'captions'
             if not numbers or len(cuts) != len(numbers):
-                got = locate_by_words(pdf, span, run_lines)
+                # A cut built around the run's words alone was right one time in
+                # four (sliced tables, a key page): the strip of the page is used
+                # instead.
+                got = locate_strip(pdf, run_lines, paper_pages.get(sha))
                 if got:
                     page_index, page, box = got
-                    name = f"{sha[:12]}-doc-p{page_index + 1}-e{index}-at-{int(box[1])}.webp"
-                    cuts = [(', '.join(numbers), 'words', page_index, page, box, name, [])]
-                    how = 'words'
+                    name = f"{sha[:12]}-doc-p{page_index + 1}-e{index}-strip-{int(box[1])}.webp"
+                    cuts = [(', '.join(numbers), 'strip', page_index, page, box, name, [])]
+                    how = 'strip'
                 else:
                     missing = [n for n in numbers if n not in {c[0] for c in cuts}]
                     why = f"Document {', '.join(missing)} not found on the page" if missing else 'run names no document'
-                    left.append(f"{r['title']} ({paper} ex{ordinal}): {why}; its words not found either")
+                    left.append(f"{r['title']} ({paper} ex{ordinal}): {why}; no strip either")
                     continue
         # The pictures must hold the run: most of its words are in them. A
         # picture that does not is some other document, and the run stays.
