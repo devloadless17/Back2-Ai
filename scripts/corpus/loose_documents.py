@@ -373,6 +373,19 @@ def main():
         held = set()
         for _, _, _, page, box, _, _ in cuts:
             held |= {norm(w['text']) for w in page.crop(box).extract_words()}
+        if run_words and sum(1 for t in run_words if t in held) < 0.6 * len(run_words) and how != 'strip':
+            # The captioned cut is some other document: try the strip instead.
+            with pdfplumber.open(str(pdf_path)) as pdf:
+                got = locate_strip(pdf, run_lines, paper_pages.get(sha))
+                if got:
+                    page_index, page, box, words = got
+                    every = [(float(x['top']), float(x['bottom']), float(x['x0']), float(x['x1']))
+                             for x in page.within_bbox(box).extract_words()]
+                    if inked(pdf_path, page_index, words) and inked(pdf_path, page_index, every, 0.9):
+                        name = f"{sha[:12]}-doc-p{page_index + 1}-e{index}-strip-{int(box[1])}.webp"
+                        cuts = [(', '.join(numbers), 'strip', page_index, page, box, name, [])]
+                        how = 'strip'
+                        held = {norm(w['text']) for w in page.crop(box).extract_words()}
         if run_words and sum(1 for t in run_words if t in held) < 0.6 * len(run_words):
             left.append(f"{r['title']} ({paper} ex{ordinal}): the picture does not hold the run's words")
             continue
