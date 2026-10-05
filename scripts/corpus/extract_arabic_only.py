@@ -91,6 +91,15 @@ def reshape(entry: dict) -> dict:
             first = (e.get("title") or "").strip()
             if first.count("(") > first.count(")"):
                 first += ")"
+            # With the lines printed between the heading and the first numbered
+            # question. Built from the title and the parts alone, se/2019 1/
+            # ektesad_crdp2.pdf asked about "هذين الإجرائين" and never showed
+            # the two measures ("- بيع سندات خزينة…", "- فرض سقف…").
+            statement = e.get("statement") or ""
+            head = next(ee.PART.finditer(statement), None)
+            intro = statement[: head.start()].strip() if head else ""
+            if intro:
+                first = f"{first}\n{intro}".strip()
             pieces = ([(first, ee.text_marks(first), None)] if len(first) >= 20 else []) + [
                 (p["text"], p.get("marks"), p.get("answer")) for p in e["parts"]
             ]
