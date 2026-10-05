@@ -53,7 +53,7 @@ function formulaErrors(text: string): string[] {
   );
   const out: string[] = [];
   for (const m of html.matchAll(/<span class="katex-error"[^>]*>([\s\S]*?)<\/span>/g)) {
-    out.push(m[1].replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').slice(0, 160));
+    out.push(m[1]!.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').slice(0, 160));
   }
   return out;
 }
@@ -91,8 +91,10 @@ function keyDamage(text: string): string[] {
   for (const raw of text.split('\n')) {
     const line = raw.trim();
     const m = line.match(/^(\d+(?:\.\d+)*)\s?(\d+(?:\.\d+)*)\s*(?:—|&|$)/);
-    if (m && (m[1] === m[2] || (m[1] + m[2]).length > 2 && doubled(m[1] + m[2]))) out.push(line.slice(0, 120));
-    else if (m && doubled(m[1]) && /—/.test(line)) out.push(line.slice(0, 120));
+    const a = m?.[1] ?? '';
+    const b = m?.[2] ?? '';
+    if (m && (a === b || (a + b).length > 2 && doubled(a + b))) out.push(line.slice(0, 120));
+    else if (m && doubled(a) && /—/.test(line)) out.push(line.slice(0, 120));
     else if (/^(?:\d+\s+)*\d*\s*&\s*$/.test(line) && line.includes('&')) out.push(line);
   }
   return out;
@@ -149,7 +151,7 @@ for (const row of rows) {
     const key = `${f.kind}|${f.sample}`;
     if (seen.has(key)) return;
     seen.add(key);
-    report[section].findings[f.kind] += 1;
+    report[section]!.findings[f.kind] = (report[section]!.findings[f.kind] ?? 0) + 1;
     all.push({ ...f, id: row.id, cycle: row.cycle, title: row.title, subject: row.subject });
   };
   for (const t of texts) {
@@ -165,7 +167,7 @@ const questionsHit = (kind: string, section: string) =>
   new Set(all.filter((f) => f.kind === kind && `${trackOf(f.title)} | ${f.subject}` === section).map((f) => f.id)).size;
 console.log('section'.padEnd(46), 'questions', 'formula', 'loose', 'key   (questions affected)');
 for (const section of Object.keys(report).sort()) {
-  const r = report[section];
+  const r = report[section]!;
   console.log(
     section.padEnd(46),
     String(r.questions).padStart(9),
