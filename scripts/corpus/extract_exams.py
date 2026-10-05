@@ -1008,13 +1008,19 @@ def paper_passage(preamble: str) -> str:
     return body if letters >= PASSAGE_MIN else ""
 
 
-def parse_exercises(text: str, allow_subject_split: bool = True, profile: str | None = None) -> list:
+def parse_exercises(text: str, allow_subject_split: bool = True, profile: str | None = None,
+                    single: bool = False) -> list:
     """Each exercise's number, marks, title and statement, in order.
 
     `allow_subject_split=False` forbids the choice-of-subjects reading, so the
     same paper can be parsed both ways and the two compared. See `read`.
+
+    `single=True` reads everything from the first header to the end as ONE
+    exercise, its numbered questions as parts. See `read`.
     """
     found, kind = find_headers(text, allow_subject_split, profile)
+    if single:
+        found = found[:1]
     out = []
     for n, m in enumerate(found):
         body = text[m.end():found[n + 1].start() if n + 1 < len(found) else len(text)]
@@ -1794,7 +1800,12 @@ def read(pdf: Path) -> dict | None:
         # once it is read as one exercise. If that reading is no better, the
         # rejection stands.
         if not split_into_subjects and len(ASSIGNMENT.findall(paper)) >= 2:
-            whole = parse_exercises(paper, allow_subject_split=False, profile=profile)
+            # Parsed as one exercise, not parsed into many and the first kept.
+            # `whole[:1]` of the numbered reading was the first numbered line
+            # alone — on 41 sociology and economics papers the instruction "١-
+            # تتضمن المجموعة الأولى…", whose text ends at "٢-" — so the paper
+            # was stored as that one line and every question was lost.
+            whole = parse_exercises(paper, allow_subject_split=False, profile=profile, single=True)
             if whole:
                 single = whole[:1]
                 single_marks = sum(e["marks"] for e in single)
