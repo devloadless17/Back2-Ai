@@ -315,9 +315,11 @@ SUBJECT_PROFILE = [
     ("maths", re.compile(r"(?:^|[\s_-])(?:math|riyad)", re.I)),
     ("physics", re.compile(r"(?:^|[\s_-])(?:phys?|fizi)", re.I)),
     ("chemistry", re.compile(r"(?:^|[\s_-])(?:chem|chim|kimi)", re.I)),
+    # Before biology: "SVSG_Tarbia_2021_1.pdf" is the civics paper GS and LS
+    # share, and biology's "svsg" claimed it.
+    ("civics", re.compile(r"(?:^|[\s_-])(?:tarbeya|tarbia)", re.I)),
     ("biology", re.compile(r"(?:^|[\s_-])(?:bio|svt|svsg|ahya)", re.I)),
     ("philosophy", re.compile(r"(?:^|[\s_-])(?:falsafe?|philo)", re.I)),
-    ("civics", re.compile(r"(?:^|[\s_-])(?:tarbeya|tarbia)", re.I)),
     ("history", re.compile(r"(?:^|[\s_-])(?:tarekh|terekh|tarikh|history)", re.I)),
     ("geography", re.compile(r"(?:^|[\s_-])(?:geo|greo)", re.I)),
     ("economics", re.compile(r"(?:^|[\s_-])(?:ektesad|eqtesad|eco(?:no)?)", re.I)),
@@ -697,6 +699,40 @@ ASSIGNMENT = re.compile(
 )
 
 
+CIVICS_DOMAIN = re.compile(r"(?:^|\n)[ \t*#]*المجال\s+(الأول|الأوّل|الثاني|الثالث|الرابع)")
+# An ordinal heading with a dash as well as a colon: "أولاً - أجب بـ «صحّ»…"
+# heads the first question of six civics papers, and AR_ORDINAL_HEAD's colon
+# alone lost it.
+CIVICS_ORDINAL = re.compile(
+    r"(?:^|\n)[ \t]*(أوّ?لاً|ثانياً|ثالثاً|رابعاً|خامساً|سادساً|سابعاً|ثامناً)\s*[:：\-–]"
+)
+
+
+def civics_domain_headers(text: str) -> list:
+    """Exercise headers of a civics paper printed in "المجال" domains, or [].
+
+    The first domain sets short questions under "أولاً / ثانياً…"; the others
+    set documents or a situation and number their questions under it. Read as
+    ordinals throughout, the clauses of a quoted law ("ثانياً: التزام المؤسسة…",
+    gs/2021 1/SVSG_Tarbia_2021_1.pdf) became exercises, the answers shifted onto
+    the wrong questions, and a paper that opened "أولاً -" lost its first one.
+
+    So each domain is an exercise, except the first, which is split at its
+    ordinals when it has them; ordinals anywhere else are text. Two domains at
+    least, or the paper is left to the rules below.
+    """
+    domains = list(CIVICS_DOMAIN.finditer(text))
+    if len(domains) < 2:
+        return []
+    found = []
+    for i, d in enumerate(domains):
+        end = domains[i + 1].start() if i + 1 < len(domains) else len(text)
+        ordinals = (list(CIVICS_ORDINAL.finditer(text, d.end(), end))
+                    if d.group(1).startswith(("الأول", "الأوّل")) else [])
+        found.extend(ordinals or [d])
+    return found
+
+
 def find_headers(text: str, allow_subject_split: bool = True, profile: str | None = None) -> tuple:
     """The exercise headers, whichever of the three forms this paper uses.
 
@@ -745,6 +781,12 @@ def find_headers(text: str, allow_subject_split: bool = True, profile: str | Non
     # it properly.
     if allow_subject_split and len(SUBJECT_HEAD.findall(text)) >= 2 and CHOICE_NOTICE.search(text):
         return list(SUBJECT_HEAD.finditer(text)), "subject"
+
+    # A civics paper from 2017 on is printed in "المجال" domains.
+    if profile == "civics":
+        found = civics_domain_headers(text)
+        if found:
+            return found, "civics"
 
     # Arabic humanities papers: ordinal headings, marks spelled out in words.
     found = list(AR_ORDINAL_HEAD.finditer(text))
@@ -810,7 +852,7 @@ def header_index(m: re.Match, kind: str, fallback: int) -> int:
         return exercise_index(m) or fallback
     if kind == "arabic-numbered":
         return int(to_number(m.group(1))) or fallback
-    if kind == "arabic-ordinal":
+    if kind in ("arabic-ordinal", "civics"):
         ordinals = ["أول", "ثاني", "ثالث", "رابع", "خامس", "سادس", "سابع", "ثامن"]
         raw = m.group(1)
         for index, word in enumerate(ordinals, start=1):
@@ -1044,10 +1086,14 @@ def parse_exercises(text: str, allow_subject_split: bool = True, profile: str | 
 
         parts = [p for p in parts if len(p["text"]) > 8]
 
-        if kind in ("arabic-ordinal", "arabic-numbered"):
+        if kind in ("arabic-ordinal", "arabic-numbered", "civics"):
             # The marks are inside the block, beside each part, in any of the
             # several forms these papers use.
             marks = arabic_marks(statement)
+            # A civics question prints its mark on the heading line only:
+            # "ثالثاً: اربط ما ورد في العمود الأول … (علامتان)".
+            if kind == "civics" and not marks:
+                marks = word_marks(title)
         elif kind == "ar-bare":
             # The mark is in the header and spelled out, so the numeric capture
             # a "bare" header would use holds the numeral instead — reading it

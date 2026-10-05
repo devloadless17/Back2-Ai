@@ -83,6 +83,11 @@ const SUBJECTS: { match: RegExp; name: Record<string, string | string[]> }[] = [
   // section Sciences Générales), followed by the edition: `SVSG_Fran`.
   // It must be claimed before French, otherwise the edition token files the
   // whole biology paper under Français.
+  //
+  // Civics first: `SVSG_Tarbia_2021_1.pdf` is the civics paper GS and LS share,
+  // and "svsg" claimed it for Life Sciences, which has no Arabic edition, so
+  // all six were skipped as "language not stated".
+  { match: /(?:^|[\s_-])(?:tarbeya|tarbia)/i, name: { ar: ['تربية وطنية', 'Education civique'] } },
   { match: /(?:^|[\s_-])(?:bio|svt|svsg|ahya)/i, name: { en: 'Life Sciences', fr: 'Sciences de la vie' } },
   // The trailing "e" is not always printed: se/2008 2/falsaf.pdf.
   { match: /(?:^|[\s_-])(?:falsafe?|philo)/i, name: { ar: ['فلسفة عامة', 'Philosophie'] } },
@@ -96,7 +101,6 @@ const SUBJECTS: { match: RegExp; name: Record<string, string | string[]> }[] = [
    * is worse than one left out, because it is practised as that subject.
    */
   { match: /(?:^|[\s_-])(?:ektesad|eqtesad|eco(?:no)?)/i, name: { ar: ['اقتصاد', 'Economie'] } },
-  { match: /(?:^|[\s_-])(?:tarbeya|tarbia)/i, name: { ar: ['تربية وطنية', 'Education civique'] } },
   { match: /(?:^|[\s_-])(?:tarekh|terekh|tarikh|history|hsitory)/i, name: { ar: ['تاريخ', 'Histoire'] } },
   /*
    * "en" on its own is the subject too — se/2009 1/en.pdf, en_ehteyejet.pdf.
