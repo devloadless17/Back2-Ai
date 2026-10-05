@@ -3,6 +3,8 @@
  *
  *   npm run corpus:exams -- --dry        plan only, writes nothing
  *   npm run corpus:exams                 load everything
+ *   npm run corpus:exams -- --from corpus/exams-arabic.json --only-path ektesad --no-embed
+ *                                            load one verified paper family without API calls
  *
  * Reads what scripts/corpus/extract_exams.py pulled out of the official papers
  * and files each exercise as a question under the chapter it belongs to.
@@ -333,6 +335,8 @@ async function main() {
   const args = process.argv.slice(2);
   const dry = args.includes('--dry');
   const limit = args.includes('--limit') ? Number(args[args.indexOf('--limit') + 1]) : 0;
+  const onlyPath = args.includes('--only-path') ? args[args.indexOf('--only-path') + 1]?.toLowerCase() : null;
+  const noEmbed = args.includes('--no-embed');
 
   /*
    * Re-file existing questions against the current chapter list.
@@ -388,7 +392,10 @@ async function main() {
     process.exitCode = 1;
     return;
   }
+  if (onlyPath) exams = exams.filter((exam) => exam.path.toLowerCase().includes(onlyPath));
   if (limit) exams = exams.slice(0, limit);
+
+  if (noEmbed) console.log("  embeddings skipped: new rows use the subject's first chapter and remain out of semantic retrieval.");
 
   // Chapter lookup by nearest course material, cached per subject.
   const chapterCache = new Map<string, { id: string; name: string }[]>();
@@ -830,17 +837,21 @@ async function main() {
        * exercise can never land in a chemistry chapter however the wording
        * reads.
        */
-      const vector = await embed(statement.slice(0, 4000), 'query');
-      const nearest = await db.$queryRaw<{ chapter_id: string; similarity: number }[]>`
-        SELECT ch.id AS chapter_id, 1 - (cc.embedding <=> ${`[${vector.join(',')}]`}::vector) AS similarity
-        FROM content_chunks cc
-        JOIN chapter_content_chunks l ON l.chunk_id = cc.id
-        JOIN chapters ch ON ch.id = l.chapter_id
-        WHERE ch.subject_id = ${subjectRow.id}::uuid AND cc.embedding IS NOT NULL
-        ORDER BY cc.embedding <=> ${`[${vector.join(',')}]`}::vector
-        LIMIT 1
-      `;
-      const chapterId = nearest[0]?.chapter_id ?? chapters[0]!.id;
+      const chapterId = noEmbed
+        ? chapters[0]!.id
+        : await (async () => {
+            const vector = await embed(statement.slice(0, 4000), 'query');
+            const nearest = await db.$queryRaw<{ chapter_id: string; similarity: number }[]>`
+              SELECT ch.id AS chapter_id, 1 - (cc.embedding <=> ${`[${vector.join(',')}]`}::vector) AS similarity
+              FROM content_chunks cc
+              JOIN chapter_content_chunks l ON l.chunk_id = cc.id
+              JOIN chapters ch ON ch.id = l.chapter_id
+              WHERE ch.subject_id = ${subjectRow.id}::uuid AND cc.embedding IS NOT NULL
+              ORDER BY cc.embedding <=> ${`[${vector.join(',')}]`}::vector
+              LIMIT 1
+            `;
+            return nearest[0]?.chapter_id ?? chapters[0]!.id;
+          })();
 
       const created = await db.question.create({
         data: {
