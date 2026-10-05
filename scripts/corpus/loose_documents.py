@@ -109,7 +109,7 @@ def locate_strip(pdf, run_lines, paper_pages):
                         break
                 if hit:
                     found += 1
-                    boxes += [(float(w['top']), float(w['bottom'])) for w in hit]
+                    boxes += [(float(w['top']), float(w['bottom']), float(w['x0']), float(w['x1'])) for w in hit]
                     break
         if found and (best is None or found > best[0]):
             best = (found, i, page, boxes)
@@ -146,7 +146,23 @@ def locate_strip(pdf, run_lines, paper_pages):
                 changed = True
     if bottom - top > h * 0.6:
         return None
-    return i, page, (0.0, max(0.0, top), w, min(h, bottom))
+    return i, page, (0.0, max(0.0, top), w, min(h, bottom)), group
+
+
+def inked(pdf_path, page_index, words, share=0.7):
+    """Whether the run's words show as ink when the page is rendered. A
+    document whose text layer is there but whose drawing does not render
+    (lh/2006 2 Question IV, Document 1: a blank where the graph is) would be
+    a strip with a hole in it."""
+    import pypdfium2 as pdfium
+    img = pdfium.PdfDocument(str(pdf_path))[page_index].render(scale=1).to_pil().convert('L')
+    shown = 0
+    for top, bottom, x0, x1 in words:
+        box = img.crop((int(x0), int(top), max(int(x1), int(x0) + 1), max(int(bottom), int(top) + 1)))
+        px = list(box.getdata())
+        if px and sum(1 for v in px if v < 160) >= 0.03 * len(px):
+            shown += 1
+    return bool(words) and shown >= share * len(words)
 
 
 def norm(s):
@@ -337,7 +353,12 @@ def main():
                 # instead.
                 got = locate_strip(pdf, run_lines, paper_pages.get(sha))
                 if got:
-                    page_index, page, box = got
+                    page_index, page, box, words = got
+                    every = [(float(x['top']), float(x['bottom']), float(x['x0']), float(x['x1']))
+                             for x in page.within_bbox(box).extract_words()]
+                    if not inked(pdf_path, page_index, words) or not inked(pdf_path, page_index, every, 0.9):
+                        left.append(f"{r['title']} ({paper} ex{ordinal}): the strip's words do not show on the rendered page")
+                        continue
                     name = f"{sha[:12]}-doc-p{page_index + 1}-e{index}-strip-{int(box[1])}.webp"
                     cuts = [(', '.join(numbers), 'strip', page_index, page, box, name, [])]
                     how = 'strip'
