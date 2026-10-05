@@ -5,6 +5,8 @@
  *   npm run corpus:exams                 load everything
  *   npm run corpus:exams -- --from corpus/exams-arabic.json --only-path ektesad --no-embed
  *                                            load one verified paper family without API calls
+ *   npm run corpus:exams -- --from corpus/exams-arabic.json --track SE --no-embed
+ *                                            rebuild one section's Arabic papers without API calls
  *
  * Reads what scripts/corpus/extract_exams.py pulled out of the official papers
  * and files each exercise as a question under the chapter it belongs to.
@@ -336,6 +338,7 @@ async function main() {
   const dry = args.includes('--dry');
   const limit = args.includes('--limit') ? Number(args[args.indexOf('--limit') + 1]) : 0;
   const onlyPath = args.includes('--only-path') ? args[args.indexOf('--only-path') + 1]?.toLowerCase() : null;
+  const onlyTrack = args.includes('--track') ? args[args.indexOf('--track') + 1]?.toUpperCase() : null;
   const noEmbed = args.includes('--no-embed');
 
   /*
@@ -393,6 +396,7 @@ async function main() {
     return;
   }
   if (onlyPath) exams = exams.filter((exam) => exam.path.toLowerCase().includes(onlyPath));
+  if (onlyTrack) exams = exams.filter((exam) => exam.track.toUpperCase() === onlyTrack);
   if (limit) exams = exams.slice(0, limit);
 
   if (noEmbed) console.log("  embeddings skipped: new rows use the subject's first chapter and remain out of semantic retrieval.");
