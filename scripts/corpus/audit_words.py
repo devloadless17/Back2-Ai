@@ -62,10 +62,23 @@ def texts_of(row):
     return [(w, t) for w, t in out if t]
 
 
+# What may stand between the two halves of a split word: spaces, or a hyphen
+# with a space ("expres- sion", "inter - locuteurs"). An apostrophe
+# ("statistician’s") or a bare hyphen ("anti-pyrétiques") is not a split.
+SPLIT_GAP = re.compile(r'[ \t   ]+|[ \t ]*-[ \t ]+')
+
+
 def lines_of(text):
+    """Each line's words, and what stands between each word and the next.
+    Vowel marks go first: a shadda inside a word ("التمسّك") would otherwise
+    cut it in two and look like a split."""
     text = NOISE.sub(' ', MATH.sub(' ', text))
     for line in text.split('\n'):
-        yield [DIACRITICS.sub('', t) for t in TOKEN.findall(line)]
+        line = DIACRITICS.sub('', line).replace('ٰ', '')
+        found = list(TOKEN.finditer(line))
+        toks = [m.group(0) for m in found]
+        gaps = [line[found[i].end():found[i + 1].start()] for i in range(len(found) - 1)]
+        yield toks, gaps
 
 
 def norm(tok):
@@ -75,7 +88,8 @@ def norm(tok):
 # A word that starts with one of these is one word ("antithyroglobulin",
 # "nonvaccinated", "deposition"), not two run together.
 PREFIXES = {'anti', 'non', 'de', 'dé', 'in', 'im', 'un', 're', 'ré', 'pre', 'pré', 'over', 'under',
-            'out', 'demi', 'mal', 'sur', 'sous', 'inter', 'trans', 'counter', 'contre', 'multi', 'semi'}
+            'out', 'demi', 'mal', 'sur', 'sous', 'inter', 'trans', 'counter', 'contre', 'multi', 'semi',
+            'mono', 'poly', 'bi', 'tri', 'micro', 'macro', 'hydro', 'auto', 'co', 'post', 'super', 'hyper', 'hypo'}
 COMPOUNDS = {('turn', 'over'), ('week', 'end'), ('soya', 'bean'), ('mean', 'time'), ('time', 'line'),
              ('slow', 'down'), ('work', 'less')}
 
@@ -110,7 +124,7 @@ def main():
     for row in rows:
         seen = set()
         for _, text in texts_of(row):
-            for toks in lines_of(text):
+            for toks, _ in lines_of(text):
                 ns = [norm(t) for t in toks]
                 for n in ns:
                     freq[n] += 1
@@ -129,12 +143,12 @@ def main():
         totals[section] += 1
         hit = set()
         for where, text in texts_of(row):
-            for toks in lines_of(text):
+            for toks, gaps in lines_of(text):
                 ns = [norm(t) for t in toks]
                 for i, t in enumerate(ns):
                     arabic = bool(ARABIC.search(t))
                     # split: t + next is common, one of the two is not
-                    if i + 1 < len(ns):
+                    if i + 1 < len(ns) and SPLIT_GAP.fullmatch(gaps[i]):
                         a, b = t, ns[i + 1]
                         joined = a + b
                         if (len(joined) >= 6 and common(joined, 3) and (docs[a] <= 1 or docs[b] <= 1)
