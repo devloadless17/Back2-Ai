@@ -60,7 +60,19 @@ export function paperPartAnswerIsUsable(answer: string, part: Pick<PaperPart, 'l
   };
   const expected = keyOf(part.label);
   const actual = keyOf(value);
-  if (expected && actual && actual !== expected && !actual.startsWith(expected) && !expected.startsWith(actual)) return false;
+  /*
+   * Arabic answer keys often print a table-coordinate prefix before the
+   * answer, rather than repeat the question's dotted label. For example,
+   * Economics SE 2019/1 part 1.2 is headed "2-1" in the official key even
+   * though the answer below it is the verified answer to 1.2. Treating that
+   * coordinate as a question label hid a real answer on the student page.
+   *
+   * Keep the strict label guard for Latin-script papers, where it catches a
+   * genuinely shifted answer, and keep all the empty/corrupt/copied-text
+   * checks above for every language.
+   */
+  const hasArabic = /\p{Script=Arabic}/u.test(value);
+  if (expected && actual && !hasArabic && actual !== expected && !actual.startsWith(expected) && !expected.startsWith(actual)) return false;
 
   return true;
 }

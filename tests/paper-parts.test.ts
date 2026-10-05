@@ -56,6 +56,13 @@ describe('paperPartsOf', () => {
     expect(paperPartAnswerIsUsable('& 1', part)).toBe(false);
     expect(paperPartAnswerIsUsable('2.1 $\\mathrm{pH}=3.4$', part)).toBe(true);
   });
+
+  it('keeps an Arabic official answer when its key uses a table coordinate', () => {
+    const part = { label: '1.2', text: '1.2- اشرح الرابط بين الإجراءين والهدف الاقتصادي.' };
+    // The official SE Economics 2019/1 key heads this answer "2-1". That is
+    // its table position, not a reference to a different printed question.
+    expect(paperPartAnswerIsUsable('2-1 (علامة) الرابط: يؤدي الإجراءان إلى امتصاص فائض السيولة.', part)).toBe(true);
+  });
 });
 
 describe('partMarkdown', () => {
