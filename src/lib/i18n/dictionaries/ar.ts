@@ -476,6 +476,8 @@ export const ar: Dictionary = {
     notMarkedBadge: 'غير مصحَّح',
     whyWrong: 'لماذا جوابي خاطئ؟ اسأل زكي',
     passageTitle: 'النص',
+    documentsTitle: 'المستندات',
+    documentsAsText: 'المستندات نصًّا',
     nextQuestion: 'السؤال التالي',
     difficulty: 'الصعوبة',
     difficultyEasy: 'سهل',

@@ -453,6 +453,8 @@ export const fr: Dictionary = {
     notMarkedBadge: 'Non corrigé',
     whyWrong: 'Pourquoi ma réponse est fausse ? Demande à Zaki',
     passageTitle: 'Le texte',
+    documentsTitle: 'Les documents',
+    documentsAsText: 'Les documents en texte',
     nextQuestion: 'Question suivante',
     difficulty: 'Difficulté',
     difficultyEasy: 'Facile',

@@ -476,6 +476,8 @@ export const en = {
     notMarkedBadge: 'Not marked',
     whyWrong: 'Why is my answer wrong? Ask Zaki',
     passageTitle: 'The text',
+    documentsTitle: 'The documents',
+    documentsAsText: 'The documents as text',
     nextQuestion: 'Next question',
     difficulty: 'Difficulty',
     difficultyEasy: 'Easy',

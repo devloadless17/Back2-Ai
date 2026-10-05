@@ -179,15 +179,35 @@ export function PaperPassage({
 }) {
   const { t } = useI18n();
   const visiblePassage = studentPassage(passage);
+  const text = (
+    <div className="max-h-[28rem] overflow-y-auto border-t border-rule px-4 py-3">
+      <MathText dir={dir}>{visiblePassage}</MathText>
+    </div>
+  );
+  if (images && images.length > 0) {
+    // The printed documents come first. Their text, read off the page, turns a
+    // map or a table into loose numbers, so it is folded away beneath them.
+    return (
+      <details open className={cn('rounded-lg border border-rule bg-paper-raised', className)}>
+        <summary className="cursor-pointer select-none px-4 py-2.5 text-meta font-medium text-ink">
+          {t.practice.documentsTitle}
+        </summary>
+        <Figures images={images} className="border-t border-rule px-4 py-3" />
+        <details className="border-t border-rule">
+          <summary className="cursor-pointer select-none px-4 py-2 text-meta text-ink-muted">
+            {t.practice.documentsAsText}
+          </summary>
+          {text}
+        </details>
+      </details>
+    );
+  }
   return (
     <details open className={cn('rounded-lg border border-rule bg-paper-raised', className)}>
       <summary className="cursor-pointer select-none px-4 py-2.5 text-meta font-medium text-ink">
         {t.practice.passageTitle}
       </summary>
-      <div className="max-h-[28rem] overflow-y-auto border-t border-rule px-4 py-3">
-        <MathText dir={dir}>{visiblePassage}</MathText>
-      </div>
-      {images && images.length > 0 ? <Figures images={images} className="border-t border-rule px-4 py-3" /> : null}
+      {text}
     </details>
   );
 }
@@ -251,7 +271,8 @@ function Figures({ images, className }: { images: string[]; className?: string }
              * a crop it shrank to an unreadable thumbnail, so a page gets the
              * full width. Every figure opens at full size on a tap.
              */
-            const wholePage = /^\/figures\/.+-p\d+\.\w+$/.test(key);
+            // `/geo-docs/…-pN` is a geography paper's document page, cut as printed.
+            const wholePage = /^\/(?:figures|geo-docs)\/.+-p\d+\.\w+$/.test(key);
             /*
              * Three kinds of key, and the distinction is about ownership.
              *
