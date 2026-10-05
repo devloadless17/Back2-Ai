@@ -139,6 +139,22 @@ export default async function ExamCyclePage({
     return passage && !first.includes(passage.replace(/\s+/g, '').slice(0, 60)) ? passage : null;
   })();
 
+  /*
+   * A paper of documents: geography, civics, economics print every document
+   * first and then ask about them, and every question here carries the same
+   * extract. Their pictures are stored on question 1, and shown under it they
+   * came after a question that reads them. They go with the documents' text
+   * instead; a later question's own picture goes above its text.
+   */
+  const sharedDocuments =
+    paperPassage !== null &&
+    paperQuestions.every(
+      (q) => (q.sourcePassage ?? '').replace(/\s+/g, '') === paperPassage.replace(/\s+/g, ''),
+    );
+  const paperFigures = sharedDocuments ? (visualKeys.get(paperQuestions[0]!.id) ?? []) : [];
+  const figuresOf = (id: string) =>
+    sharedDocuments && id === paperQuestions[0]!.id ? [] : (visualKeys.get(id) ?? []);
+
   return (
     <>
       <TutorAnchor label={cycle.title} subjectId={cycle.subject.id} />
@@ -213,7 +229,7 @@ export default async function ExamCyclePage({
               the paper carries the same extract, so it is not repeated. */}
           {paperPassage ? (
             <div className="px-5 pt-5">
-              <PaperPassage passage={paperPassage} dir={paperDir} />
+              <PaperPassage passage={paperPassage} dir={paperDir} images={paperFigures} />
             </div>
           ) : null}
           {/* One sheet for the whole paper. The `ruled` rhythm separates the
@@ -241,7 +257,8 @@ export default async function ExamCyclePage({
                     <QuestionBody
                       contentText={parts.intro}
                       contentLatex={parts.intro}
-                      images={visualKeys.get(question.id) ?? []}
+                      images={figuresOf(question.id)}
+                      imagesFirst={sharedDocuments}
                       dir={paperDir}
                     />
                     {/* One block per printed part, its marks beside it and its
@@ -286,7 +303,8 @@ export default async function ExamCyclePage({
                   <QuestionBody
                     contentText={question.contentText}
                     contentLatex={question.contentLatex}
-                    images={visualKeys.get(question.id) ?? []}
+                    images={figuresOf(question.id)}
+                    imagesFirst={sharedDocuments}
                     dir={paperDir}
                   />
                 )}

@@ -164,10 +164,18 @@ export function PaperPassage({
   passage,
   dir,
   className,
+  images,
 }: {
   passage: string;
   dir?: 'ltr' | 'rtl';
   className?: string;
+  /**
+   * The documents' pictures, for a paper whose documents serve every question
+   * (geography, civics): shown with the documents' text, before question 1,
+   * as the paper prints them — not after the first question that happens to
+   * carry them.
+   */
+  images?: string[] | null;
 }) {
   const { t } = useI18n();
   const visiblePassage = studentPassage(passage);
@@ -179,6 +187,7 @@ export function PaperPassage({
       <div className="max-h-[28rem] overflow-y-auto border-t border-rule px-4 py-3">
         <MathText dir={dir}>{visiblePassage}</MathText>
       </div>
+      {images && images.length > 0 ? <Figures images={images} className="border-t border-rule px-4 py-3" /> : null}
     </details>
   );
 }
@@ -200,6 +209,7 @@ export function QuestionBody({
   className,
   dir,
   passage,
+  imagesFirst = false,
 }: {
   contentText: string;
   contentLatex?: string | null;
@@ -209,6 +219,12 @@ export function QuestionBody({
   dir?: 'ltr' | 'rtl';
   /** The paper's extract, for a question asked about one. See `PaperPassage`. */
   passage?: string | null;
+  /**
+   * The pictures above the text rather than under it: they are documents the
+   * question is asked about (geography, civics), so the question must not
+   * come before the document it reads.
+   */
+  imagesFirst?: boolean;
 }) {
   const body = bodyToRender(contentLatex, contentText);
   return (
@@ -216,10 +232,17 @@ export function QuestionBody({
       {passage?.trim() && passageMissingFrom(passage, body) ? (
         <PaperPassage passage={passage} dir={dir} className="mb-4" />
       ) : null}
+      {imagesFirst && images && images.length > 0 ? <Figures images={images} className="mb-4" /> : null}
       <MathText dir={dir}>{body}</MathText>
 
-      {images && images.length > 0 && (
-        <div className="mt-4 flex flex-wrap gap-3">
+      {!imagesFirst && images && images.length > 0 && <Figures images={images} className="mt-4" />}
+    </div>
+  );
+}
+
+function Figures({ images, className }: { images: string[]; className?: string }) {
+  return (
+        <div className={cn('flex flex-wrap gap-3', className)}>
           {images.map((key) => {
             const src = key.startsWith('http') || key.startsWith('/') ? key : `/api/files/${key}`;
             /*
@@ -247,7 +270,5 @@ export function QuestionBody({
             return <FigureViewer key={key} src={src} wide={wholePage} />;
           })}
         </div>
-      )}
-    </div>
   );
 }
