@@ -1,0 +1,54 @@
+[
+ {
+  "paper": "se/2008 1/chem_en.pdf",
+  "index": 1,
+  "label": "3",
+  "image": "/answer-figures/ac465ce6e884-sekey-p3-e1-3.webp",
+  "page": 3,
+  "box": [
+   114.5,
+   292.6,
+   483.0,
+   417.2
+  ]
+ },
+ {
+  "paper": "se/2008 1/chem_fr.pdf",
+  "index": 1,
+  "label": "3",
+  "image": "/answer-figures/298b78d2e0b3-sekey-p3-e1-3.webp",
+  "page": 3,
+  "box": [
+   114.5,
+   321.4,
+   483.0,
+   446.0
+  ]
+ },
+ {
+  "paper": "se/2011 2/chem_en.pdf",
+  "index": 1,
+  "label": "1",
+  "image": "/answer-figures/7622f978d9ea-sekey-p3-e1-1.webp",
+  "page": 3,
+  "box": [
+   114.5,
+   170.9,
+   483.1,
+   212.8
+  ]
+ },
+ {
+  "paper": "se/2011 2/chem_fr.pdf",
+  "index": 1,
+  "label": "1",
+  "image": "/answer-figures/33d92774be3e-sekey-p3-e1-1.webp",
+  "page": 3,
+  "box": [
+   114.5,
+   170.9,
+   483.1,
+   212.8
+  ]
+ }
+]

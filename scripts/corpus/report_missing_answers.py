@@ -58,7 +58,12 @@ SUBJECT = [('chem', 'Chemistry'), ('chim', 'Chemistry'), ('phy', 'Physics'), ('m
 
 
 def subject_of(paper):
-    name = paper.rsplit('/', 1)[-1].lower()
+    # `paper_parts.py` already classified the paper. A biology paper printed
+    # in French is Biology, not French; deriving this report from its filename
+    # previously sent the manual repair queue to the wrong subject owner.
+    if isinstance(paper, dict) and paper.get('subject'):
+        return str(paper['subject']).title()
+    name = (paper['paper'] if isinstance(paper, dict) else paper).rsplit('/', 1)[-1].lower()
     for key, label in SUBJECT:
         if key in name:
             return label
@@ -95,7 +100,7 @@ def main():
     for p in papers:
         paper = p['paper']
         seen.add(paper)
-        subj = subject_of(paper)
+        subj = subject_of(p)
         if paper in NOT_IN_ORIGINAL:
             gone[subj].append(f'- {paper}: whole paper — {NOT_IN_ORIGINAL[paper]}')
             totals['papers not in the original'] += 1
