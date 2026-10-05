@@ -102,6 +102,10 @@ def boxes(page):
             if (b[1] - a[1] > 20 and abs(a[0] - b[0]) <= 3 and abs(a[2] - b[2]) <= 3
                     and post_at(a[0], a[1], b[3]) and post_at(a[2], a[1], b[3])):
                 out.append((min(a[0], b[0]), a[1], max(a[2], b[2]), b[3]))
+    # Kept inside the page: a frame drawn past its edge (ls/2008 2/bio_fr.pdf)
+    # cannot be cropped.
+    w, h = float(page.width), float(page.height)
+    out = [(max(0.0, b[0]), max(0.0, b[1]), min(w, b[2]), min(h, b[3])) for b in out]
     return [b for b in out if b[2] - b[0] > 40 and b[3] - b[1] > 20]
 
 
@@ -141,8 +145,15 @@ def region_for(page, cap, lo, hi):
     foot = max([bottom] + [g[3] for g in graphics if bottom - 2 <= g[3] <= bottom + 14 and g[1] < top])
     b = (min(g[0] for g in taken + [(x0, 0, x1, 0)]), min(g[1] for g in taken),
          max(g[2] for g in taken + [(x0, 0, x1, 0)]), foot)
+    b = (max(0.0, b[0]), max(0.0, b[1]), min(float(page.width), b[2]), min(float(page.height), b[3]))
     if b[3] - b[1] < 30:
         return None
+    # Nor one that slices through a drawing: a table beside the figure, half
+    # inside the cut (ls/2015 2/bio_fr.pdf Document 1 took half of Document 2).
+    for g in graphics:
+        meets = g[0] < b[2] - 3 and g[2] > b[0] + 3 and g[1] < b[3] - 3 and g[3] > b[1] + 3
+        if meets and (g[0] < b[0] - 3 or g[2] > b[2] + 3 or g[1] < b[1] - 3 or g[3] > b[3] + 3):
+            return None
     # Words in the cut that no drawing covers, other than the caption, are the
     # exercise's own prose set beside the figure (ls/2019/bio_en.pdf Document 2).
     area = (min(g[0] for g in taken), min(g[1] for g in taken), max(g[2] for g in taken), max(g[3] for g in taken))
@@ -163,21 +174,48 @@ def clear_of_text(page, box, pad=3):
     """The box with a little white margin, kept off the text lines just above and below it."""
     x0, top, x1, bottom = box
     top, bottom = top - pad, bottom + pad
+    left, right = x0 - pad, x1 + pad
     for w in page.extract_words():
         wt, wb = float(w['top']), float(w['bottom'])
+        wx0, wx1 = float(w['x0']), float(w['x1'])
+        if wb > box[1] and wt < box[3]:
+            # beside the box, at its height: a line of the page's own text
+            # reaching into it from one side (lh/2021 2/bio_fr.pdf Document 2)
+            if wx0 < box[0] < wx1 and (wx0 + wx1) / 2 < box[0]:
+                left = max(left, wx1 + 0.5)
+            if wx0 < box[2] < wx1 and (wx0 + wx1) / 2 > box[2]:
+                right = min(right, wx0 - 0.5)
         if float(w['x1']) < x0 or float(w['x0']) > x1:
             continue
         if wb > top and wt < box[1] and (wt + wb) / 2 < box[1]:
             top = max(top, wb + 0.5)  # a line above, mostly outside
         if wt < bottom and wb > box[3] and (wt + wb) / 2 > box[3]:
             bottom = min(bottom, wt - 0.5)  # a line below, mostly outside
-    return x0 - pad, top, x1 + pad, bottom
+    return left, top, right, bottom
 
 
-def cut(pdf_path, page_index, box, name, folder=FIGURES):
+def strays(page, box, cap):
+    """Words of the page's own text on the caption's line inside the cut, other
+    than the caption: the end of a sentence set beside it ("n de prévenir le",
+    lh/2021 2/bio_fr.pdf Document 2). They are painted out."""
+    top, x0, x1, bottom = cap[:4]
+    out = []
+    for w in page.extract_words():
+        wt, wb, wx0, wx1 = float(w['top']), float(w['bottom']), float(w['x0']), float(w['x1'])
+        touches = wx1 > box[0] and wx0 < box[2] and wb > box[1] and wt < box[3]
+        if touches and wb > top and wt < bottom and (wx1 < x0 - 1 or wx0 > x1 + 1):
+            out.append((wx0 - 1, wt - 2, wx1 + 1, wb + 2))
+    return out
+
+
+def cut(pdf_path, page_index, box, name, folder=FIGURES, blank=()):
     import pypdfium2 as pdfium
+    from PIL import ImageDraw
     doc = pdfium.PdfDocument(str(pdf_path))
     img = doc[page_index].render(scale=SCALE).to_pil()
+    draw = ImageDraw.Draw(img)
+    for b in blank:
+        draw.rectangle([b[0] * SCALE, b[1] * SCALE, b[2] * SCALE, b[3] * SCALE], fill='white')
     crop = img.crop((max(0, box[0] * SCALE), max(0, box[1] * SCALE), box[2] * SCALE, box[3] * SCALE))
     folder.mkdir(parents=True, exist_ok=True)
     crop.save(folder / name, 'WEBP', quality=88)
@@ -281,7 +319,7 @@ def main():
                             for c in caps:
                                 got = region_for(page, c, lo, hi)
                                 if got:
-                                    hit = (s['page'] - 1, page, got)
+                                    hit = (s['page'] - 1, page, got, c)
                                     break
                             if hit:
                                 break
@@ -289,7 +327,8 @@ def main():
                         if not hit:
                             skipped.append(f'{where}: not found on the page')
                             continue
-                        page_index, page, (kind, box) = hit
+                        page_index, page, (kind, box), cap = hit
+                        blank = strays(page, box, cap) if kind == 'figure' else []
                         name = (f"{p['sha256'][:12]}-doc-p{page_index + 1}-e{e['index']}-"
                                 f"{re.sub(r'[^a-z0-9]+', '-', label.lower()).strip('-')}.webp")
                         image = f'![{label}](/answer-figures/{name})'
@@ -302,9 +341,9 @@ def main():
                                      'page': page_index + 1, 'box': [round(v, 1) for v in box], 'image': name,
                                      'dropped': dropped[:300]})
                         if args.write:
-                            cut(pdf_path, page_index, clear_of_text(page, box), name)
+                            cut(pdf_path, page_index, clear_of_text(page, box), name, blank=blank)
                         elif args.preview:
-                            cut(pdf_path, page_index, clear_of_text(page, box), name, Path(args.preview))
+                            cut(pdf_path, page_index, clear_of_text(page, box), name, Path(args.preview), blank=blank)
                     holder[key] = text
     for d in done:
         print(f"cut {d['kind']:6} {d['paper']} ex{d['ordinal']} {d['label']} p{d['page']} {d['box']}"

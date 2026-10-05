@@ -113,6 +113,7 @@
     "corpus:clean-passages": "node --conditions=react-server --env-file=.env --import tsx scripts/corpus/clean-exam-passages.ts",
     "corpus:passage-reextract": "node --conditions=react-server --env-file=.env --import tsx scripts/corpus/apply-passage-reextract.ts",
     "corpus:paper-parts": "node --conditions=react-server --env-file=.env --import tsx scripts/corpus/load-paper-parts.ts",
+    "corpus:text-fixes": "node --env-file=.env --import tsx scripts/corpus/load-text-fixes.ts",
     "corpus:hide-accommodation": "node --conditions=react-server --env-file=.env --import tsx scripts/corpus/hide-accommodation-papers.ts",
     "corpus:fix-sessions": "node --conditions=react-server --env-file=.env --import tsx scripts/corpus/fix-cycle-sessions.ts"
   },
