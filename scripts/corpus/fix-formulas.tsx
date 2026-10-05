@@ -62,6 +62,19 @@ function repair(text: string): string {
     }
     return all;
   });
+  // A multi-line $$ block the page's Markdown reads only with its fences on
+  // lines of their own ("4a $$\begin{array}…\end{array}$$").
+  const pieces = out.split('$$');
+  if (pieces.length % 2 === 1) {
+    for (let k = 1; k < pieces.length; k += 2) {
+      const body = pieces[k]!;
+      if (!body.includes('\n') || !draws(body.trim(), true)) continue;
+      if (!/(^|\n)[ \t]*$/.test(pieces[k - 1]!)) pieces[k - 1] = pieces[k - 1]!.replace(/[ \t]*$/, '\n');
+      if (!/^[ \t]*(\n|$)/.test(pieces[k + 1]!)) pieces[k + 1] = '\n' + pieces[k + 1]!.replace(/^[ \t]*/, '');
+      pieces[k] = `\n${body.trim()}\n`;
+    }
+    out = pieces.join('$$');
+  }
   out = out.replace(/^(0[.,]\d+) &[ 	]*$/gm, '($1 pt)'); // a lone mark
   out = out.replace(/^(\d+(?:\.\d+)*[a-z]?) &[ 	]*$/gm, '$1 —');
   return out;
